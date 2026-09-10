@@ -1,0 +1,489 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Liga ─────────────────────────────────────────────────────────────────────
+
+model Liga {
+  id           Int       @id @default(autoincrement())
+  slug         String    @unique
+  nome         String
+    subtitulo    String?
+    descricao    String?
+    regulamento  String?
+    premiacao    String?
+    quantidadeEquipes Int?
+    formato      String?
+    faseEliminatoria String? @default("NENHUMA")
+    inscricoesAbertas Boolean @default(true)
+    categoriasConfig String?
+    logoUrl      String?
+  capaUrl      String?
+  corTematica  String    @default("#0F2C52")
+    status       String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA
+    organizadorId String?
+    dataInicio   DateTime?
+  dataFim      DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  equipes             Equipe[]
+  partidas            Partida[]
+  classificacoesEliminatoria ClassificacaoEliminatoria[]
+  premiacoes          Premiacao[]
+  galeria             Midia[]
+  mensagens           Mensagem[]
+  candidaturasEquipe  CandidaturaEquipe[]
+  candidaturasQuadra  CandidaturaQuadra[]
+    inscricoes          InscricaoCampeonato[]
+    convitesEquipe      ConviteEquipe[]
+
+    @@index([organizadorId])
+  }
+
+// ─── Equipe ───────────────────────────────────────────────────────────────────
+
+model Equipe {
+  id              Int      @id @default(autoincrement())
+  nome            String
+  logoUrl         String?
+  corHex          String?
+  categoria       String   // FEMININO | FEMININO_MASTER | MISTO | MASCULINO | MASCULINO_MASTER
+  serie           String   @default("PRATA") // OURO | PRATA
+  ligaId          Int
+  liga            Liga     @relation(fields: [ligaId], references: [id])
+  // ── campos de inscrição ──
+  slug            String?  @unique
+  statusEquipe    String   @default("ATIVA") // PENDENTE | ATIVA | INATIVA
+  inscricaoAtiva  Boolean  @default(true)
+  diasDisponiveis String?  // JSON array
+  horarios        String?  // JSON object
+  quadraInfo      String?  // JSON object
+  criadoEm        DateTime @default(now())
+
+  jogadores         Jogador[]
+  partidasComoA     Partida[]             @relation("EquipeA")
+  partidasComoB     Partida[]             @relation("EquipeB")
+  sumulaPresencas   SumulaPresenca[]
+  classificacao     ClassificacaoEntrada?
+  classificacoesEliminatoria ClassificacaoEliminatoria[]
+  candidatura       CandidaturaEquipe?
+  inscricoes        InscricaoCampeonato[]
+
+  @@unique([nome, ligaId, categoria, serie])
+}
+
+model InscricaoCampeonato {
+  id           String   @id @default(cuid())
+  ligaId       Int
+  equipeId     Int
+  status       String   @default("SOLICITADA") // SOLICITADA | APROVADA | REJEITADA
+  observacao   String?
+  criadaEm     DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
+
+  liga   Liga   @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  equipe Equipe @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+
+  @@unique([ligaId, equipeId])
+  @@index([equipeId])
+}
+
+model ConviteEquipe {
+  id                   String   @id @default(uuid()) @db.Uuid
+  token                String   @unique @db.Uuid
+  ligaId               Int
+  organizadorId        String
+  email                String
+  nomeEquipe           String?
+  mensagem             String?
+  status               String   @default("ENVIADO")
+  candidaturaEquipeId  String?
+  aceitoEm             DateTime?
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
+
+  liga                 Liga @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  candidaturaEquipe    CandidaturaEquipe? @relation(fields: [candidaturaEquipeId], references: [id], onDelete: SetNull)
+
+  @@index([ligaId])
+  @@index([organizadorId])
+  @@index([email])
+}
+
+// ─── Jogador ──────────────────────────────────────────────────────────────────
+
+model Jogador {
+  id                  Int       @id @default(autoincrement())
+  nome                String
+  fotoUrl             String?
+  posicao             String?
+  numero              Int?
+  equipeId            Int
+  equipe              Equipe    @relation(fields: [equipeId], references: [id])
+  // ── campos de auto-cadastro ──
+  cpf                 String?
+  documentoTipo       String?
+  documentoNumero     String?
+  dataNascimento      DateTime?
+  telefone            String?
+  telefoneEmergencia  String?
+  fotoRostoUrl        String?
+  documentosUrls      String?
+  qrCodeToken         String?   @unique
+  qrCodeGeradoEm      DateTime?
+  autoRegistrado      Boolean   @default(false)
+  banido              Boolean   @default(false)
+  criadoEm            DateTime  @default(now())
+
+  presencas        SumulaPresenca[]
+  destaquePartidas DestaquesPartida[]
+  votosRecebidos   VotoMVP[]
+  ocorrencias      OcorrenciaPartida[]
+}
+
+// ─── Árbitro ──────────────────────────────────────────────────────────────────
+
+model Arbitro {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  email       String   @unique
+  telefone    String?
+  cref        String?
+  diplomaUrl  String?
+  aprovado    Boolean  @default(false)
+  criadoEm    DateTime @default(now())
+
+  partidas            EscalaArbitro[]
+  candidaturaArbitro  CandidaturaArbitro?
+}
+
+model CandidaturaPartidaArbitro {
+  id                    String             @id @default(cuid())
+  partidaId             Int
+  candidaturaArbitroId  String
+  status                String             @default("SOLICITADA")
+  criadoEm              DateTime           @default(now())
+  decididoEm            DateTime?
+
+  partida               Partida            @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+  candidatura           CandidaturaArbitro  @relation(fields: [candidaturaArbitroId], references: [id], onDelete: Cascade)
+
+  @@unique([partidaId, candidaturaArbitroId])
+  @@index([partidaId, status])
+  @@index([candidaturaArbitroId, status])
+}
+
+model EscalaArbitro {
+  id        Int     @id @default(autoincrement())
+  partidaId Int
+  arbitroId Int
+  cargo     String  // PRIMEIRO_ARBITRO | SEGUNDO_ARBITRO
+  partida   Partida @relation(fields: [partidaId], references: [id])
+  arbitro   Arbitro @relation(fields: [arbitroId], references: [id])
+
+  @@unique([partidaId, cargo])
+}
+
+// ─── Partida ──────────────────────────────────────────────────────────────────
+
+model Partida {
+  id            Int       @id @default(autoincrement())
+  ligaId        Int
+  liga          Liga      @relation(fields: [ligaId], references: [id])
+  equipeAId     Int
+  equipeBId     Int
+  equipeA       Equipe    @relation("EquipeA", fields: [equipeAId], references: [id])
+  equipeB       Equipe    @relation("EquipeB", fields: [equipeBId], references: [id])
+  categoria     String
+  serie         String
+  rodada        Int
+  status        String    @default("AGENDADA")
+  dataHora      DateTime?
+  localNome     String?
+  localEndereco String?
+
+  setsPorA   Int?
+  setsPorB   Int?
+  pontosPorA Int?
+  pontosPorB Int?
+  vencedorId Int?
+
+  sumulaToken       String?   @unique
+  sumulaTokenExpira DateTime?
+  sumulaSubmetidaEm DateTime?
+  sumulaAprovadaEm  DateTime?
+
+  sets        SetPartida[]
+  escala      EscalaArbitro[]
+  candidaturasArbitro CandidaturaPartidaArbitro[]
+  destaques   DestaquesPartida[]
+  presencas   SumulaPresenca[]
+  ocorrencias OcorrenciaPartida[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([ligaId, categoria, serie, rodada])
+}
+
+// ─── Sets da Partida ──────────────────────────────────────────────────────────
+
+model SetPartida {
+  id        Int     @id @default(autoincrement())
+  partidaId Int
+  numero    Int
+  pontosA   Int
+  pontosB   Int
+  partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+
+  @@unique([partidaId, numero])
+}
+
+// ─── Súmula — Presenças ───────────────────────────────────────────────────────
+
+model SumulaPresenca {
+  id        Int     @id @default(autoincrement())
+  partidaId Int
+  jogadorId Int
+  equipeId  Int
+  presente  Boolean @default(true)
+  numero    Int?    // número de camisa usado nesta partida, quando diferente do cadastro do atleta
+  partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+  jogador   Jogador @relation(fields: [jogadorId], references: [id])
+  equipe    Equipe  @relation(fields: [equipeId], references: [id])
+
+  @@unique([partidaId, jogadorId])
+}
+
+// ─── Súmula — Ocorrências ────────────────────────────────────────────────────
+
+model OcorrenciaPartida {
+  id        Int      @id @default(autoincrement())
+  partidaId Int
+  tipo      String   // CARTAO_AMARELO | CARTAO_VERMELHO | WO | OBSERVACAO
+  descricao String?
+  set       Int?
+  jogadorId Int?     // atleta responsável pelo scout (ponto/ataque/bloqueio/ace), quando aplicável
+  partida   Partida  @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+  jogador   Jogador? @relation(fields: [jogadorId], references: [id])
+}
+
+// ─── Destaques por Partida ────────────────────────────────────────────────────
+
+model DestaquesPartida {
+  id        Int     @id @default(autoincrement())
+  partidaId Int
+  jogadorId Int
+  tipo      String  // MVP | MELHOR_SAQUE | MELHOR_BLOQUEIO
+  partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+  jogador   Jogador @relation(fields: [jogadorId], references: [id])
+
+  @@unique([partidaId, tipo])
+}
+
+// ─── Votação MVP ─────────────────────────────────────────────────────────────
+
+model VotoMVP {
+  id        Int      @id @default(autoincrement())
+  jogadorId Int
+  categoria String
+  serie     String
+  sessaoId  String
+  criadoEm  DateTime @default(now())
+  jogador   Jogador  @relation(fields: [jogadorId], references: [id])
+
+  @@unique([jogadorId, sessaoId])
+}
+
+// ─── Classificação (cache calculado) ─────────────────────────────────────────
+
+model ClassificacaoEntrada {
+  id           Int      @id @default(autoincrement())
+  equipeId     Int      @unique
+  equipe       Equipe   @relation(fields: [equipeId], references: [id])
+  categoria    String
+  serie        String
+  posicao      Int
+  pontos       Int      @default(0)
+  jogos        Int      @default(0)
+  vitorias     Int      @default(0)
+  derrotas     Int      @default(0)
+  setsPro      Int      @default(0)
+  setsContra   Int      @default(0)
+  pontosPro    Int      @default(0)
+  pontosContra Int      @default(0)
+  punicoes     Int      @default(0)
+  atualizadoEm DateTime @updatedAt
+}
+
+model ClassificacaoEliminatoria {
+  id            Int      @id @default(autoincrement())
+  ligaId        Int
+  equipeId      Int
+  organizadorId String
+  origem        String   @default("MANUAL")
+  criadoEm      DateTime @default(now())
+
+  liga   Liga   @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  equipe Equipe @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+
+  @@unique([ligaId, equipeId])
+  @@index([ligaId])
+  @@index([equipeId])
+  @@index([organizadorId])
+}
+
+// ─── Premiação ────────────────────────────────────────────────────────────────
+
+model Premiacao {
+  id        Int     @id @default(autoincrement())
+  ligaId    Int
+  liga      Liga    @relation(fields: [ligaId], references: [id])
+  categoria String
+  serie     String
+  colocacao Int
+  descricao String
+  imagemUrl String?
+}
+
+// ─── Galeria ──────────────────────────────────────────────────────────────────
+
+model Midia {
+  id       Int      @id @default(autoincrement())
+  ligaId   Int
+  liga     Liga     @relation(fields: [ligaId], references: [id])
+  tipo     String   // FOTO | VIDEO
+  url      String
+  titulo   String?
+  tag      String?  // DESTAQUE | RODADA | PREMIACAO
+  criadoEm DateTime @default(now())
+}
+
+// ─── Mural de Mensagens ───────────────────────────────────────────────────────
+
+model Mensagem {
+  id       Int      @id @default(autoincrement())
+  ligaId   Int
+  liga     Liga     @relation(fields: [ligaId], references: [id])
+  autor    String
+  texto    String
+  aprovada Boolean  @default(false)
+  criadoEm DateTime @default(now())
+}
+
+// ─── Usuário Admin ───────────────────────────────────────────────────────────
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  senhaHash String
+  nome      String
+  criadoEm  DateTime @default(now())
+}
+
+// ─── Candidaturas (novo) ─────────────────────────────────────────────────────
+
+model CandidaturaEquipe {
+  id              String    @id @default(cuid())
+  nome            String
+  responsavel     String
+  email           String
+  telefone        String?
+  senhaHash       String?
+  categoria       String
+  serie           String
+  genero          String?
+  categoriaEtaria String?
+  nivel           String?
+  possuiLocalTreino Boolean @default(false)
+  horariosTreino Json?
+  cederQuadra    Boolean   @default(false)
+  temInstagram   Boolean   @default(false)
+  instagram      String?
+  diasDisponiveis String    // JSON array
+  horarios        String    // JSON object
+  quadraInfo      String    // JSON object
+  ligaId          Int
+  liga            Liga      @relation(fields: [ligaId], references: [id])
+  status          String    @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
+  pagamentoId     String?   @unique
+  pagamento       Pagamento? @relation(fields: [pagamentoId], references: [id])
+  equipeId        Int?      @unique
+  equipe          Equipe?   @relation(fields: [equipeId], references: [id])
+  convites        ConviteEquipe[]
+  criadaEm        DateTime  @default(now())
+  atualizadaEm    DateTime  @updatedAt
+}
+
+model CandidaturaArbitro {
+  id           String   @id @default(cuid())
+  nome         String
+  email        String   @unique
+  telefone     String?
+  senhaHash    String?
+  cref         String?
+  diplomaUrl   String?
+  status       String   @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
+  arbitroId    Int?     @unique
+  arbitro      Arbitro? @relation(fields: [arbitroId], references: [id])
+  partidasCandidatadas CandidaturaPartidaArbitro[]
+  criadaEm     DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
+}
+
+model CandidaturaQuadra {
+  id              String   @id @default(cuid())
+  nome            String
+  responsavel     String
+  email           String
+  telefone        String?
+  senhaHash       String?
+  cep             String?
+  endereco        String
+  bairro          String?
+  estrutura       String?
+  horarios        String?
+  fotosUrls       String?
+  cobertura       Boolean  @default(false)
+  banheiro        Boolean  @default(false)
+  estacionamento  Boolean  @default(false)
+  ligaId          Int?
+  liga            Liga?    @relation(fields: [ligaId], references: [id])
+  status          String   @default("PENDENTE")
+  criadaEm        DateTime @default(now())
+  atualizadaEm    DateTime @updatedAt
+}
+
+model CandidaturaOrganizador {
+  id            String   @id @default(cuid())
+  nome          String
+  email         String   @unique
+  telefone      String?
+  senhaHash     String?
+  organizacao   String
+  cidade        String?
+  plano         String   @default("PRO")
+  status        String   @default("ATIVA")
+  criadaEm      DateTime @default(now())
+  atualizadaEm  DateTime @updatedAt
+}
+
+model Pagamento {
+  id                String    @id @default(cuid())
+  infinitePayId     String?   @unique
+  linkCobranca      String?
+  status            String    @default("AGUARDANDO") // AGUARDANDO | PAGO | CANCELADO | EXPIRADO
+  valor             Float
+  descricao         String
+  webhookPayload    String?
+  pagoEm            DateTime?
+  criadoEm          DateTime  @default(now())
+  candidaturaEquipe CandidaturaEquipe?
+}

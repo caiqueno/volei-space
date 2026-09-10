@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="500" viewBox="0 0 560 500">
+  <title>volei.space — bola</title>
+
+<defs>
+  <linearGradient id="navyGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#06182c"/>
+    <stop offset="55%" stop-color="#010b18"/>
+    <stop offset="100%" stop-color="#0b2745"/>
+  </linearGradient>
+
+  <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#fff3cf"/>
+    <stop offset="28%" stop-color="#e2c082"/>
+    <stop offset="62%" stop-color="#ffad2f"/>
+    <stop offset="100%" stop-color="#8c5b12"/>
+  </linearGradient>
+</defs>
+
+<g id="ball">
+  <circle cx="280" cy="250" r="125" fill="url(#navyGrad)" stroke="#e2c082" stroke-width="7"/>
+
+  <path d="M280 125
+           C320 130 356 147 382 177
+           C352 175 325 184 305 205
+           C291 184 282 157 280 125Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M382 177
+           C405 207 411 242 404 275
+           C373 251 340 240 307 241
+           C315 218 340 191 382 177Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M404 275
+           C392 319 362 352 322 370
+           C317 338 302 308 281 286
+           C315 278 350 274 404 275Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M322 370
+           C281 382 238 377 204 356
+           C225 334 237 306 238 275
+           C255 287 271 291 281 286
+           C302 308 317 338 322 370Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M204 356
+           C170 332 151 299 151 260
+           C182 267 211 257 238 234
+           C244 249 244 263 238 275
+           C237 306 225 334 204 356Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M151 260
+           C148 217 163 182 191 155
+           C213 180 242 193 274 194
+           C252 207 242 220 238 234
+           C211 257 182 267 151 260Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M191 155
+           C214 134 246 123 280 125
+           C282 157 291 184 305 205
+           C291 196 281 193 274 194
+           C242 193 213 180 191 155Z"
+        fill="url(#goldGrad)" stroke="#f0d8a2" stroke-width="3"/>
+
+  <path d="M280 125 C282 157 291 184 305 205" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M382 177 C340 191 315 218 307 241" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M404 275 C350 274 315 278 281 286" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M322 370 C317 338 302 308 281 286" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M204 356 C225 334 237 306 238 275" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M151 260 C182 267 211 257 238 234" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M191 155 C213 180 242 193 274 194" fill="none" stroke="#06182c" stroke-width="9" stroke-linecap="round"/>
+
+  <path d="M207 160 C243 136 286 134 322 148"
+        fill="none" stroke="#ffffff" stroke-opacity="0.45"
+        stroke-width="8" stroke-linecap="round"/>
+</g>
+
+</svg>

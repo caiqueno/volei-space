@@ -1,0 +1,54 @@
+{
+  "name": "luva-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:organizer-flow": "set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node scripts/organizer-flow.test.ts",
+    "test:team-sync": "set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node scripts/team-registration-sync.test.ts",
+    "test:championship-setup": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/championship-setup.test.ts",
+    "test:pricing": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/pricing.test.ts"
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.106.2",
+    "autoprefixer": "^10.5.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^11.18.2",
+    "jose": "^5.9.6",
+    "lucide-react": "^1.21.0",
+    "next": "14.2.18",
+    "nodemailer": "^9.0.1",
+    "qrcode": "^1.5.4",
+    "react": "^18",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "^18",
+    "slugify": "^1.6.9",
+    "uuid": "^11.0.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/uuid": "^10.0.0",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.18",
+    "postcss": "^8.5.15",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.19",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^3.15.0",
+    "typescript": "^5"
+  }
+}

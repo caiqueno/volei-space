@@ -1,0 +1,47 @@
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { supabase } from '@/lib/supabase'
+import { success, error } from '@/lib/api-response'
+import { signPasswordResetToken } from '@/lib/auth'
+import { emailRecuperacaoSenha, sendEmail } from '@/lib/email'
+
+const schema = z.object({
+  email: z.string().email(),
+})
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const parsed = schema.safeParse(body)
+    if (!parsed.success) return error('E-mail inválido', 422)
+
+    const email = parsed.data.email.toLowerCase().trim()
+    const { data: admin } = await supabase
+      .from('Admin')
+      .select('id,email,nome,senhaHash')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (admin) {
+      const token = await signPasswordResetToken({
+        purpose: 'password-reset',
+        adminId: admin.id,
+        email: admin.email,
+        senhaHash: admin.senhaHash,
+      })
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+      const resetUrl = `${baseUrl.replace(/\/$/, '')}/resetar-senha?token=${encodeURIComponent(token)}`
+
+      await sendEmail({
+        to: admin.email,
+        subject: 'Recuperação de senha - volei.space',
+        html: emailRecuperacaoSenha(admin.nome || 'Administrador', resetUrl),
+      })
+    }
+
+    return success({ mensagem: 'Se o e-mail existir na plataforma, enviaremos um link de recuperação.' })
+  } catch (err) {
+    console.error('[auth/forgot-password] erro', err)
+    return error('Não foi possível solicitar recuperação agora', 500)
+  }
+}
