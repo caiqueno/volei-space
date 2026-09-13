@@ -487,3 +487,14 @@ model Pagamento {
   criadoEm          DateTime  @default(now())
   candidaturaEquipe CandidaturaEquipe?
 }
+
+// ─── Interessados (captação landing) ─────────────────────────────────────────
+
+model Interessado {
+  id           String   @id @default(uuid()) @db.Uuid
+  nomeCompleto String
+  email        String   @unique
+  whatsapp     String
+  cidade       String
+  criadoEm     DateTime @default(now())
+}
