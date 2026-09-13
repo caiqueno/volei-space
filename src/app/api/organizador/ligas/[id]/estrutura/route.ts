@@ -28,6 +28,7 @@ type LigaRecord = {
   faseEliminatoria?: string | null
   formato?: string | null
   categoriasConfig?: unknown
+  pagamentoConfirmadoEm?: string | null
 }
 
 type EquipeRecord = {
@@ -72,6 +73,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
   const ligaResult = await getOwnedLiga(ligaId, auth.userId)
   if (ligaResult instanceof Response) return ligaResult
   const liga = ligaResult
+  if (!liga.pagamentoConfirmadoEm) return error('Pagamento pendente para este campeonato.', 403, { code: 'PAGAMENTO_PENDENTE' })
 
   const [equipesResult, gruposResult, vinculosResult, partidasResult] = await Promise.all([
     getApprovedTeams(ligaId),
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const ligaResult = await getOwnedLiga(ligaId, auth.userId)
     if (ligaResult instanceof Response) return ligaResult
     const liga = ligaResult
+    if (!liga.pagamentoConfirmadoEm) return error('Pagamento pendente para este campeonato.', 403, { code: 'PAGAMENTO_PENDENTE' })
 
     const body = await req.json()
     const quantidadeGrupos = Math.max(1, Number(body.quantidadeGrupos ?? liga.quantidadeGrupos ?? 1))
@@ -223,7 +226,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 async function getOwnedLiga(ligaId: number, organizadorId: string): Promise<LigaRecord | Response> {
   const { data, error: ligaErr } = await supabase
     .from('Liga')
-    .select('id,nome,slug,organizadorId,quantidadeEquipes,quantidadeGrupos,nomesGrupos,classificadosPorGrupo,faseEliminatoria,formato,categoriasConfig')
+    .select('id,nome,slug,organizadorId,quantidadeEquipes,quantidadeGrupos,nomesGrupos,classificadosPorGrupo,faseEliminatoria,formato,categoriasConfig,pagamentoConfirmadoEm')
     .eq('id', ligaId)
     .single()
 

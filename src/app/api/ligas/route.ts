@@ -39,6 +39,48 @@ export async function GET(req: NextRequest) {
 
   const { data, error: err } = await query
   if (err) return error('Erro ao buscar campeonatos', 500, err.message)
+
+  // Só para a listagem do próprio organizador (usada no carrossel da home):
+  // anexa local principal e categorias reais em 2 queries em lote (não 1 por
+  // liga), evitando N+1. Não usa Liga.categoriasConfig (taxonomia solta,
+  // preenchida livremente pelo organizador) — as categorias vêm das Equipe
+  // de fato inscritas, garantindo que o badge sempre corresponda a dados
+  // reais e filtráveis em /classificacao.
+  if (organizadorId && Array.isArray(data) && data.length > 0) {
+    const ligaIds = data.map((liga: { id: number }) => liga.id)
+
+    const [{ data: locais }, { data: equipes }] = await Promise.all([
+      supabaseAdmin.from('LigaLocal').select('ligaId,nome,endereco,quadra,ordem').in('ligaId', ligaIds).order('ordem', { ascending: true }),
+      supabaseAdmin.from('Equipe').select('ligaId,categoria,serie').in('ligaId', ligaIds),
+    ])
+
+    const localPorLiga = new Map<number, { nome: string; endereco: string | null; quadra: string | null }>()
+    for (const local of locais ?? []) {
+      if (!localPorLiga.has(local.ligaId)) {
+        localPorLiga.set(local.ligaId, { nome: local.nome, endereco: local.endereco, quadra: local.quadra })
+      }
+    }
+
+    const categoriasPorLiga = new Map<number, Set<string>>()
+    for (const equipe of equipes ?? []) {
+      if (!equipe.categoria) continue
+      const key = `${equipe.categoria}::${equipe.serie ?? ''}`
+      if (!categoriasPorLiga.has(equipe.ligaId)) categoriasPorLiga.set(equipe.ligaId, new Set())
+      categoriasPorLiga.get(equipe.ligaId)!.add(key)
+    }
+
+    const enriched = data.map((liga: { id: number }) => ({
+      ...liga,
+      localPrincipal: localPorLiga.get(liga.id) ?? null,
+      categoriasReais: Array.from(categoriasPorLiga.get(liga.id) ?? []).map((key) => {
+        const [categoria, serie] = key.split('::')
+        return { categoria, serie: serie || null }
+      }),
+    }))
+
+    return success(enriched)
+  }
+
   return success(data)
 }
 

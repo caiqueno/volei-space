@@ -34,7 +34,7 @@ const perfis = [
   { id: 'equipe' as const, titulo: 'Equipe', texto: 'Cadastre sua equipe para participar dos campeonatos.', icon: UsersRound },
   { id: 'arbitro' as const, titulo: 'Árbitro', texto: 'Candidate-se para atuar nas partidas oficiais.', icon: BadgeCheck },
   { id: 'quadra' as const, titulo: 'Fornecedor de quadra', texto: 'Cadastre uma arena, ginásio ou espaço parceiro.', icon: MapPinHouse },
-  { id: 'organizador' as const, titulo: 'Criador de campeonatos', texto: 'Cadastre sua organização para criar e operar campeonatos na volei.space.', icon: CalendarPlus },
+  { id: 'organizador' as const, titulo: 'Criador de campeonatos', texto: 'Crie sua conta para criar e operar campeonatos na volei.space.', icon: CalendarPlus },
 ]
 
 const initial: Record<CadastroTipo, FormState> = {
@@ -85,11 +85,8 @@ const initial: Record<CadastroTipo, FormState> = {
     nome: '',
     email: '',
     telefone: '',
-    instagram: '',
     senha: '',
     confirmarSenha: '',
-    organizacao: '',
-    cidade: '',
   },
   quadra: {
     nome: '',
@@ -342,7 +339,7 @@ export default function CadastroPage() {
             <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg">
               <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="36px" className="object-contain" />
             </span>
-            <span className="font-display text-lg font-black text-[#ffffff]">volei.space</span>
+            <span className="font-display text-lg font-black text-[#ffffff]"> </span>
           </Link>
 
           <p className="mt-6 text-center text-[11px] font-black uppercase tracking-[0.2em] text-luva-amber">{mode === 'cadastro' ? 'Criar acesso' : 'Login'}</p>
@@ -620,8 +617,7 @@ function renderStep(
     return <ArbitroExperiencia form={form} setField={setField} />
   }
   if (tipo === 'organizador') {
-    if (step === 0) return <OrganizadorDados form={form} setField={setField} />
-    return <OrganizadorCampeonato form={form} setField={setField} />
+    return <OrganizadorDados form={form} setField={setField} />
   }
   if (step === 0) return <QuadraDados form={form} setField={setField} />
   if (step === 1) return <QuadraLocal form={form} setField={setField} searchCep={searchCep} cepLoading={cepLoading} cepMessage={cepMessage} />
@@ -901,23 +897,10 @@ function OrganizadorDados({ form, setField }: FieldProps) {
         <input value={String(form.telefone)} onChange={(event) => setField('telefone', formatPhone(event.target.value))} className={inputBase} placeholder="(00) 00000-0000" maxLength={15} />
       </Field>
       <PasswordFields form={form} setField={setField} />
-    </Grid>
-  )
-}
-
-function OrganizadorCampeonato({ form, setField }: FieldProps) {
-  return (
-    <Grid>
-      <Field label="Organização ou marca" required icon={<CalendarPlus size={17} />}>
-        <input required value={String(form.organizacao)} onChange={(event) => setField('organizacao', event.target.value)} className={`${inputBase} [padding-left:2.75rem]`} placeholder="Ex: Liga, assessoria ou clube" />
-      </Field>
-      <Field label="Cidade/Região">
-        <input value={String(form.cidade)} onChange={(event) => setField('cidade', event.target.value)} className={inputBase} placeholder="Cidade de atuação" />
-      </Field>
       <div className="md:col-span-2 rounded-2xl border border-luva-amber/35 bg-luva-amber/10 p-4">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Acesso padrão</p>
         <p className="mt-2 text-sm font-bold leading-6 text-white/82">
-          A conta de criador será ativada sem seleção de plano por enquanto. Assim que o acesso for criado, você poderá cadastrar campeonatos, abrir inscrições e operar suas competições.
+          Sua conta de criador é ativada na hora. Depois de entrar, você completa os dados da sua organização e já pode cadastrar campeonatos, abrir inscrições e operar suas competições.
         </p>
       </div>
     </Grid>
@@ -1305,10 +1288,10 @@ const stepsByTipo = {
     { title: 'Dados pessoais', description: 'Informe seus dados principais para contato.' },
     { title: 'Experiência', description: 'Adicione registro, certificado ou comprovação quando tiver.' },
   ],
-  organizador: [
-    { title: 'Responsável', description: 'Informe dados de acesso e contato.' },
-    { title: 'Organização', description: 'Informe a marca que vai criar e operar campeonatos.' },
-  ],
+  // Só "Responsável" — os dados da organização (nome, cidade, logo) saíram
+  // do cadastro e agora são preenchidos no onboarding pós-login (/painel),
+  // reaproveitando o mesmo schema/validações via OrganizacaoForm.
+  organizador: [{ title: 'Responsável', description: 'Informe dados de acesso e contato.' }],
   quadra: [
     { title: 'Contato', description: 'Identifique a arena e a pessoa responsável.' },
     { title: 'Local', description: 'Informe endereço e horários disponíveis.' },
@@ -1396,15 +1379,7 @@ function payloadByTipo(tipo: CadastroTipo, form: FormState) {
   }
   if (tipo === 'arbitro') return { nome: form.nome, email: form.email, telefone, senha, cref: form.cref, diplomaUrl: form.diplomaUrl }
   if (tipo === 'organizador') {
-    return {
-      nome: form.nome,
-      email: form.email,
-      telefone,
-      senha,
-      organizacao: form.organizacao,
-      cidade: form.cidade,
-      plano: 'PADRAO',
-    }
+    return { nome: form.nome, email: form.email, telefone, senha, plano: 'PADRAO' }
   }
   const quadraHorarioTotal = Math.max(1, Number(form.quadraHorarioTotal || 1))
   const horariosDisponiveis = Array.from({ length: quadraHorarioTotal }, (_, i) => i + 1)

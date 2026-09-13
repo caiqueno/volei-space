@@ -45,7 +45,11 @@ export function Header() {
   const [hydrated, setHydrated] = useState(false)
   const [session, setSession] = useState<HeaderSession | null>(null)
   const panelHref = session?.tipo === 'equipe' ? '/capitao' : session ? '/painel' : null
-  const scopedLinks = useMemo(() => getHeaderLinks(session), [session])
+  const isLegalPage = ['/termos-de-uso', '/politica-de-privacidade', '/politica-de-cookies'].includes(pathname)
+  const scopedLinks = useMemo(
+    () => (isLegalPage && !session ? [] : getHeaderLinks(session)),
+    [isLegalPage, session],
+  )
   const desktopLinks = useMemo(() => {
     if (!panelHref) return scopedLinks
     return scopedLinks.filter((link) => {
@@ -128,11 +132,11 @@ export function Header() {
       <header className="landing-header">
         <div className="landing-header-inner">
           <Link href="/" className="landing-brand">
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl">
-              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="44px" className="object-contain" priority />
+            <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt=" " fill sizes="70px" className="object-contain" priority />
             </span>
             <span>
-              <strong>volei.space</strong>
+              <strong></strong>
             </span>
           </Link>
 
@@ -144,10 +148,8 @@ export function Header() {
           </nav>
 
           <div className="landing-header-actions">
-            <a href="https://www.instagram.com/volei.space/" target="_blank" rel="noreferrer" aria-label="Instagram volei.space">
-              <InstagramIcon size={18} />
-            </a>
-            <Link href="/cadastro?modo=cadastro">Cadastrar</Link>
+             {/*</div></div>Link href="/cadastro?modo=cadastro">Cadastrar</Link> */}
+             <a href="#cadastro-previo">Quero me cadastrar</a>
           </div>
         </div>
       </header>
@@ -162,11 +164,10 @@ export function Header() {
       <>
         <aside className="profile-sidebar">
           <Link href={panelHref} className="profile-sidebar-brand">
-            <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl">
-              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="48px" className="object-contain" priority />
+            <span className="relative h-[45px] w-[135px] shrink-0">
+              <Image src="/brand/volei-space_wordmark_transparente.png" alt=" " fill sizes="135px" className="object-contain object-left" priority />
             </span>
             <span>
-              <strong>volei.space</strong>
               <small>{profileLabel}</small>
             </span>
           </Link>
@@ -217,10 +218,10 @@ export function Header() {
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4">
           <Link href="/portal" className="group flex min-w-0 items-center gap-3">
             <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl transition duration-300 group-hover:scale-105">
-              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="44px" className="object-contain" priority />
+              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="" fill sizes="44px" className="object-contain" priority />
             </span>
             <span className="min-w-0">
-              <span className="block font-display text-lg font-black leading-none text-[#ffffff]">volei.space</span>
+              <span className="block font-display text-lg font-black leading-none text-[#ffffff]"> </span>
             </span>
           </Link>
 

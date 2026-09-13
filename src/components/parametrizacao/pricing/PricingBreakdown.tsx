@@ -1,7 +1,11 @@
 'use client'
 
+import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { formatCents } from '@/lib/pricing'
 import type { ChampionshipPricing, MatchEstimate, PricingLineItem } from '@/lib/pricing'
+import { FloatingLabelInput } from '@/components/ui/floating-label'
 
 // Usado só na Prévia — recebe o pricing/estimativa já calculados pelo
 // SERVIDOR (GET .../setup/previa), que é o valor autoritativo. O wizard usa
@@ -11,11 +15,19 @@ export function PricingBreakdown({
   pricing,
   estimativaPartidas,
   partidasGeradas,
+  ligaId,
+  isValid,
+  alreadyPaid,
 }: {
   pricing: ChampionshipPricing
   estimativaPartidas: MatchEstimate
   partidasGeradas: number
+  ligaId: number
+  isValid: boolean
+  alreadyPaid: boolean
 }) {
+  const router = useRouter()
+  const [cupom, setCupom] = useState('')
   return (
     <div className="creator-modal-section rounded-2xl border p-5">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Investimento estimado</p>
@@ -56,6 +68,35 @@ export function PricingBreakdown({
           <strong className="text-white">Total</strong>
           <strong className="text-luva-amber">{formatCents(pricing.totalCents)}</strong>
         </div>
+      </div>
+
+      <div className="mt-5 border-t border-white/10 pt-5">
+        {alreadyPaid ? (
+          <>
+            <p className="text-sm font-black text-emerald-300">Pagamento confirmado</p>
+            <Link
+              href={`/painel/estrutura?ligaId=${ligaId}`}
+              className="public-primary-action mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black"
+            >
+              Ir para criação de grupos
+            </Link>
+          </>
+        ) : (
+          <>
+            <FloatingLabelInput label="Cupom de desconto (opcional)" value={cupom} onChange={setCupom} />
+            <button
+              type="button"
+              disabled={!isValid}
+              onClick={() => router.push(`/painel/parametrizacao/pagamento?ligaId=${ligaId}&cupom=${encodeURIComponent(cupom)}`)}
+              className="public-primary-action mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Realizar pagamento
+            </button>
+            {!isValid && (
+              <p className="mt-2 text-xs font-semibold text-slate-500">Resolva as pendências acima antes de prosseguir para o pagamento.</p>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

@@ -125,7 +125,14 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
               <SummaryRow label="QR Code" value={previa.recursos.qrCodeEnabled ? 'Ativado' : 'Desativado'} />
             </SummaryCard>
 
-            <PricingBreakdown pricing={previa.pricing} estimativaPartidas={previa.estimativaPartidas} partidasGeradas={previa.partidasGeradas} />
+            <PricingBreakdown
+              pricing={previa.pricing}
+              estimativaPartidas={previa.estimativaPartidas}
+              partidasGeradas={previa.partidasGeradas}
+              ligaId={ligaId}
+              isValid={previa.validation.isValid}
+              alreadyPaid={previa.pagamentoConfirmadoEm != null}
+            />
           </div>
         </div>
       </div>

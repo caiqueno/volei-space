@@ -16,14 +16,15 @@ import { LandingFlowCard } from '@/components/landing/LandingFlowCard'
 import { LandingExperience } from '@/components/landing/LandingExperience'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
 import { LandingMotion } from '@/components/landing/LandingMotion'
+import { LandingInteressadosForm } from '@/components/landing/LandingInteressadosForm'
 
 const instagramUrl = 'https://www.instagram.com/volei.space/'
 
 const stats = [
-  { value: 'Equipes', label: 'Cadastram times e montam elenco', tone: 'captains' },
-  { value: 'Árbitros', label: 'Validam atletas e operam a súmula', tone: 'referees' },
-  { value: 'Quadras', label: 'Oferecem espaços para jogos', tone: 'courts' },
-  { value: 'Organizadores', label: 'Criam campeonatos e gerem inscrições', tone: 'organizers' },
+  { value: 'Equipes', label: 'Cadastram jogadores e buscam vencer!', tone: 'captains' },
+  { value: 'Árbitros', label: 'Operam a súmula digital', tone: 'referees' },
+  { value: 'Torcida', label: 'Acompanham tudo em tempo real', tone: 'courts' },
+  { value: 'Organizadores', label: 'Criam campeonatos de forma atrativa', tone: 'organizers' },
 ]
 
 const features = [
@@ -73,25 +74,24 @@ export default function LandingPage() {
 
         <div className="landing-hero-inner">
           <div className="landing-copy motion-in">
-            <h1 className="landing-title">volei.space</h1>
-            <p className="landing-subtitle">
-              Campeonato amador com agenda pública, tabela ao vivo, rankings, galeria e súmula digital em uma experiência única para atletas e torcida.
+            <img
+                src="/brand/volei-space_wordmark_transparente.png"
+                alt="volei.space"
+                className="landing-logo"
+                /><p className="landing-subtitle">
+              Gerenciamento de campeonatos com calendário de jogos, tabela ao vivo, rankings, galeria e súmula digital em uma experiência única para atletas e torcida.
             </p>
 
-            <div className="landing-actions">
-              <Link href="/cadastro?modo=cadastro" className="landing-primary">
-                Participar da liga
-                <ArrowRight size={18} />
-              </Link>
+           {/*} <div className="landing-actions">
               <Link href="/campeonatos" className="landing-secondary">
                 Ver campeonatos
                 <Trophy size={18} />
               </Link>
               <a href={instagramUrl} target="_blank" rel="noreferrer" className="landing-secondary">
                 <InstagramIcon size={18} />
-                Instagram volei.space
+                Instagram vila.space
               </a>
-            </div>
+            </div>*/}
 
             <div className="landing-role-carousel" aria-label="Perfis da plataforma">
               <div className="landing-role-track">
@@ -117,7 +117,7 @@ export default function LandingPage() {
             <Image src="/brand/landing-season-volleyball.jpg" alt="Partida de vôlei em quadra" fill sizes="(min-width: 1024px) 620px, 100vw" className="object-cover" />
           </div>
           <div className="image-band-copy landing-animate">
-            <h3>Temporada com presença de evento.</h3>
+            <h3>1 com presença de evento.</h3>
             <p>
               Página pública para divulgar campeonatos, abrir inscrições, acompanhar confrontos e transformar cada rodada em memória para atletas e torcida.
             </p>
@@ -165,30 +165,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="landing-cta landing-animate">
-        <div>
-          <h2>Entre no ambiente oficial da volei.space.</h2>
-          <span>Calendário, classificação, rankings, galeria, inscrições, equipes, atletas e súmula digital.</span>
+      <section id="cadastro-previo" className="landing-section landing-animate">
+        <div className="landing-section-head compact landing-animate">
+          <h2>Quero me cadastrar</h2>
         </div>
-        <div className="landing-cta-actions">
-          <Link href="/portal" className="landing-primary">
-            Ver campeonato
-            <Users size={18} />
-          </Link>
-          <Link href="/cadastro?modo=cadastro" className="landing-primary">
-            Cadastrar
-            <ArrowRight size={18} />
-          </Link>
-          <Link href="/campeonatos" className="landing-secondary">
-            Campeonatos
-            <Trophy size={18} />
-          </Link>
-          <a href={instagramUrl} target="_blank" rel="noreferrer" className="landing-secondary">
-            <InstagramIcon size={18} />
-            Ver Instagram
-            <Flame size={18} />
-          </a>
-        </div>
+        <p className="landing-form-intro landing-animate">
+          Deixe seus dados e seja avisado assim que as inscrições do seu campeonato abrirem.
+        </p>
+        <LandingInteressadosForm />
       </section>
     </main>
   )

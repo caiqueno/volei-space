@@ -1,0 +1,173 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
+import { slugify } from '@/utils/slug'
+import { OrganizadorSidebar } from './OrganizadorSidebar'
+import { OrganizacaoForm, type OrganizacaoFormValues } from './OrganizacaoForm'
+import { ChampionshipCarousel } from './ChampionshipCarousel'
+import { EmptyChampionshipCard } from './EmptyChampionshipCard'
+import type { LigaCarouselItem } from './types'
+
+interface Session {
+  tipo: string
+  nome?: string
+  candidaturaId?: string | null
+}
+
+// Orquestrador da nova home do organizador (/painel). Busca perfil da
+// organização + ligas 1x no mount; sidebar e carrossel têm estados
+// independentes entre si (item 36) — aqui só decide QUAL conteúdo mostrar à
+// direita (onboarding / carrossel-empty-state / configurações).
+export function OrganizadorHome({ session, logout }: { session: Session; logout: () => void }) {
+  const router = useRouter()
+  const organizadorId = session.candidaturaId ?? ''
+
+  const [loading, setLoading] = useState(true)
+  const [perfil, setPerfil] = useState<OrganizacaoFormValues | null>(null)
+  const [ligas, setLigas] = useState<LigaCarouselItem[]>([])
+  const [view, setView] = useState<'home' | 'settings'>('home')
+  const [activeChampionshipId, setActiveChampionshipId] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!organizadorId) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+
+    Promise.all([
+      fetch('/api/organizador/perfil', { cache: 'no-store' }).then((r) => r.json()),
+      fetch(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' }).then((r) => r.json()),
+    ])
+      .then(([perfilJson, ligasJson]) => {
+        if (cancelled) return
+        if (perfilJson.data) {
+          setPerfil({
+            organizacao: perfilJson.data.organizacao ?? '',
+            cidade: perfilJson.data.cidade ?? '',
+            logoUrl: perfilJson.data.logoUrl ?? '',
+          })
+        }
+        const ligasData: LigaCarouselItem[] = Array.isArray(ligasJson.data) ? ligasJson.data : []
+        setLigas(ligasData)
+        if (ligasData.length > 0) setActiveChampionshipId((current) => current ?? ligasData[0].id)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [organizadorId])
+
+  function handleOnboardingSaved(values: OrganizacaoFormValues) {
+    // Atualiza o estado local — sem refetch, sem reload (item 10).
+    setPerfil(values)
+  }
+
+  async function criarCampeonato() {
+    if (!organizadorId || creating) return
+    setCreating(true)
+    setFeedback(null)
+    try {
+      const nome = 'Novo campeonato'
+      const slug = `${slugify(nome)}-c${Date.now().toString(36)}`
+      const response = await fetch('/api/ligas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizadorId, nome, slug }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error ?? 'Erro ao criar campeonato')
+      router.push(`/painel/parametrizacao?ligaId=${json.data.id}`)
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Erro ao criar campeonato')
+      setCreating(false)
+    }
+  }
+
+  const organizacaoIncompleta = !loading && !perfil?.organizacao
+  const primeiroNome = (session.nome || '').trim().split(/\s+/)[0] || null
+
+  const pageTitle = organizacaoIncompleta
+    ? 'Complete sua organização'
+    : view === 'settings'
+      ? 'Configurações'
+      : ligas.length === 0
+        ? 'Crie seu primeiro campeonato'
+        : 'Seus campeonatos'
+
+  return (
+    <>
+      <OrganizadorSidebar
+        view={view}
+        onSelectView={setView}
+        organizacaoNome={perfil?.organizacao || null}
+        organizacaoLogoUrl={perfil?.logoUrl || null}
+        onLogout={logout}
+        obfuscated={organizacaoIncompleta}
+      />
+
+      {/* Mesmo padrão de /painel/campeonatos/page.tsx: main.luva-shell.public-dashboard.creator-dashboard
+          sem aside própria — o deslocamento para a .profile-sidebar fixa acontece
+          automaticamente via CSS global (:has(.profile-sidebar) > main). */}
+      <main className="luva-shell public-dashboard creator-dashboard min-h-screen text-white">
+        <section className="border-b border-white/10 bg-[#061426]/95 px-4 py-5">
+          <div className="mx-auto max-w-7xl">
+            <p className="luva-kicker">Painel</p>
+            <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+              <h1 className="font-display text-3xl font-black sm:text-5xl">{pageTitle}</h1>
+              {!organizacaoIncompleta && view === 'home' && ligas.length > 0 && (
+                <button
+                  type="button"
+                  onClick={criarCampeonato}
+                  disabled={creating}
+                  className="inline-flex items-center gap-2 rounded-full bg-luva-amber px-4 py-2.5 text-sm font-black text-[#050914] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Plus size={16} />
+                  {creating ? 'Criando...' : 'Novo Campeonato'}
+                </button>
+              )}
+            </div>
+            {!organizacaoIncompleta && view === 'home' && (
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">
+                Bem-vindo, {primeiroNome ?? perfil?.organizacao}
+                {ligas.length === 0 ? '. Configure nome, datas e inscrições em poucos passos.' : '.'}
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-10">
+          {loading ? (
+            <p className="text-sm font-bold text-white/50">Carregando...</p>
+          ) : organizacaoIncompleta ? (
+            <div className="luva-card mx-auto max-w-lg rounded-2xl p-6 sm:p-8">
+              <OrganizacaoForm mode="onboarding" initialValues={perfil ?? { organizacao: '', cidade: '', logoUrl: '' }} onSaved={handleOnboardingSaved} />
+            </div>
+          ) : view === 'settings' ? (
+            <div className="luva-card mx-auto max-w-lg rounded-2xl p-6 sm:p-8">
+              <OrganizacaoForm mode="settings" initialValues={perfil!} onSaved={handleOnboardingSaved} />
+            </div>
+          ) : (
+            <>
+              {feedback && <p className="mb-4 text-sm font-bold text-red-300">{feedback}</p>}
+              {ligas.length === 0 ? (
+                <div className="mx-auto w-full max-w-xs aspect-[4/5]">
+                  <EmptyChampionshipCard onCreate={criarCampeonato} creating={creating} />
+                </div>
+              ) : (
+                <ChampionshipCarousel ligas={ligas} activeChampionshipId={activeChampionshipId} onActiveChampionshipChange={setActiveChampionshipId} />
+              )}
+            </>
+          )}
+        </section>
+      </main>
+    </>
+  )
+}

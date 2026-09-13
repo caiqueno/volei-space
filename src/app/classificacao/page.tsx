@@ -17,6 +17,7 @@ import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { getMataMataBracket } from '@/lib/mata-mata'
 import { getLeaguePlayerScouts, type PlayerScoutRow } from '@/lib/player-scouts'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { formatCategoriaLabel } from '@/lib/equipe-categoria'
 
 const demoClassificacao = [
   { posicao: 1, equipe: { id: 1, nome: 'Kimura Vôlei', corHex: '#0F2C52', logoUrl: null }, pontos: 9, jogos: 3, vitorias: 3, derrotas: 0, setsPro: 6, setsContra: 1, pontosPro: 170, pontosContra: 132, punicoes: 0 },
@@ -26,12 +27,14 @@ const demoClassificacao = [
 ]
 
 type PageProps = {
-  searchParams?: Promise<{ organizador?: string; ligaId?: string }>
+  searchParams?: Promise<{ organizador?: string; ligaId?: string; categoria?: string; serie?: string }>
 }
 
 export default async function ClassificacaoPage({ searchParams }: PageProps) {
   noStore()
   const params = searchParams ? await searchParams : {}
+  const categoriaFiltro = params.categoria?.trim() || null
+  const serieFiltro = params.serie?.trim() || null
   const scope = isSupabaseConfigured ? await getCreatorLeagueScope(params) : { organizadorId: null, ligas: [], selectedLiga: null }
   let dados: any[] = isSupabaseConfigured ? [] : demoClassificacao
   let groups: ClassificacaoGroup[] = []
@@ -60,13 +63,29 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
       // direto por ligaId já isola corretamente times que jogam em mais de uma liga.
       let query = supabase
         .from('ClassificacaoEntrada')
-        .select('*, equipe:Equipe(id,nome,corHex,logoUrl,ligaId)')
+        .select('*, equipe:Equipe(id,nome,corHex,logoUrl,ligaId,categoria,serie)')
         .order('posicao', { ascending: true })
 
       if (scope.selectedLiga) query = query.eq('ligaId', scope.selectedLiga.id)
 
       const { data } = await query
       dados = data ?? []
+
+      // Filtro opcional por categoria/série (badges do card de campeonato na
+      // home do organizador) — só afeta a tabela principal de classificação
+      // (e, por consequência, os grupos calculados a partir dela). Mata-mata,
+      // pódio e scouts continuam por liga inteira: essas visões não têm hoje
+      // um recorte por categoria no modelo de dados, e não é papel desta
+      // tarefa inventar um — nenhuma regra de cálculo muda, só a listagem.
+      if (categoriaFiltro) {
+        dados = dados.filter((entrada: any) => {
+          const equipeCategoria = entrada.equipe?.categoria ?? null
+          const equipeSerie = entrada.equipe?.serie ?? null
+          if (equipeCategoria !== categoriaFiltro) return false
+          if (serieFiltro && equipeSerie !== serieFiltro) return false
+          return true
+        })
+      }
 
       if (scope.selectedLiga) {
         const [
@@ -163,7 +182,13 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
       <PageHero
         eyebrow={<><BarChart3 size={16} /> Classificação geral</>}
         title={scope.selectedLiga ? `Tabela - ${scope.selectedLiga.nome}` : 'Tabela da liga'}
-        description={scope.organizadorId ? 'Filtre a classificação por campeonato criado na sua conta.' : 'Pontos, vitórias, saldo de sets, punições e campanha da categoria Masculino Ouro.'}
+        description={
+          categoriaFiltro
+            ? `Categoria ${formatCategoriaLabel(categoriaFiltro, serieFiltro)} — ${scope.selectedLiga?.nome ?? ''}`
+            : scope.organizadorId
+              ? 'Filtre a classificação por campeonato criado na sua conta.'
+              : 'Pontos, vitórias, saldo de sets, punições e campanha da categoria Masculino Ouro.'
+        }
         aside={
           <div className="luva-surface rounded-2xl p-5">
             <p className="luva-kicker flex items-center gap-2"><Trophy size={16} /> Líder</p>

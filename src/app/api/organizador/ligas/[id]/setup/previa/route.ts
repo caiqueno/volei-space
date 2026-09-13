@@ -113,6 +113,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     estimativaPartidas,
     partidasGeradas: partidasGeradas ?? 0,
     pricing,
+    pagamentoConfirmadoEm: (liga.pagamentoConfirmadoEm as string | null) ?? null,
     progress,
     sectionStatus: effective,
     validation: {

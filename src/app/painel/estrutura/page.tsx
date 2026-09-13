@@ -18,6 +18,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
+import { LinkInscricaoRapida } from '@/components/painel/LinkInscricaoRapida'
 
 type Equipe = {
   id: number
@@ -104,6 +105,7 @@ function EstruturaContent() {
   const [saving, setSaving] = useState(false)
   const [calendarSaving, setCalendarSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [paymentRequired, setPaymentRequired] = useState(false)
 
   useEffect(() => {
     if (!ligaId) {
@@ -150,7 +152,11 @@ function EstruturaContent() {
     const response = await fetch(`/api/organizador/ligas/${id}/estrutura`, { cache: 'no-store' })
     const payload = await response.json()
     if (!response.ok) {
-      setMessage(payload.error || 'Erro ao carregar estrutura.')
+      if (payload.details?.code === 'PAGAMENTO_PENDENTE') {
+        setPaymentRequired(true)
+      } else {
+        setMessage(payload.error || 'Erro ao carregar estrutura.')
+      }
       setLoading(false)
       return
     }
@@ -314,6 +320,26 @@ function EstruturaContent() {
     )
   }
 
+  if (paymentRequired) {
+    return (
+      <main className="luva-shell public-dashboard min-h-screen px-4 py-10 text-white">
+        <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8">
+          <AlertTriangle className="text-luva-amber" />
+          <h1 className="mt-4 font-display text-3xl font-black">Pagamento pendente</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-300">
+            A criação de grupos e do calendário só fica disponível depois que o pagamento da ativação deste campeonato é confirmado.
+          </p>
+          <Link
+            href={`/painel/parametrizacao/previa?ligaId=${ligaId}`}
+            className="mt-6 inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white"
+          >
+            Ir para a Prévia
+          </Link>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="luva-shell public-dashboard min-h-screen text-white">
       <section className="border-b border-white/10 bg-[#061426]/95 px-4 py-5">
@@ -332,6 +358,8 @@ function EstruturaContent() {
           </div>
         </div>
       </section>
+
+      {ligaId && <LinkInscricaoRapida ligaId={Number(ligaId)} />}
 
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-8 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
         <aside className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6">

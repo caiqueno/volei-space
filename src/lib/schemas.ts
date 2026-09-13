@@ -112,6 +112,40 @@ export const formularioInscricaoConfigSchema = z.object({
   }).partial(),
 }).partial()
 
+// Cadastro rápido de equipe (link único, sem login, já aprovado) — só cobre
+// os campos da parametrização de Inscrições que já têm coluna real no banco
+// (ver mapeamento em src/app/api/inscricao-rapida/route.ts). Requisitos por
+// campo (obrigatório/opcional/desabilitado) vêm de Liga.formularioInscricaoConfig
+// e são checados em runtime na rota, não aqui — este schema só valida forma.
+export const inscricaoRapidaJogadorSchema = z.object({
+  nome: z.string().trim().min(1),
+  numero: z.number().int().min(0).max(999).optional(),
+  posicao: z.string().trim().optional(),
+  fotoUrl: z.string().url().optional().or(z.literal('')),
+  cpf: z.string().trim().optional(),
+  dataNascimento: z.string().optional(),
+  documentoTipo: z.string().trim().optional(),
+  documentoNumero: z.string().trim().optional(),
+})
+
+export const inscricaoRapidaSchema = z.object({
+  ligaId: z.number().int().positive(),
+  nomeEquipe: z.string().trim().min(1),
+  logoUrl: z.string().url().optional().or(z.literal('')),
+  lider: z.string().trim().optional(),
+  tecnico: z.string().trim().optional(),
+  categoria: z.string().trim().optional(),
+  serie: z.string().trim().optional(),
+  jogadores: z.array(inscricaoRapidaJogadorSchema).min(1, 'Cadastre ao menos um jogador'),
+})
+
+export const interessadoSchema = z.object({
+  nomeCompleto: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  whatsapp: z.string().trim().min(1),
+  cidade: z.string().trim().min(1),
+})
+
 export const ligaLocalSchema = z.object({
   nome: z.string().min(1),
   endereco: z.string().optional().or(z.literal('')),
@@ -370,9 +404,20 @@ export const candidaturaOrganizadorSchema = z.object({
   email: z.string().email(),
   telefone: optionalPhone,
   senha: z.string().min(8),
-  organizacao: z.string().min(1),
+  // Não é mais coletado no cadastro — preenchido depois, no onboarding
+  // pós-login (OrganizacaoForm / PATCH /api/organizador/perfil).
+  organizacao: z.string().optional().or(z.literal('')),
   cidade: z.string().optional().or(z.literal('')),
   plano: z.enum(['PADRAO', 'STARTER', 'PRO', 'ELITE']).default('PADRAO'),
+})
+
+// Reaproveitado pelo onboarding pós-login e por Configurações — mesmas
+// regras, mesmo formulário (OrganizacaoForm), só o endpoint muda (PATCH em
+// vez de criar uma candidatura nova).
+export const organizadorPerfilSchema = z.object({
+  organizacao: z.string().min(1, 'Informe o nome da organização.'),
+  cidade: z.string().optional().or(z.literal('')),
+  logoUrl: z.string().url().optional().or(z.literal('')),
 })
 
 export const candidaturaQuadraSchema = z.object({

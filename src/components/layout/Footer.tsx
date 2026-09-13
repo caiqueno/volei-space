@@ -18,7 +18,7 @@ export function Footer() {
               <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="48px" className="object-contain" />
             </span>
             <div>
-              <strong>volei.space</strong>
+              <strong></strong>
             </div>
           </div>
 
@@ -26,7 +26,9 @@ export function Footer() {
             <a href="#temporada">Campeonato</a>
             <a href="#funcionalidades">Funcionalidades</a>
             <a href="#portal-preview">Portal</a>
-            <Link href="/portal">Acessar campeonato</Link>
+            <Link href="/termos-de-uso">Termos</Link>
+            <Link href="/politica-de-privacidade">Privacidade</Link>
+            <Link href="/politica-de-cookies">Cookies</Link>
           </nav>
 
           <a className="landing-footer-social" href="https://www.instagram.com/volei.space/" target="_blank" rel="noreferrer">
@@ -46,12 +48,19 @@ export function Footer() {
             <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="48px" className="object-contain" />
           </span>
           <div>
-            <p className="system-footer-brand-title font-display text-lg font-black">volei.space</p>
+            <p className="system-footer-brand-title font-display text-lg font-black"> </p>
           </div>
         </div>
-        <p className="system-footer-copy max-w-md text-sm font-semibold leading-6 text-slate-200">
-          Calendário, classificação, rankings e cobertura da liga em uma experiência digital rápida e responsiva.
-        </p>
+        <div className="flex max-w-xl flex-col gap-3 md:items-end">
+          <p className="system-footer-copy text-sm font-semibold leading-6 text-slate-200">
+            Calendário, classificação, rankings e cobertura da torneios em uma experiência digital rápida e responsiva.
+          </p>
+          <nav className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-black text-slate-300" aria-label="Documentos legais">
+            <Link className="transition hover:text-white" href="/termos-de-uso">Termos de Uso</Link>
+            <Link className="transition hover:text-white" href="/politica-de-privacidade">Privacidade</Link>
+            <Link className="transition hover:text-white" href="/politica-de-cookies">Cookies</Link>
+          </nav>
+        </div>
       </div>
     </footer>
   )
