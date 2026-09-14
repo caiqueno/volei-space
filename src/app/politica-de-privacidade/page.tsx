@@ -1,10 +1,11 @@
-import type { Metadata } from 'next'
 import { LegalList, LegalNotice, LegalPage, type LegalSection } from '@/components/legal/LegalPage'
+import { createPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Política de Privacidade | volei.space',
-  description: 'Saiba como a volei.space trata e protege dados pessoais.',
-}
+export const metadata = createPageMetadata({
+  title: 'Política de Privacidade',
+  description: 'Saiba como a volei.space coleta, utiliza, armazena e protege dados pessoais conforme a LGPD.',
+  path: '/politica-de-privacidade',
+})
 
 const sections: LegalSection[] = [
   { id: 'escopo', title: 'Escopo e papéis no tratamento', content: <><p>Esta Política explica como a <strong>volei.space</strong> trata dados pessoais em seu site, no cadastro e painel do organizador, nos links de inscrição, portais, súmulas e demais recursos da plataforma.</p><p>A volei.space atua como controladora dos dados necessários à conta do organizador, à contratação, à segurança e à operação própria da plataforma. Quando o organizador define os dados que serão coletados para sua competição, ele tende a atuar como controlador e a volei.space como operadora da infraestrutura, observadas as decisões efetivamente tomadas por cada parte.</p><LegalNotice>Somente organizadores criam contas. Equipes, técnicos e jogadores podem enviar informações por um link de inscrição do campeonato, sem receber conta ou acesso administrativo.</LegalNotice></> },

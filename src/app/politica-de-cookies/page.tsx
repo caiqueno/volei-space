@@ -1,10 +1,11 @@
-import type { Metadata } from 'next'
 import { LegalList, LegalNotice, LegalPage, type LegalSection } from '@/components/legal/LegalPage'
+import { createPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Política de Cookies | volei.space',
-  description: 'Entenda os cookies e recursos de armazenamento local usados pela volei.space.',
-}
+export const metadata = createPageMetadata({
+  title: 'Política de Cookies',
+  description: 'Entenda os cookies e recursos de armazenamento local utilizados pela plataforma volei.space.',
+  path: '/politica-de-cookies',
+})
 
 const sections: LegalSection[] = [
   { id: 'conceito', title: 'O que são cookies', content: <><p>Cookies são pequenos arquivos armazenados pelo navegador para lembrar informações entre acessos. Tecnologias semelhantes, como o armazenamento local do navegador, também podem guardar estados necessários ao funcionamento de uma aplicação.</p><p>Esta Política descreve ambos para oferecer uma visão clara das tecnologias usadas pela volei.space.</p></> },

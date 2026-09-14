@@ -9,6 +9,13 @@ import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/Leag
 import { getApprovedTeams } from '@/lib/championship-operations'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Rankings de vôlei',
+  description: 'Confira os rankings, destaques e desempenho dos atletas nos campeonatos de vôlei.',
+  path: '/rankings',
+})
 
 const demoJogadores = [
   { jogador: { id: 1, nome: 'Lucas Andrade', posicao: 'Ponteiro', equipe: { nome: 'Kimura Vôlei', corHex: '#0F2C52' } }, total: 3, votos: 42 },

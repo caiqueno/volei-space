@@ -1,14 +1,41 @@
 export const dynamic = 'force-dynamic'
 
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, Trophy, UsersRound } from 'lucide-react'
 import { CampeonatoActions } from '@/components/campeonatos/CampeonatoActions'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { createPageMetadata } from '@/lib/seo'
 
 type PageProps = {
   params: Promise<{ slug: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const fallback = createPageMetadata({
+    title: 'Campeonato de vôlei',
+    description: 'Confira informações, participantes, jogos e resultados deste campeonato de vôlei.',
+    path: `/campeonatos/${encodeURIComponent(slug)}`,
+  })
+
+  if (!isSupabaseConfigured) return fallback
+
+  const { data: liga } = await supabase
+    .from('Liga')
+    .select('nome,descricao,subtitulo')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (!liga) return { ...fallback, robots: { index: false, follow: false } }
+
+  return createPageMetadata({
+    title: liga.nome,
+    description: liga.descricao || liga.subtitulo || `Acompanhe jogos, equipes e resultados do campeonato ${liga.nome}.`,
+    path: `/campeonatos/${encodeURIComponent(slug)}`,
+  })
 }
 
 export default async function CampeonatoPage({ params }: PageProps) {

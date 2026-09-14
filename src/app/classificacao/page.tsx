@@ -18,6 +18,13 @@ import { getMataMataBracket } from '@/lib/mata-mata'
 import { getLeaguePlayerScouts, type PlayerScoutRow } from '@/lib/player-scouts'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { formatCategoriaLabel } from '@/lib/equipe-categoria'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Classificação dos campeonatos',
+  description: 'Consulte tabelas, pontuação, vitórias, sets, destaques e classificação dos campeonatos de vôlei.',
+  path: '/classificacao',
+})
 
 const demoClassificacao = [
   { posicao: 1, equipe: { id: 1, nome: 'Kimura Vôlei', corHex: '#0F2C52', logoUrl: null }, pontos: 9, jogos: 3, vitorias: 3, derrotas: 0, setsPro: 6, setsContra: 1, pontosPro: 170, pontosContra: 132, punicoes: 0 },

@@ -1,12 +1,43 @@
 export const dynamic = 'force-dynamic'
 
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, CalendarDays, Medal, ShieldCheck, Trophy, UsersRound } from 'lucide-react'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { createPageMetadata } from '@/lib/seo'
 
 type PageProps = {
   params: Promise<{ slug: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const fallback = createPageMetadata({
+    title: 'Equipe de vôlei',
+    description: 'Confira o perfil, elenco, jogos e desempenho desta equipe de vôlei.',
+    path: `/equipes/${encodeURIComponent(slug)}`,
+  })
+
+  if (!isSupabaseConfigured) return fallback
+
+  const { data: equipe } = await supabase
+    .from('Equipe')
+    .select('nome,categoria,serie,logoUrl')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (!equipe) return { ...fallback, robots: { index: false, follow: false } }
+
+  const contexto = [equipe.categoria, equipe.serie].filter(Boolean).join(' · ')
+  return createPageMetadata({
+    title: equipe.nome,
+    description: contexto
+      ? `Conheça a equipe ${equipe.nome} (${contexto}), seu elenco, jogos e desempenho nos campeonatos.`
+      : `Conheça a equipe ${equipe.nome}, seu elenco, jogos e desempenho nos campeonatos.`,
+    path: `/equipes/${encodeURIComponent(slug)}`,
+    image: equipe.logoUrl || '/brand/banner-oficial.png',
+  })
 }
 
 type Equipe = {

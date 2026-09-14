@@ -17,6 +17,13 @@ import { LandingExperience } from '@/components/landing/LandingExperience'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
 import { LandingMotion } from '@/components/landing/LandingMotion'
 import { LandingInteressadosForm } from '@/components/landing/LandingInteressadosForm'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Gestão de campeonatos de vôlei',
+  description: 'Crie, organize e divulgue campeonatos de vôlei com inscrições, calendário de jogos, classificação, rankings, galeria e súmula digital.',
+  path: '/',
+})
 
 const instagramUrl = 'https://www.instagram.com/volei.space/'
 
@@ -74,6 +81,7 @@ export default function LandingPage() {
 
         <div className="landing-hero-inner">
           <div className="landing-copy motion-in">
+            <h1 className="sr-only">volei.space — Gestão de campeonatos de vôlei</h1>
             <img
                 src="/brand/volei-space_wordmark_transparente.png"
                 alt="volei.space"

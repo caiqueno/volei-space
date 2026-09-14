@@ -15,6 +15,13 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sync'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Portal dos campeonatos',
+  description: 'Acompanhe campeonatos de vôlei, equipes, próximos jogos, resultados e destaques no portal público da volei.space.',
+  path: '/portal',
+})
 
 const demoEquipes = [
   { id: 1, nome: 'Kimura Vôlei', corHex: '#0F2C52', logoUrl: null, jogadores: Array.from({ length: 12 }, (_, id) => ({ id })) },

@@ -4,6 +4,13 @@ import Link from 'next/link'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Campeonatos de vôlei',
+  description: 'Encontre campeonatos de vôlei, confira informações, participantes e inscrições disponíveis na volei.space.',
+  path: '/campeonatos',
+})
 
 const statusOptions = [
   { value: '', label: 'Todos' },

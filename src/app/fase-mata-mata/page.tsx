@@ -9,6 +9,13 @@ import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type Team
 import { getMataMataBracket } from '@/lib/mata-mata'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Fase mata-mata',
+  description: 'Acompanhe as chaves, confrontos e resultados das fases eliminatórias dos campeonatos de vôlei.',
+  path: '/fase-mata-mata',
+})
 
 type PageProps = {
   searchParams?: Promise<{ organizador?: string; ligaId?: string }>

@@ -6,6 +6,13 @@ import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/Leag
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { createPageMetadata } from '@/lib/seo'
+
+export const metadata = createPageMetadata({
+  title: 'Galeria dos campeonatos',
+  description: 'Veja fotos, vídeos, cobertura e momentos dos campeonatos de vôlei publicados na volei.space.',
+  path: '/galeria',
+})
 
 const demoMidias = [
   { id: 1, tipo: 'FOTO', url: '/brand/banner-oficial.png', titulo: 'Abertura da temporada', tag: 'Destaque' },

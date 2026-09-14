@@ -1,10 +1,11 @@
-import type { Metadata } from 'next'
 import { LegalList, LegalNotice, LegalPage, type LegalSection } from '@/components/legal/LegalPage'
+import { createPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Termos de Uso | volei.space',
-  description: 'Condições para acesso e uso da plataforma volei.space.',
-}
+export const metadata = createPageMetadata({
+  title: 'Termos de Uso',
+  description: 'Conheça as condições para acesso e uso seguro e transparente da plataforma volei.space.',
+  path: '/termos-de-uso',
+})
 
 const sections: LegalSection[] = [
   { id: 'aceitacao', title: 'Aceitação dos Termos', content: <><p>Estes Termos regulam o acesso e o uso da plataforma <strong>volei.space</strong>, incluindo o site, o painel do organizador, os portais de campeonatos, súmulas, rankings e demais funcionalidades relacionadas.</p><p>Ao criar uma conta de organizador, configurar ou operar uma competição ou continuar usando a plataforma, você declara que leu e concorda com estes Termos e com a Política de Privacidade.</p></> },
