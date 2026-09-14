@@ -10,7 +10,7 @@ const manrope = Manrope({ subsets: ['latin'] })
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
-    default: 'volei.space | Gestão de campeonatos de vôlei',
+    default: 'volei.space | Crie e gerencie campeonatos de vôlei',
     template: '%s | volei.space',
   },
   description: SITE_DESCRIPTION,
