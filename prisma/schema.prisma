@@ -462,17 +462,18 @@ model CandidaturaQuadra {
 }
 
 model CandidaturaOrganizador {
-  id            String   @id @default(cuid())
-  nome          String
-  email         String   @unique
-  telefone      String?
-  senhaHash     String?
-  organizacao   String
-  cidade        String?
-  plano         String   @default("PRO")
-  status        String   @default("ATIVA")
-  criadaEm      DateTime @default(now())
-  atualizadaEm  DateTime @updatedAt
+  id                String    @id @default(cuid())
+  nome              String
+  email             String    @unique
+  telefone          String?
+  senhaHash         String?
+  organizacao       String
+  cidade            String?
+  plano             String    @default("PRO")
+  status            String    @default("ATIVA")
+  emailVerificadoEm DateTime?
+  criadaEm          DateTime  @default(now())
+  atualizadaEm      DateTime  @updatedAt
 }
 
 model Pagamento {

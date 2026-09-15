@@ -4,8 +4,8 @@ import bcrypt from 'bcryptjs'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { candidaturaOrganizadorSchema } from '@/lib/schemas'
-import { emailOrganizadorAtivado, sendEmail } from '@/lib/email'
-import { setTokenCookie, signPublicToken } from '@/lib/auth'
+import { emailAtivarConta, sendEmail } from '@/lib/email'
+import { signAccountActivationToken } from '@/lib/auth'
 import { duplicateDatabaseMessage, duplicateMessage, findCadastroDuplicate, formatCadastroPhone, normalizeCadastroEmail } from '@/lib/candidatura-duplicates'
 import { errorDetail } from '@/lib/error-detail'
 
@@ -43,21 +43,25 @@ export async function POST(req: NextRequest) {
 
     if (err) throw err
 
+    const activationToken = await signAccountActivationToken({ candidaturaId: data.id, email: cadastro.email })
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+    const activationUrl = `${baseUrl.replace(/\/$/, '')}/ativar-conta?token=${encodeURIComponent(activationToken)}`
+
     try {
       await sendEmail({
         to: cadastro.email,
-        subject: 'Acesso criado - volei.space',
-        html: emailOrganizadorAtivado(cadastro.nome),
+        subject: 'Confirme seu e-mail - volei.space',
+        html: emailAtivarConta(cadastro.nome, activationUrl),
       })
     } catch (emailErr) {
-      console.error('[candidaturas/organizadores] erro ao enviar e-mail de cadastro', emailErr)
+      console.error('[candidaturas/organizadores] erro ao enviar e-mail de ativação', emailErr)
     }
 
-    const token = await signPublicToken({ userId: data.id, email: cadastro.email, nome: cadastro.nome, tipo: 'organizador', status: 'ATIVA' })
-    const cookie = setTokenCookie(token)
-    const res = success({ id: data.id, mensagem: 'Acesso de criador de campeonatos criado com sucesso.' }, 201)
-    res.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<typeof res.cookies.set>[2])
-    return res
+    return success({
+      id: data.id,
+      requerVerificacao: true,
+      mensagem: 'Enviamos um link de confirmação para o seu e-mail. Clique nele para ativar sua conta.',
+    }, 201)
   } catch (err) {
     const detail = errorDetail(err)
     const duplicateError = duplicateDatabaseMessage(detail)

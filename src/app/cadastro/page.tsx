@@ -259,6 +259,13 @@ export default function CadastroPage() {
     setLoading(false)
 
     if (res.ok) {
+      setForms((current) => ({ ...current, [tipo]: initial[tipo] }))
+
+      if (json.data?.requerVerificacao) {
+        setFeedback({ type: 'success', text: json.data?.mensagem ?? 'Verifique seu e-mail para ativar sua conta.' })
+        return
+      }
+
       const currentForm = forms[tipo]
       const session = {
         tipo,
@@ -271,7 +278,6 @@ export default function CadastroPage() {
 
       window.localStorage.setItem('luva_session', JSON.stringify(session))
       setFeedback({ type: 'success', text: json.data?.mensagem ?? 'Cadastro recebido com sucesso.' })
-      setForms((current) => ({ ...current, [tipo]: initial[tipo] }))
       window.location.href = tipo === 'equipe' ? '/capitao' : '/painel'
       return
     }

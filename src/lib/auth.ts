@@ -44,6 +44,12 @@ export type PasswordResetPayload = {
   senhaHash: string
 }
 
+export type AccountActivationPayload = {
+  purpose: 'account-activation'
+  candidaturaId: string
+  email: string
+}
+
 export async function signToken(payload: JWTPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
@@ -104,6 +110,24 @@ export async function verifyPasswordResetToken(token: string): Promise<PasswordR
     const { payload } = await jwtVerify(token, getSecret())
     if (payload.purpose !== 'password-reset') return null
     return payload as unknown as PasswordResetPayload
+  } catch {
+    return null
+  }
+}
+
+export async function signAccountActivationToken(payload: Omit<AccountActivationPayload, 'purpose'>): Promise<string> {
+  return new SignJWT({ ...payload, purpose: 'account-activation' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('24h')
+    .sign(getSecret())
+}
+
+export async function verifyAccountActivationToken(token: string): Promise<AccountActivationPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret())
+    if (payload.purpose !== 'account-activation') return null
+    return payload as unknown as AccountActivationPayload
   } catch {
     return null
   }

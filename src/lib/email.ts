@@ -207,6 +207,22 @@ export function emailQRCodeJogador(nome: string, qrCodeDataUrl: string, equipeNo
   )
 }
 
+export function emailAtivarConta(nome: string, link: string): string {
+  const nomeSeguro = escapeHtml(nome)
+  return layout(
+    'Confirme seu e-mail',
+    'Ative sua conta de criador de campeonatos na volei.space.',
+    `
+      <p style="margin:0 0 16px;font-size:17px;line-height:1.7">Olá, <strong>${nomeSeguro}</strong>.</p>
+      <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#344256">
+        Falta um passo para ativar seu acesso como <strong>criador de campeonatos</strong> na volei.space. Confirme seu e-mail clicando no botão abaixo.
+      </p>
+      ${button('Ativar minha conta', link)}
+      <p style="margin:4px 0 0;color:#5b6b82;font-size:14px;line-height:1.6">Este link expira em 24 horas. Se você não fez esse cadastro, ignore este e-mail.</p>
+    `,
+  )
+}
+
 export function emailRecuperacaoSenha(nome: string, link: string): string {
   const nomeSeguro = escapeHtml(nome)
   return layout(
