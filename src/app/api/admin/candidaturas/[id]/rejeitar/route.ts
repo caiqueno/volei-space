@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireAuth } from '@/lib/auth'
 import { sendEmail, emailRejeicaoCandidatura } from '@/lib/email'
