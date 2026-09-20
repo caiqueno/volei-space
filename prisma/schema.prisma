@@ -11,41 +11,42 @@ datasource db {
 // ─── Liga ─────────────────────────────────────────────────────────────────────
 
 model Liga {
-  id           Int       @id @default(autoincrement())
-  slug         String    @unique
-  nome         String
-    subtitulo    String?
-    descricao    String?
-    regulamento  String?
-    premiacao    String?
-    quantidadeEquipes Int?
-    formato      String?
-    faseEliminatoria String? @default("NENHUMA")
-    inscricoesAbertas Boolean @default(true)
-    categoriasConfig String?
-    logoUrl      String?
-  capaUrl      String?
-  corTematica  String    @default("#0F2C52")
-    status       String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA
-    organizadorId String?
-    dataInicio   DateTime?
-  dataFim      DateTime?
-  criadoEm     DateTime  @default(now())
-  atualizadoEm DateTime  @updatedAt
+  id                Int       @id @default(autoincrement())
+  slug              String    @unique
+  nome              String
+  subtitulo         String?
+  descricao         String?
+  regulamento       String?
+  premiacao         String?
+  quantidadeEquipes Int?
+  formato           String?
+  faseEliminatoria  String?   @default("NENHUMA")
+  inscricoesAbertas Boolean   @default(true)
+  categoriasConfig  String?
+  logoUrl           String?
+  capaUrl           String?
+  corTematica       String    @default("#0F2C52")
+  status            String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA
+  organizadorId     String?
+  dataInicio        DateTime?
+  dataFim           DateTime?
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
 
-  equipes             Equipe[]
-  partidas            Partida[]
+  equipes                    Equipe[]
+  partidas                   Partida[]
   classificacoesEliminatoria ClassificacaoEliminatoria[]
-  premiacoes          Premiacao[]
-  galeria             Midia[]
-  mensagens           Mensagem[]
-  candidaturasEquipe  CandidaturaEquipe[]
-  candidaturasQuadra  CandidaturaQuadra[]
-    inscricoes          InscricaoCampeonato[]
-    convitesEquipe      ConviteEquipe[]
+  premiacoes                 Premiacao[]
+  galeria                    Midia[]
+  mensagens                  Mensagem[]
+  candidaturasEquipe         CandidaturaEquipe[]
+  candidaturasQuadra         CandidaturaQuadra[]
+  inscricoes                 InscricaoCampeonato[]
+  convitesEquipe             ConviteEquipe[]
+  inscricoesRascunho         InscricaoEquipeRascunho[]
 
-    @@index([organizadorId])
-  }
+  @@index([organizadorId])
+}
 
 // ─── Equipe ───────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ model Equipe {
   nome            String
   logoUrl         String?
   corHex          String?
-  categoria       String   // FEMININO | FEMININO_MASTER | MISTO | MASCULINO | MASCULINO_MASTER
+  categoria       String // FEMININO | FEMININO_MASTER | MISTO | MASCULINO | MASCULINO_MASTER
   serie           String   @default("PRATA") // OURO | PRATA
   ligaId          Int
   liga            Liga     @relation(fields: [ligaId], references: [id])
@@ -62,19 +63,20 @@ model Equipe {
   slug            String?  @unique
   statusEquipe    String   @default("ATIVA") // PENDENTE | ATIVA | INATIVA
   inscricaoAtiva  Boolean  @default(true)
-  diasDisponiveis String?  // JSON array
-  horarios        String?  // JSON object
-  quadraInfo      String?  // JSON object
+  diasDisponiveis String? // JSON array
+  horarios        String? // JSON object
+  quadraInfo      String? // JSON object
   criadoEm        DateTime @default(now())
 
-  jogadores         Jogador[]
-  partidasComoA     Partida[]             @relation("EquipeA")
-  partidasComoB     Partida[]             @relation("EquipeB")
-  sumulaPresencas   SumulaPresenca[]
-  classificacao     ClassificacaoEntrada?
+  jogadores                  Jogador[]
+  partidasComoA              Partida[]                   @relation("EquipeA")
+  partidasComoB              Partida[]                   @relation("EquipeB")
+  sumulaPresencas            SumulaPresenca[]
+  classificacao              ClassificacaoEntrada?
   classificacoesEliminatoria ClassificacaoEliminatoria[]
-  candidatura       CandidaturaEquipe?
-  inscricoes        InscricaoCampeonato[]
+  candidatura                CandidaturaEquipe?
+  inscricoes                 InscricaoCampeonato[]
+  inscricoesRascunho         InscricaoEquipeRascunho[]
 
   @@unique([nome, ligaId, categoria, serie])
 }
@@ -88,29 +90,76 @@ model InscricaoCampeonato {
   criadaEm     DateTime @default(now())
   atualizadaEm DateTime @updatedAt
 
-  liga   Liga   @relation(fields: [ligaId], references: [id], onDelete: Cascade)
-  equipe Equipe @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  liga     Liga                     @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  equipe   Equipe                   @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  rascunho InscricaoEquipeRascunho?
 
   @@unique([ligaId, equipeId])
   @@index([equipeId])
 }
 
-model ConviteEquipe {
-  id                   String   @id @default(uuid()) @db.Uuid
-  token                String   @unique @db.Uuid
-  ligaId               Int
-  organizadorId        String
-  email                String
-  nomeEquipe           String?
-  mensagem             String?
-  status               String   @default("ENVIADO")
-  candidaturaEquipeId  String?
-  aceitoEm             DateTime?
-  criadoEm             DateTime @default(now())
-  atualizadoEm         DateTime @updatedAt
+model InscricaoEquipeRascunho {
+  id                    String    @id @default(uuid()) @db.Uuid
+  token                 String    @unique @default(uuid()) @db.Uuid
+  ligaId                Int
+  nomeEquipe            String
+  logoUrl               String?
+  lider                 String?
+  tecnico               String?
+  categoria             String?
+  serie                 String?
+  status                String    @default("RASCUNHO")
+  equipeId              Int?      @unique
+  inscricaoCampeonatoId String?   @unique
+  criadaEm              DateTime  @default(now())
+  atualizadaEm          DateTime  @updatedAt
+  enviadaEm             DateTime?
 
-  liga                 Liga @relation(fields: [ligaId], references: [id], onDelete: Cascade)
-  candidaturaEquipe    CandidaturaEquipe? @relation(fields: [candidaturaEquipeId], references: [id], onDelete: SetNull)
+  liga                Liga                             @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  equipe              Equipe?                          @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+  inscricaoCampeonato InscricaoCampeonato?             @relation(fields: [inscricaoCampeonatoId], references: [id], onDelete: SetNull)
+  jogadores           InscricaoEquipeJogadorRascunho[]
+
+  @@index([ligaId, status])
+}
+
+model InscricaoEquipeJogadorRascunho {
+  id                  String    @id @default(uuid()) @db.Uuid
+  inscricaoRascunhoId String    @db.Uuid
+  jogadorId           Int?      @unique
+  nome                String
+  numero              Int?
+  posicao             String?
+  fotoUrl             String?
+  cpf                 String?
+  dataNascimento      DateTime?
+  documentoTipo       String?
+  documentoNumero     String?
+  criadoEm            DateTime  @default(now())
+  atualizadoEm        DateTime  @updatedAt
+
+  inscricaoRascunho InscricaoEquipeRascunho @relation(fields: [inscricaoRascunhoId], references: [id], onDelete: Cascade)
+  jogador           Jogador?                @relation(fields: [jogadorId], references: [id], onDelete: SetNull)
+
+  @@index([inscricaoRascunhoId, criadoEm])
+}
+
+model ConviteEquipe {
+  id                  String    @id @default(uuid()) @db.Uuid
+  token               String    @unique @db.Uuid
+  ligaId              Int
+  organizadorId       String
+  email               String
+  nomeEquipe          String?
+  mensagem            String?
+  status              String    @default("ENVIADO")
+  candidaturaEquipeId String?
+  aceitoEm            DateTime?
+  criadoEm            DateTime  @default(now())
+  atualizadoEm        DateTime  @updatedAt
+
+  liga              Liga               @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  candidaturaEquipe CandidaturaEquipe? @relation(fields: [candidaturaEquipeId], references: [id], onDelete: SetNull)
 
   @@index([ligaId])
   @@index([organizadorId])
@@ -120,60 +169,61 @@ model ConviteEquipe {
 // ─── Jogador ──────────────────────────────────────────────────────────────────
 
 model Jogador {
-  id                  Int       @id @default(autoincrement())
-  nome                String
-  fotoUrl             String?
-  posicao             String?
-  numero              Int?
-  equipeId            Int
-  equipe              Equipe    @relation(fields: [equipeId], references: [id])
+  id                 Int       @id @default(autoincrement())
+  nome               String
+  fotoUrl            String?
+  posicao            String?
+  numero             Int?
+  equipeId           Int
+  equipe             Equipe    @relation(fields: [equipeId], references: [id])
   // ── campos de auto-cadastro ──
-  cpf                 String?
-  documentoTipo       String?
-  documentoNumero     String?
-  dataNascimento      DateTime?
-  telefone            String?
-  telefoneEmergencia  String?
-  fotoRostoUrl        String?
-  documentosUrls      String?
-  qrCodeToken         String?   @unique
-  qrCodeGeradoEm      DateTime?
-  autoRegistrado      Boolean   @default(false)
-  banido              Boolean   @default(false)
-  criadoEm            DateTime  @default(now())
+  cpf                String?
+  documentoTipo      String?
+  documentoNumero    String?
+  dataNascimento     DateTime?
+  telefone           String?
+  telefoneEmergencia String?
+  fotoRostoUrl       String?
+  documentosUrls     String?
+  qrCodeToken        String?   @unique
+  qrCodeGeradoEm     DateTime?
+  autoRegistrado     Boolean   @default(false)
+  banido             Boolean   @default(false)
+  criadoEm           DateTime  @default(now())
 
-  presencas        SumulaPresenca[]
-  destaquePartidas DestaquesPartida[]
-  votosRecebidos   VotoMVP[]
-  ocorrencias      OcorrenciaPartida[]
+  presencas         SumulaPresenca[]
+  destaquePartidas  DestaquesPartida[]
+  votosRecebidos    VotoMVP[]
+  ocorrencias       OcorrenciaPartida[]
+  inscricaoRascunho InscricaoEquipeJogadorRascunho?
 }
 
 // ─── Árbitro ──────────────────────────────────────────────────────────────────
 
 model Arbitro {
-  id          Int      @id @default(autoincrement())
-  nome        String
-  email       String   @unique
-  telefone    String?
-  cref        String?
-  diplomaUrl  String?
-  aprovado    Boolean  @default(false)
-  criadoEm    DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  nome       String
+  email      String   @unique
+  telefone   String?
+  cref       String?
+  diplomaUrl String?
+  aprovado   Boolean  @default(false)
+  criadoEm   DateTime @default(now())
 
-  partidas            EscalaArbitro[]
-  candidaturaArbitro  CandidaturaArbitro?
+  partidas           EscalaArbitro[]
+  candidaturaArbitro CandidaturaArbitro?
 }
 
 model CandidaturaPartidaArbitro {
-  id                    String             @id @default(cuid())
-  partidaId             Int
-  candidaturaArbitroId  String
-  status                String             @default("SOLICITADA")
-  criadoEm              DateTime           @default(now())
-  decididoEm            DateTime?
+  id                   String    @id @default(cuid())
+  partidaId            Int
+  candidaturaArbitroId String
+  status               String    @default("SOLICITADA")
+  criadoEm             DateTime  @default(now())
+  decididoEm           DateTime?
 
-  partida               Partida            @relation(fields: [partidaId], references: [id], onDelete: Cascade)
-  candidatura           CandidaturaArbitro  @relation(fields: [candidaturaArbitroId], references: [id], onDelete: Cascade)
+  partida     Partida            @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+  candidatura CandidaturaArbitro @relation(fields: [candidaturaArbitroId], references: [id], onDelete: Cascade)
 
   @@unique([partidaId, candidaturaArbitroId])
   @@index([partidaId, status])
@@ -184,7 +234,7 @@ model EscalaArbitro {
   id        Int     @id @default(autoincrement())
   partidaId Int
   arbitroId Int
-  cargo     String  // PRIMEIRO_ARBITRO | SEGUNDO_ARBITRO
+  cargo     String // PRIMEIRO_ARBITRO | SEGUNDO_ARBITRO
   partida   Partida @relation(fields: [partidaId], references: [id])
   arbitro   Arbitro @relation(fields: [arbitroId], references: [id])
 
@@ -220,12 +270,12 @@ model Partida {
   sumulaSubmetidaEm DateTime?
   sumulaAprovadaEm  DateTime?
 
-  sets        SetPartida[]
-  escala      EscalaArbitro[]
+  sets                SetPartida[]
+  escala              EscalaArbitro[]
   candidaturasArbitro CandidaturaPartidaArbitro[]
-  destaques   DestaquesPartida[]
-  presencas   SumulaPresenca[]
-  ocorrencias OcorrenciaPartida[]
+  destaques           DestaquesPartida[]
+  presencas           SumulaPresenca[]
+  ocorrencias         OcorrenciaPartida[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -254,7 +304,7 @@ model SumulaPresenca {
   jogadorId Int
   equipeId  Int
   presente  Boolean @default(true)
-  numero    Int?    // número de camisa usado nesta partida, quando diferente do cadastro do atleta
+  numero    Int? // número de camisa usado nesta partida, quando diferente do cadastro do atleta
   partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
   jogador   Jogador @relation(fields: [jogadorId], references: [id])
   equipe    Equipe  @relation(fields: [equipeId], references: [id])
@@ -267,10 +317,10 @@ model SumulaPresenca {
 model OcorrenciaPartida {
   id        Int      @id @default(autoincrement())
   partidaId Int
-  tipo      String   // CARTAO_AMARELO | CARTAO_VERMELHO | WO | OBSERVACAO
+  tipo      String // CARTAO_AMARELO | CARTAO_VERMELHO | WO | OBSERVACAO
   descricao String?
   set       Int?
-  jogadorId Int?     // atleta responsável pelo scout (ponto/ataque/bloqueio/ace), quando aplicável
+  jogadorId Int? // atleta responsável pelo scout (ponto/ataque/bloqueio/ace), quando aplicável
   partida   Partida  @relation(fields: [partidaId], references: [id], onDelete: Cascade)
   jogador   Jogador? @relation(fields: [jogadorId], references: [id])
 }
@@ -281,7 +331,7 @@ model DestaquesPartida {
   id        Int     @id @default(autoincrement())
   partidaId Int
   jogadorId Int
-  tipo      String  // MVP | MELHOR_SAQUE | MELHOR_BLOQUEIO
+  tipo      String // MVP | MELHOR_SAQUE | MELHOR_BLOQUEIO
   partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
   jogador   Jogador @relation(fields: [jogadorId], references: [id])
 
@@ -359,10 +409,10 @@ model Midia {
   id       Int      @id @default(autoincrement())
   ligaId   Int
   liga     Liga     @relation(fields: [ligaId], references: [id])
-  tipo     String   // FOTO | VIDEO
+  tipo     String // FOTO | VIDEO
   url      String
   titulo   String?
-  tag      String?  // DESTAQUE | RODADA | PREMIACAO
+  tag      String? // DESTAQUE | RODADA | PREMIACAO
   criadoEm DateTime @default(now())
 }
 
@@ -391,74 +441,74 @@ model Admin {
 // ─── Candidaturas (novo) ─────────────────────────────────────────────────────
 
 model CandidaturaEquipe {
-  id              String    @id @default(cuid())
-  nome            String
-  responsavel     String
-  email           String
-  telefone        String?
-  senhaHash       String?
-  categoria       String
-  serie           String
-  genero          String?
-  categoriaEtaria String?
-  nivel           String?
-  possuiLocalTreino Boolean @default(false)
-  horariosTreino Json?
-  cederQuadra    Boolean   @default(false)
-  temInstagram   Boolean   @default(false)
-  instagram      String?
-  diasDisponiveis String    // JSON array
-  horarios        String    // JSON object
-  quadraInfo      String    // JSON object
-  ligaId          Int
-  liga            Liga      @relation(fields: [ligaId], references: [id])
-  status          String    @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
-  pagamentoId     String?   @unique
-  pagamento       Pagamento? @relation(fields: [pagamentoId], references: [id])
-  equipeId        Int?      @unique
-  equipe          Equipe?   @relation(fields: [equipeId], references: [id])
-  convites        ConviteEquipe[]
-  criadaEm        DateTime  @default(now())
-  atualizadaEm    DateTime  @updatedAt
+  id                String          @id @default(cuid())
+  nome              String
+  responsavel       String
+  email             String
+  telefone          String?
+  senhaHash         String?
+  categoria         String
+  serie             String
+  genero            String?
+  categoriaEtaria   String?
+  nivel             String?
+  possuiLocalTreino Boolean         @default(false)
+  horariosTreino    Json?
+  cederQuadra       Boolean         @default(false)
+  temInstagram      Boolean         @default(false)
+  instagram         String?
+  diasDisponiveis   String // JSON array
+  horarios          String // JSON object
+  quadraInfo        String // JSON object
+  ligaId            Int
+  liga              Liga            @relation(fields: [ligaId], references: [id])
+  status            String          @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
+  pagamentoId       String?         @unique
+  pagamento         Pagamento?      @relation(fields: [pagamentoId], references: [id])
+  equipeId          Int?            @unique
+  equipe            Equipe?         @relation(fields: [equipeId], references: [id])
+  convites          ConviteEquipe[]
+  criadaEm          DateTime        @default(now())
+  atualizadaEm      DateTime        @updatedAt
 }
 
 model CandidaturaArbitro {
-  id           String   @id @default(cuid())
-  nome         String
-  email        String   @unique
-  telefone     String?
-  senhaHash    String?
-  cref         String?
-  diplomaUrl   String?
-  status       String   @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
-  arbitroId    Int?     @unique
-  arbitro      Arbitro? @relation(fields: [arbitroId], references: [id])
+  id                   String                      @id @default(cuid())
+  nome                 String
+  email                String                      @unique
+  telefone             String?
+  senhaHash            String?
+  cref                 String?
+  diplomaUrl           String?
+  status               String                      @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
+  arbitroId            Int?                        @unique
+  arbitro              Arbitro?                    @relation(fields: [arbitroId], references: [id])
   partidasCandidatadas CandidaturaPartidaArbitro[]
-  criadaEm     DateTime @default(now())
-  atualizadaEm DateTime @updatedAt
+  criadaEm             DateTime                    @default(now())
+  atualizadaEm         DateTime                    @updatedAt
 }
 
 model CandidaturaQuadra {
-  id              String   @id @default(cuid())
-  nome            String
-  responsavel     String
-  email           String
-  telefone        String?
-  senhaHash       String?
-  cep             String?
-  endereco        String
-  bairro          String?
-  estrutura       String?
-  horarios        String?
-  fotosUrls       String?
-  cobertura       Boolean  @default(false)
-  banheiro        Boolean  @default(false)
-  estacionamento  Boolean  @default(false)
-  ligaId          Int?
-  liga            Liga?    @relation(fields: [ligaId], references: [id])
-  status          String   @default("PENDENTE")
-  criadaEm        DateTime @default(now())
-  atualizadaEm    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  nome           String
+  responsavel    String
+  email          String
+  telefone       String?
+  senhaHash      String?
+  cep            String?
+  endereco       String
+  bairro         String?
+  estrutura      String?
+  horarios       String?
+  fotosUrls      String?
+  cobertura      Boolean  @default(false)
+  banheiro       Boolean  @default(false)
+  estacionamento Boolean  @default(false)
+  ligaId         Int?
+  liga           Liga?    @relation(fields: [ligaId], references: [id])
+  status         String   @default("PENDENTE")
+  criadaEm       DateTime @default(now())
+  atualizadaEm   DateTime @updatedAt
 }
 
 model CandidaturaOrganizador {
@@ -477,15 +527,15 @@ model CandidaturaOrganizador {
 }
 
 model Pagamento {
-  id                String    @id @default(cuid())
-  infinitePayId     String?   @unique
+  id                String             @id @default(cuid())
+  infinitePayId     String?            @unique
   linkCobranca      String?
-  status            String    @default("AGUARDANDO") // AGUARDANDO | PAGO | CANCELADO | EXPIRADO
+  status            String             @default("AGUARDANDO") // AGUARDANDO | PAGO | CANCELADO | EXPIRADO
   valor             Float
   descricao         String
   webhookPayload    String?
   pagoEm            DateTime?
-  criadoEm          DateTime  @default(now())
+  criadoEm          DateTime           @default(now())
   candidaturaEquipe CandidaturaEquipe?
 }
 

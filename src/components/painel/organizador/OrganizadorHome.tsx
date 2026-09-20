@@ -2,13 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Check, Copy, ExternalLink, Plus } from 'lucide-react'
 import { slugify } from '@/utils/slug'
 import { OrganizadorSidebar } from './OrganizadorSidebar'
 import { OrganizacaoForm, type OrganizacaoFormValues } from './OrganizacaoForm'
 import { ChampionshipCarousel } from './ChampionshipCarousel'
 import { EmptyChampionshipCard } from './EmptyChampionshipCard'
 import type { LigaCarouselItem } from './types'
+
+type RegistrationItem = {
+  id: string
+  ligaId: number
+  status: string
+  registrationToken?: string | null
+  equipe?: { nome?: string | null; categoria?: string | null; serie?: string | null } | null
+}
 
 interface Session {
   tipo: string
@@ -31,6 +39,8 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
   const [activeChampionshipId, setActiveChampionshipId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [registrations, setRegistrations] = useState<RegistrationItem[]>([])
+  const [copiedRegistrationId, setCopiedRegistrationId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!organizadorId) {
@@ -42,8 +52,9 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
     Promise.all([
       fetch('/api/organizador/perfil', { cache: 'no-store' }).then((r) => r.json()),
       fetch(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' }).then((r) => r.json()),
+      fetch(`/api/inscricoes-campeonato?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' }).then((r) => r.json()),
     ])
-      .then(([perfilJson, ligasJson]) => {
+      .then(([perfilJson, ligasJson, registrationsJson]) => {
         if (cancelled) return
         if (perfilJson.data) {
           setPerfil({
@@ -54,6 +65,7 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
         }
         const ligasData: LigaCarouselItem[] = Array.isArray(ligasJson.data) ? ligasJson.data : []
         setLigas(ligasData)
+        setRegistrations(Array.isArray(registrationsJson.data?.inscricoes) ? registrationsJson.data.inscricoes : [])
         if (ligasData.length > 0) setActiveChampionshipId((current) => current ?? ligasData[0].id)
       })
       .finally(() => {
@@ -64,6 +76,13 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
       cancelled = true
     }
   }, [organizadorId])
+
+  async function copyRegistrationLink(registration: RegistrationItem) {
+    if (!registration.registrationToken) return
+    await navigator.clipboard.writeText(`${window.location.origin}/inscricao-rapida/${registration.registrationToken}`)
+    setCopiedRegistrationId(registration.id)
+    window.setTimeout(() => setCopiedRegistrationId(null), 2000)
+  }
 
   function handleOnboardingSaved(values: OrganizacaoFormValues) {
     // Atualiza o estado local — sem refetch, sem reload (item 10).
@@ -162,7 +181,25 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
                   <EmptyChampionshipCard onCreate={criarCampeonato} creating={creating} />
                 </div>
               ) : (
-                <ChampionshipCarousel ligas={ligas} activeChampionshipId={activeChampionshipId} onActiveChampionshipChange={setActiveChampionshipId} />
+                <>
+                  <ChampionshipCarousel ligas={ligas} activeChampionshipId={activeChampionshipId} onActiveChampionshipChange={setActiveChampionshipId} />
+                  <div className="mt-8 rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Inscrições do campeonato</p>
+                    <div className="mt-4 grid gap-3">
+                      {registrations.filter((item) => item.ligaId === activeChampionshipId).length === 0 ? (
+                        <p className="text-sm font-semibold text-slate-400">Nenhuma inscrição recebida ainda.</p>
+                      ) : registrations.filter((item) => item.ligaId === activeChampionshipId).map((registration) => (
+                        <div key={registration.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#07111f] p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div><p className="font-black text-white">{registration.equipe?.nome || 'Equipe'}</p><p className="mt-1 text-xs font-bold text-slate-400">{registration.status}{registration.equipe?.categoria ? ` · ${registration.equipe.categoria}` : ''}{registration.equipe?.serie ? ` · ${registration.equipe.serie}` : ''}</p></div>
+                          {registration.registrationToken && <div className="flex gap-2">
+                            <a href={`/inscricao-rapida/${registration.registrationToken}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white"><ExternalLink size={13} /> Abrir cadastro</a>
+                            <button type="button" onClick={() => copyRegistrationLink(registration)} className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white">{copiedRegistrationId === registration.id ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />} {copiedRegistrationId === registration.id ? 'Copiado' : 'Copiar link'}</button>
+                          </div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </>
           )}

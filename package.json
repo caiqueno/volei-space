@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test:organizer-flow": "set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node scripts/organizer-flow.test.ts",
     "test:team-sync": "set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node scripts/team-registration-sync.test.ts",
+    "test:registration-draft": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/team-registration-draft.test.ts",
     "test:championship-setup": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/championship-setup.test.ts",
     "test:pricing": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/pricing.test.ts"
   },

@@ -61,9 +61,26 @@ export async function GET(req: NextRequest) {
       .order('criadaEm', { ascending: false })
 
     if (inscricoesErr) return error('Erro ao buscar inscrições.', 500)
+    const { data: rascunhos, error: rascunhosErr } = await supabase
+      .from('InscricaoEquipeRascunho')
+      .select('id,token,ligaId,status,nomeEquipe,categoria,serie,inscricaoCampeonatoId')
+      .in('ligaId', ligaIds)
+      .order('criadaEm', { ascending: false })
+    if (rascunhosErr) return error('Erro ao recuperar links das inscrições.', 500, rascunhosErr)
+    const tokenByRegistration = new Map((rascunhos ?? []).map((draft: any) => [draft.inscricaoCampeonatoId, draft.token]))
+    const activeDrafts = (rascunhos ?? []).filter((draft: any) => !draft.inscricaoCampeonatoId).map((draft: any) => ({
+      id: `draft-${draft.id}`,
+      ligaId: draft.ligaId,
+      status: draft.status,
+      registrationToken: draft.token,
+      equipe: { nome: draft.nomeEquipe, categoria: draft.categoria, serie: draft.serie },
+    }))
     return success({
       campeonatos: ligas ?? [],
-      inscricoes: (inscricoes ?? []).map(withSynchronizedRoster),
+      inscricoes: [...activeDrafts, ...(inscricoes ?? []).map((item: any) => ({
+        ...withSynchronizedRoster(item),
+        registrationToken: tokenByRegistration.get(item.id) ?? null,
+      }))],
       reconciliacao,
     })
   }

@@ -39,7 +39,7 @@ export function LinkInscricaoRapida({ ligaId }: { ligaId: number }) {
         </button>
       </div>
       <p className="mt-2 text-xs font-semibold text-slate-400">
-        Envie este link para as equipes já aprovadas preencherem o cadastro direto — sem login, já entra confirmado no campeonato.
+        Este link inicia uma nova inscrição. Depois do primeiro passo, cada equipe recebe um link exclusivo para salvar e retomar o cadastro.
       </p>
     </section>
   )

@@ -23,7 +23,7 @@ export default async function InscricaoRapidaPage({ searchParams }: PageProps) {
 
   const { data: liga } = await supabase
     .from('Liga')
-    .select('id,nome,status,inscricoesAbertas,formularioInscricaoConfig,categoriasConfig')
+    .select('id,nome,status,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm,formularioInscricaoConfig,categoriasConfig')
     .eq('id', ligaId)
     .maybeSingle()
 
@@ -35,7 +35,10 @@ export default async function InscricaoRapidaPage({ searchParams }: PageProps) {
     )
   }
 
-  if (liga.inscricoesAbertas === false) {
+  const now = new Date()
+  const beforeOpening = liga.inscricoesAberturaEm && now < new Date(liga.inscricoesAberturaEm)
+  const afterClosing = liga.inscricoesEncerramentoEm && now > new Date(liga.inscricoesEncerramentoEm)
+  if (liga.inscricoesAbertas === false || beforeOpening || afterClosing) {
     return (
       <main className="luva-shell min-h-screen px-4 py-12">
         <EstadoVazio titulo="Inscrições encerradas" descricao={`As inscrições para ${liga.nome} não estão abertas no momento.`} />

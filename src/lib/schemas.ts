@@ -139,6 +139,34 @@ export const inscricaoRapidaSchema = z.object({
   jogadores: z.array(inscricaoRapidaJogadorSchema).min(1, 'Cadastre ao menos um jogador'),
 })
 
+const nullableTrimmedString = z.string().trim().optional().nullable()
+const nullableUrl = z.string().url().optional().nullable().or(z.literal(''))
+
+export const criarInscricaoEquipeRascunhoSchema = z.object({
+  ligaId: z.number().int().positive(),
+  nomeEquipe: z.string().trim().min(2).max(160),
+  categoria: nullableTrimmedString,
+  serie: nullableTrimmedString,
+})
+
+export const atualizarInscricaoEquipeRascunhoSchema = z.object({
+  nomeEquipe: z.string().trim().min(2).max(160).optional(),
+  logoUrl: nullableUrl,
+  lider: nullableTrimmedString,
+  tecnico: nullableTrimmedString,
+  categoria: nullableTrimmedString,
+  serie: nullableTrimmedString,
+}).strict().refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para atualizar.')
+
+export const criarJogadorInscricaoRascunhoSchema = inscricaoRapidaJogadorSchema.extend({
+  nome: z.string().trim().min(1).max(160),
+})
+
+export const atualizarJogadorInscricaoRascunhoSchema = criarJogadorInscricaoRascunhoSchema.partial().strict()
+  .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para atualizar.')
+
+export const finalizarInscricaoEquipeRascunhoSchema = z.object({}).strict()
+
 export const interessadoSchema = z.object({
   nomeCompleto: z.string().trim().min(1),
   email: z.string().trim().email(),
