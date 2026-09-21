@@ -1,0 +1,11 @@
+# Integrações e serviços
+
+| Serviço | Papel encontrado | Estado a verificar |
+| --- | --- | --- |
+| Supabase/PostgreSQL | Dados, migrations, RLS e storage | Comparar schema do git com ambiente efetivo |
+| InfinitePay | Código de webhook e utilitários | O checkout de ativação do campeonato em `src/app/api/organizador/ligas/[id]/pagamento` está marcado como **simulado**; não afirmar ativação real sem conferir |
+| Vercel | Hospedagem da aplicação | Configuração efetiva fora do escopo deste vault |
+| E-mail | Comunicação em `src/lib/email.ts` | Variáveis e entregabilidade dependem do ambiente |
+| Google Search Console e DNS | Descoberta do site/domínio | Gestão fora do código principal |
+
+Ao integrar pagamento, correlacione campeonato, pedido e confirmação autenticada; retorno de navegador não substitui confirmação confiável. Documente variáveis sem valores secretos, webhooks, reprocessamento e comportamento em falha. Ver [[modulos/PAGAMENTOS]].
