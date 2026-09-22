@@ -5,3 +5,5 @@
 A chave usa equipes elegíveis do campeonato, com a quantidade exigida pela fase escolhida. Resultado e classificação de grupos não devem contar indevidamente partidas eliminatórias. Corrigir uma súmula de eliminatória pode exigir recalcular avanço ou sinalizar conflitos com jogos posteriores; verificar esse impacto antes de automatizar.
 
 Relacionados: [[modulos/GRUPOS]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]].
+
+**Categorias — aprovado, pendente:** classificados e chaveamento pertencem a uma única `CategoriaCampeonato`, vinculada por `categoriaCampeonatoId` no modelo-alvo. Equipes de categorias diferentes não disputam a mesma eliminatória; correções e avanço devem preservar esse limite. A segmentação por string atual requer migração. Ver [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]].

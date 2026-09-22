@@ -3,9 +3,13 @@
 > [!warning] Aprovação não é implementação
 > As regras abaixo foram definidas para o volei.space. Consulte as notas de módulo para descobrir onde o código ainda diverge.
 
+## Categorias como competições — aprovado, pendente
+
+Cada categoria de uma `Liga` é uma competição interna independente. Equipes, convites, inscrições, grupos, partidas, tabelas, classificados, eliminatórias, scouts, rankings e resultados não se misturam entre categorias. `CategoriaCampeonato` e `categoriaCampeonatoId` são a arquitetura-alvo; o modelo atual por strings precisa de migração. Regras esportivas podem ser comuns ao campeonato, sem presumir variações por categoria. Séries Ouro/Prata são legado LUVA, não divisões do volei.space. Especificação e critérios: [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]].
+
 ## Inscrições
 
-Em cada categoria, o organizador pode apontar equipes a convidar. O link exclusivo nasce **antes de existir `Equipe`**. O líder cadastra equipe e jogadores pelo link, retoma dados após reload e conclui a inscrição **sem aprovação manual**. O token restringe o acesso àquela categoria, equipe resultante e campeonato. Ver [[modulos/INSCRICOES]] e [texto canônico](https://github.com/athrios/volei-space/blob/main/docs/requisitos/INSCRICOES-POR-EQUIPE.md).
+Em cada categoria, o organizador pode apontar equipes a convidar. O link exclusivo nasce **antes de existir `Equipe`**. O líder cadastra equipe e jogadores pelo link, retoma dados após reload e conclui a inscrição **sem aprovação manual**. O token deve restringir no servidor o acesso ao par `ligaId` + `categoriaCampeonatoId`, ao convite e à equipe resultante. Ver [[modulos/INSCRICOES]], [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]] e [[docs/requisitos/INSCRICOES-POR-EQUIPE]].
 
 ## Sets, resultado e classificação
 

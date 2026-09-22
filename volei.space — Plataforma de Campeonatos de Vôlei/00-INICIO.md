@@ -26,8 +26,9 @@ Quando código e requisito divergirem, registre a divergência; não apresente o
 | Interface | [[09-UI-UX]] |
 | Sequência de trabalho | [[10-ROADMAP]] |
 | Decisões registradas | [[11-DECISOES]] |
+| Categorias como competições isoladas — requisito aprovado, pendente | [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]] |
 | Problemas conhecidos | [[12-BUGS-E-DEBITOS-TECNICOS]] |
 | Notas específicas | [[modulos/PARAMETRIZACAO]], [[modulos/INSCRICOES]], [[modulos/SUMULA-DIGITAL]] e [[05-MODULOS]] |
 | Origem LUVA | [[historico/LEGADO-LUVA]] |
 
-**Fontes primárias:** [repositório da aplicação](https://github.com/athrios/volei-space), [requisito de inscrições](https://github.com/athrios/volei-space/blob/main/docs/requisitos/INSCRICOES-POR-EQUIPE.md) e [requisito de súmula](https://github.com/athrios/volei-space/blob/main/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md). Atualizado em 21/09/2026.
+**Fontes primárias:** [repositório da aplicação](https://github.com/athrios/volei-space), [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES|requisito de categorias]], [requisito de inscrições](https://github.com/athrios/volei-space/blob/main/docs/requisitos/INSCRICOES-POR-EQUIPE.md) e [requisito de súmula](https://github.com/athrios/volei-space/blob/main/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md). Atualizado em 21/09/2026.
