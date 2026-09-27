@@ -8,13 +8,13 @@ summary: >-
   Inscrição por convite de equipe.
 status: aprovado-pendente
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-09-27
 ---
 # Inscrições por equipe
 
 **Estado:** requisito aprovado, implementação final pendente. Há rascunhos e tokens em `src/lib/team-registration-draft.ts`, rotas `src/app/api/inscricao-rapida` e migration `supabase/migrations/supabase-inscricao-equipe-rascunho.sql`. Isso não equivale automaticamente ao fluxo aprovado. Desde 26/09/2026 o rascunho recusa, ao salvar o atleta, número de camisa repetido e ausência de foto, nascimento ou documento quando o formulário do campeonato exige esses campos.
 
-**Implementado em 27/09/2026:** ao criar o campeonato, o painel e a central de parametrização mostram o link `/inscricao-rapida?ligaId={id}`. Cada equipe que abre esse link preenche os próprios dados e jogadores segundo `formularioInscricaoConfig` daquele campeonato. Sem categorias próprias, o campo categoria já abre com o nome parametrizado do campeonato (`nomeCurto`, ou o nome quando não houver sigla). O convite exclusivo por categoria, antes de existir `Equipe`, continua pendente.
+**Implementado em 27/09/2026:** ao criar o campeonato, o painel e a central de parametrização mostram o link `/inscricao-rapida?ligaId={id}`. Cada equipe que abre esse link preenche os próprios dados e jogadores segundo `formularioInscricaoConfig` daquele campeonato. No formulário o campo se chama Nome do torneio. Quando a categoria do campeonato é única, esse campo fica preenchido com o nome real da `Liga` e travado; a categoria continua gravada no servidor para a inscrição. O nome da equipe permanece editável: o rótulo acompanha o texto digitado e o navegador não reescreve o campo. O convite exclusivo por categoria, antes de existir `Equipe`, continua pendente.
 
 ## Regra do produto
 

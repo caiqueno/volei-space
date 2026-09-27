@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Medal, ShieldOff, Sparkles, Swords } from 'lucide-react'
+import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -36,6 +37,7 @@ const CHAVEAMENTO_OPTIONS = [
 
 export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
+  const noPainel = useParametrizacaoNoPainel()
   const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
     useSectionWizard<EliminatoriasSectionDTO>('eliminatorias', `/api/organizador/ligas/${ligaId}/setup/eliminatorias`)
 
@@ -63,7 +65,7 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
       return
     }
     const fields = result.fields ?? []

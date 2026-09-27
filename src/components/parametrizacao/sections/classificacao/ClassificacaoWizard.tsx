@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { revealMissingFields } from '../../wizard/missing-fields'
+import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -36,6 +37,7 @@ function parseCriterios(raw: string | null): string[] {
 
 export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
+  const noPainel = useParametrizacaoNoPainel()
   const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
     useSectionWizard<ClassificacaoSectionDTO>('classificacao', `/api/organizador/ligas/${ligaId}/setup/classificacao`)
 
@@ -63,7 +65,7 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
       return
     }
     const fields = result.fields ?? []

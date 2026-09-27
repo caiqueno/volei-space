@@ -16,7 +16,7 @@ updated: 2026-09-27
 
 A comunicação da plataforma usa «campeonato» e «organizador», não apresenta volei.space como uma liga própria. Termos `Liga`/`ligaId` ficam no código legado, sem vazarem como explicação do produto.
 
-O painel oferece primeiro acesso, perfil/organização, campeonatos e central de parametrização. O público consulta campeonatos, partidas, classificação e rankings. Fluxos operacionais devem funcionar em telas pequenas, em especial inscrição pelo link e súmula no celular.
+O painel oferece primeiro acesso, perfil/organização, campeonatos e central de parametrização. Em `/painel`, a guia esquerda do organizador reúne Início, Parametrização, Campeonatos, Tabela, Jogos e Galeria. O conteúdo dessas telas fica na coluna ao lado da guia, sem entrar por baixo do menu e sem a barra de título no topo. O menu lateral das outras telas usa o mesmo espaçamento entre os itens do painel. O Início mostra o conteúdo do portal público dentro da própria página, com uma rolagem só. O guia de cima passa sozinho pelos campeonatos cadastrados, um de cada vez, sem o seletor de trocar campeonato. Campeonatos, Tabela, Jogos e Galeria também abrem o conteúdo na própria página, sem quadro interno. Não há a guia Portal público nem os cartões de QR Code, súmula, tabela, agenda e o fluxo da competição. Em Parametrização, a barra pede para selecionar o campeonato. Ao escolher, abrem as guias daquele campeonato na mesma página. O público consulta campeonatos, partidas, classificação e rankings. Fluxos operacionais devem funcionar em telas pequenas, em especial inscrição pelo link e súmula no celular.
 
 ## Estados que precisam ser explícitos
 

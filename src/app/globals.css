@@ -5684,6 +5684,7 @@ html body .profile-sidebar-brand small {
 
 html body .profile-sidebar-nav {
   display: grid;
+  align-content: start;
   gap: 8px;
   margin-top: 24px;
   min-height: 0;
@@ -5837,6 +5838,17 @@ html body .profile-mobile-link.is-active svg {
 }
 
 @media (max-width: 1023px) {
+  html body .profile-mobile-nav {
+    overflow-x: auto;
+    grid-auto-columns: max-content;
+    justify-content: start;
+  }
+
+  html body .profile-mobile-link {
+    min-width: 4.6rem;
+    padding-inline: 8px;
+  }
+
   html body:has(.profile-mobile-nav) main {
     padding-bottom: 88px;
   }
@@ -14065,6 +14077,15 @@ html body .official-qr-manual button {
     padding-left: 0 !important;
   }
 
+  html body:has(.profile-sidebar) > div > main.creator-dashboard {
+    box-sizing: border-box;
+    width: calc(100% - 280px) !important;
+    max-width: calc(100% - 280px) !important;
+    margin-left: 280px !important;
+    padding-left: 0 !important;
+    overflow-x: clip;
+  }
+
   html body:has(.profile-sidebar) > main > main.creator-dashboard {
     width: 100% !important;
     margin-left: 0 !important;
@@ -14106,8 +14127,23 @@ html body .profile-sidebar {
 }
 
 html body .profile-sidebar-nav {
-  overflow: hidden !important;
+  overflow: visible !important;
   scrollbar-width: none;
+}
+
+html.painel-embed .profile-sidebar,
+html.painel-embed .profile-mobile-nav,
+html.painel-embed footer,
+html.painel-embed header {
+  display: none !important;
+}
+
+html.painel-embed body,
+html.painel-embed body:has(.profile-sidebar) > main,
+html.painel-embed body > div,
+html.painel-embed body > div > main {
+  margin-left: 0 !important;
+  width: 100% !important;
 }
 
 html body .profile-sidebar-nav::-webkit-scrollbar {
@@ -17683,3 +17719,4 @@ html body main.landing-tech-shell .landing-form-intro {
   animation: field-missing-pulse 0.85s ease-in-out infinite;
   border-color: #f87171 !important;
 }
+

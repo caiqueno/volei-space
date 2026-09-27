@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useAbrirSecaoParametrizacao } from '../../PainelParametrizacaoContext'
 import { SetupSectionNav } from '../../wizard/SetupSectionNav'
 import { PricingBreakdown } from '../../pricing/PricingBreakdown'
 import { FormAlert } from '../../ui/FormAlert'
@@ -12,6 +13,7 @@ import { SECTION_TITLES } from '@/lib/championship-setup-status'
 import type { ChampionshipPreviaDTO } from '@/types/championship-setup'
 
 export function PreviaView({ ligaId }: { ligaId: number }) {
+  const abrirSecao = useAbrirSecaoParametrizacao()
   const [previa, setPrevia] = useState<ChampionshipPreviaDTO | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -48,11 +50,13 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className={abrirSecao ? '' : 'mx-auto max-w-6xl px-4 py-10'}>
       <div className="flex flex-col gap-8 lg:flex-row">
-        <aside className="lg:w-64 lg:shrink-0">
-          <SetupSectionNav ligaId={ligaId} activeSection="previa" />
-        </aside>
+        {!abrirSecao && (
+          <aside className="lg:w-64 lg:shrink-0">
+            <SetupSectionNav ligaId={ligaId} activeSection="previa" />
+          </aside>
+        )}
 
         <div className="min-w-0 flex-1 lg:max-w-3xl">
           <p className="luva-kicker">Parametrização do campeonato</p>
@@ -73,9 +77,13 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
                   {previa.validation.errors.map((issue) => (
                     <li key={`${issue.section}-${issue.code}`}>
                       {SECTION_TITLES[issue.section as keyof typeof SECTION_TITLES] ?? issue.section}: {issue.message}{' '}
-                      <Link href={`/painel/parametrizacao/${issue.section}?ligaId=${ligaId}`} className="underline">
-                        corrigir
-                      </Link>
+                      {abrirSecao ? (
+                        <button type="button" onClick={() => abrirSecao(issue.section)} className="underline">corrigir</button>
+                      ) : (
+                        <Link href={`/painel/parametrizacao/${issue.section}?ligaId=${ligaId}`} className="underline">
+                          corrigir
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -92,34 +100,34 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
               </FormAlert>
             )}
 
-            <SummaryCard title="Informações" href={`/painel/parametrizacao/informacoes?ligaId=${ligaId}`}>
+            <SummaryCard title="Informações" section="informacoes" ligaId={ligaId}>
               <SummaryRow label="Nome" value={previa.championship.nome} />
               <SummaryRow label="Status" value={previa.championship.status} />
             </SummaryCard>
 
-            <SummaryCard title="Estrutura" href={`/painel/parametrizacao/estrutura?ligaId=${ligaId}`}>
+            <SummaryCard title="Estrutura" section="estrutura" ligaId={ligaId}>
               <SummaryRow label="Formato" value={previa.structure.formato ?? 'Não definido'} />
               <SummaryRow label="Quantidade de Equipes" value={previa.structure.quantidadeEquipes != null ? String(previa.structure.quantidadeEquipes) : 'Não definido'} />
               <SummaryRow label="Grupos" value={previa.structure.grupos.length > 0 ? previa.structure.grupos.map((g) => g.nome).join(', ') : String(previa.structure.quantidadeGrupos ?? 1)} />
               <SummaryRow label="Súmula Digital + Scouts" value={previa.recursos.sumulaScoutsEnabled ? 'Contratado' : 'Não contratado'} />
             </SummaryCard>
 
-            <SummaryCard title="Classificação" href={`/painel/parametrizacao/classificacao?ligaId=${ligaId}`}>
+            <SummaryCard title="Classificação" section="classificacao" ligaId={ligaId}>
               <SummaryRow label="Classificados por grupo" value={String(previa.classification.classificadosPorGrupo ?? 0)} />
               <SummaryRow label="Melhores classificados gerais" value={String(previa.classification.melhoresClassificadosGerais)} />
             </SummaryCard>
 
-            <SummaryCard title="Eliminatórias" href={`/painel/parametrizacao/eliminatorias?ligaId=${ligaId}`}>
+            <SummaryCard title="Eliminatórias" section="eliminatorias" ligaId={ligaId}>
               <SummaryRow label="Fase inicial" value={formatEliminatoryPhase(previa.knockout.faseEliminatoria)} />
               <SummaryRow label="Formato" value={previa.knockout.eliminatoriaIdaVolta ? 'Ida e volta' : 'Jogo único'} />
             </SummaryCard>
 
-            <SummaryCard title="Calendário e local" href={`/painel/parametrizacao/calendario?ligaId=${ligaId}`}>
+            <SummaryCard title="Calendário e local" section="calendario" ligaId={ligaId}>
               <SummaryRow label="Período" value={`${formatDateBr(previa.calendar.dataInicio)} a ${formatDateBr(previa.calendar.dataFim)}`} />
               <SummaryRow label="Locais" value={previa.calendar.locais.length > 0 ? previa.calendar.locais.map((l) => l.nome).join(', ') : 'A definir'} />
             </SummaryCard>
 
-            <SummaryCard title="Inscrições" href={`/painel/parametrizacao/inscricoes?ligaId=${ligaId}`}>
+            <SummaryCard title="Inscrições" section="inscricoes" ligaId={ligaId}>
               <SummaryRow label="Limite de equipes" value={previa.registration.limiteEquipes != null ? String(previa.registration.limiteEquipes) : 'Não definido'} />
               <SummaryRow label="Equipes aprovadas" value={String(previa.registration.equipesAprovadas)} />
               <SummaryRow label="QR Code" value={previa.recursos.qrCodeEnabled ? 'Ativado' : 'Desativado'} />
@@ -140,14 +148,21 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
   )
 }
 
-function SummaryCard({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
+function SummaryCard({ title, section, ligaId, children }: { title: string; section: string; ligaId: number; children: React.ReactNode }) {
+  const abrirSecao = useAbrirSecaoParametrizacao()
   return (
     <div className="luva-card rounded-2xl p-5">
       <div className="flex items-center justify-between gap-3">
         <p className="font-display text-base font-black text-white">{title}</p>
-        <Link href={href} className="text-xs font-black uppercase tracking-[0.12em] text-luva-amber hover:underline">
-          Corrigir
-        </Link>
+        {abrirSecao ? (
+          <button type="button" onClick={() => abrirSecao(section)} className="text-xs font-black uppercase tracking-[0.12em] text-luva-amber hover:underline">
+            Corrigir
+          </button>
+        ) : (
+          <Link href={`/painel/parametrizacao/${section}?ligaId=${ligaId}`} className="text-xs font-black uppercase tracking-[0.12em] text-luva-amber hover:underline">
+            Corrigir
+          </Link>
+        )}
       </div>
       <div className="mt-3 grid gap-2">{children}</div>
     </div>

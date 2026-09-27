@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { QrCode, ShieldOff } from 'lucide-react'
+import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -98,6 +99,7 @@ function FieldRequirementRow({
 }
 
 export function InscricoesWizard({ ligaId }: { ligaId: number }) {
+  const noPainel = useParametrizacaoNoPainel()
   const router = useRouter()
   const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
     useSectionWizard<InscricoesSectionDTO>('inscricoes', `/api/organizador/ligas/${ligaId}/setup/inscricoes`)
@@ -126,7 +128,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
       return
     }
     const fields = result.fields ?? []

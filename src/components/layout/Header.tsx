@@ -12,6 +12,7 @@ import {
   LogOut,
   MapPin,
   ShieldCheck,
+  SlidersHorizontal,
   Table2,
   Trophy,
   UsersRound,
@@ -323,20 +324,13 @@ function getHeaderLinks(session: HeaderSession | null): HeaderLink[] {
   }
 
   if (session.tipo === 'organizador') {
-    const scoped = (href: string) => {
-      if (!session.candidaturaId) return href
-      const separator = href.includes('?') ? '&' : '?'
-      return `${href}${separator}organizador=${encodeURIComponent(session.candidaturaId)}`
-    }
-
     return [
       { href: '/painel', label: 'Painel', short: 'Painel', icon: Home },
-      { href: '/campeonatos', label: 'Campeonatos', short: 'Ligas', icon: Trophy },
-      { href: '/painel#inscricoes-equipes', label: 'Inscrições', short: 'Equipes', icon: UsersRound },
-      { href: scoped('/portal'), label: 'Portal público', short: 'Portal', icon: ClipboardCheck },
-      { href: scoped('/classificacao'), label: 'Tabela', short: 'Tabela', icon: Table2 },
-      { href: scoped('/jogos'), label: 'Jogos', short: 'Jogos', icon: CalendarDays },
-      { href: '/galeria', label: 'Galeria', short: 'Mídia', icon: Images },
+      { href: '/painel?secao=campeonatos', label: 'Campeonatos', short: 'Ligas', icon: Trophy },
+      { href: '/painel?secao=parametrizacao', label: 'Parametrização', short: 'Param.', icon: SlidersHorizontal },
+      { href: '/painel?secao=tabela', label: 'Tabela', short: 'Tabela', icon: Table2 },
+      { href: '/painel?secao=jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
+      { href: '/painel?secao=galeria', label: 'Galeria', short: 'Mídia', icon: Images },
     ]
   }
 
@@ -375,6 +369,9 @@ function getMobileLinks(scopedLinks: HeaderLink[], panelHref: string | null): He
 function isActivePath(pathname: string, href: string) {
   if (href.includes('#')) return false
   const cleanHref = href.split('?')[0].split('#')[0]
+  if (cleanHref === '/painel/parametrizacao') {
+    return pathname === cleanHref || pathname.startsWith(`${cleanHref}/`)
+  }
   return cleanHref === pathname
 }
 

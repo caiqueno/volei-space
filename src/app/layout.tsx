@@ -90,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={manrope.className}>
+        <script dangerouslySetInnerHTML={{ __html: "try{if(window.self!==window.top)document.documentElement.classList.add('painel-embed')}catch(e){}" }} />
         <Header />
         <div className="min-w-0">{children}</div>
         <Footer />

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ClipboardList, Repeat2, ScanLine, ShieldOff } from 'lucide-react'
+import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -29,6 +30,7 @@ const STEPS: WizardStepDef[] = [
 
 export function EstruturaWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
+  const noPainel = useParametrizacaoNoPainel()
   const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, complete } =
     useSectionWizard<EstruturaSectionDTO>('estrutura', `/api/organizador/ligas/${ligaId}/setup/estrutura`)
 
@@ -56,7 +58,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
       return
     }
     const fields = result.fields ?? []

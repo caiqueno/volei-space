@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { MapPin, Plus, Trash2 } from 'lucide-react'
+import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -25,6 +26,7 @@ const STEPS: WizardStepDef[] = [
 
 export function CalendarioWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
+  const noPainel = useParametrizacaoNoPainel()
   const showToast = useToast()
   const { data, loading, loadError, autosaveStatus, autosaveError, fieldMessages, clearFieldMessage, updateNow, flush, complete } =
     useSectionWizard<CalendarioSectionDTO>('calendario', `/api/organizador/ligas/${ligaId}/setup/calendario`)
@@ -92,7 +94,7 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
       return
     }
     const fields = result.fields ?? []

@@ -484,7 +484,7 @@ function PublicoCadastroScreen({
   onSubmit: (event: React.FormEvent) => void
 }) {
   const [mostrarSenha, setMostrarSenha] = useState(false)
-  const [aberto, setAberto] = useState({ nome: false, email: false, senha: false, confirmar: false })
+  const [aberto, setAberto] = useState({ email: false, senha: false, confirmar: false })
   const [emailSaiu, setEmailSaiu] = useState(false)
   const [tentou, setTentou] = useState(false)
 
@@ -533,12 +533,10 @@ function PublicoCadastroScreen({
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Nome</span>
                 <input
-                  name="cadastro-nome"
+                  name="publico-nome"
                   required
                   disabled={loading}
-                  autoComplete="name"
-                  readOnly={!aberto.nome}
-                  onFocus={() => setAberto((current) => ({ ...current, nome: true }))}
+                  autoComplete="off"
                   value={publico.nome}
                   onChange={(event) => setPublico((current) => ({ ...current, nome: event.target.value }))}
                   className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"

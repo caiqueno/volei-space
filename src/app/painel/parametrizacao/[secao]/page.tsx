@@ -36,7 +36,7 @@ function Content() {
   }
 
   const { component: SectionWizard } = SECTION_WIZARD_REGISTRY[secao]
-  return <SectionWizard ligaId={ligaId} />
+  return <SectionWizard key={ligaId} ligaId={ligaId} />
 }
 
 export default function SetupSectionPage() {

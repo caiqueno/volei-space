@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { revealMissingFields } from '../../wizard/missing-fields'
 import { ImagePlus } from 'lucide-react'
+import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -33,7 +34,8 @@ const STATUS_OPTIONS = [
   { value: 'ENCERRADA' as const, label: 'Encerrada' },
 ]
 
-export function InformacoesWizard({ ligaId }: { ligaId: number }) {
+export function InformacoesWizard({ ligaId, embedded = false }: { ligaId: number; embedded?: boolean }) {
+  const noPainel = useParametrizacaoNoPainel()
   const router = useRouter()
   const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, complete } =
     useSectionWizard<InformacoesSectionDTO>('informacoes', `/api/organizador/ligas/${ligaId}/setup/informacoes`)
@@ -95,7 +97,7 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!embedded && !noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
       return
     }
     const fields = result.fields ?? []
@@ -121,6 +123,7 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
       subtitle="Nome, identidade visual e regulamento — dados independentes das regras esportivas."
       autosaveStatus={autosaveStatus}
       autosaveError={autosaveError}
+      embedded={embedded}
     >
       <WizardStepper steps={STEPS} currentIndex={stepIndex} visitedIndexes={visited} onSelect={goTo} />
 

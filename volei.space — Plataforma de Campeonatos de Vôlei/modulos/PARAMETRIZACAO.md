@@ -12,7 +12,7 @@ updated: 2026-09-27
 ---
 # Parametrização do campeonato
 
-**Implementado no código:** central em `src/app/painel/parametrizacao`, endpoints `src/app/api/organizador/ligas/[id]/setup/*` e estados/validações em `src/lib/championship-setup-*.ts`. Seções encontradas: informações, estrutura, inscrições, classificação, eliminatórias, calendário e prévia.
+**Implementado no código:** central em `src/app/painel/parametrizacao`, endpoints `src/app/api/organizador/ligas/[id]/setup/*` e estados/validações em `src/lib/championship-setup-*.ts`. Seções encontradas: informações, estrutura, inscrições, classificação, eliminatórias, calendário e prévia. No `/painel`, a guia Parametrização começa pela barra "Selecione o seu campeonato". Ao escolher um campeonato, abrem as guias dele (informações, estrutura, classificação, eliminatórias, calendário, inscrições e prévia) e o conteúdo da guia fica na mesma página. As rotas `/painel/parametrizacao/{secao}` continuam disponíveis fora dessa guia.
 
 O nome que vale nas listas é o campo Nome do campeonato. Se ele ainda estiver no provisório «Novo campeonato» e o nome curto estiver preenchido, o nome curto passa a ser o nome do campeonato. No passo Identidade, o organizador envia uma imagem. Essa mesma imagem fica em `logoUrl` e `capaUrl`. Formato e quantidade de equipes podem ser gravados enquanto não houver partida iniciada ou encerrada. Em qualquer seção, o campo obrigatório que ficou vazio pisca em vermelho e a tela volta até ele. Em Calendário e local, a data aceita o fuso que o banco devolve e o motivo da falha aparece embaixo do campo (início, término, nome, endereço ou quadra). Os critérios de classificação só contam depois que o organizador escolhe ao menos um.
 

@@ -13,9 +13,10 @@ type LeagueScopeBarProps = {
   selected?: LigaScope | null
   organizadorId?: string | null
   basePath: string
+  onSelect?: (id: number) => void
 }
 
-export function LeagueScopeBar({ ligas, selected, organizadorId, basePath }: LeagueScopeBarProps) {
+export function LeagueScopeBar({ ligas, selected, organizadorId, basePath, onSelect }: LeagueScopeBarProps) {
   if (!organizadorId) return null
 
   return (
@@ -36,7 +37,17 @@ export function LeagueScopeBar({ ligas, selected, organizadorId, basePath }: Lea
                 <ChevronDown size={16} />
               </summary>
               <div className="absolute right-0 z-20 mt-2 grid min-w-72 gap-2 rounded-2xl border p-2 shadow-2xl">
-                {ligas.map((liga) => (
+                {ligas.map((liga) => onSelect ? (
+                  <button
+                    key={liga.id}
+                    type="button"
+                    onClick={() => onSelect(liga.id)}
+                    className={`rounded-xl px-3 py-3 text-left text-sm font-black transition ${selected?.id === liga.id ? 'is-active' : ''}`}
+                  >
+                    {liga.nome}
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.14em]">{liga.status ?? 'EM_BREVE'}</span>
+                  </button>
+                ) : (
                   <Link
                     key={liga.id}
                     href={`${basePath}?organizador=${encodeURIComponent(organizadorId)}&ligaId=${liga.id}`}
@@ -50,10 +61,12 @@ export function LeagueScopeBar({ ligas, selected, organizadorId, basePath }: Lea
             </details>
           )}
 
-          <Link href="/painel" className="creator-create-link inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-black">
-            <CalendarPlus size={17} />
-            Gerenciar campeonatos
-          </Link>
+          {!onSelect && (
+            <Link href="/painel" className="creator-create-link inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-black">
+              <CalendarPlus size={17} />
+              Gerenciar campeonatos
+            </Link>
+          )}
         </div>
       </div>
     </section>

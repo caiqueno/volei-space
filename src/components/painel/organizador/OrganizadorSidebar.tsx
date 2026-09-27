@@ -2,11 +2,13 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { BadgeCheck, Home, LogOut, Settings } from 'lucide-react'
+import { BadgeCheck, CalendarDays, Home, Images, LogOut, Settings, SlidersHorizontal, Table2, Trophy, type LucideIcon } from 'lucide-react'
+
+export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'galeria' | 'arbitros' | 'settings'
 
 interface OrganizadorSidebarProps {
-  view: 'home' | 'settings' | 'arbitros'
-  onSelectView: (view: 'home' | 'settings') => void
+  view: PainelView
+  onSelectView: (view: PainelView) => void
   organizacaoNome: string | null
   organizacaoLogoUrl: string | null
   onLogout: () => void
@@ -15,33 +17,28 @@ interface OrganizadorSidebarProps {
   obfuscated: boolean
 }
 
-const NAV_ITEMS = [
-  { key: 'home' as const, label: 'Início', icon: Home },
-  { key: 'arbitros' as const, label: 'Árbitros', icon: BadgeCheck },
-  { key: 'settings' as const, label: 'Configurações', icon: Settings },
+const NAV_ITEMS: Array<{ key: PainelView; label: string; short: string; icon: LucideIcon }> = [
+  { key: 'home', label: 'Início', short: 'Início', icon: Home },
+  { key: 'parametrizacao', label: 'Parametrização', short: 'Param.', icon: SlidersHorizontal },
+  { key: 'campeonatos', label: 'Campeonatos', short: 'Campeonatos', icon: Trophy },
+  { key: 'tabela', label: 'Tabela', short: 'Tabela', icon: Table2 },
+  { key: 'jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
+  { key: 'galeria', label: 'Galeria', short: 'Galeria', icon: Images },
+  { key: 'arbitros', label: 'Árbitros', short: 'Árbitros', icon: BadgeCheck },
+  { key: 'settings', label: 'Configurações', short: 'Ajustes', icon: Settings },
 ]
 
-// A sidebar REAL do sistema é `.profile-sidebar` (globals.css:5537-5665),
-// renderizada normalmente por Header.tsx em toda página autenticada — só é
-// suprimida (Header.tsx:120) na rota exata /painel, porque esta tela
-// substitui por completo essa área. Aqui reaproveitamos as MESMAS classes
-// (não uma reimplementação visual): largura, fundo, divisores, hover, estado
-// ativo e o cartão de sessão com Sair vêm todos do CSS já existente — só o
-// conteúdo (Início/Configurações em vez dos 7 links operacionais) muda.
 export function OrganizadorSidebar({ view, onSelectView, organizacaoNome, organizacaoLogoUrl, onLogout, obfuscated }: OrganizadorSidebarProps) {
   return (
     <>
       <aside className="profile-sidebar">
-        {/* Só o wordmark — sem o símbolo (bola+anel), a pedido. Mesmo padrão
-            aplicado globalmente em Header.tsx (.profile-sidebar-brand), único
-            sidebar-header do sistema. */}
-        <Link href="/painel" className="profile-sidebar-brand">
+        <Link href="/painel" onClick={(event) => { event.preventDefault(); onSelectView('home') }} className="profile-sidebar-brand">
           <span className="relative h-[45px] w-[135px] shrink-0">
             <Image src="/brand/volei-space_wordmark_transparente.png" alt="volei.space" fill sizes="135px" className="object-contain object-left" priority />
           </span>
         </Link>
 
-        <div className={`transition-all duration-500 ${obfuscated ? 'pointer-events-none opacity-40 saturate-50 brightness-90' : 'opacity-100'}`} aria-hidden={obfuscated}>
+        <div className={`min-h-0 flex-1 overflow-y-auto transition-all duration-500 ${obfuscated ? 'pointer-events-none opacity-40 saturate-50 brightness-90' : 'opacity-100'}`} aria-hidden={obfuscated}>
           <nav className="profile-sidebar-nav" style={{ marginTop: obfuscated ? 24 : undefined }}>
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon
@@ -85,10 +82,6 @@ export function OrganizadorSidebar({ view, onSelectView, organizacaoNome, organi
         </div>
       </aside>
 
-      {/* Abaixo de 1024px, .profile-sidebar vira display:none por definição
-          do próprio sistema — reaproveita a mesma barra inferior fixa que
-          Header.tsx já usa em toda página autenticada, em vez de um drawer
-          próprio. */}
       <nav className="profile-mobile-nav">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon
@@ -102,7 +95,7 @@ export function OrganizadorSidebar({ view, onSelectView, organizacaoNome, organi
               className={`profile-mobile-link ${active ? 'is-active' : ''} ${obfuscated ? 'opacity-40' : ''}`}
             >
               <Icon size={18} />
-              <span>{item.label}</span>
+              <span>{item.short}</span>
             </button>
           )
         })}

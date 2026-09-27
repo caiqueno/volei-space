@@ -52,14 +52,28 @@ const emptyJogador: JogadorDraft = {
   nome: '', numero: '', posicao: '', fotoUrl: '', cpf: '', dataNascimento: '', documentoTipo: 'CPF', documentoNumero: '',
 }
 
-function FloatingInput({ id, label, value, onChange, type = 'text', required, disabled }: {
-  id: string; label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; disabled?: boolean
+function FloatingInput({ id, label, value, onChange, type = 'text', required, disabled, locked = false }: {
+  id: string; label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; disabled?: boolean; locked?: boolean
 }) {
+  const [focused, setFocused] = useState(false)
+  const floated = locked || focused || value.length > 0
+
   return (
     <div className="relative">
-      <input id={id} type={type} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} placeholder=" "
-        className="peer w-full rounded-xl border border-white/10 bg-[#07111f] px-3 pb-1.5 pt-4 text-sm font-bold text-white outline-none transition focus:border-luva-amber disabled:cursor-not-allowed disabled:opacity-60" />
-      <label htmlFor={id} className="pointer-events-none absolute left-3 top-1 text-[9px] font-black uppercase tracking-wide text-luva-amber transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-xs peer-placeholder-shown:font-bold peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-placeholder-shown:text-slate-500 peer-focus:top-1 peer-focus:text-[9px] peer-focus:font-black peer-focus:uppercase peer-focus:tracking-wide peer-focus:text-luva-amber">
+      <input
+        id={id}
+        name={id}
+        type={type}
+        value={value}
+        readOnly={locked}
+        disabled={disabled}
+        autoComplete="off"
+        onChange={(event) => { if (!locked) onChange(event.target.value) }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className={`w-full rounded-xl border border-white/10 bg-[#07111f] px-3 text-sm font-bold text-white outline-none transition-[border-color] focus:border-luva-amber ${floated ? 'pb-1.5 pt-5' : 'py-3.5'} ${locked ? 'cursor-default' : 'disabled:cursor-not-allowed disabled:opacity-60'}`}
+      />
+      <label htmlFor={id} className={`pointer-events-none absolute left-3 ${floated ? 'top-1.5 text-[9px] font-black uppercase tracking-wide text-luva-amber' : 'top-1/2 -translate-y-1/2 text-xs font-bold normal-case tracking-normal text-slate-500'}`}>
         {label}{required && ' *'}
       </label>
     </div>
@@ -316,8 +330,8 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
           {errorMsg && <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300">{errorMsg}</p>}
           <div className="mt-5 grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
             <FloatingInput id="nomeEquipe" label="Nome da equipe" value={nomeEquipe} onChange={setNomeEquipe} required />
-            {categoriaFixa ? <p className="text-xs font-bold text-slate-300">Categoria: <span className="text-white">{categoriaFixa.label}</span></p> : (
-              <FloatingSelect id="categoriaSerie" label="Categoria" value={categoriaSerie} onChange={setCategoriaSerie} required options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />
+            {categoriaFixa ? <FloatingInput id="nomeTorneio" label="Nome do torneio" value={nomeCampeonato} onChange={() => {}} locked /> : (
+              <FloatingSelect id="categoriaSerie" label="Nome do torneio" value={categoriaSerie} onChange={setCategoriaSerie} required options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />
             )}
             <ActionBar type="button" onClick={iniciarCadastro} loading={creating} loadingLabel="Criando link" disabled={nomeEquipe.trim().length < 2 || (!categoriaFixa && !categoriaSerie)} className="mt-1 w-full rounded-full bg-[#ffb331] py-3 text-sm font-black text-slate-950 disabled:opacity-50">
               Iniciar e salvar cadastro
@@ -359,7 +373,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
         <div className="mt-3 grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
           <FloatingInput id="nomeEquipe" label="Nome da equipe" value={nomeEquipe} onChange={setNomeEquipe} required disabled={!canEdit} />
           {logoEnabled && <div className="flex items-center gap-3">{logoUrl ? <img src={logoUrl} alt="Logo da equipe" className="h-11 w-11 rounded-full border border-white/10 object-cover" /> : <span className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={16} /></span>}{canEdit && (uploadingLogo ? <LoadingTrack label="Enviando" className="min-w-[12rem]" /> : <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">{`Logo da equipe${logoRequired ? ' *' : ' (opcional)'}`}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleLogoUpload(event.target.files?.[0] ?? null)} /></label>)}</div>}
-          {categoriaFixa ? <p className="text-xs font-bold text-slate-300">Categoria: <span className="text-white">{categoriaFixa.label}</span></p> : <FloatingSelect id="categoriaSerie" label="Categoria" value={categoriaSerie} onChange={setCategoriaSerie} required disabled={!canEdit} options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />}
+          {categoriaFixa ? <FloatingInput id="nomeTorneio" label="Nome do torneio" value={nomeCampeonato} onChange={() => {}} locked /> : <FloatingSelect id="categoriaSerie" label="Nome do torneio" value={categoriaSerie} onChange={setCategoriaSerie} required disabled={!canEdit} options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />}
           {liderEnabled && <FloatingInput id="lider" label="Líder da equipe" value={lider} onChange={setLider} required={liderRequired} disabled={!canEdit} />}
           <FloatingInput id="tecnico" label="Técnico (opcional)" value={tecnico} onChange={setTecnico} disabled={!canEdit} />
         </div>

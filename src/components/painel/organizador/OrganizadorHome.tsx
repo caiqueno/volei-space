@@ -1,25 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Check, Copy, ExternalLink, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { slugify } from '@/utils/slug'
-import { OrganizadorSidebar } from './OrganizadorSidebar'
+import { OrganizadorSidebar, type PainelView } from './OrganizadorSidebar'
+import { ParametrizacaoNoPainel } from './PainelSecoes'
+import { PainelCampeonatos, PainelGaleria, PainelJogos, PainelTabela } from './PainelConteudos'
+import { InicioPortal } from './InicioPortal'
 import { OrganizacaoForm, type OrganizacaoFormValues } from './OrganizacaoForm'
-import { LinkDoTime } from './LinkDoTime'
 import { ArbitrosPanel } from './ArbitrosPanel'
-import { ChampionshipCarousel } from './ChampionshipCarousel'
-import { EmptyChampionshipCard } from './EmptyChampionshipCard'
 import type { LigaCarouselItem } from './types'
 
-type RegistrationItem = {
-  id: string
-  ligaId: number
-  status: string
-  registrationToken?: string | null
-  equipe?: { nome?: string | null; categoria?: string | null; serie?: string | null } | null
-}
+const SECOES = new Set<string>(['parametrizacao', 'campeonatos', 'tabela', 'jogos', 'galeria', 'arbitros', 'settings'])
 
 interface Session {
   tipo: string
@@ -32,27 +25,29 @@ interface Session {
 // independentes entre si (item 36) — aqui só decide QUAL conteúdo mostrar à
 // direita (onboarding / carrossel-empty-state / configurações).
 export function OrganizadorHome({ session, logout }: { session: Session; logout: () => void }) {
-  const router = useRouter()
   const organizadorId = session.candidaturaId ?? ''
 
   const [loading, setLoading] = useState(true)
   const [perfil, setPerfil] = useState<OrganizacaoFormValues | null>(null)
   const [ligas, setLigas] = useState<LigaCarouselItem[]>([])
-  const [view, setView] = useState<'home' | 'settings' | 'arbitros'>('home')
+  const [view, setView] = useState<PainelView>('home')
   const [activeChampionshipId, setActiveChampionshipId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
-  const [registrations, setRegistrations] = useState<RegistrationItem[]>([])
-  const [copiedRegistrationId, setCopiedRegistrationId] = useState<string | null>(null)
 
   useEffect(() => {
     const secao = new URLSearchParams(window.location.search).get('secao')
-    if (secao === 'arbitros') setView('arbitros')
+    if (secao === 'portal') {
+      setView('home')
+      window.history.replaceState(null, '', '/painel')
+      return
+    }
+    if (secao && SECOES.has(secao)) setView(secao as PainelView)
   }, [])
 
-  function selectView(next: 'home' | 'settings' | 'arbitros') {
+  function selectView(next: PainelView) {
     setView(next)
-    const url = next === 'arbitros' ? '/painel?secao=arbitros' : '/painel'
+    const url = next === 'home' ? '/painel' : `/painel?secao=${next}`
     window.history.replaceState(null, '', url)
   }
 
@@ -66,9 +61,8 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
     Promise.all([
       fetch('/api/organizador/perfil', { cache: 'no-store' }).then((r) => r.json()),
       fetch(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' }).then((r) => r.json()),
-      fetch(`/api/inscricoes-campeonato?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' }).then((r) => r.json()),
     ])
-      .then(([perfilJson, ligasJson, registrationsJson]) => {
+      .then(([perfilJson, ligasJson]) => {
         if (cancelled) return
         if (perfilJson.data) {
           setPerfil({
@@ -79,7 +73,6 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
         }
         const ligasData: LigaCarouselItem[] = Array.isArray(ligasJson.data) ? ligasJson.data : []
         setLigas(ligasData)
-        setRegistrations(Array.isArray(registrationsJson.data?.inscricoes) ? registrationsJson.data.inscricoes : [])
         if (ligasData.length > 0) setActiveChampionshipId((current) => current ?? ligasData[0].id)
       })
       .finally(() => {
@@ -90,13 +83,6 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
       cancelled = true
     }
   }, [organizadorId])
-
-  async function copyRegistrationLink(registration: RegistrationItem) {
-    if (!registration.registrationToken) return
-    await navigator.clipboard.writeText(`${window.location.origin}/inscricao-rapida/${registration.registrationToken}`)
-    setCopiedRegistrationId(registration.id)
-    window.setTimeout(() => setCopiedRegistrationId(null), 2000)
-  }
 
   function handleOnboardingSaved(values: OrganizacaoFormValues) {
     // Atualiza o estado local — sem refetch, sem reload (item 10).
@@ -117,7 +103,22 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error ?? 'Erro ao criar campeonato')
-      router.push(`/painel/parametrizacao?ligaId=${json.data.id}`)
+      const criado: LigaCarouselItem = {
+        id: json.data.id,
+        slug: json.data.slug ?? slug,
+        nome: json.data.nome ?? nome,
+        logoUrl: null,
+        capaUrl: null,
+        dataInicio: null,
+        dataFim: null,
+        status: json.data.status ?? 'EM_BREVE',
+        localPrincipal: null,
+        categoriasReais: [],
+      }
+      setLigas((current) => [criado, ...current.filter((liga) => liga.id !== criado.id)])
+      setActiveChampionshipId(criado.id)
+      selectView('parametrizacao')
+      setCreating(false)
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Erro ao criar campeonato')
       setCreating(false)
@@ -125,17 +126,6 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
   }
 
   const organizacaoIncompleta = !loading && !perfil?.organizacao
-  const primeiroNome = (session.nome || '').trim().split(/\s+/)[0] || null
-
-  const pageTitle = organizacaoIncompleta
-    ? 'Complete sua organização'
-      : view === 'settings'
-        ? 'Configurações'
-        : view === 'arbitros'
-          ? 'Árbitros'
-        : ligas.length === 0
-        ? 'Crie seu primeiro campeonato'
-        : 'Seus campeonatos'
 
   return (
     <>
@@ -152,12 +142,24 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
           sem aside própria — o deslocamento para a .profile-sidebar fixa acontece
           automaticamente via CSS global (:has(.profile-sidebar) > main). */}
       <main className="luva-shell public-dashboard creator-dashboard min-h-screen text-white">
-        <section className="border-b border-white/10 bg-[#061426]/95 px-4 py-5">
-          <div className="mx-auto max-w-7xl">
-            <p className="luva-kicker">Painel</p>
-            <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-              <h1 className="type-page-title">{pageTitle}</h1>
-              {!organizacaoIncompleta && view === 'home' && ligas.length > 0 && (
+        <section className="w-full min-w-0 px-6 py-8">
+          {loading ? (
+            <p className="text-sm font-bold text-white/50">Carregando...</p>
+          ) : organizacaoIncompleta ? (
+            <div className="luva-card w-full rounded-2xl p-6 sm:p-8">
+              <OrganizacaoForm mode="onboarding" initialValues={perfil ?? { organizacao: '', cidade: '', logoUrl: '' }} onSaved={handleOnboardingSaved} />
+            </div>
+          ) : view === 'settings' ? (
+            <div className="luva-card w-full rounded-2xl p-6 sm:p-8">
+              <OrganizacaoForm mode="settings" initialValues={perfil!} onSaved={handleOnboardingSaved} />
+            </div>
+          ) : view === 'arbitros' ? (
+            <ArbitrosPanel />
+          ) : view === 'parametrizacao' ? (
+            <ParametrizacaoNoPainel ligas={ligas} campeonatoId={activeChampionshipId} onSelect={setActiveChampionshipId} />
+          ) : view === 'home' ? (
+            <>
+              <div className="mb-6 flex justify-end">
                 <ActionBar
                   type="button"
                   onClick={criarCampeonato}
@@ -168,65 +170,19 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
                   <Plus size={16} />
                   Novo Campeonato
                 </ActionBar>
-              )}
-            </div>
-            {!organizacaoIncompleta && view === 'home' && (
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">
-                Bem-vindo, {primeiroNome ?? perfil?.organizacao}
-                {ligas.length === 0 ? '. Configure nome, datas e inscrições em poucos passos.' : '.'}
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-4 py-10">
-          {loading ? (
-            <p className="text-sm font-bold text-white/50">Carregando...</p>
-          ) : organizacaoIncompleta ? (
-            <div className="luva-card mx-auto max-w-lg rounded-2xl p-6 sm:p-8">
-              <OrganizacaoForm mode="onboarding" initialValues={perfil ?? { organizacao: '', cidade: '', logoUrl: '' }} onSaved={handleOnboardingSaved} />
-            </div>
-          ) : view === 'settings' ? (
-            <div className="luva-card mx-auto max-w-lg rounded-2xl p-6 sm:p-8">
-              <OrganizacaoForm mode="settings" initialValues={perfil!} onSaved={handleOnboardingSaved} />
-            </div>
-          ) : view === 'arbitros' ? (
-            <ArbitrosPanel />
-          ) : (
-            <>
+              </div>
               {feedback && <p className="mb-4 text-sm font-bold text-red-300">{feedback}</p>}
-              {ligas.length === 0 ? (
-                <div className="mx-auto w-full max-w-xs aspect-[4/5]">
-                  <EmptyChampionshipCard onCreate={criarCampeonato} creating={creating} />
-                </div>
-              ) : (
-                <>
-                  <ChampionshipCarousel ligas={ligas} activeChampionshipId={activeChampionshipId} onActiveChampionshipChange={setActiveChampionshipId} />
-                  {activeChampionshipId && (
-                    <div className="mt-8">
-                      <LinkDoTime ligaId={activeChampionshipId} nome={ligas.find((liga) => liga.id === activeChampionshipId)?.nome} />
-                    </div>
-                  )}
-                  <div id="inscricoes-equipes" className="mt-8 rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Inscrições de {ligas.find((liga) => liga.id === activeChampionshipId)?.nome || 'campeonato'}</p>
-                    <div className="mt-4 grid gap-3">
-                      {registrations.filter((item) => item.ligaId === activeChampionshipId).length === 0 ? (
-                        <p className="text-sm font-semibold text-slate-400">Nenhuma inscrição recebida ainda.</p>
-                      ) : registrations.filter((item) => item.ligaId === activeChampionshipId).map((registration) => (
-                        <div key={registration.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#07111f] p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div><p className="font-black text-white">{registration.equipe?.nome || 'Equipe'}</p><p className="mt-1 text-xs font-bold text-slate-400">{registration.status}{registration.equipe?.categoria ? ` · ${registration.equipe.categoria}` : ''}{registration.equipe?.serie ? ` · ${registration.equipe.serie}` : ''}</p></div>
-                          {registration.registrationToken && <div className="flex gap-2">
-                            <a href={`/inscricao-rapida/${registration.registrationToken}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white"><ExternalLink size={13} /> Abrir cadastro</a>
-                            <button type="button" onClick={() => copyRegistrationLink(registration)} className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white">{copiedRegistrationId === registration.id ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />} {copiedRegistrationId === registration.id ? 'Copiado' : 'Copiar link'}</button>
-                          </div>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+              <InicioPortal organizadorId={organizadorId} />
             </>
-          )}
+          ) : view === 'campeonatos' ? (
+            <PainelCampeonatos organizadorId={organizadorId} />
+          ) : view === 'tabela' ? (
+            <PainelTabela ligas={ligas} organizadorId={organizadorId} />
+          ) : view === 'jogos' ? (
+            <PainelJogos ligas={ligas} />
+          ) : view === 'galeria' ? (
+            <PainelGaleria ligas={ligas} />
+          ) : null}
         </section>
       </main>
     </>

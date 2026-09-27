@@ -95,7 +95,7 @@ export function OrganizacaoForm({ mode, initialValues, onSaved }: OrganizacaoFor
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-lg">
+    <form onSubmit={handleSubmit} className="w-full">
       <p className="text-[11px] font-black uppercase tracking-[0.2em] text-luva-amber">
         {mode === 'onboarding' ? 'Último passo' : 'Configurações'}
       </p>

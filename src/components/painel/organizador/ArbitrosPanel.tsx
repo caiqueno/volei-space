@@ -83,7 +83,7 @@ export function ArbitrosPanel() {
   }
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-6">
+    <div className="grid w-full gap-6">
       <section className="luva-card rounded-2xl p-6 sm:p-8">
         <h2 className="text-2xl font-black text-white">Árbitros</h2>
         <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">
