@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
@@ -68,7 +69,7 @@ export async function reconcileAcceptedInvitations(
   const linkedCandidaturaByTeamId = new Map(
     (linkedCandidaturas ?? []).map((item: any) => [Number(item.equipeId), String(item.id)]),
   )
-  const rows: Array<{ ligaId: number; equipeId: number; status: string }> = []
+  const rows: Array<{ id: string; ligaId: number; equipeId: number; status: string }> = []
   const pendingInvitationIds: string[] = []
   const approvedPairs: Array<{ ligaId: number; equipeId: number }> = []
   let ignored = 0
@@ -77,14 +78,17 @@ export async function reconcileAcceptedInvitations(
   const reconciledCandidaturaIds = new Set<string>()
 
   for (const invitation of (invitations ?? []) as InvitationRecord[]) {
-    const team = await ensureEquipeForCandidatura(String(invitation.candidaturaEquipeId))
+    const candidatura = candidaturaById.get(String(invitation.candidaturaEquipeId))
+    const knownTeamId = Number(candidatura?.equipeId)
+    const team = Number.isInteger(knownTeamId) && knownTeamId > 0
+      ? { id: knownTeamId, nome: candidatura?.nome }
+      : await ensureEquipeForCandidatura(String(invitation.candidaturaEquipeId))
     if (!team?.id) {
       unresolved += 1
       continue
     }
     reconciledCandidaturaIds.add(String(invitation.candidaturaEquipeId))
 
-    const candidatura = candidaturaById.get(String(invitation.candidaturaEquipeId))
     const repairableIds = findRepairableStaleRegistrations({
       invitation,
       candidatura,
@@ -117,7 +121,7 @@ export async function reconcileAcceptedInvitations(
 
     existingByPair.set(key, { ligaId: invitation.ligaId, equipeId: team.id, status: 'APROVADA' })
     approvedPairs.push({ ligaId: invitation.ligaId, equipeId: team.id })
-    rows.push({ ligaId: invitation.ligaId, equipeId: team.id, status: 'APROVADA' })
+    rows.push({ id: randomUUID(), ligaId: invitation.ligaId, equipeId: team.id, status: 'APROVADA' })
   }
 
   const { data: activeCandidaturas, error: activeCandidaturasError } = await supabase
@@ -125,6 +129,7 @@ export async function reconcileAcceptedInvitations(
     .select('id')
     .in('ligaId', ligaIds)
     .in('status', ['APROVADA', 'APROVADO', 'ATIVA', 'ATIVO'])
+    .is('equipeId', null)
 
   if (activeCandidaturasError) throw activeCandidaturasError
 

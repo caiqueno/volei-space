@@ -10,6 +10,7 @@ import {
   type StoredSectionStatus,
   getMissingSectionFields,
   resolveStoredSectionStatus,
+  SECTION_REQUIRED_FIELDS,
 } from '@/lib/championship-setup-status'
 import type { ValidationIssue } from '@/lib/championship-validation'
 import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
@@ -138,11 +139,11 @@ const EDITABLE_AFTER_START: Partial<Record<SetupSection, string[]>> = {
   calendario: ['dataFim'],
 }
 
-// Um campeonato está "em andamento" quando saiu de EM_BREVE ou já tem
-// partida iniciada/encerrada — mesmo critério do 409 que a rota de
-// distribuição real (organizador/ligas/[id]/estrutura) já aplica.
+// Trava a estrutura quando já existe partida iniciada ou encerrada, ou quando
+// o campeonato foi encerrado. Status ATIVA sozinho não trava: o organizador
+// ainda está na parametrização e precisa gravar formato e quantidade de equipes.
 export async function isLigaEmAndamento(ligaId: number, ligaStatus?: string | null): Promise<boolean> {
-  if (ligaStatus && ligaStatus !== 'EM_BREVE') return true
+  if (ligaStatus === 'ENCERRADA') return true
 
   const { count } = await supabase
     .from('Partida')
@@ -187,9 +188,18 @@ export async function applySectionPatch(params: {
   const { ligaId, section, intent, liga, patch, columns, errorMessage } = params
 
   if (intent === 'complete') {
-    const missing = getMissingSectionFields(section, { ...liga, ...patch })
+    const merged = { ...liga, ...patch }
+    const missing = getMissingSectionFields(section, merged)
     if (missing.length > 0) {
-      return error(`Para concluir esta seção, preencha: ${missing.join(', ')}.`, 422, { missing })
+      const fields = (SECTION_REQUIRED_FIELDS[section] ?? [])
+        .filter((field) => {
+          const value = merged[field.key]
+          if (value == null || value === '') return true
+          if (typeof value === 'string' && (value.trim() === '' || value.trim() === '[]')) return true
+          return Array.isArray(value) && value.length === 0
+        })
+        .map((field) => field.key)
+      return error(`Para concluir esta seção, preencha: ${missing.join(', ')}.`, 422, { missing, fields })
     }
   }
 

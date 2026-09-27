@@ -1,3 +1,15 @@
+---
+title: >-
+  Produto
+category: area
+tags: [produto]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Visão, usuários e vocabulário do SaaS.
+status: implementado
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Produto
 
 **volei.space** é uma plataforma SaaS para organizações e organizadores criarem, configurarem, operarem e divulgarem campeonatos de vôlei. A organização administra seus campeonatos; atletas, líderes de equipe, árbitros e público interagem com partes específicas do fluxo. O produto não organiza uma liga própria.

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
-import { resolveFormularioRapidaConfig, parseCategoriaSerieOptions, buildFallbackCategoriaSerieOptions } from '@/lib/inscricao-rapida'
+import { resolveFormularioRapidaConfig, resolveInscricaoCategoria } from '@/lib/inscricao-rapida'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 type PageProps = {
@@ -23,7 +23,7 @@ export default async function InscricaoRapidaPage({ searchParams }: PageProps) {
 
   const { data: liga } = await supabase
     .from('Liga')
-    .select('id,nome,status,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm,formularioInscricaoConfig,categoriasConfig')
+    .select('id,nome,nomeCurto,status,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm,formularioInscricaoConfig,categoriasConfig')
     .eq('id', ligaId)
     .maybeSingle()
 
@@ -48,9 +48,7 @@ export default async function InscricaoRapidaPage({ searchParams }: PageProps) {
 
   const config = resolveFormularioRapidaConfig(liga.formularioInscricaoConfig)
 
-  const parametrizedOptions = parseCategoriaSerieOptions(liga.categoriasConfig)
-  const categoriaFixa = parametrizedOptions.length === 1 ? parametrizedOptions[0] : null
-  const categoriaOptions = parametrizedOptions.length > 1 ? parametrizedOptions : buildFallbackCategoriaSerieOptions()
+  const { categoriaFixa, categoriaOptions } = resolveInscricaoCategoria(liga)
 
   return (
     <FormularioInscricaoRapida

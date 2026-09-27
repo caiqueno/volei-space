@@ -1,3 +1,15 @@
+---
+title: >-
+  Banco de dados
+category: area
+tags: [dados]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Entidades e relações.
+status: implementado
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Modelo de dados
 
 `prisma/schema.prisma` descreve entidades; `supabase/migrations` documenta mudanças SQL e políticas. Confira o estado aplicado ao banco antes de concluir que uma coluna ou policy está ativa.
@@ -14,7 +26,7 @@
 
 ## Modelo-alvo de categorias — aprovado, pendente
 
-`Liga` deverá conter registros próprios de `CategoriaCampeonato`. A quantidade declarada na parametrização precisa corresponder aos registros persistidos, que são a fonte de verdade. Convites e inscrições devem guardar no servidor o par `ligaId` + `categoriaCampeonatoId`; equipes, grupos, rodadas, partidas, classificação, classificados, chaveamento, scouts, rankings e resultados devem relacionar-se por `categoriaCampeonatoId` sempre que aplicável. Nenhuma dessas relações é aqui declarada existente. Campos textuais atuais de categoria e série exigem migração explícita e podem causar mistura entre categorias. Ver [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]].
+`Liga` deverá conter registros próprios de `CategoriaCampeonato`. A quantidade declarada na parametrização precisa corresponder aos registros persistidos, que são a fonte de verdade. Convites e inscrições devem guardar no servidor o par `ligaId` + `categoriaCampeonatoId`; equipes, grupos, rodadas, partidas, classificação, classificados, chaveamento, scouts, rankings e resultados devem relacionar-se por `categoriaCampeonatoId` sempre que aplicável. Nenhuma dessas relações é aqui declarada existente. Campos textuais atuais de categoria e série exigem migração explícita e podem causar mistura entre categorias. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
 
 ## Invariantes
 

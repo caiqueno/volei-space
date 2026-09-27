@@ -18,6 +18,7 @@ import PageLoading from '@/components/ui/page-loading'
 import type { EliminatoriasSectionDTO } from '@/types/championship-setup'
 import { formatEliminatoryPhase, getEliminatoryPhaseForTeams, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { computeTotalClassificadosFormula } from '@/lib/championship-validation'
+import { revealMissingFields } from '../../wizard/missing-fields'
 
 const STEPS: WizardStepDef[] = [
   { key: 'fases', title: 'Fases' },
@@ -41,6 +42,7 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(new Set([0]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   function goTo(index: number) {
@@ -48,6 +50,7 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
     setStepIndex(index)
     setVisited((current) => new Set(current).add(index))
     setCompletionIssues([])
+    setInvalidKeys([])
   }
 
   async function handleNext() {
@@ -59,8 +62,14 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
     setSaving(true)
     const result = await complete()
     setSaving(false)
-    if (result.ok) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
-    else setCompletionIssues(result.issues.map((issue) => issue.message))
+    if (result.ok) {
+      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      return
+    }
+    const fields = result.fields ?? []
+    setInvalidKeys(fields)
+    setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
+    revealMissingFields(fields, { faseEliminatoria: 0 }, setStepIndex, setVisited)
   }
 
   // Fase inicial calculada automaticamente a partir dos classificados já
@@ -111,7 +120,7 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
 
       <div className="mt-6 grid gap-4">
         {stepIndex === 0 && (
-          <>
+          <div id="fase-eliminatoria" className={invalidKeys.includes('faseEliminatoria') ? 'field-missing grid gap-4 rounded-2xl p-1' : 'grid gap-4'}>
             {isPontosCorridos && (
               <FormAlert variant="info">Pontos corridos não tem fase eliminatória — a classificação final decide o campeão.</FormAlert>
             )}
@@ -141,7 +150,7 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
                 </p>
               </FormAlert>
             )}
-          </>
+          </div>
         )}
 
         {stepIndex === 1 && (

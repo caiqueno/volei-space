@@ -3,6 +3,7 @@ import { success, error } from '@/lib/api-response'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { requireOwnedLigaForSetup, upsertSetupSectionStatus, readJsonBody } from '@/lib/championship-setup-access'
 import { ligaLocalSchema } from '@/lib/schemas'
+import { describeSchemaError } from '@/lib/setup-field-errors'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -29,7 +30,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!body) return error('Corpo da requisição inválido.', 400)
 
   const parsed = ligaLocalSchema.safeParse(body)
-  if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+  if (!parsed.success) {
+    const described = describeSchemaError(parsed.error)
+    console.error('[calendario/locais] dados inválidos', described)
+    return error(described.messages.join(' ') || 'Dados inválidos', 422, described)
+  }
 
   const { count } = await supabase.from('LigaLocal').select('id', { count: 'exact', head: true }).eq('ligaId', ligaId)
 

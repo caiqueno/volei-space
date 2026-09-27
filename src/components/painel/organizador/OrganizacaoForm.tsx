@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, ImageIcon, MapPin, Send } from 'lucide-react'
+import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { supabase } from '@/lib/supabase'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
 
@@ -136,6 +137,7 @@ export function OrganizacaoForm({ mode, initialValues, onSaved }: OrganizacaoFor
             >
               <label className="block">
                 <span className={labelBase}>Logo da organização</span>
+                {uploading ? <LoadingTrack label="Enviando" className="w-full rounded-2xl" /> : (
                 <label className="flex min-h-[4.25rem] cursor-pointer items-center gap-4 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 transition hover:border-luva-amber/70 hover:bg-white/10">
                   {logoUrl ? (
                     <img src={logoUrl} alt="Logo da organização" className="h-12 w-12 rounded-xl border border-white/15 object-cover" />
@@ -145,12 +147,13 @@ export function OrganizacaoForm({ mode, initialValues, onSaved }: OrganizacaoFor
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-[#ffffff]">{uploading ? 'Processando e enviando...' : logoUrl ? 'Logo enviado' : 'Enviar logo (opcional)'}</span>
+                    <span className="block text-sm font-black text-[#ffffff]">{logoUrl ? 'Logo enviado' : 'Enviar logo (opcional)'}</span>
                     <span className="mt-1 block text-xs font-bold text-white/62">{imageUploadRules.allowedLabel}. Até {formatBytes(imageUploadRules.maxOriginalBytes)}.</span>
                     {uploadError && <span className="mt-1 block text-xs font-black text-red-200">{uploadError}</span>}
                   </span>
                   <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => handleLogoUpload(event.target.files?.[0] ?? null)} />
                 </label>
+                )}
               </label>
 
               <label className="block">
@@ -168,17 +171,16 @@ export function OrganizacaoForm({ mode, initialValues, onSaved }: OrganizacaoFor
 
         <AnimatePresence>
           {showNextSections && (
-            <motion.button
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
+            <ActionBar
               type="submit"
-              disabled={saving || uploading}
+              loading={saving}
+              disabled={uploading}
+              loadingLabel="Salvando"
               className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-luva-amber px-6 py-3 text-sm font-black uppercase tracking-wide text-[#050914] transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={17} />
-              {saving ? 'Salvando...' : mode === 'onboarding' ? 'Finalizar' : 'Salvar alterações'}
-            </motion.button>
+              {mode === 'onboarding' ? 'Finalizar' : 'Salvar alterações'}
+            </ActionBar>
           )}
         </AnimatePresence>
       </div>

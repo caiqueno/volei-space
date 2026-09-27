@@ -7,6 +7,9 @@ alter table "ClassificacaoEntrada"
   add column if not exists "ligaId" integer references "Liga"(id);
 
 alter table "ClassificacaoEntrada"
+  alter column "atualizadoEm" set default now();
+
+alter table "ClassificacaoEntrada"
   drop constraint if exists "ClassificacaoEntrada_equipeId_key";
 
 create unique index if not exists "ClassificacaoEntrada_ligaId_equipeId_unique"

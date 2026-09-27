@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { ActionBar } from '@/components/ui/action-bar'
 
 type Tipo = 'arbitro' | 'quadra' | 'organizador'
 type Status = 'PENDENTE' | 'APROVADA' | 'REJEITADA' | 'ATIVA' | 'TODAS'
@@ -21,6 +22,7 @@ export default function CandidaturasPage() {
   const [selected, setSelected] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionId, setActionId] = useState<string | null>(null)
+  const [actionKind, setActionKind] = useState<'aprovar' | 'rejeitar' | null>(null)
   const [msg, setMsg] = useState('')
 
   async function fetchCandidaturas() {
@@ -35,6 +37,7 @@ export default function CandidaturasPage() {
 
   async function handleAprovar(id: string) {
     setActionId(id)
+    setActionKind('aprovar')
     const res = await fetch(`/api/admin/candidaturas/${id}/aprovar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -42,6 +45,7 @@ export default function CandidaturasPage() {
     })
     const json = await res.json()
     setActionId(null)
+    setActionKind(null)
     setMsg(res.ok ? json.data?.mensagem ?? 'Cadastro aprovado.' : json.error ?? 'Erro ao aprovar.')
     if (res.ok) {
       setSelected(null)
@@ -53,6 +57,7 @@ export default function CandidaturasPage() {
   async function handleRejeitar(id: string) {
     if (!confirm('Rejeitar esta candidatura?')) return
     setActionId(id)
+    setActionKind('rejeitar')
     const res = await fetch(`/api/admin/candidaturas/${id}/rejeitar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,6 +65,7 @@ export default function CandidaturasPage() {
     })
     const json = await res.json()
     setActionId(null)
+    setActionKind(null)
     setMsg(res.ok ? 'Cadastro rejeitado.' : json.error ?? 'Erro ao rejeitar.')
     if (res.ok) {
       setSelected(null)
@@ -161,20 +167,24 @@ export default function CandidaturasPage() {
                 </button>
                 {c.status === 'PENDENTE' && (
                   <>
-                    <button
+                    <ActionBar
                       onClick={() => handleAprovar(c.id)}
+                      loading={actionId === c.id && actionKind === 'aprovar'}
+                      loadingLabel="Aprovando"
                       disabled={actionId === c.id}
                       className="rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black text-white disabled:opacity-50"
                     >
-                      {actionId === c.id ? '...' : 'Aprovar'}
-                    </button>
-                    <button
+                      Aprovar
+                    </ActionBar>
+                    <ActionBar
                       onClick={() => handleRejeitar(c.id)}
+                      loading={actionId === c.id && actionKind === 'rejeitar'}
+                      loadingLabel="Rejeitando"
                       disabled={actionId === c.id}
                       className="rounded-full border border-red-300/40 px-4 py-2 text-xs font-black text-red-100 hover:bg-red-500/10 disabled:opacity-50"
                     >
                       Rejeitar
-                    </button>
+                    </ActionBar>
                   </>
                 )}
               </div>
@@ -191,19 +201,21 @@ export default function CandidaturasPage() {
           onApprove={selected.status === 'PENDENTE' ? () => handleAprovar(selected.id) : undefined}
           onReject={selected.status === 'PENDENTE' ? () => handleRejeitar(selected.id) : undefined}
           busy={actionId === selected.id}
+          actionKind={actionKind}
         />
       )}
     </div>
   )
 }
 
-function DetailModal({ tipo, candidatura, onClose, onApprove, onReject, busy }: {
+function DetailModal({ tipo, candidatura, onClose, onApprove, onReject, busy, actionKind }: {
   tipo: Tipo
   candidatura: any
   onClose: () => void
   onApprove?: () => void
   onReject?: () => void
   busy: boolean
+  actionKind: 'aprovar' | 'rejeitar' | null
 }) {
   const rows = useMemo(() => detailRows(tipo, candidatura), [tipo, candidatura])
   const files = fileLinks(tipo, candidatura)
@@ -251,8 +263,8 @@ function DetailModal({ tipo, candidatura, onClose, onApprove, onReject, busy }: 
 
         {(onApprove || onReject) && (
           <div className="mt-6 flex flex-wrap justify-end gap-3">
-            {onReject && <button disabled={busy} onClick={onReject} className="rounded-full border border-red-300/40 px-5 py-3 text-sm font-black text-red-100 disabled:opacity-50">Rejeitar</button>}
-            {onApprove && <button disabled={busy} onClick={onApprove} className="rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? 'Salvando...' : 'Aprovar cadastro'}</button>}
+            {onReject && <ActionBar loading={busy && actionKind === 'rejeitar'} loadingLabel="Rejeitando" disabled={busy} onClick={onReject} className="rounded-full border border-red-300/40 px-5 py-3 text-sm font-black text-red-100 disabled:opacity-50">Rejeitar</ActionBar>}
+            {onApprove && <ActionBar loading={busy && actionKind === 'aprovar'} loadingLabel="Aprovando" disabled={busy} onClick={onApprove} className="rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white disabled:opacity-50">Aprovar cadastro</ActionBar>}
           </div>
         )}
       </div>

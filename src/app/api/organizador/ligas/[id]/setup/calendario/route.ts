@@ -17,6 +17,8 @@ import {
   readSetupIntent,
 } from '@/lib/championship-setup-access'
 import { setupCalendarioSchema } from '@/lib/schemas'
+import { describeSchemaError } from '@/lib/setup-field-errors'
+import { coerceIsoDate } from '@/lib/date-brazil'
 
 const COLUMNS = 'id,organizadorId,status,dataInicio,dataFim'
 
@@ -47,8 +49,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await readJsonBody(req)
   if (!body) return error('Corpo da requisição inválido.', 400)
 
+  for (const key of ['dataInicio', 'dataFim'] as const) {
+    if (typeof body[key] === 'string' && body[key]) {
+      const iso = coerceIsoDate(body[key] as string)
+      if (iso) body[key] = iso
+    }
+  }
+
   const parsed = setupCalendarioSchema.safeParse(body)
-  if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+  if (!parsed.success) {
+    const described = describeSchemaError(parsed.error)
+    console.error('[calendario] dados inválidos', described)
+    return error(described.messages.join(' ') || 'Dados inválidos', 422, described)
+  }
 
   if (await isLigaEmAndamento(ligaId, liga.status as string | null)) {
     const locked = rejectLockedFields('calendario', parsed.data)

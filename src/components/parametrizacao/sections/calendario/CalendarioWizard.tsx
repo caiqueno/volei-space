@@ -12,6 +12,7 @@ import { TextInput } from '../../ui/TextInput'
 import { FormAlert } from '../../ui/FormAlert'
 import { useToast } from '../../ui/Toast'
 import PageLoading from '@/components/ui/page-loading'
+import { revealMissingFields } from '../../wizard/missing-fields'
 import { formatDateBr } from '@/lib/date-brazil'
 import { validateDateRange } from '@/lib/championship-validation'
 import type { CalendarioSectionDTO, LigaLocalDTO } from '@/types/championship-setup'
@@ -25,12 +26,13 @@ const STEPS: WizardStepDef[] = [
 export function CalendarioWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
   const showToast = useToast()
-  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
+  const { data, loading, loadError, autosaveStatus, autosaveError, fieldMessages, clearFieldMessage, updateNow, flush, complete } =
     useSectionWizard<CalendarioSectionDTO>('calendario', `/api/organizador/ligas/${ligaId}/setup/calendario`)
 
   const [stepIndex, setStepIndex] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(new Set([0]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const lastInvalidDateMessageRef = useRef('')
 
@@ -53,6 +55,7 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
   const [locais, setLocais] = useState<LigaLocalDTO[]>([])
   const [novoLocal, setNovoLocal] = useState({ nome: '', endereco: '', quadra: '' })
   const [localError, setLocalError] = useState<string | null>(null)
+  const [localMessages, setLocalMessages] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (data) setLocais(data.locais)
@@ -66,6 +69,8 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
     if (index !== 0) {
       const dateRangeMessage = validateDateRange(data?.dataInicio, data?.dataFim)
       if (dateRangeMessage) {
+        const missing = [!data?.dataInicio ? 'dataInicio' : null, !data?.dataFim ? 'dataFim' : null].filter((key): key is string => Boolean(key))
+        setInvalidKeys(missing.length ? missing : ['dataInicio', 'dataFim'])
         showToast({ title: 'Data inválida', message: dateRangeMessage, variant: 'error' })
         return
       }
@@ -74,6 +79,7 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
     setStepIndex(index)
     setVisited((current) => new Set(current).add(index))
     setCompletionIssues([])
+    setInvalidKeys([])
   }
 
   async function handleNext() {
@@ -85,13 +91,34 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
     setSaving(true)
     const result = await complete()
     setSaving(false)
-    if (result.ok) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
-    else setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
+    if (result.ok) {
+      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      return
+    }
+    const fields = result.fields ?? []
+    setInvalidKeys(fields)
+    setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
+    revealMissingFields(fields, { dataInicio: 0, dataFim: 0 }, setStepIndex, setVisited)
+  }
+
+  function changeLocal(key: 'nome' | 'endereco' | 'quadra', value: string) {
+    setNovoLocal((current) => ({ ...current, [key]: value }))
+    setLocalMessages((current) => {
+      if (!current[key]) return current
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
   }
 
   async function addLocal() {
-    if (!novoLocal.nome.trim()) return
+    if (!novoLocal.nome.trim()) {
+      setLocalMessages({ nome: 'Preencha Nome do local.' })
+      setLocalError('Preencha Nome do local.')
+      return
+    }
     setLocalError(null)
+    setLocalMessages({})
     const response = await fetch(`/api/organizador/ligas/${ligaId}/setup/calendario/locais`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -99,11 +126,21 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
     })
     const payload = await response.json()
     if (!response.ok) {
-      setLocalError(payload.error || 'Erro ao adicionar local.')
+      const details = payload.details && !Array.isArray(payload.details) ? payload.details as { fields?: unknown; messages?: unknown } : null
+      const fields = Array.isArray(details?.fields) ? details.fields.filter((field): field is string => typeof field === 'string') : []
+      const messages = Array.isArray(details?.messages) ? details.messages.filter((message): message is string => typeof message === 'string') : []
+      const map: Record<string, string> = {}
+      fields.forEach((field, index) => {
+        map[field] = messages[index] || payload.error || 'Dado inválido'
+      })
+      if (!fields.length) map.nome = payload.error || 'Erro ao adicionar local.'
+      setLocalMessages(map)
+      setLocalError(messages.length ? messages.join(' ') : payload.error || 'Erro ao adicionar local.')
       return
     }
     setLocais((current) => [...current, payload.data])
     setNovoLocal({ nome: '', endereco: '', quadra: '' })
+    setLocalMessages({})
   }
 
   async function removeLocal(id: number) {
@@ -112,10 +149,13 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
     setLocais((current) => current.filter((local) => local.id !== id))
     const response = await fetch(`/api/organizador/ligas/${ligaId}/setup/calendario/locais/${id}`, { method: 'DELETE' })
     if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
       setLocais(previous)
-      setLocalError('Erro ao remover local.')
+      setLocalError(payload.error || 'Erro ao remover local.')
     }
   }
+
+  const rangeMessage = validateDateRange(data?.dataInicio, data?.dataFim)
 
   if (loading) return <PageLoading label="Carregando calendário..." />
   if (loadError || !data) {
@@ -140,8 +180,14 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
       <div className="mt-6 grid gap-4">
         {stepIndex === 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <DatePickerInput id="data-inicio" label="Data de início" required value={data.dataInicio} edge="start" onChange={(iso) => updateNow({ dataInicio: iso })} />
-            <DatePickerInput id="data-fim" label="Data de término" required value={data.dataFim} edge="end" onChange={(iso) => updateNow({ dataFim: iso })} />
+            <div className="grid gap-1">
+              <DatePickerInput id="data-inicio" label="Data de início" required invalid={invalidKeys.includes('dataInicio') || Boolean(fieldMessages.dataInicio) || Boolean(rangeMessage)} value={data.dataInicio} edge="start" onChange={(iso) => { setInvalidKeys((current) => current.filter((key) => key !== 'dataInicio')); clearFieldMessage('dataInicio'); updateNow({ dataInicio: iso }) }} />
+              {fieldMessages.dataInicio && <FieldHint>{fieldMessages.dataInicio}</FieldHint>}
+            </div>
+            <div className="grid gap-1">
+              <DatePickerInput id="data-fim" label="Data de término" required invalid={invalidKeys.includes('dataFim') || Boolean(fieldMessages.dataFim) || Boolean(rangeMessage)} value={data.dataFim} edge="end" onChange={(iso) => { setInvalidKeys((current) => current.filter((key) => key !== 'dataFim')); clearFieldMessage('dataFim'); updateNow({ dataFim: iso }) }} />
+              {(fieldMessages.dataFim || rangeMessage) && <FieldHint>{fieldMessages.dataFim || rangeMessage}</FieldHint>}
+            </div>
           </div>
         )}
 
@@ -168,9 +214,18 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
             <div className="creator-modal-section grid gap-3 rounded-2xl border p-4">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Adicionar local</p>
               <div className="grid gap-3 sm:grid-cols-3">
-                <TextInput placeholder="Nome" value={novoLocal.nome} onChange={(e) => setNovoLocal((c) => ({ ...c, nome: e.target.value }))} />
-                <TextInput placeholder="Endereço" value={novoLocal.endereco} onChange={(e) => setNovoLocal((c) => ({ ...c, endereco: e.target.value }))} />
-                <TextInput placeholder="Quadra" value={novoLocal.quadra} onChange={(e) => setNovoLocal((c) => ({ ...c, quadra: e.target.value }))} />
+                <div className="grid gap-1">
+                  <TextInput placeholder="Nome" aria-invalid={Boolean(localMessages.nome)} className={localMessages.nome ? 'field-missing-control' : undefined} value={novoLocal.nome} onChange={(e) => changeLocal('nome', e.target.value)} />
+                  {localMessages.nome && <FieldHint>{localMessages.nome}</FieldHint>}
+                </div>
+                <div className="grid gap-1">
+                  <TextInput placeholder="Endereço" aria-invalid={Boolean(localMessages.endereco)} className={localMessages.endereco ? 'field-missing-control' : undefined} value={novoLocal.endereco} onChange={(e) => changeLocal('endereco', e.target.value)} />
+                  {localMessages.endereco && <FieldHint>{localMessages.endereco}</FieldHint>}
+                </div>
+                <div className="grid gap-1">
+                  <TextInput placeholder="Quadra" aria-invalid={Boolean(localMessages.quadra)} className={localMessages.quadra ? 'field-missing-control' : undefined} value={novoLocal.quadra} onChange={(e) => changeLocal('quadra', e.target.value)} />
+                  {localMessages.quadra && <FieldHint>{localMessages.quadra}</FieldHint>}
+                </div>
               </div>
               <button
                 type="button"
@@ -214,6 +269,10 @@ export function CalendarioWizard({ ligaId }: { ligaId: number }) {
       />
     </SectionWizardLayout>
   )
+}
+
+function FieldHint({ children }: { children: string }) {
+  return <p className="text-sm font-bold text-red-300">{children}</p>
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {

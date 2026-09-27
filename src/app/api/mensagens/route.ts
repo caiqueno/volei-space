@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
+import { requireAuth } from '@/lib/auth'
 import { mensagemSchema } from '@/lib/schemas'
 
 export async function GET(req: NextRequest) {
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authErr = await requireAuth(req)
+  if (authErr) return authErr
   try {
     const body = await req.json()
     const parsed = mensagemSchema.safeParse(body)

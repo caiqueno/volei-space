@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export default function AdminEquipesPage() {
   const [equipes, setEquipes] = useState<any[]>([])
@@ -112,11 +113,11 @@ export default function AdminEquipesPage() {
             <option value="">Selecionar campeonato</option>
             {ligas.map((liga: any) => <option key={liga.id} value={liga.id}>{liga.nome}</option>)}
           </select>
-          <button type="submit" disabled={saving}
-            className="col-span-2 md:col-span-4 bg-luva-blue text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-luva-navy transition-colors disabled:opacity-50"
+          <ActionBar type="submit" loading={saving} loadingLabel="Criando"
+            className="col-span-2 md:col-span-4 w-full bg-luva-blue text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-luva-navy transition-colors disabled:opacity-50"
           >
-            {saving ? 'Criando...' : '+ Criar Equipe'}
-          </button>
+            + Criar Equipe
+          </ActionBar>
         </form>
         {msg && <p className="text-sm mt-2 text-luva-muted">{msg}</p>}
       </div>

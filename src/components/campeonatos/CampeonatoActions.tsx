@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ArrowRight, CheckCircle2, LogIn, Send, UsersRound } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 type Session = {
   tipo: string
@@ -47,10 +48,10 @@ export function CampeonatoActions({
   if (session?.tipo === 'equipe') {
     return (
       <div className="championship-action-box grid gap-3 rounded-[1.5rem] border p-4">
-        <button onClick={solicitarInscricao} disabled={loading || !inscricoesAbertas} className="landing-primary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60">
+        <ActionBar onClick={solicitarInscricao} loading={loading} loadingLabel="Enviando" disabled={!inscricoesAbertas} className="landing-primary inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60">
           <Send size={18} />
-          {loading ? 'Enviando...' : 'Solicitar inscrição da equipe'}
-        </button>
+          Solicitar inscrição da equipe
+        </ActionBar>
         <Link href={`/portal?ligaId=${ligaId}`} className="landing-secondary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black">
           Abrir portal do campeonato
           <ArrowRight size={18} />
@@ -92,7 +93,7 @@ export function CampeonatoActions({
         <UsersRound size={18} />
         Inscrever equipe
       </Link>
-      <Link href="/cadastro?modo=login" className="landing-secondary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black">
+      <Link href="/login" className="landing-secondary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black">
         <LogIn size={18} />
         Já tenho conta
       </Link>

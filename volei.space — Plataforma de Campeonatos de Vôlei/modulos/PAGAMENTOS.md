@@ -1,3 +1,15 @@
+---
+title: >-
+  Pagamentos
+category: modulo
+tags: [pagamentos]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Fluxos de pagamento.
+status: misto
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Preço e pagamentos
 
 **Implementado:** motor de preço por campeonato e estimativa de partidas em `src/lib/pricing`; cupom e componentes opcionais no código. Há `src/lib/infinitepay.ts` e webhook `src/app/api/webhooks/infinitepay`.

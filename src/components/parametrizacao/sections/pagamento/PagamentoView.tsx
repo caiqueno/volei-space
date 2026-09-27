@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import QRCode from 'qrcode'
 import { ArrowLeft, Copy } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 import { FormAlert } from '../../ui/FormAlert'
 import PageLoading from '@/components/ui/page-loading'
 import { formatCents } from '@/lib/pricing'
@@ -203,14 +204,15 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
             </button>
           </div>
 
-          <button
+          <ActionBar
             type="button"
             onClick={handleConfirmar}
-            disabled={confirming}
+            loading={confirming}
+            loadingLabel="Confirmando"
             className="public-primary-action mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {confirming ? 'Confirmando...' : 'Já paguei — simular confirmação'}
-          </button>
+            Já paguei — simular confirmação
+          </ActionBar>
         </div>
       )}
     </div>

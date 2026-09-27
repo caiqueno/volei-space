@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, CalendarDays, ClipboardList, Trophy, UserRound, Users } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardList, KeyRound, Trophy, UserRound, Users } from 'lucide-react'
 
 const navLinks = [
   { href: '/admin', label: 'Dashboard', icon: BarChart3 },
   { href: '/admin/candidaturas', label: 'Candidaturas', icon: ClipboardList },
+  { href: '/admin/acessos', label: 'Organizadores', icon: KeyRound },
   { href: '/admin/partidas', label: 'Partidas', icon: CalendarDays },
   { href: '/admin/equipes', label: 'Equipes', icon: Users },
   { href: '/admin/jogadores', label: 'Jogadores', icon: UserRound },

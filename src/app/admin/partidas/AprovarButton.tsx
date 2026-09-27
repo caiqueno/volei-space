@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export function AprovarButton({ partidaId }: { partidaId: number }) {
   const router = useRouter()
@@ -29,13 +30,14 @@ export function AprovarButton({ partidaId }: { partidaId: number }) {
 
   return (
     <div>
-      <button
+      <ActionBar
         onClick={handleAprovar}
-        disabled={loading}
+        loading={loading}
+        loadingLabel="Aprovando"
         className="text-xs bg-luva-amber text-luva-navy font-bold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
       >
-        {loading ? '...' : 'Aprovar'}
-      </button>
+        Aprovar
+      </ActionBar>
       {erro && <p className="text-xs text-red-500 mt-1">{erro}</p>}
     </div>
   )

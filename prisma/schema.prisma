@@ -18,20 +18,54 @@ model Liga {
   descricao         String?
   regulamento       String?
   premiacao         String?
-  quantidadeEquipes Int?
-  formato           String?
-  faseEliminatoria  String?   @default("NENHUMA")
-  inscricoesAbertas Boolean   @default(true)
-  categoriasConfig  String?
-  logoUrl           String?
-  capaUrl           String?
-  corTematica       String    @default("#0F2C52")
-  status            String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA
-  organizadorId     String?
-  dataInicio        DateTime?
-  dataFim           DateTime?
-  criadoEm          DateTime  @default(now())
-  atualizadoEm      DateTime  @updatedAt
+  nomeCurto                     String?
+  quantidadeEquipes             Int?
+  quantidadeEquipesMinima       Int?
+  quantidadeEquipesMaxima       Int?
+  formato                       String?
+  quantidadeGrupos              Int?
+  nomesGrupos                   String?
+  faseEliminatoria              String?   @default("NENHUMA")
+  turnoReturno                  Boolean   @default(false)
+  setsFormato                   String    @default("MELHOR_DE")
+  setsPorPartida                Int       @default(3)
+  pontosPorSet                  Int       @default(25)
+  diferencaMinimaSet            Int       @default(2)
+  tieBreakUltimoSet             Boolean   @default(false)
+  pontosUltimoSet               Int?
+  criteriosClassificacao        String?
+  pontuacaoResultado            Json?
+  classificadosPorGrupo         Int?
+  melhoresClassificadosGerais   Int       @default(0)
+  metodoChaveamento             String    @default("MANUAL")
+  eliminatoriaIdaVolta          Boolean   @default(false)
+  disputaTerceiroLugar          Boolean   @default(true)
+  goldenSet                     Boolean   @default(false)
+  inscricoesAbertas             Boolean   @default(true)
+  inscricoesAberturaEm          DateTime?
+  inscricoesEncerramentoEm      DateTime?
+  inscricaoAprovacaoAutomatica  Boolean   @default(false)
+  inscricaoPermiteEdicaoAposEnvio Boolean @default(true)
+  inscricaoPrazoEdicaoDias      Int?
+  elencoQuantidadeMinima        Int?
+  elencoQuantidadeMaxima        Int?
+  elencoCadastroDuranteInscricao Boolean  @default(true)
+  elencoCadastroAposAprovacao   Boolean   @default(true)
+  prazoAlteracaoElencoDias      Int?
+  qrCodeEnabled                 Boolean   @default(false)
+  sumulaScoutsEnabled           Boolean   @default(false)
+  formularioInscricaoConfig     Json?
+  categoriasConfig              String?
+  logoUrl                       String?
+  capaUrl                       String?
+  corTematica                   String    @default("#0F2C52")
+  status                        String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA
+  organizadorId                 String?
+  pagamentoConfirmadoEm         DateTime?
+  dataInicio                    DateTime?
+  dataFim                       DateTime?
+  criadoEm                      DateTime  @default(now())
+  atualizadoEm                  DateTime  @default(now()) @updatedAt
 
   equipes                    Equipe[]
   partidas                   Partida[]
@@ -54,6 +88,8 @@ model Equipe {
   id              Int      @id @default(autoincrement())
   nome            String
   logoUrl         String?
+  lider           String?
+  tecnico         String?
   corHex          String?
   categoria       String // FEMININO | FEMININO_MASTER | MISTO | MASCULINO | MASCULINO_MASTER
   serie           String   @default("PRATA") // OURO | PRATA
@@ -370,7 +406,8 @@ model ClassificacaoEntrada {
   pontosPro    Int      @default(0)
   pontosContra Int      @default(0)
   punicoes     Int      @default(0)
-  atualizadoEm DateTime @updatedAt
+  ligaId       Int?
+  atualizadoEm DateTime @default(now()) @updatedAt
 }
 
 model ClassificacaoEliminatoria {
@@ -481,11 +518,15 @@ model CandidaturaArbitro {
   cref                 String?
   diplomaUrl           String?
   status               String                      @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
+  organizadorId        String?
+  trocarSenha          Boolean                     @default(false)
   arbitroId            Int?                        @unique
   arbitro              Arbitro?                    @relation(fields: [arbitroId], references: [id])
   partidasCandidatadas CandidaturaPartidaArbitro[]
   criadaEm             DateTime                    @default(now())
   atualizadaEm         DateTime                    @updatedAt
+
+  @@index([organizadorId])
 }
 
 model CandidaturaQuadra {
@@ -517,10 +558,12 @@ model CandidaturaOrganizador {
   email             String    @unique
   telefone          String?
   senhaHash         String?
-  organizacao       String
+  organizacao       String?
   cidade            String?
+  logoUrl           String?
   plano             String    @default("PRO")
   status            String    @default("ATIVA")
+  trocarSenha       Boolean   @default(false)
   emailVerificadoEm DateTime?
   criadaEm          DateTime  @default(now())
   atualizadaEm      DateTime  @updatedAt
@@ -548,4 +591,21 @@ model Interessado {
   whatsapp     String
   cidade       String
   criadoEm     DateTime @default(now())
+}
+
+model CodigoAcessoOrganizador {
+  id            String    @id @default(uuid()) @db.Uuid
+  codigo        String    @unique
+  organizadorId String?   @unique
+  criadoEm      DateTime  @default(now())
+  usadoEm       DateTime?
+}
+
+model ContaPublico {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  status    String   @default("ATIVA")
+  criadoEm  DateTime @default(now())
 }

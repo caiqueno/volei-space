@@ -109,7 +109,7 @@ export function isSectionOwnDataComplete(section: SetupSection, liga: Record<str
 
 // Campos-âncora de cada seção, com rótulo legível — usados para explicar ao
 // organizador o que falta quando ele tenta concluir uma seção incompleta.
-const SECTION_REQUIRED_FIELDS: Record<SetupSection, Array<{ key: string; label: string }>> = {
+export const SECTION_REQUIRED_FIELDS: Record<SetupSection, Array<{ key: string; label: string }>> = {
   informacoes: [{ key: 'nome', label: 'Nome do campeonato' }],
   estrutura: [
     { key: 'quantidadeEquipes', label: 'Quantidade de equipes' },
@@ -124,9 +124,19 @@ const SECTION_REQUIRED_FIELDS: Record<SetupSection, Array<{ key: string; label: 
   inscricoes: [{ key: 'formularioInscricaoConfig', label: 'Formulário de inscrição' }],
 }
 
+function isBlankRequiredValue(value: unknown) {
+  if (value == null || value === '') return true
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed === '' || trimmed === '[]'
+  }
+  if (Array.isArray(value)) return value.length === 0
+  return false
+}
+
 export function getMissingSectionFields(section: SetupSection, liga: Record<string, unknown>): string[] {
   return (SECTION_REQUIRED_FIELDS[section] ?? [])
-    .filter((field) => liga[field.key] == null || liga[field.key] === '')
+    .filter((field) => isBlankRequiredValue(liga[field.key]))
     .map((field) => field.label)
 }
 

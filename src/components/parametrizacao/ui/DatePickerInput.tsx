@@ -17,6 +17,7 @@ interface DatePickerInputProps {
   edge: 'start' | 'end'
   required?: boolean
   disabled?: boolean
+  invalid?: boolean
 }
 
 // Combina input de texto (dd/mm/aaaa, editável manualmente) + ícone +
@@ -28,7 +29,7 @@ interface DatePickerInputProps {
 // cada seção num `.luva-card` (globals.css) com `overflow: hidden` (usado
 // pelo efeito de brilho do próprio card), que cortaria qualquer popup
 // posicionado normalmente dentro da árvore do DOM.
-export function DatePickerInput({ id, label, value, onChange, edge, required, disabled }: DatePickerInputProps) {
+export function DatePickerInput({ id, label, value, onChange, edge, required, disabled, invalid }: DatePickerInputProps) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState(() => (value ? formatDateBr(value) : ''))
   const [panelStyle, setPanelStyle] = useState<{ top: number; left: number } | null>(null)
@@ -96,7 +97,7 @@ export function DatePickerInput({ id, label, value, onChange, edge, required, di
         onChange={setText}
         onFocus={() => setOpen(true)}
         onBlur={commitTypedText}
-        className="pr-11"
+        className={invalid ? 'field-missing-control pr-11' : 'pr-11'}
       />
       <button
         type="button"

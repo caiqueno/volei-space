@@ -17,7 +17,7 @@ export type JWTPayload = {
   nome: string
 }
 
-export type PublicUserRole = 'equipe' | 'arbitro' | 'quadra' | 'organizador'
+export type PublicUserRole = 'equipe' | 'arbitro' | 'quadra' | 'organizador' | 'publico'
 
 export type PublicJWTPayload = {
   userId: string
@@ -25,6 +25,7 @@ export type PublicJWTPayload = {
   nome: string
   tipo: PublicUserRole
   status: string
+  trocarSenha?: boolean
 }
 
 export const RELEASED_PUBLIC_STATUSES = ['APROVADA', 'APROVADO', 'ATIVA', 'ATIVO', 'LIBERADA', 'LIBERADO']
@@ -66,6 +67,19 @@ export async function signPublicToken(payload: PublicJWTPayload): Promise<string
     .sign(getSecret())
 }
 
+export async function readPublicSession(): Promise<PublicJWTPayload | null> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIE_NAME)?.value
+    if (!token) return null
+    const { payload } = await jwtVerify(token, getSecret())
+    if (payload.scope !== 'public-user') return null
+    return payload as unknown as PublicJWTPayload
+  } catch {
+    return null
+  }
+}
+
 export async function verifyPublicToken(req: NextRequest): Promise<PublicJWTPayload | null> {
   try {
     const cookieStore = await cookies()
@@ -93,6 +107,9 @@ export async function requirePublicRole(
   }
   if (options.releasedOnly && !isReleasedPublicStatus(payload.status)) {
     return NextResponse.json({ error: 'Perfil ainda não liberado para esta operação.' }, { status: 403 })
+  }
+  if ((payload.tipo === 'organizador' || payload.tipo === 'arbitro') && payload.trocarSenha === true) {
+    return NextResponse.json({ error: 'Substitua a senha antes de continuar.' }, { status: 403 })
   }
   return payload
 }

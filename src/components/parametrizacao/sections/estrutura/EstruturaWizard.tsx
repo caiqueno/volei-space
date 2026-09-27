@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ClipboardList, Repeat2, ScanLine, ShieldOff } from 'lucide-react'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
@@ -35,6 +35,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(new Set([0]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   function goTo(index: number) {
@@ -42,6 +43,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
     setStepIndex(index)
     setVisited((current) => new Set(current).add(index))
     setCompletionIssues([])
+    setInvalidKeys([])
   }
 
   async function handleNext() {
@@ -53,9 +55,23 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
     setSaving(true)
     const result = await complete()
     setSaving(false)
-    if (result.ok) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
-    else setCompletionIssues(result.issues.map((issue) => issue.message))
+    if (result.ok) {
+      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      return
+    }
+    const fields = result.fields ?? []
+    setInvalidKeys(fields)
+    setCompletionIssues(result.issues.map((issue) => issue.message))
+    if (fields.includes('formato') || fields.includes('quantidadeEquipes')) {
+      setStepIndex(0)
+      setVisited((current) => new Set(current).add(0))
+    }
   }
+
+  useEffect(() => {
+    if (!invalidKeys.length || stepIndex !== 0) return
+    document.getElementById(invalidKeys.includes('quantidadeEquipes') ? 'quantidade-equipes' : 'formato-competicao')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [invalidKeys, stepIndex])
 
   if (loading) return <PageLoading label="Carregando estrutura do campeonato..." />
   if (loadError || !data) {
@@ -83,20 +99,29 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
       <div className="mt-6 grid gap-4">
         {stepIndex === 0 && (
           <>
-            <Field label="Formato da competição" required>
-              <ChoiceChips
-                value={data.formato as CompetitionFormat | null}
-                onChange={(value) => updateNow({ formato: value })}
-                options={COMPETITION_FORMATS.map((f) => ({ value: f.value, label: f.label }))}
-              />
-            </Field>
+            <div id="formato-competicao">
+              <Field label="Formato da competição" required invalid={invalidKeys.includes('formato')}>
+                <ChoiceChips
+                  value={data.formato as CompetitionFormat | null}
+                  onChange={(value) => {
+                    setInvalidKeys((current) => current.filter((key) => key !== 'formato'))
+                    updateNow({ formato: value })
+                  }}
+                  options={COMPETITION_FORMATS.map((f) => ({ value: f.value, label: f.label }))}
+                />
+              </Field>
+            </div>
             <FloatingLabelNumberInput
               id="quantidade-equipes"
               label="Quantidade de Equipes"
               required
               value={data.quantidadeEquipes}
               min={2}
-              onChange={(v) => updateNow({ quantidadeEquipes: v })}
+              className={invalidKeys.includes('quantidadeEquipes') ? 'field-missing-control' : undefined}
+              onChange={(v) => {
+                setInvalidKeys((current) => current.filter((key) => key !== 'quantidadeEquipes'))
+                updateNow({ quantidadeEquipes: v })
+              }}
             />
           </>
         )}

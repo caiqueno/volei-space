@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     if (ligaId) {
       const { data: inscricoes, error: inscricoesError } = await supabase
         .from('InscricaoCampeonato')
-        .select('equipe:Equipe(*, liga:Liga(*), jogadores:Jogador(*))')
+        .select('equipe:Equipe(*, liga:Liga(*), jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl))')
         .eq('ligaId', Number(ligaId))
         .eq('status', 'APROVADA')
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     let q = supabase
       .from('Equipe')
-      .select('*, liga:Liga(*), jogadores:Jogador(*)')
+      .select('*, liga:Liga(*), jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)')
       .order('nome', { ascending: true })
 
     if (categoria) q = q.eq('categoria', categoria)

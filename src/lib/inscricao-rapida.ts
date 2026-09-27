@@ -74,3 +74,19 @@ export function parseCategoriaSerieOptions(categoriasConfig: string | null | und
 export function buildFallbackCategoriaSerieOptions(): CategoriaSerieOption[] {
   return categorias.flatMap((categoria) => series.map((serie) => ({ categoria, serie, label: formatCategoriaLabel(categoria, serie) })))
 }
+
+export function championshipCategoryName(nome: string, nomeCurto?: string | null) {
+  return (nomeCurto || nome).trim()
+}
+
+/** Sem categorias próprias, o cadastro usa o nome parametrizado do campeonato. */
+export function resolveInscricaoCategoria(liga: { nome: string; nomeCurto?: string | null; categoriasConfig?: string | null }) {
+  const parametrized = parseCategoriaSerieOptions(liga.categoriasConfig)
+  if (parametrized.length > 1) return { categoriaFixa: null as CategoriaSerieOption | null, categoriaOptions: parametrized }
+  if (parametrized.length === 1) return { categoriaFixa: parametrized[0], categoriaOptions: [] as CategoriaSerieOption[] }
+  const label = championshipCategoryName(liga.nome, liga.nomeCurto)
+  return {
+    categoriaFixa: { categoria: label, serie: 'GERAL', label },
+    categoriaOptions: [] as CategoriaSerieOption[],
+  }
+}

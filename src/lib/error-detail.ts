@@ -6,10 +6,13 @@ export function errorDetail(err: unknown) {
     const parts = [record.message, record.details, record.hint, record.code]
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
 
-    if (parts.length > 0) return parts.join(' | ')
+    const safeParts = parts.filter((part) => !part.includes('Failing row contains'))
+    if (safeParts.length > 0) return safeParts.join(' | ')
 
     try {
-      return JSON.stringify(record)
+      const raw = JSON.stringify(record)
+      if (raw.includes('Failing row contains')) return 'erro de banco'
+      return raw
     } catch {
       return 'erro desconhecido'
     }

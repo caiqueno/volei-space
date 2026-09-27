@@ -6,8 +6,7 @@ import { WizardAutosaveStatus } from './WizardAutosaveStatus'
 import type { AutosaveStatus } from './useSectionWizard'
 
 // Casca de 2 colunas de cada macroetapa: trilho com as 7 seções à esquerda,
-// painel do wizard à direita. max-w-6xl (3 colunas espremeria os
-// sm:grid-cols-2 dos campos dos steps).
+// painel do wizard à direita. Mesma largura do cabeçalho (max-w-7xl).
 export function SectionWizardLayout({
   ligaId,
   section,
@@ -28,7 +27,7 @@ export function SectionWizardLayout({
   children: ReactNode
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-10">
       <div className="flex flex-col gap-8 lg:flex-row">
         <aside className="lg:w-64 lg:shrink-0">
           <SetupSectionNav ligaId={ligaId} activeSection={section} />

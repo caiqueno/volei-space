@@ -94,7 +94,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
       .order('criadaEm', { ascending: false }),
     supabase
       .from('Partida')
-      .select('id,rodada,dataHora,status,placarA,placarB,vencedorId,liga:Liga(id,nome,slug),equipeA:Equipe!equipeAId(id,nome,slug),equipeB:Equipe!equipeBId(id,nome,slug)')
+      .select('id,rodada,dataHora,status,setsPorA,setsPorB,vencedorId,liga:Liga(id,nome,slug),equipeA:Equipe!equipeAId(id,nome,slug),equipeB:Equipe!equipeBId(id,nome,slug)')
       .or(`equipeAId.eq.${equipe.id},equipeBId.eq.${equipe.id}`)
       .order('dataHora', { ascending: false })
       .limit(8),
@@ -119,8 +119,8 @@ export default async function EquipePublicPage({ params }: PageProps) {
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
               <p className="luva-kicker">Perfil público da equipe</p>
-              <h1 className="mt-4 max-w-4xl font-display text-5xl font-black leading-tight text-white md:text-7xl">{equipe.nome}</h1>
-              <p className="mt-4 text-base font-semibold leading-8 text-slate-200">
+              <h1 className="type-page-title mt-3 max-w-4xl">{equipe.nome}</h1>
+              <p className="type-lead mt-4">
                 {[equipe.categoria, equipe.serie].filter(Boolean).join(' · ') || 'Equipe cadastrada na plataforma volei.space.'}
               </p>
             </div>
@@ -246,7 +246,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
                     <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">{liga?.nome ?? 'Campeonato'} · Rodada {partida.rodada ?? '-'}</p>
                   </div>
                   <span className="text-sm font-black text-slate-200">{formatDate(partida.dataHora)}</span>
-                  <span className="text-sm font-black text-luva-amber">{partida.placarA ?? 0} x {partida.placarB ?? 0}</span>
+                  <span className="text-sm font-black text-luva-amber">{partida.setsPorA ?? 0} x {partida.setsPorB ?? 0}</span>
                 </div>
               )
             }) : (

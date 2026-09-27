@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { revealMissingFields } from '../../wizard/missing-fields'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -14,7 +15,7 @@ import { PricingSummary } from '../../pricing/PricingSummary'
 import PageLoading from '@/components/ui/page-loading'
 import { FloatingLabelNumberInput } from '@/components/ui/floating-label'
 import type { ClassificacaoSectionDTO } from '@/types/championship-setup'
-import { getExamplePontuacaoResultado, DEFAULT_CRITERIOS_CLASSIFICACAO } from '@/lib/championship-setup-defaults'
+import { getExamplePontuacaoResultado } from '@/lib/championship-setup-defaults'
 
 const STEPS: WizardStepDef[] = [
   { key: 'pontuacao', title: 'Sistema de pontuação' },
@@ -24,12 +25,12 @@ const STEPS: WizardStepDef[] = [
 ]
 
 function parseCriterios(raw: string | null): string[] {
-  if (!raw) return DEFAULT_CRITERIOS_CLASSIFICACAO
+  if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CRITERIOS_CLASSIFICACAO
+    return Array.isArray(parsed) ? parsed.map(String) : []
   } catch {
-    return DEFAULT_CRITERIOS_CLASSIFICACAO
+    return []
   }
 }
 
@@ -41,6 +42,7 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(new Set([0]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   function goTo(index: number) {
@@ -48,6 +50,7 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
     setStepIndex(index)
     setVisited((current) => new Set(current).add(index))
     setCompletionIssues([])
+    setInvalidKeys([])
   }
 
   async function handleNext() {
@@ -59,8 +62,14 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
     setSaving(true)
     const result = await complete()
     setSaving(false)
-    if (result.ok) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
-    else setCompletionIssues(result.issues.map((issue) => issue.message))
+    if (result.ok) {
+      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      return
+    }
+    const fields = result.fields ?? []
+    setInvalidKeys(fields)
+    setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
+    revealMissingFields(fields, { criteriosClassificacao: 1 }, setStepIndex, setVisited)
   }
 
   if (loading) return <PageLoading label="Carregando classificação..." />
@@ -124,10 +133,18 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
         )}
 
         {stepIndex === 1 && (
-          <OrderedCriteriaList
-            value={criterios}
-            onChange={(next) => updateNow({ criteriosClassificacao: JSON.stringify(next) })}
-          />
+          <div className="grid gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-200">Critérios de classificação <span className="text-luva-amber">*</span></p>
+            <OrderedCriteriaList
+              invalid={invalidKeys.includes('criteriosClassificacao')}
+              value={criterios}
+              onChange={(next) => {
+                setInvalidKeys((current) => current.filter((key) => key !== 'criteriosClassificacao'))
+                updateNow({ criteriosClassificacao: JSON.stringify(next) })
+              }}
+            />
+            <p className="text-xs font-semibold leading-5 text-slate-400">Escolha ao menos um critério. A ordem define o desempate.</p>
+          </div>
         )}
 
         {stepIndex === 2 && (
@@ -144,7 +161,7 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
         {stepIndex === 3 && (
           <div className="grid gap-3">
             <ReviewRow label="Pontuação por resultado" value={pontuacao.map((r) => `${r.setsVencedor}x${r.setsPerdedor}: ${r.pontosVencedor}-${r.pontosPerdedor}`).join(' · ')} />
-            <ReviewRow label="Critérios de desempate" value={criterios.length > 0 ? criterios.join(' → ') : 'Nenhum'} />
+            <ReviewRow label="Critérios de classificação" value={criterios.length > 0 ? criterios.join(' → ') : 'Nenhum'} />
             <ReviewRow label="Classificados por grupo" value={String(data.classificadosPorGrupo ?? 0)} />
             <ReviewRow label="Melhores classificados gerais" value={String(data.melhoresClassificadosGerais ?? 0)} />
           </div>

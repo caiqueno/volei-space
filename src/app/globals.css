@@ -34,6 +34,7 @@
 html,
 body {
   background: var(--landing-bg);
+  overflow-x: clip;
 }
 
 .landing-tech-shell {
@@ -3312,7 +3313,7 @@ textarea::placeholder {
     width: 100%;
   }
 
-  .landing-header-actions a:last-child {
+  .landing-header-actions a {
     flex: 1;
   }
 
@@ -6687,11 +6688,111 @@ html body main.auth-page .auth-add-button:hover svg * {
   stroke: #061322 !important;
 }
 
-html body main.auth-page :is(input, select, textarea) {
+html body main.auth-page {
+  color-scheme: dark;
+}
+
+html body main.auth-page .auth-creating {
+  position: relative;
+  display: grid;
+  min-height: 3rem;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+html body main.auth-page .auth-creating-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8%;
+  background: #ffb331;
+  animation: auth-creating-bar 12s ease-out forwards;
+}
+
+html body main.auth-page .auth-creating span:last-child {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes auth-creating-bar {
+  to { width: 92%; }
+}
+
+.action-bar.is-loading {
+  position: relative !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  min-height: 3rem;
+  min-width: 10rem;
+  background: #102033 !important;
   color: #ffffff !important;
-  background-color: #071426 !important;
-  border-color: rgba(226, 192, 130, 0.24) !important;
+  border-color: transparent !important;
+  opacity: 1 !important;
+  pointer-events: none;
+  box-shadow: none !important;
+}
+
+.action-bar.is-loading.w-full,
+.action-bar.is-loading.landing-form-submit,
+.action-bar.is-loading.landing-primary {
+  display: grid !important;
+  width: 100% !important;
+}
+
+.action-bar.is-loading .action-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8%;
+  background: #ffb331;
+  animation: auth-creating-bar 12s ease-out forwards;
+}
+
+.action-bar.is-loading .action-bar-label {
+  position: relative;
+  z-index: 1;
+  color: #ffffff !important;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+html body main.auth-page :is(input, select, textarea).rounded-xl.border,
+html body main.auth-page :is(input, select, textarea).rounded-xl.border:hover,
+html body main.auth-page :is(input, select, textarea).rounded-xl.border:focus,
+html body main.auth-page :is(input, select, textarea).rounded-xl.border:-webkit-autofill,
+html body main.auth-page :is(input, select, textarea).rounded-xl.border:-webkit-autofill:hover,
+html body main.auth-page :is(input, select, textarea).rounded-xl.border:-webkit-autofill:focus {
+  color-scheme: dark !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   caret-color: #ffb331 !important;
+  background: #071426 !important;
+  background-color: #071426 !important;
+  background-image: none !important;
+  border-color: rgba(226, 192, 130, 0.24) !important;
+  box-shadow: inset 0 0 0 1000px #071426 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #071426 !important;
+  transition: background-color 99999s ease-out 0s !important;
+}
+
+html body main.auth-page :is(input, select, textarea).rounded-xl.border:focus {
+  background: #0b1c33 !important;
+  background-color: #0b1c33 !important;
+  border-color: #ffb331 !important;
+  box-shadow: inset 0 0 0 1000px #0b1c33, 0 0 0 4px rgba(255, 179, 49, 0.2) !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0b1c33, 0 0 0 4px rgba(255, 179, 49, 0.2) !important;
 }
 
 html body main.auth-page .auth-field {
@@ -7469,6 +7570,24 @@ html body .admin-login-shell :is(p, span, label, small) {
   color: #c7d6e8 !important;
   -webkit-text-fill-color: #c7d6e8 !important;
   text-shadow: none !important;
+}
+
+html body .admin-login-shell p.cadastro-field-error {
+  color: #ffc9c9 !important;
+  -webkit-text-fill-color: #ffc9c9 !important;
+}
+
+html body .admin-login-shell p.cadastro-field-ok {
+  color: #b7f0c8 !important;
+  -webkit-text-fill-color: #b7f0c8 !important;
+}
+
+html body .admin-login-shell button.cadastro-reveal {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #c7d6e8 !important;
+  -webkit-text-fill-color: #c7d6e8 !important;
 }
 
 html body .admin-shell main :is(.text-luva-blue, a:not(.bg-luva-blue):not(.bg-luva-amber):not(.bg-luva-navy)) {
@@ -11530,8 +11649,8 @@ html body main.landing-tech-shell a.landing-primary span,
 html body main.landing-tech-shell a.landing-primary svg,
 html body main.landing-tech-shell a.landing-primary svg *,
 html body main.landing-tech-shell .landing-primary *,
-html body .landing-header-actions a:last-child,
-html body .landing-header-actions a:last-child * {
+html body .landing-header-actions a,
+html body .landing-header-actions a * {
   color: #ffffff !important;
   text-shadow: none !important;
   fill: currentColor !important;
@@ -11723,10 +11842,10 @@ html body main.landing-tech-shell .landing-primary svg * {
   fill: none !important;
 }
 
-html body .landing-header-actions a:last-child,
-html body .landing-header-actions a:last-child:visited,
-html body .landing-header-actions a:last-child:hover,
-html body .landing-header-actions a:last-child * {
+html body .landing-header-actions a,
+html body .landing-header-actions a:visited,
+html body .landing-header-actions a:hover,
+html body .landing-header-actions a * {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
   text-shadow: none !important;
@@ -11873,7 +11992,7 @@ html body .championship-list-link:hover {
 }
 
 /* Landing roles carousel and cleaner hero object. */
-html body .landing-header-actions a:last-child {
+html body .landing-header-actions a {
   border-color: rgba(255, 191, 74, 0.62) !important;
   background: #ffb331 !important;
   color: #ffffff !important;
@@ -11881,7 +12000,7 @@ html body .landing-header-actions a:last-child {
   box-shadow: 0 14px 34px rgba(255, 179, 49, 0.18) !important;
 }
 
-html body .landing-header-actions a:last-child:hover {
+html body .landing-header-actions a:hover {
   background: linear-gradient(135deg, #ffc34b, #ffe0a0) !important;
   transform: translateY(-1px);
 }
@@ -12212,8 +12331,8 @@ html body main.landing-tech-shell .landing-live-card-clean .volley-card-tags spa
 
 html body main.landing-tech-shell .landing-primary,
 html body main.landing-tech-shell .landing-primary *,
-html body .landing-header-actions a:last-child,
-html body .landing-header-actions a:last-child * {
+html body .landing-header-actions a,
+html body .landing-header-actions a * {
   color: #06111f !important;
   -webkit-text-fill-color: #06111f !important;
 }
@@ -13419,7 +13538,7 @@ html body .championship-filter-button:hover * {
 
   html body .landing-header-actions {
     display: grid !important;
-    grid-template-columns: 3.25rem 1fr !important;
+    grid-template-columns: 1fr !important;
     gap: 0.75rem !important;
     width: 100% !important;
     order: 3;
@@ -17438,4 +17557,129 @@ html body .legal-page {
 
 html body .legal-page .legal-page-hero-title {
   color: #ffffff !important;
+}
+
+/* Escala única: página, seção, corpo e rótulo. */
+:root {
+  --type-kicker: 0.875rem;
+  --type-body: 1rem;
+  --type-lead: 1.0625rem;
+  --type-section: 1.5rem;
+  --type-page: clamp(1.75rem, 1.35rem + 1.1vw, 2.25rem);
+  --type-display: clamp(1.875rem, 1.4rem + 1.6vw, 2.5rem);
+  --type-stat: 1.75rem;
+}
+
+.type-page-title,
+html body main.luva-shell h1,
+html body main.sport-grid h1,
+html body .public-dashboard h1,
+html body .capitain-dashboard h1,
+html body main.auth-page h1,
+html body .admin-shell h1,
+html body .admin-shell h2.type-page-title {
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif !important;
+  font-size: var(--type-page) !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.type-section-title,
+html body main.luva-shell h2,
+html body main.sport-grid h2,
+html body .public-dashboard h2,
+html body .capitain-dashboard h2,
+html body main.auth-page h2 {
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif !important;
+  font-size: var(--type-section) !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.015em !important;
+}
+
+html body main.luva-shell h3,
+html body .public-dashboard h3,
+html body .capitain-dashboard h3 {
+  font-size: 1.25rem !important;
+  font-weight: 750 !important;
+  line-height: 1.3 !important;
+}
+
+.type-lead,
+html body main.luva-shell .type-lead,
+html body .public-dashboard .type-lead,
+html body .capitain-dashboard .type-lead {
+  font-size: var(--type-lead) !important;
+  font-weight: 600 !important;
+  line-height: 1.55 !important;
+  letter-spacing: 0 !important;
+}
+
+.type-kicker,
+.luva-kicker,
+html body main.luva-shell .luva-kicker,
+html body main.sport-grid .luva-kicker,
+html body .public-dashboard .luva-kicker,
+html body .capitain-dashboard .luva-kicker,
+html body main.auth-page .luva-kicker {
+  font-size: var(--type-kicker) !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0.01em !important;
+  text-transform: none !important;
+}
+
+.type-stat {
+  font-size: var(--type-stat) !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.02em !important;
+}
+
+html body main.luva-shell :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]),
+html body .public-dashboard :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]),
+html body .capitain-dashboard :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]),
+html body main.auth-page :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]) {
+  font-size: var(--type-kicker) !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0.01em !important;
+}
+
+html body main.landing-tech-shell .landing-section-head h2,
+html body main.landing-tech-shell .console-copy h2,
+html body main.landing-tech-shell .landing-cta h2 {
+  font-size: var(--type-display) !important;
+  line-height: 1.15 !important;
+  font-weight: 800 !important;
+}
+
+html body main.landing-tech-shell .image-band-copy h3,
+html body main.landing-tech-shell .landing-tech-card h3 {
+  font-size: 1.25rem !important;
+  line-height: 1.3 !important;
+  font-weight: 750 !important;
+}
+
+html body main.landing-tech-shell .landing-subtitle,
+html body main.landing-tech-shell .image-band-copy p,
+html body main.landing-tech-shell .landing-tech-card p,
+html body main.landing-tech-shell .console-copy p,
+html body main.landing-tech-shell .timeline-item p,
+html body main.landing-tech-shell .landing-form-intro {
+  font-size: var(--type-lead) !important;
+  line-height: 1.55 !important;
+  font-weight: 600 !important;
+}
+
+@keyframes field-missing-pulse {
+  0%, 100% { border-color: #f87171; box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.2); }
+  50% { border-color: #ef4444; box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.45); }
+}
+
+.field-missing,
+.field-missing :is(input, select, textarea, .creator-category-option, .creator-modal-section),
+.field-missing-control {
+  animation: field-missing-pulse 0.85s ease-in-out infinite;
+  border-color: #f87171 !important;
 }

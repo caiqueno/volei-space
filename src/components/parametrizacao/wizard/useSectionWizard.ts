@@ -18,6 +18,8 @@ interface UseSectionWizardResult<T extends object> {
   loadError: string | null
   autosaveStatus: AutosaveStatus
   autosaveError: string | null
+  fieldMessages: Record<string, string>
+  clearFieldMessage: (key: string) => void
   setupStatus: ChampionshipSetupStatus | null
   issues: ValidationIssueLike[]
   /** Enfileira uma alteração para autosave (debounce 700ms, maxWait 5s). */
@@ -26,8 +28,8 @@ interface UseSectionWizardResult<T extends object> {
   updateNow: (patch: Partial<T>) => void
   /** Força o envio do que estiver pendente agora (blur, troca de subetapa). */
   flush: () => void
-  /** "Salvar e concluir": envia o pendente + intent=complete. */
-  complete: () => Promise<{ ok: boolean; issues: ValidationIssueLike[] }>
+  /** "Salvar e concluir": envia o que está na tela + intent=complete. */
+  complete: () => Promise<{ ok: boolean; issues: ValidationIssueLike[]; fields: string[] }>
 }
 
 const DEBOUNCE_MS = 700
@@ -42,6 +44,7 @@ export function useSectionWizard<T extends object>(
   const [loadError, setLoadError] = useState<string | null>(null)
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>('idle')
   const [autosaveError, setAutosaveError] = useState<string | null>(null)
+  const [fieldMessages, setFieldMessages] = useState<Record<string, string>>({})
   const [setupStatus, setSetupStatus] = useState<ChampionshipSetupStatus | null>(null)
   const [issues, setIssues] = useState<ValidationIssueLike[]>([])
 
@@ -49,6 +52,7 @@ export function useSectionWizard<T extends object>(
   // PATCH tem efeito colateral de status no servidor, então ordem de
   // CHEGADA importa; não basta debounce isolado.
   const pendingRef = useRef<Partial<T> | null>(null)
+  const dataRef = useRef<T | null>(null)
   const inFlightRef = useRef<Promise<unknown> | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const maxWaitRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -68,6 +72,7 @@ export function useSectionWizard<T extends object>(
         if (cancelled) return
         // O GET não devolve setupStatus (só os PATCHs, via finalizeSectionPatch)
         // — fica null até o primeiro autosave/conclusão desta sessão.
+        dataRef.current = loaded
         setData(loaded)
       })
       .catch((err) => {
@@ -98,7 +103,12 @@ export function useSectionWizard<T extends object>(
     })
       .then(async (response) => {
         const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error || 'Erro ao salvar.')
+        if (!response.ok) {
+          rememberFieldFailure(payload, setFieldMessages, setAutosaveError)
+          setAutosaveStatus('error')
+          return
+        }
+        setFieldMessages({})
         const returned = payload.data as T & { setupStatus?: ChampionshipSetupStatus }
 
         // Aplica só o que foi enviado (mais o que o servidor derivou, ex.:
@@ -110,6 +120,7 @@ export function useSectionWizard<T extends object>(
           for (const key of Object.keys(body)) {
             if (key in returned) next[key as keyof T] = returned[key as keyof T]
           }
+          dataRef.current = next
           return next
         })
         if (returned.setupStatus) setSetupStatus(returned.setupStatus)
@@ -144,7 +155,11 @@ export function useSectionWizard<T extends object>(
   const enqueue = useCallback(
     (patch: Partial<T>, immediate: boolean) => {
       pendingRef.current = { ...(pendingRef.current ?? {}), ...patch }
-      setData((current) => (current ? { ...current, ...patch } : current))
+      setData((current) => {
+        const next = current ? { ...current, ...patch } : current
+        dataRef.current = next
+        return next
+      })
 
       if (immediate) {
         flush()
@@ -161,10 +176,19 @@ export function useSectionWizard<T extends object>(
     [flush],
   )
 
+  const clearFieldMessage = useCallback((key: string) => {
+    setFieldMessages((current) => {
+      if (!current[key]) return current
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+  }, [])
+
   const update = useCallback((patch: Partial<T>) => enqueue(patch, false), [enqueue])
   const updateNow = useCallback((patch: Partial<T>) => enqueue(patch, true), [enqueue])
 
-  const complete = useCallback(async (): Promise<{ ok: boolean; issues: ValidationIssueLike[] }> => {
+  const complete = useCallback(async (): Promise<{ ok: boolean; issues: ValidationIssueLike[]; fields: string[] }> => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (maxWaitRef.current) clearTimeout(maxWaitRef.current)
     debounceRef.current = null
@@ -174,7 +198,7 @@ export function useSectionWizard<T extends object>(
     // "concluir", para não competir por ordem de chegada no servidor.
     if (inFlightRef.current) await inFlightRef.current.catch(() => {})
 
-    const body = pendingRef.current ?? {}
+    const body = sectionPayload(dataRef.current, pendingRef.current)
     pendingRef.current = null
     setAutosaveStatus('saving')
     setAutosaveError(null)
@@ -188,22 +212,27 @@ export function useSectionWizard<T extends object>(
       const payload = await response.json()
 
       if (!response.ok) {
+        const failure = rememberFieldFailure(payload, setFieldMessages, setAutosaveError)
         setAutosaveStatus('error')
-        setAutosaveError(payload.error || 'Não foi possível concluir esta seção.')
-        return { ok: false, issues: (payload.details as ValidationIssueLike[]) ?? [] }
+        return { ok: false, issues: failure.issues, fields: failure.fields }
       }
+      setFieldMessages({})
 
       const returned = payload.data as T & { setupStatus?: ChampionshipSetupStatus; issues?: ValidationIssueLike[] }
-      setData((current) => (current ? { ...current, ...returned } : returned))
+      setData((current) => {
+        const next = current ? { ...current, ...returned } : returned
+        dataRef.current = next
+        return next
+      })
       if (returned.setupStatus) setSetupStatus(returned.setupStatus)
       const returnedIssues = returned.issues ?? []
       setIssues(returnedIssues)
       setAutosaveStatus('saved')
-      return { ok: true, issues: returnedIssues }
+      return { ok: true, issues: returnedIssues, fields: [] }
     } catch (err) {
       setAutosaveStatus('error')
       setAutosaveError(err instanceof Error ? err.message : 'Não foi possível concluir esta seção.')
-      return { ok: false, issues: [] }
+      return { ok: false, issues: [], fields: [] }
     }
   }, [endpoint])
 
@@ -211,5 +240,40 @@ export function useSectionWizard<T extends object>(
   // ainda estava no debounce.
   useEffect(() => () => flush(), [flush])
 
-  return { data, loading, loadError, autosaveStatus, autosaveError, setupStatus, issues, update, updateNow, flush, complete }
+  return { data, loading, loadError, autosaveStatus, autosaveError, fieldMessages, clearFieldMessage, setupStatus, issues, update, updateNow, flush, complete }
+}
+
+function rememberFieldFailure(
+  payload: { error?: string; details?: { fields?: unknown; messages?: unknown } | unknown },
+  setFieldMessages: (value: Record<string, string>) => void,
+  setAutosaveError: (value: string) => void,
+) {
+  const details = payload.details && !Array.isArray(payload.details) ? payload.details as { fields?: unknown; messages?: unknown } : null
+  const fields = Array.isArray(details?.fields) ? details.fields.filter((field): field is string => typeof field === 'string') : []
+  const messages = Array.isArray(details?.messages) ? details.messages.filter((message): message is string => typeof message === 'string') : []
+  const fallback = payload.error || 'Dados inválidos'
+  const map: Record<string, string> = {}
+  fields.forEach((field, index) => {
+    map[field] = messages[index] || fallback
+  })
+  setFieldMessages(map)
+  setAutosaveError(messages.length ? messages.join(' ') : fallback)
+  const issues: ValidationIssueLike[] = (messages.length ? messages : [fallback]).map((message) => ({
+    section: '',
+    code: 'invalid',
+    message,
+    severity: 'error',
+  }))
+  return { fields, issues }
+}
+
+function sectionPayload<T extends object>(current: T | null, pending: Partial<T> | null) {
+  const source = { ...(current ?? {}), ...(pending ?? {}) } as Record<string, unknown>
+  const body: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(source)) {
+    if (key === 'id' || key === 'organizadorId' || key === 'setupStatus' || key === 'issues' || key === 'locais') continue
+    if (value == null || value === '') continue
+    body[key] = value
+  }
+  return body
 }

@@ -91,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={manrope.className}>
         <Header />
-        <main className="min-h-screen">{children}</main>
+        <div className="min-w-0">{children}</div>
         <Footer />
       </body>
     </html>

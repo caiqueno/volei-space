@@ -40,7 +40,7 @@ export default async function AdminDashboardPage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-luva-blue">Resumo operacional</p>
-            <h2 className="mt-2 text-4xl font-black text-luva-navy">Dashboard da liga</h2>
+            <h2 className="type-page-title mt-2 text-luva-navy">Painel do campeonato</h2>
             <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-luva-muted">
               Controle inscrições, equipes, atletas, calendário, súmulas e resultados da temporada em um só painel.
             </p>

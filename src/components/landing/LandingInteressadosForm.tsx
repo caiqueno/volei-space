@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export function LandingInteressadosForm() {
   const [nomeCompleto, setNomeCompleto] = useState('')
@@ -90,10 +91,10 @@ export function LandingInteressadosForm() {
         <p className={`landing-form-message ${status.type === 'success' ? 'is-success' : 'is-error'}`}>{status.message}</p>
       )}
 
-      <button type="submit" disabled={submitting} className="landing-primary landing-form-submit">
-        {submitting ? 'Enviando...' : 'Quero ser avisado'}
+      <ActionBar type="submit" loading={submitting} loadingLabel="Enviando" className="landing-primary landing-form-submit">
+        Quero ser avisado
         <ArrowRight size={18} />
-      </button>
+      </ActionBar>
     </form>
   )
 }

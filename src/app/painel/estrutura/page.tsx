@@ -17,6 +17,7 @@ import {
   Shuffle,
   UsersRound,
 } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { LinkInscricaoRapida } from '@/components/painel/LinkInscricaoRapida'
 
@@ -628,15 +629,17 @@ function EstruturaContent() {
                     : `${confrontosPrevistos} confronto(s) serão criados na fase de grupos.`}
                 </p>
               </div>
-              <button
+              <ActionBar
                 type="button"
                 onClick={saveStructure}
-                disabled={saving || Boolean(validation) || equipes.length < 2}
+                loading={saving}
+                loadingLabel="Salvando"
+                disabled={Boolean(validation) || equipes.length < 2}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ffb331] px-6 py-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save size={18} />
-                {saving ? 'Salvando...' : hasGeneratedCalendar ? 'Recriar confrontos de grupos' : 'Confirmar e gerar confrontos'}
-              </button>
+                {hasGeneratedCalendar ? 'Recriar confrontos de grupos' : 'Confirmar e gerar confrontos'}
+              </ActionBar>
             </div>
 
             {validation && (
@@ -669,15 +672,16 @@ function EstruturaContent() {
                     Revise cada partida gerada automaticamente e publique uma agenda completa sem cadastrar jogos um por um.
                   </p>
                 </div>
-                <button
+                <ActionBar
                   type="button"
                   onClick={saveCalendar}
-                  disabled={calendarSaving}
+                  loading={calendarSaving}
+                  loadingLabel="Salvando"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ffb331] px-6 py-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Save size={18} />
-                  {calendarSaving ? 'Salvando...' : 'Salvar calendário'}
-                </button>
+                  Salvar calendário
+                </ActionBar>
               </div>
 
               <div className="mt-6 grid gap-3">

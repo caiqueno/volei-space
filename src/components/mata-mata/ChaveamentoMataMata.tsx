@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ExternalLink, Radio, Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
+import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 
 export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null }
@@ -262,17 +263,19 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false }: {
           <option value="">Time B</option>
           {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeAId}>{team.nome}</option>)}
         </select>
-        <button
+        <ActionBar
           type="button"
           onClick={criarConfronto}
-          disabled={submitting || !equipeAId || !equipeBId}
+          loading={submitting}
+          loadingLabel="Criando"
+          disabled={!equipeAId || !equipeBId}
           className="rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting ? 'Criando...' : 'Criar confronto'}
-        </button>
+          Criar confronto
+        </ActionBar>
         {sessionExpired ? (
           <p className="text-xs font-bold text-red-500">
-            Sua sessão expirou. <a href="/cadastro?modo=login" className="underline hover:text-red-600">Faça login novamente</a> e repita a criação do confronto.
+            Sua sessão expirou. <a href="/login" className="underline hover:text-red-600">Faça login novamente</a> e repita a criação do confronto.
           </p>
         ) : (
           message && <p className="text-xs font-bold text-red-500">{message}</p>

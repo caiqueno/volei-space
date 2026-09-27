@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -7,7 +8,7 @@ import {
   registrationWindowDecision,
   type RegistrationDraft,
   type RegistrationLeague,
-} from '@/lib/team-registration-draft'
+} from '../src/lib/team-registration-draft'
 
 const now = new Date('2026-09-18T12:00:00.000Z')
 
@@ -57,6 +58,8 @@ function draft(overrides: Partial<RegistrationDraft> = {}): RegistrationDraft {
 
 function testRegistrationWindow() {
   assert.equal(registrationWindowDecision(league(), now).allowed, true)
+  assert.equal(registrationWindowDecision(league({ status: 'EM_BREVE' }), now).allowed, true)
+  assert.equal(registrationWindowDecision(league({ status: 'ENCERRADA' }), now).allowed, false)
   assert.equal(registrationWindowDecision(league({ inscricoesAberturaEm: '2026-09-19T00:00:00.000Z' }), now).allowed, false)
   assert.equal(registrationWindowDecision(league({ inscricoesEncerramentoEm: '2026-09-17T00:00:00.000Z' }), now).allowed, false)
   assert.equal(registrationWindowDecision(league({ inscricoesAbertas: false }), now).allowed, false)
@@ -64,16 +67,20 @@ function testRegistrationWindow() {
 
 function testEditRules() {
   const sent = draft({ status: 'ENVIADA', enviadaEm: '2026-09-15T12:00:00.000Z', equipeId: 42, inscricaoCampeonatoId: 'registration-1' })
+  const closed = league({ inscricoesAbertas: false })
+  assert.equal(canEditRegistration(draft(), closed, now).allowed, false)
   assert.equal(canEditRegistration(sent, league(), now).allowed, true)
+  assert.equal(canEditRegistration(sent, closed, now).allowed, true)
   assert.equal(canEditRegistration(sent, league({ inscricaoPermiteEdicaoAposEnvio: false }), now).allowed, false)
   assert.equal(canEditRegistration(sent, league({ inscricaoPrazoEdicaoDias: 2 }), now).allowed, false)
+  assert.equal(canEditRegistration(sent, league({ inscricaoPrazoEdicaoDias: 3 }), now).allowed, true)
   assert.equal(canEditRoster(sent, league({ elencoCadastroAposAprovacao: false }), 'APROVADA', now).allowed, false)
   assert.equal(canEditRoster(sent, league({ prazoAlteracaoElencoDias: 2 }), 'SOLICITADA', now).allowed, false)
   assert.equal(canEditRoster(draft(), league({ elencoCadastroDuranteInscricao: false }), null, now).allowed, false)
 }
 
 function testMigrationContract() {
-  const sql = fs.readFileSync(path.join(process.cwd(), 'supabase-inscricao-equipe-rascunho.sql'), 'utf8')
+  const sql = fs.readFileSync(path.join(process.cwd(), 'supabase', 'migrations', 'supabase-inscricao-equipe-rascunho.sql'), 'utf8')
   assert.match(sql, /create table if not exists public\."InscricaoEquipeRascunho"/)
   assert.match(sql, /create table if not exists public\."InscricaoEquipeJogadorRascunho"/)
   assert.match(sql, /token uuid not null unique default gen_random_uuid\(\)/)
@@ -92,15 +99,16 @@ function testPersistenceApiContract() {
   const playerCollectionRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/inscricao-rapida/[token]/jogadores/route.ts'), 'utf8')
   const playerRoute = fs.readFileSync(path.join(process.cwd(), 'src/app/api/inscricao-rapida/[token]/jogadores/[jogadorId]/route.ts'), 'utf8')
 
-  // Criação, recarga, edição e exclusão são operações individuais no banco.
-  assert.match(domain, /from\('InscricaoEquipeJogadorRascunho'\)[\s\S]*\.order\('criadoEm'\)/)
+  assert.match(domain, /from\('InscricaoEquipeJogadorRascunho'\)\s*\.select\([^)]*\)\s*\.eq\('inscricaoRascunhoId', draft\.id\)\s*\.order\('criadoEm'\)/)
+  assert.match(domain, /from\(target\)\.insert\(/)
+  assert.match(domain, /\.delete\(\)\.eq\('id', playerId\)/)
+  assert.doesNotMatch(domain, /\.delete\(\)\.eq\('inscricaoRascunhoId'/)
   assert.match(playerCollectionRoute, /export async function POST/)
   assert.match(playerRoute, /export async function PATCH/)
   assert.match(playerRoute, /export async function DELETE/)
-  assert.match(form, /player\.id/)
-  assert.doesNotMatch(domain, /delete\(\)[\s\S]*insert\([^)]*jogadores/i)
+  assert.match(form, /\/jogadores\/\$\{editingId\}/)
+  assert.match(form, /\/jogadores\/\$\{player\.id\}/)
 
-  // Toda mutação de jogador é limitada ao rascunho/equipe descoberto pelo token.
   assert.match(domain, /query\.eq\('inscricaoRascunhoId', context\.draft\.id\)/)
   assert.match(domain, /query\.eq\('equipeId', context\.draft\.equipeId as number\)/)
 }

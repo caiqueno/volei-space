@@ -5,7 +5,7 @@ type CadastroDuplicate = {
   table: string
 }
 
-const candidaturaTables = ['CandidaturaEquipe', 'CandidaturaArbitro', 'CandidaturaQuadra', 'CandidaturaOrganizador'] as const
+const candidaturaTables = ['CandidaturaEquipe', 'CandidaturaArbitro', 'CandidaturaQuadra', 'CandidaturaOrganizador', 'ContaPublico'] as const
 
 export function normalizeCadastroEmail(email: string | null | undefined) {
   return String(email || '').trim().toLowerCase()
@@ -27,7 +27,7 @@ export async function findCadastroDuplicate(email: string, _telefone?: string | 
   const normalizedEmail = normalizeCadastroEmail(email)
   if (!normalizedEmail) return null
 
-  for (const table of candidaturaTables) {
+  const checks = await Promise.all(candidaturaTables.map(async (table) => {
     const { data, error } = await supabase
       .from(table)
       .select('id,email')
@@ -36,13 +36,14 @@ export async function findCadastroDuplicate(email: string, _telefone?: string | 
 
     if (error) {
       console.error(`[cadastro-duplicates] erro ao consultar ${table}`, error)
-      continue
+      return null
     }
 
-    if (data?.[0]) return { field: 'email', table }
-  }
+    if (data?.[0]) return { field: 'email' as const, table }
+    return null
+  }))
 
-  return null
+  return checks.find((item) => item !== null) ?? null
 }
 
 export function duplicateMessage(_duplicate: CadastroDuplicate) {

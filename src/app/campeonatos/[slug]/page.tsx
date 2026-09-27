@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, Trophy, UsersRound } from 'lucide-react'
 import { CampeonatoActions } from '@/components/campeonatos/CampeonatoActions'
@@ -14,6 +15,7 @@ type PageProps = {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  noStore()
   const { slug } = await params
   const fallback = createPageMetadata({
     title: 'Campeonato de vôlei',
@@ -39,6 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CampeonatoPage({ params }: PageProps) {
+  noStore()
   const { slug } = await params
 
   if (!isSupabaseConfigured) {
@@ -83,8 +86,8 @@ export default async function CampeonatoPage({ params }: PageProps) {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 lg:grid-cols-[1fr_380px] lg:items-end">
           <div>
             <p className="luva-kicker flex items-center gap-2"><Trophy size={16} /> {formatLigaStatus(liga.status)}</p>
-            <h1 className="mt-4 max-w-4xl font-display text-5xl font-black leading-none text-white md:text-7xl">{liga.nome}</h1>
-            <p className="mt-5 max-w-2xl text-base font-semibold leading-8 text-slate-200">
+            <h1 className="type-page-title mt-3 max-w-4xl">{liga.nome}</h1>
+            <p className="type-lead mt-4 max-w-2xl">
               {liga.descricao || liga.subtitulo || 'Acompanhe informações, inscrições, agenda, classificação e cobertura deste campeonato.'}
             </p>
           </div>

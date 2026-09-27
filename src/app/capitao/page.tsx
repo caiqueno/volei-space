@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, Camera, ChevronDown, ClipboardCheck, LogOut, MapPin, QrCode, Save, Trash2, Trophy, Upload, UsersRound } from 'lucide-react'
+import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { CandidateEditForm, type CandidateEditSection } from '@/components/candidate/CandidateEditForm'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
 import { supabase } from '@/lib/supabase'
@@ -354,9 +355,9 @@ export default function CapitaoPage() {
       <main className="luva-shell capitain-dashboard min-h-screen px-4 py-12">
         <section className="capitain-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
           <p className="luva-kicker">Área da equipe</p>
-          <h1 className="mt-3 font-display text-4xl font-black text-white">Entre ou cadastre sua equipe.</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">
-            Depois do cadastro, você acompanha o status da análise e prepara o elenco para a competição.
+          <h1 className="type-page-title mt-3">Entre com a conta da equipe</h1>
+          <p className="type-lead mx-auto mt-3 max-w-xl">
+            Use o e-mail e a senha do cadastro para ver o elenco e os dados da equipe.
           </p>
           <Link href="/cadastro?modo=cadastro" className="capitain-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
             Criar cadastro
@@ -376,13 +377,13 @@ export default function CapitaoPage() {
         <div className={`mx-auto grid max-w-7xl gap-8 px-4 py-12 lg:items-center ${approved ? 'lg:grid-cols-1' : 'lg:grid-cols-[1fr_380px]'}`}>
           <div className="motion-in">
             <p className="luva-kicker">Painel da equipe</p>
-            <h1 className="mt-4 max-w-3xl font-display text-5xl font-black leading-tight text-white md:text-6xl">
-              Bem-vindo, {session.nome || 'equipe'}.
+            <h1 className="type-page-title mt-3 max-w-3xl">
+              Olá, {session.nome || 'equipe'}
             </h1>
-            <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-200">
+            <p className="type-lead mt-4 max-w-2xl">
               {approved
-                ? 'Sua equipe foi aprovada. Agora você pode preparar elenco, acompanhar inscrições e organizar a operação da temporada.'
-                : 'Sua equipe foi recebida pela organização. Enquanto a análise acontece, este painel já prepara os próximos passos da operação.'}
+                ? 'Sua equipe está no campeonato. Aqui você atualiza o elenco, os dados da equipe e acompanha os jogos.'
+                : 'A organização ainda está conferindo o cadastro. Enquanto isso, você pode revisar os dados da equipe.'}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/" className="capitain-primary-action inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
@@ -410,7 +411,7 @@ export default function CapitaoPage() {
       </section>
 
       {!approved && <section className="mx-auto grid max-w-7xl gap-4 px-4 py-10 md:grid-cols-2 xl:grid-cols-5">
-        <PanelCard icon={<ClipboardCheck size={22} />} title="Cadastro" text={approved ? 'Cadastro aprovado pela organização.' : 'Dados de contato enviados para análise.'} status={approved ? 'Aprovado' : 'Pendente'} action={!approved ? { label: 'Editar contato', section: 'cadastro' } : undefined} onEdit={setEditSection} />
+        <PanelCard icon={<ClipboardCheck size={22} />} title="Cadastro" text={approved ? 'Cadastro da equipe concluído.' : 'Dados de contato enviados para análise.'} status={approved ? 'Ativa' : 'Pendente'} action={!approved ? { label: 'Editar contato', section: 'cadastro' } : undefined} onEdit={setEditSection} />
         <PanelCard icon={<MapPin size={22} />} title="Quadra" text={approved ? 'Estrutura registrada para operação da equipe.' : 'Endereço, piso e estrutura cedida pela equipe.'} status={approved ? 'Validada' : 'Pendente'} action={!approved ? { label: 'Editar quadra', section: 'quadra' } : undefined} onEdit={setEditSection} />
         <PanelCard icon={<UsersRound size={22} />} title="Elenco" text={approved ? 'Área liberada para cadastrar atletas, fotos e documentos.' : 'Área de atletas será liberada após aprovação.'} status={approved ? 'Liberado' : 'Em breve'} />
         <PanelCard icon={<QrCode size={22} />} title="QR Codes" text={approved ? 'Credenciais serão geradas a partir dos atletas cadastrados.' : 'Validação individual dos jogadores ficará aqui.'} status={approved ? 'Liberado' : 'Em breve'} />
@@ -473,11 +474,13 @@ export default function CapitaoPage() {
                     <span className="font-display text-4xl font-black text-luva-amber">{(teamForm.nome || session.nome || 'EQ').slice(0, 2).toUpperCase()}</span>
                   )}
                 </div>
-                <label className={`mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-black text-white transition hover:border-luva-amber/50 ${teamUploading ? 'pointer-events-none opacity-60' : ''}`}>
+                {teamUploading ? <LoadingTrack label="Enviando" className="mt-4 w-full rounded-2xl" /> : (
+                <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-black text-white transition hover:border-luva-amber/50">
                   <Camera size={18} className="text-luva-amber" />
-                  {teamUploading ? 'Enviando...' : 'Trocar logo'}
-                  <input className="sr-only" type="file" accept={imageUploadRules.allowedTypes.join(',')} onChange={(event) => uploadTeamLogo(event.target.files?.[0] || null)} disabled={teamUploading} />
+                  Trocar logo
+                  <input className="sr-only" type="file" accept={imageUploadRules.allowedTypes.join(',')} onChange={(event) => uploadTeamLogo(event.target.files?.[0] || null)} />
                 </label>
+                )}
                 <p className="mt-3 text-center text-xs font-semibold leading-5 text-slate-300">
                   PNG, JPG ou WebP. A imagem será otimizada antes do envio.
                 </p>
@@ -497,10 +500,10 @@ export default function CapitaoPage() {
                     <InfoPill label="ID" value={String(teamIdentity.id)} />
                   </div>
                 )}
-                <button disabled={teamSaving || teamUploading} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-amber-300 disabled:opacity-60">
+                <ActionBar disabled={teamUploading} loading={teamSaving} loadingLabel="Salvando" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-amber-300 disabled:opacity-60">
                   <Save size={18} />
-                  {teamSaving ? 'Salvando...' : 'Salvar identidade da equipe'}
-                </button>
+                  Salvar identidade da equipe
+                </ActionBar>
               </div>
             </form>
           </div>
@@ -512,9 +515,9 @@ export default function CapitaoPage() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="luva-kicker">Elenco</p>
-              <h2 className="mt-3 font-display text-3xl font-black text-white">Atletas, fotos e documentos</h2>
-              <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-200">
-                Cadastre os jogadores da equipe, envie foto de rosto e anexe documentos para validação da organização e uso no QR Code.
+              <h2 className="type-section-title mt-2">Atletas, fotos e documentos</h2>
+              <p className="type-lead mt-3 max-w-3xl">
+                Mantenha nome, número, posição e foto de cada atleta. Esses dados aparecem na página da equipe e na súmula.
               </p>
             </div>
             <span className="inline-flex w-fit items-center gap-2 rounded-2xl border border-luva-amber/35 bg-luva-amber/10 px-4 py-3 text-sm font-black text-luva-amber">
@@ -602,10 +605,10 @@ export default function CapitaoPage() {
                 </div>
               )}
 
-              <button disabled={rosterSaving} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-amber-300 disabled:opacity-60">
+              <ActionBar loading={rosterSaving} loadingLabel="Salvando" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-amber-300 disabled:opacity-60">
                 <Save size={18} />
-                {rosterSaving ? 'Salvando...' : 'Salvar atleta'}
-              </button>
+                Salvar atleta
+              </ActionBar>
             </form>
 
             <div className="grid gap-3">
@@ -842,7 +845,7 @@ function getCapitaoStatus(status?: string) {
     return {
       approved: true,
       label: normalized === 'ATIVA' || normalized === 'ATIVO' ? 'Ativa' : 'Aprovada',
-      description: 'Cadastro validado pela organização. Elenco, inscrições, QR Codes e agenda já podem ser preparados pela equipe.',
+      description: 'Equipe inscrita no campeonato. Elenco e dados já podem ser atualizados.',
     }
   }
 

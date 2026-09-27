@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Copy, ExternalLink, Plus } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 import { slugify } from '@/utils/slug'
 import { OrganizadorSidebar } from './OrganizadorSidebar'
 import { OrganizacaoForm, type OrganizacaoFormValues } from './OrganizacaoForm'
+import { LinkDoTime } from './LinkDoTime'
+import { ArbitrosPanel } from './ArbitrosPanel'
 import { ChampionshipCarousel } from './ChampionshipCarousel'
 import { EmptyChampionshipCard } from './EmptyChampionshipCard'
 import type { LigaCarouselItem } from './types'
@@ -35,12 +38,23 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
   const [loading, setLoading] = useState(true)
   const [perfil, setPerfil] = useState<OrganizacaoFormValues | null>(null)
   const [ligas, setLigas] = useState<LigaCarouselItem[]>([])
-  const [view, setView] = useState<'home' | 'settings'>('home')
+  const [view, setView] = useState<'home' | 'settings' | 'arbitros'>('home')
   const [activeChampionshipId, setActiveChampionshipId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [registrations, setRegistrations] = useState<RegistrationItem[]>([])
   const [copiedRegistrationId, setCopiedRegistrationId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const secao = new URLSearchParams(window.location.search).get('secao')
+    if (secao === 'arbitros') setView('arbitros')
+  }, [])
+
+  function selectView(next: 'home' | 'settings' | 'arbitros') {
+    setView(next)
+    const url = next === 'arbitros' ? '/painel?secao=arbitros' : '/painel'
+    window.history.replaceState(null, '', url)
+  }
 
   useEffect(() => {
     if (!organizadorId) {
@@ -99,7 +113,7 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
       const response = await fetch('/api/ligas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizadorId, nome, slug }),
+        body: JSON.stringify({ organizadorId, nome, slug, status: 'EM_BREVE' }),
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error ?? 'Erro ao criar campeonato')
@@ -115,9 +129,11 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
 
   const pageTitle = organizacaoIncompleta
     ? 'Complete sua organização'
-    : view === 'settings'
-      ? 'Configurações'
-      : ligas.length === 0
+      : view === 'settings'
+        ? 'Configurações'
+        : view === 'arbitros'
+          ? 'Árbitros'
+        : ligas.length === 0
         ? 'Crie seu primeiro campeonato'
         : 'Seus campeonatos'
 
@@ -125,7 +141,7 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
     <>
       <OrganizadorSidebar
         view={view}
-        onSelectView={setView}
+        onSelectView={selectView}
         organizacaoNome={perfil?.organizacao || null}
         organizacaoLogoUrl={perfil?.logoUrl || null}
         onLogout={logout}
@@ -140,17 +156,18 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
           <div className="mx-auto max-w-7xl">
             <p className="luva-kicker">Painel</p>
             <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-              <h1 className="font-display text-3xl font-black sm:text-5xl">{pageTitle}</h1>
+              <h1 className="type-page-title">{pageTitle}</h1>
               {!organizacaoIncompleta && view === 'home' && ligas.length > 0 && (
-                <button
+                <ActionBar
                   type="button"
                   onClick={criarCampeonato}
-                  disabled={creating}
+                  loading={creating}
+                  loadingLabel="Criando"
                   className="inline-flex items-center gap-2 rounded-full bg-luva-amber px-4 py-2.5 text-sm font-black text-[#050914] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Plus size={16} />
-                  {creating ? 'Criando...' : 'Novo Campeonato'}
-                </button>
+                  Novo Campeonato
+                </ActionBar>
               )}
             </div>
             {!organizacaoIncompleta && view === 'home' && (
@@ -173,6 +190,8 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
             <div className="luva-card mx-auto max-w-lg rounded-2xl p-6 sm:p-8">
               <OrganizacaoForm mode="settings" initialValues={perfil!} onSaved={handleOnboardingSaved} />
             </div>
+          ) : view === 'arbitros' ? (
+            <ArbitrosPanel />
           ) : (
             <>
               {feedback && <p className="mb-4 text-sm font-bold text-red-300">{feedback}</p>}
@@ -183,8 +202,13 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
               ) : (
                 <>
                   <ChampionshipCarousel ligas={ligas} activeChampionshipId={activeChampionshipId} onActiveChampionshipChange={setActiveChampionshipId} />
-                  <div className="mt-8 rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Inscrições do campeonato</p>
+                  {activeChampionshipId && (
+                    <div className="mt-8">
+                      <LinkDoTime ligaId={activeChampionshipId} nome={ligas.find((liga) => liga.id === activeChampionshipId)?.nome} />
+                    </div>
+                  )}
+                  <div id="inscricoes-equipes" className="mt-8 rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Inscrições de {ligas.find((liga) => liga.id === activeChampionshipId)?.nome || 'campeonato'}</p>
                     <div className="mt-4 grid gap-3">
                       {registrations.filter((item) => item.ligaId === activeChampionshipId).length === 0 ? (
                         <p className="text-sm font-semibold text-slate-400">Nenhuma inscrição recebida ainda.</p>

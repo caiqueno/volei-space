@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const { data, error: err } = await supabase
     .from('Equipe')
-    .select('*, jogadores:Jogador(*)')
+    .select('*, jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)')
     .eq('id', Number(id))
     .single()
   if (err) return error('Equipe não encontrada', 404)

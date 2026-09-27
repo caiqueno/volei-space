@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Plus, Save, Trophy } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 type Liga = {
   id: number
@@ -180,10 +181,10 @@ export default function ConfiguracoesPage() {
 
           {msg && <p className="md:col-span-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-luva-muted">{msg}</p>}
 
-          <button type="submit" disabled={saving} className="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-4 text-sm font-black uppercase tracking-wide text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:opacity-60">
+          <ActionBar type="submit" loading={saving} loadingLabel="Salvando" className="md:col-span-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-4 text-sm font-black uppercase tracking-wide text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:opacity-60">
             <Save size={18} />
-            {saving ? 'Salvando...' : selected ? 'Salvar campeonato' : 'Criar campeonato'}
-          </button>
+            {selected ? 'Salvar campeonato' : 'Criar campeonato'}
+          </ActionBar>
         </form>
       </section>
     </div>

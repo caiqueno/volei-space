@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { revealMissingFields } from '../../wizard/missing-fields'
+import { ImagePlus } from 'lucide-react'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -11,9 +13,11 @@ import { TextInput } from '../../ui/TextInput'
 import { FloatingLabelInput } from '@/components/ui/floating-label'
 import { TextareaInput } from '../../ui/TextareaInput'
 import { SelectInput } from '../../ui/SelectInput'
-import { ChoiceChips } from '../../ui/ChoiceChips'
 import { FormAlert } from '../../ui/FormAlert'
+import { LoadingTrack } from '@/components/ui/action-bar'
 import PageLoading from '@/components/ui/page-loading'
+import { supabase } from '@/lib/supabase'
+import { optimizeImageFile } from '@/lib/client-image-upload'
 import type { InformacoesSectionDTO } from '@/types/championship-setup'
 
 const STEPS: WizardStepDef[] = [
@@ -37,13 +41,47 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(new Set([0]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imageError, setImageError] = useState('')
 
   function goTo(index: number) {
     flush()
     setStepIndex(index)
     setVisited((current) => new Set(current).add(index))
     setCompletionIssues([])
+    setInvalidKeys([])
+  }
+
+  async function handleImage(file: File | null) {
+    if (!file) return
+    setImageError('')
+    setUploadingImage(true)
+    try {
+      const optimized = await optimizeImageFile(file, 'imagem-campeonato')
+      const extension = optimized.file.type === 'image/webp' ? 'webp' : 'jpg'
+      const fileName = `campeonatos/${ligaId}/identidade/${Date.now()}.${extension}`
+      const { error: uploadError } = await supabase.storage.from('galeria-campeonato').upload(fileName, optimized.file, {
+        upsert: false,
+        contentType: optimized.file.type,
+        cacheControl: '3600',
+      })
+      if (uploadError) {
+        setImageError('Não foi possível enviar a imagem. Tente novamente.')
+        return
+      }
+      const { data: uploaded } = supabase.storage.from('galeria-campeonato').getPublicUrl(fileName)
+      if (!uploaded.publicUrl) {
+        setImageError('Não foi possível obter o link da imagem.')
+        return
+      }
+      updateNow({ logoUrl: uploaded.publicUrl, capaUrl: uploaded.publicUrl })
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Não foi possível processar a imagem.')
+    } finally {
+      setUploadingImage(false)
+    }
   }
 
   async function handleNext() {
@@ -58,9 +96,12 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
     setSaving(false)
     if (result.ok) {
       router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
-    } else {
-      setCompletionIssues(result.issues.map((issue) => issue.message))
+      return
     }
+    const fields = result.fields ?? []
+    setInvalidKeys(fields)
+    setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
+    revealMissingFields(fields, { nome: 0 }, setStepIndex, setVisited)
   }
 
   if (loading) return <PageLoading label="Carregando informações do campeonato..." />
@@ -91,11 +132,25 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
               label="Nome do campeonato"
               required
               value={data.nome ?? ''}
-              onChange={(v) => update({ nome: v })}
+              className={invalidKeys.includes('nome') ? 'field-missing-control' : undefined}
+              onChange={(v) => {
+                setInvalidKeys((current) => current.filter((key) => key !== 'nome'))
+                update({ nome: v })
+              }}
               onBlur={flush}
             />
             <Field label="Nome curto / sigla" hint="Até 20 caracteres — usado em espaços reduzidos.">
-              <TextInput value={data.nomeCurto ?? ''} maxLength={20} onChange={(e) => update({ nomeCurto: e.target.value })} onBlur={flush} placeholder="Ex.: COPA-RJ" />
+              <TextInput
+                value={data.nomeCurto ?? ''}
+                maxLength={20}
+                onChange={(e) => {
+                  const nomeCurto = e.target.value
+                  const nomeAindaProvisorio = (data.nome ?? '').trim() === 'Novo campeonato'
+                  update(nomeAindaProvisorio && nomeCurto.trim() ? { nomeCurto, nome: nomeCurto.trim() } : { nomeCurto })
+                }}
+                onBlur={flush}
+                placeholder="Ex.: COPA-RJ"
+              />
             </Field>
             <FloatingLabelInput
               id="subtitulo-campeonato"
@@ -111,17 +166,24 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
         )}
 
         {stepIndex === 1 && (
-          <>
-            <Field label="Descrição">
-              <TextareaInput value={data.descricao ?? ''} onChange={(e) => update({ descricao: e.target.value })} onBlur={flush} />
-            </Field>
-            <Field label="URL do logo" hint="Upload de imagem será adicionado no wizard visual definitivo — por ora, cole a URL.">
-              <TextInput value={data.logoUrl ?? ''} onChange={(e) => update({ logoUrl: e.target.value })} onBlur={flush} placeholder="https://..." />
-            </Field>
-            <Field label="URL da capa">
-              <TextInput value={data.capaUrl ?? ''} onChange={(e) => update({ capaUrl: e.target.value })} onBlur={flush} placeholder="https://..." />
-            </Field>
-          </>
+          <Field label="Imagem do campeonato" hint="Uma imagem só. Ela vale como logo e como capa.">
+            {data.logoUrl ? (
+              <img src={data.logoUrl} alt="Imagem do campeonato" className="h-36 w-full rounded-2xl border border-white/10 object-cover" />
+            ) : (
+              <span className="flex h-36 w-full items-center justify-center rounded-2xl border border-dashed border-white/15 text-slate-500">
+                <ImagePlus size={28} />
+              </span>
+            )}
+            {uploadingImage ? (
+              <LoadingTrack label="Enviando imagem" />
+            ) : (
+              <label className="inline-flex cursor-pointer text-sm font-black text-luva-amber">
+                Carregar imagem
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleImage(event.target.files?.[0] ?? null)} />
+              </label>
+            )}
+            {imageError && <p className="text-sm font-bold text-red-300">{imageError}</p>}
+          </Field>
         )}
 
         {stepIndex === 2 && (
@@ -141,7 +203,7 @@ export function InformacoesWizard({ ligaId }: { ligaId: number }) {
             <ReviewRow label="Nome curto" value={data.nomeCurto} />
             <ReviewRow label="Subtítulo" value={data.subtitulo} />
             <ReviewRow label="Status" value={STATUS_OPTIONS.find((o) => o.value === data.status)?.label} />
-            <ReviewRow label="Descrição" value={data.descricao} />
+            <ReviewRow label="Imagem" value={data.logoUrl ? 'Carregada' : null} />
             <ReviewRow label="Regulamento" value={data.regulamento ? 'Preenchido' : null} />
             <ReviewRow label="Premiação" value={data.premiacao ? 'Preenchido' : null} />
           </div>

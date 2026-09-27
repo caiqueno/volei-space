@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export function EscalarArbitroButton({ candidaturaId }: { candidaturaId: string }) {
   const router = useRouter()
@@ -25,14 +26,15 @@ export function EscalarArbitroButton({ candidaturaId }: { candidaturaId: string 
 
   return (
     <div className="space-y-1">
-      <button
+      <ActionBar
         type="button"
         onClick={handleClick}
-        disabled={loading}
+        loading={loading}
+        loadingLabel="Escalando"
         className="rounded-full bg-luva-amber px-3 py-1.5 text-xs font-black text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? 'Escalando...' : 'Escalar'}
-      </button>
+        Escalar
+      </ActionBar>
       {erro && <p className="max-w-48 text-xs font-bold text-red-300">{erro}</p>}
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, CheckCircle2, Filter, MapPin, Radio, ShieldCheck, Trophy, UsersRound } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 type PartidaAberta = {
   id: number
@@ -189,15 +190,17 @@ export function PartidasAbertasArbitro({ compact = false }: Props) {
                       <span><MapPin size={15} /> {partida.localNome || partida.localEndereco || 'Local a definir'}</span>
                     </div>
 
-                    <button
+                    <ActionBar
                       type="button"
                       onClick={() => candidatar(partida.id)}
-                      disabled={Boolean(candidaturaStatus) || submittingId === partida.id}
+                      loading={submittingId === partida.id}
+                      loadingLabel="Enviando"
+                      disabled={Boolean(candidaturaStatus)}
                       className="referee-open-action"
                     >
                       <ShieldCheck size={17} />
-                      {candidaturaStatus ? 'Candidatura enviada' : submittingId === partida.id ? 'Enviando...' : 'Candidatar-me'}
-                    </button>
+                      {candidaturaStatus ? 'Candidatura enviada' : 'Candidatar-me'}
+                    </ActionBar>
                   </article>
                 )
               })}

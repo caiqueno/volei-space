@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
-import { buildFallbackCategoriaSerieOptions, parseCategoriaSerieOptions, resolveFormularioRapidaConfig } from '@/lib/inscricao-rapida'
+import { resolveFormularioRapidaConfig, resolveInscricaoCategoria } from '@/lib/inscricao-rapida'
 import { getRegistrationDraftByToken, RegistrationDraftError } from '@/lib/team-registration-draft'
 
 type PageProps = { params: Promise<{ token: string }> }
@@ -12,9 +12,7 @@ export default async function InscricaoRapidaTokenPage({ params }: PageProps) {
   try {
     const context = await getRegistrationDraftByToken(token)
     const config = resolveFormularioRapidaConfig(context.liga.formularioInscricaoConfig)
-    const parametrizedOptions = parseCategoriaSerieOptions(context.liga.categoriasConfig)
-    const categoriaFixa = parametrizedOptions.length === 1 ? parametrizedOptions[0] : null
-    const categoriaOptions = parametrizedOptions.length > 1 ? parametrizedOptions : buildFallbackCategoriaSerieOptions()
+    const { categoriaFixa, categoriaOptions } = resolveInscricaoCategoria(context.liga)
 
     return (
       <FormularioInscricaoRapida

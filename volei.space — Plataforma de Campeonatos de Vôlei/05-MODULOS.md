@@ -1,3 +1,15 @@
+---
+title: >-
+  Módulos
+category: area
+tags: [modulos]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Inventário funcional.
+status: misto
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Índice de módulos
 
 | Módulo | Nota | Fonte inicial |

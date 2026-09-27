@@ -10,6 +10,7 @@ import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podium'
+import { readPublicSession } from '@/lib/auth'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -181,6 +182,8 @@ export default async function PortalPage({ searchParams }: PageProps) {
   const params = searchParams ? await searchParams : {}
   const { scope, liga, equipes, partidas, partidaDestaque, emAndamento, podium, mensagens, premiacoes } = await getData(params)
   const totalAtletas = equipes.reduce((acc: number, equipe: any) => acc + Number(equipe.quantidadeJogadores ?? equipe.jogadores?.length ?? 0), 0)
+  const session = await readPublicSession()
+  const perfilPublico = session?.tipo === 'publico'
 
   return (
     <main className="luva-shell min-h-screen overflow-hidden pb-28 lg:pb-0">
@@ -285,16 +288,18 @@ export default async function PortalPage({ searchParams }: PageProps) {
         <CreatorEmptyState organizadorId={scope.organizadorId} title="Seu portal ainda não tem campeonato." description="Crie uma competição no painel do criador para liberar agenda, classificação, rankings e galeria filtrados pela sua conta." />
       ) : (
         <>
-          <section className="mx-auto grid max-w-7xl gap-4 px-4 py-8 md:grid-cols-4">
-            <FeatureCard icon={<QrCode size={22} />} title="QR Code" text="Validação individual de atletas antes das partidas." />
-            <FeatureCard icon={<ClipboardCheck size={22} />} title="Súmula" text="Registro digital de presença, sets, eventos e resultado." />
-            <FeatureCard icon={<BarChart3 size={22} />} title="Tabela" text="Classificação organizada para consulta rápida." />
-            <FeatureCard icon={<CalendarDays size={22} />} title="Agenda" text="Rodadas, horários e locais em uma única visão." />
-          </section>
+          {!perfilPublico && (
+            <section className="mx-auto grid max-w-7xl gap-4 px-4 py-8 md:grid-cols-4">
+              <FeatureCard icon={<QrCode size={22} />} title="QR Code" text="Validação individual de atletas antes das partidas." />
+              <FeatureCard icon={<ClipboardCheck size={22} />} title="Súmula" text="Registro digital de presença, sets, eventos e resultado." />
+              <FeatureCard icon={<BarChart3 size={22} />} title="Tabela" text="Classificação organizada para consulta rápida." />
+              <FeatureCard icon={<CalendarDays size={22} />} title="Agenda" text="Rodadas, horários e locais em uma única visão." />
+            </section>
+          )}
 
-          <section className="mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[1.15fr_0.85fr]">
+          <section className={`mx-auto grid max-w-7xl gap-8 px-4 py-8 ${perfilPublico ? '' : 'lg:grid-cols-[1.15fr_0.85fr]'}`}>
             <div>
-              <SectionHeader label="Agenda" title="Jogos em destaque" />
+              <SectionHeader label={perfilPublico ? 'Jogos' : 'Agenda'} title="Jogos em destaque" />
               {partidas.length === 0 ? (
                 <EstadoVazio titulo="Nenhum jogo agendado" descricao="As partidas aparecerão aqui quando forem cadastradas pela organização." />
               ) : (
@@ -304,17 +309,19 @@ export default async function PortalPage({ searchParams }: PageProps) {
               )}
             </div>
 
-            <div>
-              <SectionHeader label="Operação" title="Fluxo da competição" />
-              <div className="luva-surface mt-5 overflow-hidden rounded-2xl">
-                {['Cadastrar equipes e atletas', 'Gerar QR Codes de inscrição', 'Registrar súmula da partida', 'Aprovar resultado e atualizar tabela'].map((item, index) => (
-                  <div key={item} className="flex items-center gap-4 border-b border-white/10 p-4 last:border-b-0">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-luva-amber text-sm font-black text-slate-950">{index + 1}</span>
-                    <p className="text-sm font-bold text-slate-100">{item}</p>
-                  </div>
-                ))}
+            {!perfilPublico && (
+              <div>
+                <SectionHeader label="Operação" title="Fluxo da competição" />
+                <div className="luva-surface mt-5 overflow-hidden rounded-2xl">
+                  {['Cadastrar equipes e atletas', 'Gerar QR Codes de inscrição', 'Registrar súmula da partida', 'Aprovar resultado e atualizar tabela'].map((item, index) => (
+                    <div key={item} className="flex items-center gap-4 border-b border-white/10 p-4 last:border-b-0">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-luva-amber text-sm font-black text-slate-950">{index + 1}</span>
+                      <p className="text-sm font-bold text-slate-100">{item}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           <section>

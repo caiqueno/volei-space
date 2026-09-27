@@ -17,6 +17,13 @@ function isValidIso(value: string): boolean {
   return !Number.isNaN(new Date(value).getTime())
 }
 
+/** Qualquer texto de data que o JS entenda vira ISO com `Z`. Texto inválido volta `null`. */
+export function coerceIsoDate(value: string): string | null {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
 /** `YYYY-MM-DD` (de <input type="date">) -> ISO 8601, início do dia em BRT. */
 export function dateInputToIsoStart(value: string): string | null {
   if (!value) return null

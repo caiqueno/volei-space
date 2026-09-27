@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, ImageIcon, Plus, Save, Trash2, X } from 'lucide-react'
+import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { supabase } from '@/lib/supabase'
 import { fetchCepAddress, formatCep, normalizeCep } from '@/lib/client-cep'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
@@ -306,14 +307,16 @@ export function CandidateEditForm({
               <button type="button" onClick={onClose} className="candidate-cancel-button rounded-xl border px-5 py-3 text-sm font-black transition">
                 Fechar
               </button>
-              <button
+              <ActionBar
                 type="submit"
-                disabled={!canEdit || saving}
+                loading={saving}
+                disabled={!canEdit}
+                loadingLabel="Salvando"
                 className="candidate-save-button inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Save size={18} />
-                {saving ? 'Salvando...' : 'Salvar alterações'}
-              </button>
+                Salvar alterações
+              </ActionBar>
             </div>
           </form>
         )}
@@ -471,6 +474,7 @@ function EquipeEmblemaEdit({ form, setField, disabled }: BasicFieldProps) {
   return (
     <div className="md:col-span-2">
       <span className={labelClass}>Emblema da equipe</span>
+      {uploading ? <LoadingTrack label="Enviando" className="mt-2 w-full rounded-2xl" /> : (
       <label className={`candidate-upload-card mt-2 flex cursor-pointer items-center gap-4 rounded-2xl border border-white/12 bg-white/[0.04] p-4 transition hover:border-luva-amber/70 ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}>
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/12 bg-[#071426] text-luva-amber">
           {previewUrl || emblemaUrl ? (
@@ -480,7 +484,7 @@ function EquipeEmblemaEdit({ form, setField, disabled }: BasicFieldProps) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-black text-white">{uploading ? 'Processando e enviando...' : 'Enviar emblema da equipe'}</p>
+          <p className="text-sm font-black text-white">Enviar emblema da equipe</p>
           <p className="mt-1 text-xs font-bold leading-relaxed text-slate-300">
             {imageUploadRules.allowedLabel}. Até {formatBytes(imageUploadRules.maxOriginalBytes)}; a imagem é comprimida automaticamente.
           </p>
@@ -498,6 +502,7 @@ function EquipeEmblemaEdit({ form, setField, disabled }: BasicFieldProps) {
           }}
         />
       </label>
+      )}
     </div>
   )
 }

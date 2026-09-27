@@ -26,6 +26,7 @@ import {
   Trophy,
   Users,
 } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 type TeamId = 'teamA' | 'teamB'
 type TabId = 'pre' | 'resumo' | 'pontuacao' | 'escalacao' | 'tempos' | 'anotacoes'
@@ -1086,10 +1087,10 @@ export default function SumulaPage() {
         <div className="official-sidebar-footer">
           <span>Status</span>
           <strong>{matchStatus === 'live' ? 'Em jogo' : 'Finalizada'}</strong>
-          <button type="button" onClick={() => submitSumula()} disabled={submitting || matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : undefined}>
+          <ActionBar type="button" onClick={() => submitSumula()} loading={submitting} loadingLabel="Enviando" disabled={matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : undefined}>
             <Send size={14} />
-            {submitting ? 'Enviando...' : matchStatus === 'finished' ? 'Oficializar súmula' : 'Aguardando fim'}
-          </button>
+            {matchStatus === 'finished' ? 'Oficializar súmula' : 'Aguardando fim'}
+          </ActionBar>
         </div>
       </aside>
 

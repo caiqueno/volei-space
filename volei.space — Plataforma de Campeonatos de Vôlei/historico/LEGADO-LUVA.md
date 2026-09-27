@@ -1,3 +1,15 @@
+---
+title: >-
+  Legado LUVA
+category: historico
+tags: [historico, luva]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Origem histórica do código.
+status: historico
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Origem LUVA
 
 O sistema nasceu para uma liga específica. O vault original continua em [`athrios/luv-liga-unica-de-volei/LUV - Liga Ultra Volleyball`](https://github.com/athrios/luv-liga-unica-de-volei/tree/main/LUV%20-%20Liga%20Ultra%20Volleyball) e contém regulamento, operação, financiamento, materiais e súmula daquela liga.

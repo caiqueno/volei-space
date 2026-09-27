@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     const { data: ligas, error: ligasErr } = await supabase
       .from('Liga')
-      .select('*')
+      .select('id,nome,status,slug')
       .eq('organizadorId', organizadorId)
       .order('criadoEm', { ascending: false })
 
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     const { data: inscricoes, error: inscricoesErr } = await supabase
       .from('InscricaoCampeonato')
-      .select(`*, liga:Liga(*), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})`)
+      .select('id,ligaId,equipeId,status,criadaEm,equipe:Equipe(id,nome,categoria,serie)')
       .in('ligaId', ligaIds)
       .order('criadaEm', { ascending: false })
 
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     return success({
       campeonatos: ligas ?? [],
       inscricoes: [...activeDrafts, ...(inscricoes ?? []).map((item: any) => ({
-        ...withSynchronizedRoster(item),
+        ...item,
         registrationToken: tokenByRegistration.get(item.id) ?? null,
       }))],
       reconciliacao,

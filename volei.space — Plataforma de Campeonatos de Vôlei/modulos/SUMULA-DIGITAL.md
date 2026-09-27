@@ -1,3 +1,15 @@
+---
+title: >-
+  Súmula digital
+category: modulo
+tags: [sumula]
+sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
+summary: >-
+  Registro da partida e scouts.
+status: aprovado-pendente
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Súmula digital
 
 **Implementado parcialmente:** página `src/app/sumula/[token]/page.tsx`, API `src/app/api/sumula/[token]/route.ts`, autorização por token em `src/lib/sumula-access.ts`, presenças, sets, ocorrências, scouts e destaques no banco. Não presumir que a validação da tela também está na API.

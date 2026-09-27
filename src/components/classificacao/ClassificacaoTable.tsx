@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 
 type Entrada = {
@@ -184,14 +185,15 @@ export function ClassificacaoTable({
                           {classificado ? (
                             <span className="text-xs font-black uppercase tracking-[0.14em] text-emerald-600">Classificado</span>
                           ) : canClassify ? (
-                            <button
+                            <ActionBar
                               type="button"
                               onClick={() => classifyTeam(entrada.equipe.id, entrada.equipe.nome)}
-                              disabled={savingId === entrada.equipe.id}
+                              loading={savingId === entrada.equipe.id}
+                              loadingLabel="Classificando"
                               className="rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {savingId === entrada.equipe.id ? 'Classificando...' : 'Classificar time'}
-                            </button>
+                              Classificar time
+                            </ActionBar>
                           ) : (
                             <span className="text-xs font-bold text-slate-400">-</span>
                           )}

@@ -16,6 +16,7 @@ import PageLoading from '@/components/ui/page-loading'
 import { FloatingLabelNumberInput } from '@/components/ui/floating-label'
 import type { FieldRequirement, InscricoesSectionDTO } from '@/types/championship-setup'
 import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-defaults'
+import { revealMissingFields } from '../../wizard/missing-fields'
 
 const STEPS: WizardStepDef[] = [
   { key: 'periodo', title: 'Período e limites' },
@@ -104,6 +105,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [visited, setVisited] = useState<Set<number>>(new Set([0]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   function goTo(index: number) {
@@ -111,6 +113,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
     setStepIndex(index)
     setVisited((current) => new Set(current).add(index))
     setCompletionIssues([])
+    setInvalidKeys([])
   }
 
   async function handleNext() {
@@ -122,8 +125,14 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
     setSaving(true)
     const result = await complete()
     setSaving(false)
-    if (result.ok) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
-    else setCompletionIssues(result.issues.map((issue) => issue.message))
+    if (result.ok) {
+      router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      return
+    }
+    const fields = result.fields ?? []
+    setInvalidKeys(fields)
+    setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
+    revealMissingFields(fields, { formularioInscricaoConfig: 2 }, setStepIndex, setVisited)
   }
 
   if (loading) return <PageLoading label="Carregando inscrições..." />
@@ -141,12 +150,15 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
   // Enviar só o grupo alterado — o servidor mescla por grupo, então isto é
   // seguro mesmo sem reenviar equipe/lider a cada mudança de atleta.
   function setAtletaField(key: string, value: FieldRequirement) {
+    setInvalidKeys((current) => current.filter((item) => item !== 'formularioInscricaoConfig'))
     updateNow({ formularioInscricaoConfig: { atleta: { ...formulario.atleta, [key]: value } } })
   }
   function setLiderField(key: string, value: FieldRequirement) {
+    setInvalidKeys((current) => current.filter((item) => item !== 'formularioInscricaoConfig'))
     updateNow({ formularioInscricaoConfig: { lider: { ...formulario.lider, [key]: value } } })
   }
   function setEquipeField(key: string, value: FieldRequirement) {
+    setInvalidKeys((current) => current.filter((item) => item !== 'formularioInscricaoConfig'))
     updateNow({ formularioInscricaoConfig: { equipe: { ...formulario.equipe, [key]: value } } })
   }
 
@@ -232,7 +244,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
         )}
 
         {stepIndex === 2 && (
-          <div className="grid gap-5">
+          <div id="formulario-inscricao" className={invalidKeys.includes('formularioInscricaoConfig') ? 'field-missing grid gap-5 rounded-2xl p-1' : 'grid gap-5'}>
             <div>
               <p className="mb-1 text-xs font-black uppercase tracking-[0.16em] text-luva-amber">Dados da equipe</p>
               <div className="creator-modal-section rounded-2xl border p-4">

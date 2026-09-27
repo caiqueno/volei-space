@@ -1,0 +1,78 @@
+﻿{
+    "version":  2,
+    "vault":  "volei.space-produto",
+    "schema":  "llm-wiki-adaptado-produto",
+    "updated_at":  "2026-09-25T03:25:00Z",
+    "sources":  {
+                    "url:https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f":  {
+                                                                                                  "ingested_at":  "2026-09-25T03:20:00Z",
+                                                                                                  "pages_created":  [
+                                                                                                                        "raw/LLM-WIKI-KARPATHY.md",
+                                                                                                                        "references/LLM-WIKI-KARPATHY.md",
+                                                                                                                        "synthesis/LLM-WIKI-NO-VOLEI-SPACE.md"
+                                                                                                                    ],
+                                                                                                  "pages_updated":  [
+                                                                                                                        "AGENTS.md",
+                                                                                                                        "00-INICIO.md",
+                                                                                                                        "index.md",
+                                                                                                                        "log.md",
+                                                                                                                        "hot.md"
+                                                                                                                    ]
+                                                                                              },
+                    "repo:athrios/volei-space/docs/requisitos/INSCRICOES-POR-EQUIPE.md":  {
+                                                                                              "ingested_at":  "2026-09-25T03:15:00Z",
+                                                                                              "pages_created":  [
+                                                                                                                    "references/INSCRICOES-POR-EQUIPE.md"
+                                                                                                                ],
+                                                                                              "pages_updated":  [
+                                                                                                                    "modulos/INSCRICOES.md"
+                                                                                                                ]
+                                                                                          },
+                    "repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md":  {
+                                                                                                       "ingested_at":  "2026-09-25T03:15:00Z",
+                                                                                                       "pages_created":  [
+                                                                                                                             "references/SUMULA-DIGITAL-E-CLASSIFICACAO.md"
+                                                                                                                         ],
+                                                                                                       "pages_updated":  [
+                                                                                                                             "modulos/SUMULA-DIGITAL.md",
+                                                                                                                             "modulos/CLASSIFICACAO.md"
+                                                                                                                         ]
+                                                                                                   },
+                    "repo:athrios/volei-space/docs/requisitos/CATEGORIAS-COMO-COMPETICOES.md":  {
+                                                                                                    "ingested_at":  "2026-09-25T03:15:00Z",
+                                                                                                    "pages_created":  [
+                                                                                                                          "references/CATEGORIAS-COMO-COMPETICOES.md"
+                                                                                                                      ],
+                                                                                                    "pages_updated":  [
+                                                                                                                          "03-REGRAS-DE-NEGOCIO.md",
+                                                                                                                          "11-DECISOES.md"
+                                                                                                                      ]
+                                                                                                },
+                    "url:https://github.com/kepano/obsidian-skills":  {
+                                                                          "ingested_at":  "2026-09-25T03:25:00Z",
+                                                                          "pages_created":  [
+                                                                                                "references/OBSIDIAN-SKILLS-KEPANO.md"
+                                                                                            ],
+                                                                          "pages_updated":  [
+                                                                                                "AGENTS.md",
+                                                                                                "index.md",
+                                                                                                "log.md",
+                                                                                                "hot.md"
+                                                                                            ],
+                                                                          "installed_skills":  [
+                                                                                                   "obsidian-markdown",
+                                                                                                   "obsidian-bases",
+                                                                                                   "json-canvas",
+                                                                                                   "obsidian-cli",
+                                                                                                   "defuddle",
+                                                                                                   "knap"
+                                                                                               ]
+                                                                      }
+                },
+    "projects":  {
+                     "volei-space":  {
+                                         "source_repo":  "github.com/athrios/volei-space",
+                                         "source_cwd_hint":  "~/Documents/Aplicativo/volei-space"
+                                     }
+                 }
+}

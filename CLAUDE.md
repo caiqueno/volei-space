@@ -4,7 +4,7 @@ Este repositório contém a plataforma SaaS **volei.space**. Ela atende diferent
 
 ## Consulta obrigatória antes de trabalhar
 
-1. Abra `volei.space — Plataforma de Campeonatos de Vôlei/00-INICIO.md`.
+1. Abra `volei.space — Plataforma de Campeonatos de Vôlei/00-INICIO.md` (e, se existir, `AGENTS.md` / `hot.md` para o schema LLM-WIKI e o contexto da sessão).
 2. Identifique o módulo da tarefa e leia a nota correspondente em `volei.space — Plataforma de Campeonatos de Vôlei/modulos/`, além das notas centrais pertinentes.
 3. Para inscrições, leia também `docs/requisitos/INSCRICOES-POR-EQUIPE.md`. Para súmula, sets, substituições, MVP ou classificação, leia `docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md`.
 4. Confira as rotas, modelos, migrations e testes atuais antes de implementar. As notas distinguem comportamento **implementado**, regra **aprovada mas pendente** e **histórico**. Não apresente regra pendente como funcionalidade pronta.

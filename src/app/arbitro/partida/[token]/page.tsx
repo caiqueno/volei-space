@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 
 export default function OperacaoArbitroPage() {
@@ -239,10 +240,10 @@ export default function OperacaoArbitroPage() {
 
         <div className="referee-card rounded-[2rem] border p-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <button onClick={iniciarPartida} disabled={!liberada || starting} className="referee-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45">
+            <ActionBar onClick={iniciarPartida} loading={starting} loadingLabel="Iniciando" disabled={!liberada} className="referee-primary inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45">
               <ClipboardCheck size={18} />
-              {starting ? 'Iniciando...' : 'Iniciar partida'}
-            </button>
+              Iniciar partida
+            </ActionBar>
             <Link href={`/sumula/${token}`} className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
               Abrir sumula
               <ArrowRight size={18} />
@@ -293,10 +294,10 @@ export default function OperacaoArbitroPage() {
                   className="referee-input rounded-2xl border px-4 py-4 text-sm font-bold outline-none transition disabled:opacity-45"
                 />
               </label>
-              <button disabled={validating || !qr.trim()} className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45">
+              <ActionBar disabled={!qr.trim()} loading={validating} loadingLabel="Validando" className="referee-secondary inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45">
                 <QrCode size={18} />
-                {validating ? 'Validando...' : 'Validar manualmente'}
-              </button>
+                Validar manualmente
+              </ActionBar>
             </form>
           </div>
         </div>

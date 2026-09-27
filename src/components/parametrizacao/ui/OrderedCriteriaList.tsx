@@ -11,10 +11,12 @@ export function OrderedCriteriaList({
   value,
   onChange,
   disabled,
+  invalid,
 }: {
   value: string[]
   onChange: (next: string[]) => void
   disabled?: boolean
+  invalid?: boolean
 }) {
   const [announcement, setAnnouncement] = useState('')
   const available = Object.keys(CLASSIFICATION_CRITERIA_LABELS).filter((key) => !value.includes(key))
@@ -40,7 +42,7 @@ export function OrderedCriteriaList({
   }
 
   return (
-    <div className="grid gap-4">
+    <div id="criterios-classificacao" className={invalid ? 'field-missing grid gap-4 rounded-2xl p-1' : 'grid gap-4'}>
       <div aria-live="polite" className="sr-only">{announcement}</div>
 
       <div className="creator-modal-section rounded-2xl border p-4">

@@ -1,7 +1,34 @@
+---
+title: >-
+  volei.space — início
+category: area
+tags: [produto, navegacao]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Porta de entrada do vault: mapa do produto, estados e ponte LLM-WIKI.
+status: implementado
+created: 2026-09-20
+updated: 2026-09-25
+---
+	
 # volei.space — início
 
 > [!important] Fonte do produto
 > **volei.space é a plataforma SaaS**, não uma liga. Cada organizador cria e opera seus próprios campeonatos. Este vault documenta o produto, enquanto `athrios/volei-space` contém o código.
+
+## Mentalidade LLM Wiki (Karpathy)
+
+Padrão: [gist Karpathy](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) · [[references/LLM-WIKI-KARPATHY]] · [[synthesis/LLM-WIKI-NO-VOLEI-SPACE]].
+
+Este cofre é conhecimento **compilado** (não RAG descartável a cada pergunta):
+
+| Camada | Conteúdo |
+| --- | --- |
+| Fontes brutas | `docs/requisitos/`, código, `raw/` |
+| Wiki | notas deste vault |
+| Schema | [[AGENTS]] |
+
+Catálogo: [[index]] · Sessão: [[hot]] · Log: [[log]] · Inbox: `_raw/` · Fonte do padrão: [[raw/LLM-WIKI-KARPATHY]]
 
 ## Como ler
 
@@ -26,9 +53,9 @@ Quando código e requisito divergirem, registre a divergência; não apresente o
 | Interface | [[09-UI-UX]] |
 | Sequência de trabalho | [[10-ROADMAP]] |
 | Decisões registradas | [[11-DECISOES]] |
-| Categorias como competições isoladas — requisito aprovado, pendente | [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]] |
+| Categorias como competições isoladas — requisito aprovado, pendente | [[references/CATEGORIAS-COMO-COMPETICOES]] |
 | Problemas conhecidos | [[12-BUGS-E-DEBITOS-TECNICOS]] |
 | Notas específicas | [[modulos/PARAMETRIZACAO]], [[modulos/INSCRICOES]], [[modulos/SUMULA-DIGITAL]] e [[05-MODULOS]] |
 | Origem LUVA | [[historico/LEGADO-LUVA]] |
 
-**Fontes primárias:** [repositório da aplicação](https://github.com/athrios/volei-space), [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES|requisito de categorias]], [requisito de inscrições](https://github.com/athrios/volei-space/blob/main/docs/requisitos/INSCRICOES-POR-EQUIPE.md) e [requisito de súmula](https://github.com/athrios/volei-space/blob/main/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md). Atualizado em 21/09/2026.
+**Fontes primárias:** [repositório da aplicação](https://github.com/athrios/volei-space), [[references/CATEGORIAS-COMO-COMPETICOES|requisito de categorias]], [[references/INSCRICOES-POR-EQUIPE|requisito de inscrições]] e [[references/SUMULA-DIGITAL-E-CLASSIFICACAO|requisito de súmula]]. Atualizado em 25/09/2026.

@@ -44,7 +44,15 @@ export function Header() {
   const pathname = usePathname()
   const [hydrated, setHydrated] = useState(false)
   const [session, setSession] = useState<HeaderSession | null>(null)
-  const panelHref = session?.tipo === 'equipe' ? '/capitao' : session ? '/painel' : null
+  const panelHref = session?.tipo === 'equipe'
+    ? '/capitao'
+    : session?.tipo === 'publico'
+      ? '/portal'
+      : session?.tipo === 'organizador'
+        ? '/painel'
+        : session
+          ? '/painel'
+          : null
   const isLegalPage = ['/termos-de-uso', '/politica-de-privacidade', '/politica-de-cookies'].includes(pathname)
   const scopedLinks = useMemo(
     () => (isLegalPage && !session ? [] : getHeaderLinks(session)),
@@ -148,8 +156,7 @@ export function Header() {
           </nav>
 
           <div className="landing-header-actions">
-             {/*</div></div>Link href="/cadastro?modo=cadastro">Cadastrar</Link> */}
-             <a href="#cadastro-previo">Quero me cadastrar</a>
+             <Link href="/login">Entre ou Cadastre-se</Link>
           </div>
         </div>
       </header>
@@ -245,7 +252,7 @@ export function Header() {
             })}
             <div className="flex items-center gap-2">
               <Link
-                href="/cadastro?modo=login"
+                href="/login"
                 className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-black text-slate-100 transition hover:border-luva-amber/70 hover:text-white"
               >
                 Entrar
@@ -305,6 +312,16 @@ function getHeaderLinks(session: HeaderSession | null): HeaderLink[] {
     ]
   }
 
+  if (session.tipo === 'publico') {
+    return [
+      { href: '/portal', label: 'Portal', short: 'Portal', icon: ClipboardCheck },
+      { href: '/campeonatos', label: 'Campeonatos', short: 'Eventos', icon: Trophy },
+      { href: '/jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
+      { href: '/classificacao', label: 'Tabela', short: 'Tabela', icon: Table2 },
+      { href: '/galeria', label: 'Galeria', short: 'Mídia', icon: Images },
+    ]
+  }
+
   if (session.tipo === 'organizador') {
     const scoped = (href: string) => {
       if (!session.candidaturaId) return href
@@ -350,7 +367,7 @@ function getMobileLinks(scopedLinks: HeaderLink[], panelHref: string | null): He
 
   return [
     ...scopedLinks,
-    { href: '/cadastro?modo=login', label: 'Entrar', short: 'Entrar', icon: ShieldCheck },
+    { href: '/login', label: 'Entrar', short: 'Entrar', icon: ShieldCheck },
     { href: '/cadastro?modo=cadastro', label: 'Cadastro', short: 'Cadastro', icon: ClipboardCheck },
   ]
 }
@@ -366,6 +383,7 @@ function getProfileLabel(tipo: string) {
   if (tipo === 'arbitro') return 'Árbitro'
   if (tipo === 'quadra') return 'Quadra'
   if (tipo === 'organizador') return 'Organizador'
+  if (tipo === 'publico') return 'Público'
   return 'Perfil'
 }
 

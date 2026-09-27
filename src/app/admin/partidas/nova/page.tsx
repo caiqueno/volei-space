@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export default function NovaPartidaPage() {
   const router = useRouter()
@@ -127,10 +128,10 @@ export default function NovaPartidaPage() {
               value={form.localEndereco} onChange={e => setForm(f => ({ ...f, localEndereco: e.target.value }))} />
           </div>
           {erro && <p className="col-span-2 text-sm text-red-500">{erro}</p>}
-          <button type="submit" disabled={saving}
-            className="col-span-2 bg-luva-blue text-white rounded-lg px-4 py-2 font-semibold hover:bg-luva-navy disabled:opacity-50">
-            {saving ? 'Criando...' : 'Criar Partida'}
-          </button>
+          <ActionBar type="submit" loading={saving} loadingLabel="Criando"
+            className="col-span-2 w-full bg-luva-blue text-white rounded-lg px-4 py-2 font-semibold hover:bg-luva-navy disabled:opacity-50">
+            Criar Partida
+          </ActionBar>
         </form>
       </div>
     </div>

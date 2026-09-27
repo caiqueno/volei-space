@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export default function AdminJogadoresPage() {
   const [jogadores, setJogadores] = useState<any[]>([])
@@ -145,9 +146,9 @@ export default function AdminJogadoresPage() {
             value={form.posicao}
             onChange={e => setForm(f => ({ ...f, posicao: e.target.value }))}
           />
-          <button type="submit" disabled={saving} className="rounded-xl bg-[#ffb331] px-4 py-2 text-sm font-black text-white disabled:opacity-50 md:col-span-4">
-            {saving ? 'Criando...' : '+ Criar jogador'}
-          </button>
+          <ActionBar type="submit" loading={saving} loadingLabel="Criando" className="w-full rounded-xl bg-[#ffb331] px-4 py-2 text-sm font-black text-white disabled:opacity-50 md:col-span-4">
+            + Criar jogador
+          </ActionBar>
         </form>
         {msg && <p className="mt-3 text-sm font-semibold text-slate-200">{msg}</p>}
       </div>

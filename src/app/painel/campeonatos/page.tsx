@@ -79,7 +79,7 @@ export default function MeusCampeonatosPage() {
               Voltar ao painel
             </Link>
             <p className="luva-kicker mt-5">Biblioteca</p>
-            <h1 className="mt-2 font-display text-3xl font-black sm:text-5xl">Meus Campeonatos</h1>
+            <h1 className="type-page-title mt-2">Meus campeonatos</h1>
           </div>
         </div>
       </section>

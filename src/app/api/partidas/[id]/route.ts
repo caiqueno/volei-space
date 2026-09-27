@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const { data, error: err } = await supabase
     .from('Partida')
-    .select('*, equipeA:Equipe!equipeAId(*, jogadores:Jogador(*)), equipeB:Equipe!equipeBId(*, jogadores:Jogador(*)), sets:SetPartida(*), escala:EscalaArbitro(*, arbitro:Arbitro(*)), presencas:SumulaPresenca(*, jogador:Jogador(*)), ocorrencias:OcorrenciaPartida(*), destaques:DestaquesPartida(*, jogador:Jogador(*))')
+    .select('*, equipeA:Equipe!equipeAId(*, jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)), equipeB:Equipe!equipeBId(*, jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)), sets:SetPartida(*), escala:EscalaArbitro(*, arbitro:Arbitro(*)), presencas:SumulaPresenca(*, jogador:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)), ocorrencias:OcorrenciaPartida(*), destaques:DestaquesPartida(*, jogador:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl))')
     .eq('id', Number(id))
     .single()
   if (err) return error('Partida não encontrada', 404)

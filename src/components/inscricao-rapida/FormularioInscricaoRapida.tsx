@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, CheckCircle2, Copy, ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { supabase } from '@/lib/supabase'
 import { optimizeImageFile } from '@/lib/client-image-upload'
 import type { ResolvedFormularioRapidaConfig, CategoriaSerieOption } from '@/lib/inscricao-rapida'
@@ -318,9 +319,9 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             {categoriaFixa ? <p className="text-xs font-bold text-slate-300">Categoria: <span className="text-white">{categoriaFixa.label}</span></p> : (
               <FloatingSelect id="categoriaSerie" label="Categoria" value={categoriaSerie} onChange={setCategoriaSerie} required options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />
             )}
-            <button type="button" onClick={iniciarCadastro} disabled={creating || nomeEquipe.trim().length < 2 || (!categoriaFixa && !categoriaSerie)} className="mt-1 rounded-full bg-[#ffb331] py-3 text-sm font-black text-slate-950 disabled:opacity-50">
-              {creating ? 'Criando link...' : 'Iniciar e salvar cadastro'}
-            </button>
+            <ActionBar type="button" onClick={iniciarCadastro} loading={creating} loadingLabel="Criando link" disabled={nomeEquipe.trim().length < 2 || (!categoriaFixa && !categoriaSerie)} className="mt-1 w-full rounded-full bg-[#ffb331] py-3 text-sm font-black text-slate-950 disabled:opacity-50">
+              Iniciar e salvar cadastro
+            </ActionBar>
           </div>
         </div>
       </main>
@@ -357,7 +358,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
 
         <div className="mt-3 grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
           <FloatingInput id="nomeEquipe" label="Nome da equipe" value={nomeEquipe} onChange={setNomeEquipe} required disabled={!canEdit} />
-          {logoEnabled && <div className="flex items-center gap-3">{logoUrl ? <img src={logoUrl} alt="Logo da equipe" className="h-11 w-11 rounded-full border border-white/10 object-cover" /> : <span className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={16} /></span>}{canEdit && <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">{uploadingLogo ? 'Enviando...' : `Logo da equipe${logoRequired ? ' *' : ' (opcional)'}`}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={uploadingLogo} onChange={(event) => handleLogoUpload(event.target.files?.[0] ?? null)} /></label>}</div>}
+          {logoEnabled && <div className="flex items-center gap-3">{logoUrl ? <img src={logoUrl} alt="Logo da equipe" className="h-11 w-11 rounded-full border border-white/10 object-cover" /> : <span className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={16} /></span>}{canEdit && (uploadingLogo ? <LoadingTrack label="Enviando" className="min-w-[12rem]" /> : <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">{`Logo da equipe${logoRequired ? ' *' : ' (opcional)'}`}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleLogoUpload(event.target.files?.[0] ?? null)} /></label>)}</div>}
           {categoriaFixa ? <p className="text-xs font-bold text-slate-300">Categoria: <span className="text-white">{categoriaFixa.label}</span></p> : <FloatingSelect id="categoriaSerie" label="Categoria" value={categoriaSerie} onChange={setCategoriaSerie} required disabled={!canEdit} options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />}
           {liderEnabled && <FloatingInput id="lider" label="Líder da equipe" value={lider} onChange={setLider} required={liderRequired} disabled={!canEdit} />}
           <FloatingInput id="tecnico" label="Técnico (opcional)" value={tecnico} onChange={setTecnico} disabled={!canEdit} />
@@ -373,11 +374,11 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             {cpfEnabled && <FloatingInput id="jogadorCpf" label="CPF" value={draft.cpf} onChange={(value) => setDraft((current) => ({ ...current, cpf: value }))} required={cpfRequired} />}
             {nascimentoEnabled && <FloatingInput id="jogadorNascimento" label="Data de nascimento" type="date" value={draft.dataNascimento} onChange={(value) => setDraft((current) => ({ ...current, dataNascimento: value }))} required={nascimentoRequired} />}
             {documentoEnabled && <div className="grid grid-cols-2 gap-2.5"><FloatingSelect id="jogadorDocTipo" label="Documento" value={draft.documentoTipo} onChange={(value) => setDraft((current) => ({ ...current, documentoTipo: value }))} required={documentoRequired} options={DOCUMENT_TYPES} /><FloatingInput id="jogadorDocNumero" label="Número do documento" value={draft.documentoNumero} onChange={(value) => setDraft((current) => ({ ...current, documentoNumero: value }))} required={documentoRequired} /></div>}
-            {fotoEnabled && <div className="flex items-center gap-3">{draft.fotoUrl ? <img src={draft.fotoUrl} alt="Foto do jogador" className="h-10 w-10 rounded-full border border-white/10 object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={14} /></span>}<label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">{uploadingFotoJogador ? 'Enviando...' : `Foto${fotoRequired ? ' *' : ' (opcional)'}`}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={uploadingFotoJogador} onChange={(event) => handleJogadorFotoUpload(event.target.files?.[0] ?? null)} /></label></div>}
-            <button type="button" onClick={salvarJogador} disabled={savingPlayer || !draft.nome.trim()} className="mt-1 rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{savingPlayer ? 'Salvando...' : editingId !== null ? 'Salvar alterações' : 'Salvar jogador'}</button>
+            {fotoEnabled && <div className="flex items-center gap-3">{draft.fotoUrl ? <img src={draft.fotoUrl} alt="Foto do jogador" className="h-10 w-10 rounded-full border border-white/10 object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={14} /></span>}{uploadingFotoJogador ? <LoadingTrack label="Enviando" className="min-w-[12rem]" /> : <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">{`Foto${fotoRequired ? ' *' : ' (opcional)'}`}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleJogadorFotoUpload(event.target.files?.[0] ?? null)} /></label>}</div>}
+            <ActionBar type="button" onClick={salvarJogador} loading={savingPlayer} loadingLabel="Salvando" disabled={!draft.nome.trim()} className="mt-1 w-full rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{editingId !== null ? 'Salvar alterações' : 'Salvar jogador'}</ActionBar>
           </div>}
         </div>
-        {initialData?.status === 'RASCUNHO' && canEdit && <button type="button" onClick={handleSubmit} disabled={submitting || !nomeEquipe.trim() || (!categoriaFixa && !categoriaSerie) || jogadores.length === 0} className="mt-5 w-full rounded-full bg-[#ffb331] py-3.5 text-sm font-black text-slate-950 disabled:opacity-50">{submitting ? 'Concluindo...' : 'Concluir inscrição'}</button>}
+        {initialData?.status === 'RASCUNHO' && canEdit && <ActionBar type="button" onClick={handleSubmit} loading={submitting} loadingLabel="Concluindo" disabled={!nomeEquipe.trim() || (!categoriaFixa && !categoriaSerie) || jogadores.length === 0} className="mt-5 w-full rounded-full bg-[#ffb331] py-3.5 text-sm font-black text-slate-950 disabled:opacity-50">Concluir inscrição</ActionBar>}
       </div>
     </main>
   )

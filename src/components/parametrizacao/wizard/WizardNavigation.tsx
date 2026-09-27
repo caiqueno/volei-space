@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowLeft, ArrowRight, Send } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 // Mesmo padrão de botões Voltar/Continuar/Concluir do /cadastro, adaptado
 // para os tokens de botão do shell public-dashboard (public-primary-action /
@@ -28,15 +29,16 @@ export function WizardNavigation({
       >
         <ArrowLeft size={16} /> Voltar
       </button>
-      <button
+      <ActionBar
         type="button"
         onClick={onNext}
-        disabled={saving}
+        loading={saving}
+        loadingLabel="Salvando"
         className="public-primary-action inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isLastStep ? <Send size={16} /> : <ArrowRight size={16} />}
-        {saving ? 'Salvando...' : isLastStep ? 'Salvar e concluir' : 'Continuar'}
-      </button>
+        {isLastStep ? 'Salvar e concluir' : 'Continuar'}
+      </ActionBar>
     </div>
   )
 }

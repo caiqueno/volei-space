@@ -135,9 +135,11 @@ async function ensureClassificationEntries(ligaId: number, equipes: EquipeRecord
 
   if (rows.length === 0) return
 
+  // Só cria a linha que ainda não existe. Atualizar aqui zeraria pontos,
+  // jogos e saldo de equipes que já têm partida encerrada.
   const { error } = await supabase
     .from('ClassificacaoEntrada')
-    .upsert(rows, { onConflict: 'ligaId,equipeId' })
+    .upsert(rows, { onConflict: 'ligaId,equipeId', ignoreDuplicates: true })
 
   if (error) throw error
 }

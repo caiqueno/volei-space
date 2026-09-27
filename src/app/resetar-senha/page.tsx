@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { ArrowLeft, CheckCircle2, LockKeyhole } from 'lucide-react'
+import { ActionBar } from '@/components/ui/action-bar'
 
 export default function ResetarSenhaPage() {
   const token = useMemo(() => {
@@ -53,7 +54,7 @@ export default function ResetarSenhaPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(239,159,39,0.18),transparent_30%),radial-gradient(circle_at_84%_12%,rgba(23,95,166,0.26),transparent_36%),linear-gradient(135deg,#020611_0%,#071a2f_56%,#03101f_100%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:72px_72px]" />
       <section className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] max-w-lg flex-col justify-center">
-        <Link href="/cadastro?modo=login" className="mb-6 inline-flex w-fit items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-sm font-black text-white transition hover:bg-luva-amber hover:text-[#07101f]">
+        <Link href="/login" className="mb-6 inline-flex w-fit items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-sm font-black text-white transition hover:bg-luva-amber hover:text-[#07101f]">
           <ArrowLeft size={16} />
           Voltar ao login
         </Link>
@@ -92,9 +93,9 @@ export default function ResetarSenhaPage() {
             </label>
           </div>
 
-          <button type="submit" disabled={loading} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-luva-amber px-6 py-3 text-sm font-black uppercase tracking-wide text-[#061322] transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:opacity-50">
-            {loading ? 'Salvando...' : 'Redefinir senha'}
-          </button>
+          <ActionBar type="submit" loading={loading} loadingLabel="Salvando" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-luva-amber px-6 py-3 text-sm font-black uppercase tracking-wide text-[#061322] transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:opacity-50">
+            Redefinir senha
+          </ActionBar>
 
           {feedback && (
             <div className={`mt-5 flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-bold ${feedback.type === 'success' ? 'border-emerald-300/40 bg-emerald-500/12 text-emerald-100' : 'border-red-300/40 bg-red-500/12 text-red-100'}`}>

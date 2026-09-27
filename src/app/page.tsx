@@ -28,10 +28,10 @@ export const metadata = createPageMetadata({
 const instagramUrl = 'https://www.instagram.com/volei.space/'
 
 const stats = [
-  { value: 'Equipes', label: 'Cadastram jogadores e buscam vencer!', tone: 'captains' },
-  { value: 'Árbitros', label: 'Operam a súmula digital', tone: 'referees' },
-  { value: 'Torcida', label: 'Acompanham tudo em tempo real', tone: 'courts' },
-  { value: 'Organizadores', label: 'Criam campeonatos de forma atrativa', tone: 'organizers' },
+  { value: 'Equipes', label: 'Cadastram jogadores e acompanham a campanha.', tone: 'captains' },
+  { value: 'Árbitros', label: 'Operam a súmula digital.', tone: 'referees' },
+  { value: 'Torcida', label: 'Acompanha jogos e tabela em tempo real.', tone: 'courts' },
+  { value: 'Organizadores', label: 'Criam e operam os próprios campeonatos.', tone: 'organizers' },
 ]
 
 const features = [
@@ -40,7 +40,7 @@ const features = [
   { icon: <Trophy size={22} />, title: 'Destaques', text: 'MVPs, rankings e campanhas registrados durante a temporada.' },
   { icon: <ClipboardCheck size={22} />, title: 'Súmula digital', text: 'Registro oficial de pontos, sets, eventos e resultado da partida.' },
   { icon: <Users size={22} />, title: 'Equipes', text: 'Elencos, inscrições e identidade dos times.' },
-  { icon: <Camera size={22} />, title: 'Galeria', text: 'Fotos, cobertura e bastidores para divulgar a liga.' },
+  { icon: <Camera size={22} />, title: 'Galeria', text: 'Fotos e bastidores para divulgar o campeonato.' },
   { icon: <QrCode size={22} />, title: 'QR Code', text: 'Credenciamento rápido para atletas antes das partidas.' },
   { icon: <ShieldCheck size={22} />, title: 'Gestão', text: 'Painel administrativo para operar campeonato, jogos e inscrições.' },
 ]
@@ -118,14 +118,14 @@ export default function LandingPage() {
 
       <section id="temporada" className="landing-section landing-animate">
         <div className="landing-section-head landing-animate">
-          <h2>Uma liga para acompanhar do início ao fim.</h2>
+          <h2>Um campeonato para acompanhar do início ao fim.</h2>
         </div>
         <div className="landing-image-band">
           <div className="image-band-media landing-animate">
             <Image src="/brand/landing-season-volleyball.jpg" alt="Partida de vôlei em quadra" fill sizes="(min-width: 1024px) 620px, 100vw" className="object-cover" />
           </div>
           <div className="image-band-copy landing-animate">
-            <h3>1 com presença de evento.</h3>
+            <h3>A página pública do campeonato.</h3>
             <p>
               Página pública para divulgar campeonatos, abrir inscrições, acompanhar confrontos e transformar cada rodada em memória para atletas e torcida.
             </p>

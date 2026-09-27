@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error: insertErr } = await supabase
       .from('Interessado')
-      .insert(parsed.data)
+      .insert({ id: randomUUID(), ...parsed.data })
       .select('id')
       .single()
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     return success({ id: data.id }, 201)
   } catch (err) {
-    console.error('[interessados] erro ao registrar interessado', err)
-    return error(`Erro ao registrar interesse: ${errorDetail(err)}`, 500)
+    console.error('[interessados] erro ao registrar interessado', errorDetail(err))
+    return error('Não foi possível registrar seu interesse. Tente novamente.', 500)
   }
 }

@@ -1,3 +1,15 @@
+---
+title: >-
+  Regras de negócio
+category: area
+tags: [regras]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Regras aprovadas do produto.
+status: misto
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Regras de negócio aprovadas
 
 > [!warning] Aprovação não é implementação
@@ -5,11 +17,11 @@
 
 ## Categorias como competições — aprovado, pendente
 
-Cada categoria de uma `Liga` é uma competição interna independente. Equipes, convites, inscrições, grupos, partidas, tabelas, classificados, eliminatórias, scouts, rankings e resultados não se misturam entre categorias. `CategoriaCampeonato` e `categoriaCampeonatoId` são a arquitetura-alvo; o modelo atual por strings precisa de migração. Regras esportivas podem ser comuns ao campeonato, sem presumir variações por categoria. Séries Ouro/Prata são legado LUVA, não divisões do volei.space. Especificação e critérios: [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]].
+Cada categoria de uma `Liga` é uma competição interna independente. Equipes, convites, inscrições, grupos, partidas, tabelas, classificados, eliminatórias, scouts, rankings e resultados não se misturam entre categorias. `CategoriaCampeonato` e `categoriaCampeonatoId` são a arquitetura-alvo; o modelo atual por strings precisa de migração. Regras esportivas podem ser comuns ao campeonato, sem presumir variações por categoria. Séries Ouro/Prata são legado LUVA, não divisões do volei.space. Especificação e critérios: [[references/CATEGORIAS-COMO-COMPETICOES]].
 
 ## Inscrições
 
-Em cada categoria, o organizador pode apontar equipes a convidar. O link exclusivo nasce **antes de existir `Equipe`**. O líder cadastra equipe e jogadores pelo link, retoma dados após reload e conclui a inscrição **sem aprovação manual**. O token deve restringir no servidor o acesso ao par `ligaId` + `categoriaCampeonatoId`, ao convite e à equipe resultante. Ver [[modulos/INSCRICOES]], [[docs/requisitos/CATEGORIAS-COMO-COMPETICOES]] e [[docs/requisitos/INSCRICOES-POR-EQUIPE]].
+Em cada categoria, o organizador pode apontar equipes a convidar. O link exclusivo nasce **antes de existir `Equipe`**. O líder cadastra equipe e jogadores pelo link, retoma dados após reload e conclui a inscrição **sem aprovação manual**. O token deve restringir no servidor o acesso ao par `ligaId` + `categoriaCampeonatoId`, ao convite e à equipe resultante. Ver [[modulos/INSCRICOES]], [[references/CATEGORIAS-COMO-COMPETICOES]] e [[references/INSCRICOES-POR-EQUIPE]].
 
 ## Sets, resultado e classificação
 

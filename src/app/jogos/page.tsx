@@ -1,13 +1,15 @@
 export const dynamic = 'force-dynamic'
 
 import { unstable_noStore as noStore } from 'next/cache'
-import { CalendarDays, MapPin, Radio, RotateCcw, Trophy } from 'lucide-react'
+import { CalendarDays, RotateCcw } from 'lucide-react'
 import { PageHero } from '@/components/layout/PageHero'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { PartidasAbertasArbitro } from '@/components/arbitro/PartidasAbertasArbitro'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
+import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FASES_ELIMINATORIAS, formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
+import { formatCategoriaLabel } from '@/lib/equipe-categoria'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -59,7 +61,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
         if (equipeCapitao) {
           let query = supabaseAdmin
             .from('Partida')
-            .select('id,rodada,fase,status,dataHora,localNome,setsPorA,setsPorB,equipeA:Equipe!equipeAId(id,nome,corHex),equipeB:Equipe!equipeBId(id,nome,corHex),sets:SetPartida(numero,pontosA,pontosB)')
+            .select('id,ligaId,categoria,serie,rodada,fase,status,dataHora,localNome,setsPorA,setsPorB,liga:Liga(id,nome),equipeA:Equipe!equipeAId(id,nome,corHex),equipeB:Equipe!equipeBId(id,nome,corHex),sets:SetPartida(numero,pontosA,pontosB)')
             .or(`equipeAId.eq.${equipeCapitao.id},equipeBId.eq.${equipeCapitao.id}`)
             .order('rodada', { ascending: true })
             .order('dataHora', { ascending: true })
@@ -77,7 +79,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
       } else {
         let query = supabaseAdmin
           .from('Partida')
-          .select('*, equipeA:Equipe!equipeAId(*), equipeB:Equipe!equipeBId(*), sets:SetPartida(*)')
+          .select('id,ligaId,categoria,serie,rodada,fase,status,dataHora,localNome,setsPorA,setsPorB,liga:Liga(id,nome),equipeA:Equipe!equipeAId(id,nome,corHex),equipeB:Equipe!equipeBId(id,nome,corHex),sets:SetPartida(numero,pontosA,pontosB)')
           .order('rodada', { ascending: true })
           .order('dataHora', { ascending: true })
 
@@ -94,36 +96,20 @@ export default async function JogosPage({ searchParams }: PageProps) {
     }
   }
 
-  const knockoutFases = new Set(FASES_ELIMINATORIAS.filter((fase) => fase !== 'NENHUMA'))
-  const partidasGrupos = partidas.filter((partida) => !knockoutFases.has(partida.fase))
-  const partidasMataMata = partidas.filter((partida) => knockoutFases.has(partida.fase))
-
-  const porRodada = partidasGrupos.reduce<Record<number, typeof partidas>>((acc, partida) => {
-    if (!acc[partida.rodada]) acc[partida.rodada] = []
-    acc[partida.rodada].push(partida)
-    return acc
-  }, {})
-
-  const porFaseMataMata = partidasMataMata.reduce<Record<string, typeof partidas>>((acc, partida) => {
-    if (!acc[partida.fase]) acc[partida.fase] = []
-    acc[partida.fase].push(partida)
-    return acc
-  }, {})
-  const fasesMataMataOrdenadas = Object.keys(porFaseMataMata).sort(
-    (a, b) => getRequiredEliminatoryTeams(b) - getRequiredEliminatoryTeams(a),
-  )
+  const tabelas = buildGameTree(partidas)
+  const totalRodadas = tabelas.reduce((total, tabela) => total + tabela.rodadas.length, 0)
 
   return (
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <PageHero
         eyebrow={<><CalendarDays size={16} /> Calendário oficial</>}
-        title={equipeCapitao ? `Jogos do ${equipeCapitao.nome}` : scope.selectedLiga ? `Jogos - ${scope.selectedLiga.nome}` : 'Jogos da temporada'}
-        description={equipeCapitao ? 'Agenda filtrada pelas partidas da sua equipe.' : scope.organizadorId ? 'Agenda filtrada pelos campeonatos criados na sua conta.' : 'Rodadas, horários, locais e placares da competição em uma visão direta.'}
+        title={equipeCapitao ? `Jogos de ${equipeCapitao.nome}` : scope.selectedLiga ? `Jogos de ${scope.selectedLiga.nome}` : 'Jogos do campeonato'}
+        description={equipeCapitao ? 'Agenda das partidas da sua equipe.' : scope.organizadorId ? 'Agenda dos campeonatos da sua conta.' : 'Rodadas, horários, locais e placares do campeonato.'}
         aside={
           <div className="grid grid-cols-3 gap-3">
-            <Metric label="partidas" value={partidas.length} />
-            <Metric label="rodadas" value={Object.keys(porRodada).length} />
-            <Metric label="locais" value={new Set(partidas.map((p) => p.localNome).filter(Boolean)).size} />
+            <Metric label="Partidas" value={partidas.length} />
+            <Metric label="Rodadas" value={totalRodadas} />
+            <Metric label="Locais" value={new Set(partidas.map((p) => p.localNome).filter(Boolean)).size} />
           </div>
         }
       />
@@ -152,61 +138,27 @@ export default async function JogosPage({ searchParams }: PageProps) {
           <EstadoVazio titulo={equipeCapitao ? 'Nenhum jogo para sua equipe' : 'Nenhum jogo cadastrado'} descricao={equipeCapitao ? 'As partidas do seu time aparecerão aqui quando o campeonato montar o calendário.' : 'As partidas aparecerão aqui quando a organização montar o calendário.'} />
         ) : (
           <>
-            {fasesMataMataOrdenadas.map((fase) => {
-              const lista = porFaseMataMata[fase]
-              const label = formatEliminatoryPhase(fase)
-              const multiJogo = lista.length > 1
-              return (
-                <section key={fase} className="mb-9">
-                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-luva-amber text-lg font-black text-slate-950">
-                        <Trophy size={20} />
-                      </span>
-                      <div>
-                        <h2 className="font-display text-2xl font-black text-white">{label}</h2>
-                        <p className="flex items-center gap-2 text-sm font-bold text-slate-200">
-                          <Radio size={14} />
-                          {lista.length} partida(s)
-                        </p>
+            {tabelas.map((tabela) => (
+              <CollapseBar key={tabela.key} title={tabela.nome}>
+                <div className="grid gap-3 border-l border-white/10 pl-4 sm:pl-6">
+                  {tabela.rodadas.map((rodada) => (
+                    <CollapseBar key={rodada.key} title={rodada.title}>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {rodada.partidas.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
                       </div>
-                    </div>
-                    <span className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-100">
-                      <MapPin size={14} />
-                      Mata-mata
-                    </span>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {lista.map((partida) => (
-                      <PartidaCard key={partida.id} partida={partida} roundLabel={multiJogo ? `${label} · Jogo ${partida.rodada}` : label} />
-                    ))}
-                  </div>
-                </section>
-              )
-            })}
-
-            {Object.entries(porRodada).map(([rodada, lista]) => (
-              <section key={rodada} className="mb-9">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-luva-amber text-lg font-black text-slate-950">{rodada}</span>
-                    <div>
-                      <h2 className="font-display text-2xl font-black text-white">Rodada {rodada}</h2>
-                      <p className="flex items-center gap-2 text-sm font-bold text-slate-200">
-                        <Radio size={14} />
-                        {lista.length} partida(s)
-                      </p>
-                    </div>
-                  </div>
-                  <span className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-100">
-                    <MapPin size={14} />
-                    Agenda
-                  </span>
+                    </CollapseBar>
+                  ))}
+                  {tabela.fases.map((fase) => (
+                    <CollapseBar key={fase.key} title={fase.title}>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {fase.partidas.map((partida) => (
+                          <PartidaCard key={partida.id} partida={partida} roundLabel={fase.partidas.length > 1 ? `${fase.title} · Jogo ${partida.rodada}` : fase.title} />
+                        ))}
+                      </div>
+                    </CollapseBar>
+                  ))}
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {lista.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
-                </div>
-              </section>
+              </CollapseBar>
             ))}
           </>
         )}
@@ -218,8 +170,8 @@ export default async function JogosPage({ searchParams }: PageProps) {
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/8 p-4 text-center shadow-sm backdrop-blur-xl">
-      <p className="text-2xl font-black text-white">{value}</p>
-      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-200">{label}</p>
+      <p className="type-stat">{value}</p>
+      <p className="type-kicker mt-1">{label}</p>
     </div>
   )
 }
@@ -236,13 +188,78 @@ function normalizePartidas(data: any[] | null) {
 
     if (!valida) console.error('[jogos] partida incompleta ignorada', partida?.id)
     return valida
-  }).map((partida) => ({
-    ...partida,
-    id: Number(partida.id),
-    rodada: Number(partida.rodada),
-    dataHora: normalizeDateValue(partida.dataHora),
-    sets: Array.isArray(partida.sets) ? partida.sets : [],
-  }))
+  }).map((partida) => {
+    const liga = Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
+    return {
+      ...partida,
+      id: Number(partida.id),
+      rodada: Number(partida.rodada),
+      liga: liga ?? null,
+      ligaId: Number(partida.ligaId ?? liga?.id ?? 0),
+      dataHora: normalizeDateValue(partida.dataHora),
+      sets: Array.isArray(partida.sets) ? partida.sets : [],
+    }
+  })
+}
+
+type RoundGroup = {
+  key: string
+  title: string
+  partidas: any[]
+  ordem: number
+}
+
+type TabelaTree = {
+  key: string
+  nome: string
+  rodadas: RoundGroup[]
+  fases: RoundGroup[]
+}
+
+function buildGameTree(partidas: any[]): TabelaTree[] {
+  const knockoutFases = new Set(FASES_ELIMINATORIAS.filter((fase) => fase !== 'NENHUMA'))
+  const categoriasPorLiga = new Map<number, Set<string>>()
+  for (const partida of partidas) {
+    const ligaId = Number(partida.ligaId ?? 0)
+    const categorias = categoriasPorLiga.get(ligaId) ?? new Set<string>()
+    categorias.add(categoryKey(partida))
+    categoriasPorLiga.set(ligaId, categorias)
+  }
+
+  const tabelas = new Map<string, TabelaTree>()
+  for (const partida of partidas) {
+    const ligaId = Number(partida.ligaId ?? 0)
+    const categoria = categoryKey(partida)
+    const key = `${ligaId}:${categoria}`
+    const nomeCampeonato = partida.liga?.nome || 'Campeonato'
+    const varias = (categoriasPorLiga.get(ligaId)?.size ?? 0) > 1
+    const [cat, serie] = categoria.split(':')
+    const nome = varias
+      ? `${nomeCampeonato} · ${formatCategoriaLabel(cat, serie === 'UNICA' ? null : serie)}`
+      : nomeCampeonato
+    const tabela = tabelas.get(key) ?? { key, nome, rodadas: [], fases: [] }
+    const fase = String(partida.fase ?? '')
+    const destino = knockoutFases.has(fase) ? tabela.fases : tabela.rodadas
+    const roundKey = knockoutFases.has(fase) ? `${key}:${fase}` : `${key}:${partida.rodada}`
+    const roundTitle = knockoutFases.has(fase) ? formatEliminatoryPhase(fase) : `Rodada ${partida.rodada}`
+    const ordem = knockoutFases.has(fase) ? getRequiredEliminatoryTeams(fase) : Number(partida.rodada)
+    const grupo = destino.find((item) => item.key === roundKey) ?? { key: roundKey, title: roundTitle, partidas: [], ordem }
+    if (!destino.includes(grupo)) destino.push(grupo)
+    grupo.partidas.push(partida)
+    tabelas.set(key, tabela)
+  }
+
+  return Array.from(tabelas.values())
+    .map((tabela) => ({
+      ...tabela,
+      rodadas: [...tabela.rodadas].sort((a, b) => a.ordem - b.ordem),
+      fases: [...tabela.fases].sort((a, b) => b.ordem - a.ordem),
+    }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+}
+
+function categoryKey(partida: any) {
+  return `${partida.categoria || 'GERAL'}:${partida.serie || 'UNICA'}`
 }
 
 function normalizeDateValue(value: unknown) {

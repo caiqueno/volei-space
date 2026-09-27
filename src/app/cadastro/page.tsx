@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -87,6 +88,7 @@ const initial: Record<CadastroTipo, FormState> = {
     telefone: '',
     senha: '',
     confirmarSenha: '',
+    codigoAcesso: '',
   },
   quadra: {
     nome: '',
@@ -127,12 +129,14 @@ export default function CadastroPage() {
   const [tipo, setTipo] = useState<CadastroTipo>('organizador')
   const [step, setStep] = useState(0)
   const [forms, setForms] = useState(initial)
-  const [login, setLogin] = useState({ email: '', senha: '', lembrar: true })
+  const [publico, setPublico] = useState({ nome: '', email: '', senha: '', confirmarSenha: '' })
+  const [login, setLogin] = useState({ email: '', senha: '', codigo: '', lembrar: true })
   const [showPassword, setShowPassword] = useState(false)
   const [cepLoading, setCepLoading] = useState(false)
   const [cepMessage, setCepMessage] = useState<string | null>(null)
   const lastCepSearchRef = useRef('')
   const [loading, setLoading] = useState(false)
+  const [recuperando, setRecuperando] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
 
   const activeMeta = useMemo(() => perfis.find((item) => item.id === tipo), [tipo])
@@ -149,8 +153,12 @@ export default function CadastroPage() {
     const perfil = params.get('perfil') as CadastroTipo | null
     const ligaId = params.get('ligaId')
     const conviteToken = params.get('convite')
-    if (modo === 'login' || modo === 'cadastro') setMode(modo)
-    if (perfil && ['equipe', 'arbitro', 'quadra', 'organizador'].includes(perfil)) {
+    if (modo === 'login') {
+      window.location.replace('/login')
+      return
+    }
+    if (modo === 'cadastro') setMode('cadastro')
+    if (perfil && ['equipe', 'arbitro', 'quadra'].includes(perfil)) {
       setTipo(perfil)
       setMode('cadastro')
     }
@@ -285,6 +293,33 @@ export default function CadastroPage() {
     setFeedback({ type: 'error', text: json.error ?? 'Não foi possível enviar o cadastro agora.' })
   }
 
+  async function submitPublico(event: React.FormEvent) {
+    event.preventDefault()
+    if (publico.senha.length < 8) {
+      setFeedback({ type: 'error', text: 'A senha deve ter pelo menos 8 caracteres.' })
+      return
+    }
+    if (publico.senha !== publico.confirmarSenha) {
+      setFeedback({ type: 'error', text: 'As senhas não coincidem.' })
+      return
+    }
+    setLoading(true)
+    setFeedback(null)
+    const res = await fetch('/api/candidaturas/publico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome: publico.nome, email: publico.email, senha: publico.senha }),
+    })
+    const json = await res.json().catch(() => ({}))
+    setLoading(false)
+    if (!res.ok) {
+      setFeedback({ type: 'error', text: json.error ?? 'Não foi possível criar a conta.' })
+      return
+    }
+    setPublico({ nome: '', email: '', senha: '', confirmarSenha: '' })
+    window.location.href = '/login?conta=criada'
+  }
+
   async function submitLogin(event: React.FormEvent) {
     event.preventDefault()
     setLoading(true)
@@ -292,11 +327,14 @@ export default function CadastroPage() {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: login.email, senha: login.senha }),
+      body: JSON.stringify({
+        email: login.email,
+        senha: login.senha,
+      }),
     })
     const json = await res.json().catch(() => ({}))
-    setLoading(false)
     if (!res.ok) {
+      setLoading(false)
       setFeedback({ type: 'error', text: json.error ?? 'Não foi possível entrar.' })
       return
     }
@@ -313,7 +351,7 @@ export default function CadastroPage() {
       setFeedback({ type: 'error', text: 'Informe seu e-mail para receber o link de recuperação.' })
       return
     }
-    setLoading(true)
+    setRecuperando(true)
     setFeedback(null)
     const res = await fetch('/api/auth/forgot-password', {
       method: 'POST',
@@ -321,12 +359,24 @@ export default function CadastroPage() {
       body: JSON.stringify({ email: login.email }),
     })
     const json = await res.json().catch(() => ({}))
-    setLoading(false)
+    setRecuperando(false)
     setFeedback({
       type: res.ok ? 'success' : 'error',
       text: json.data?.mensagem ?? json.error ?? 'Não foi possível solicitar recuperação agora.',
     })
   }
+  if (tipo === 'organizador' && mode === 'cadastro') {
+    return (
+      <PublicoCadastroScreen
+        publico={publico}
+        setPublico={setPublico}
+        loading={loading}
+        serverError={feedback?.type === 'error' ? feedback.text : null}
+        onSubmit={submitPublico}
+      />
+    )
+  }
+
   return (
     <main className="auth-page min-h-screen bg-[#020611] text-white">
       <section className="relative flex min-h-screen flex-col overflow-hidden bg-[#020611] px-5 py-4 text-white sm:px-8 lg:px-12">
@@ -348,20 +398,19 @@ export default function CadastroPage() {
             <span className="font-display text-lg font-black text-[#ffffff]"> </span>
           </Link>
 
-          <p className="mt-6 text-center text-[11px] font-black uppercase tracking-[0.2em] text-luva-amber">{mode === 'cadastro' ? 'Criar acesso' : 'Login'}</p>
-          <h2 className="mt-2 text-center font-display text-3xl font-black leading-tight text-white sm:text-4xl">
-            {mode === 'cadastro' ? 'Criar conta' : 'Entrar na conta'}
+          <h2 className="mt-6 text-center font-display text-3xl font-black leading-tight text-white sm:text-4xl">
+            {mode === 'cadastro' ? 'Criar conta' : 'Entrar'}
           </h2>
-          <p className="mt-2 text-center text-sm font-semibold leading-6 text-white/78">
-            {mode === 'cadastro'
-              ? 'Crie sua conta para começar a organizar seus campeonatos.'
-              : 'Acesse sua área assim que a autenticação da plataforma estiver ativa.'}
-          </p>
+          {mode === 'cadastro' && tipo === 'organizador' && (
+            <p className="mt-2 text-center text-sm font-semibold leading-6 text-white/78">
+              Conta para acompanhar campeonatos, jogos e tabela.
+            </p>
+          )}
 
           <div className="auth-mode-switch mt-5 grid rounded-2xl border border-luva-amber/35 bg-[#061322] p-1.5 shadow-[0_18px_70px_rgba(0,0,0,0.35)] sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => switchMode('login')}
+                onClick={() => { window.location.href = '/login' }}
                 className={`auth-mode-tab ${mode === 'login' ? 'is-active' : ''} rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${
                   mode === 'login' ? 'bg-luva-amber text-[#061322] shadow-[0_10px_30px_rgba(239,159,39,0.28)]' : 'text-white/88 hover:bg-white/8 hover:text-white'
                 }`}
@@ -375,7 +424,7 @@ export default function CadastroPage() {
                   mode === 'cadastro' ? 'bg-luva-amber text-[#061322] shadow-[0_10px_30px_rgba(239,159,39,0.28)]' : 'text-white/88 hover:bg-white/8 hover:text-white'
                 }`}
               >
-                Criar conta
+                Cadastro
               </button>
             </div>
 
@@ -386,8 +435,11 @@ export default function CadastroPage() {
                   setLogin={setLogin}
                   showPassword={showPassword}
                   setShowPassword={setShowPassword}
+                  campoUsuario="E-mail"
+                  loading={loading}
                   onSubmit={submitLogin}
                   onForgotPassword={forgotPassword}
+                  recuperando={recuperando}
                 />
               ) : (
                 <CadastroPanel
@@ -418,34 +470,214 @@ export default function CadastroPage() {
   )
 }
 
+function PublicoCadastroScreen({
+  publico,
+  setPublico,
+  loading,
+  serverError,
+  onSubmit,
+}: {
+  publico: { nome: string; email: string; senha: string; confirmarSenha: string }
+  setPublico: React.Dispatch<React.SetStateAction<{ nome: string; email: string; senha: string; confirmarSenha: string }>>
+  loading: boolean
+  serverError: string | null
+  onSubmit: (event: React.FormEvent) => void
+}) {
+  const [mostrarSenha, setMostrarSenha] = useState(false)
+  const [aberto, setAberto] = useState({ nome: false, email: false, senha: false, confirmar: false })
+  const [emailSaiu, setEmailSaiu] = useState(false)
+  const [tentou, setTentou] = useState(false)
+
+  const senhaCurta = publico.senha.length > 0 && publico.senha.length < 8
+  const senhasDiferentes = publico.confirmarSenha.length > 0 && publico.senha !== publico.confirmarSenha
+  const senhasIguais = publico.senha.length >= 8 && publico.senha === publico.confirmarSenha
+  const emailInvalido = publico.email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(publico.email.trim())
+
+  function enviar(event: React.FormEvent) {
+    event.preventDefault()
+    setTentou(true)
+    if (!publico.nome.trim() || emailInvalido || !publico.email.trim() || publico.senha.length < 8 || publico.senha !== publico.confirmarSenha) return
+    onSubmit(event)
+  }
+
+  return (
+    <main className="admin-login-shell flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="admin-login-panel grid w-full max-w-5xl overflow-hidden rounded-[2rem] border lg:grid-cols-[0.95fr_1.05fr]">
+        <section className="relative hidden min-h-[560px] overflow-hidden p-8 text-white lg:block">
+          <Image src="/brand/volei-space_fundo-quadrado.png" alt="" fill sizes="480px" className="object-cover opacity-25" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#050914]/92 via-[#071322]/88 to-[#102033]/94" />
+          <div className="relative z-10 flex h-full flex-col justify-end pb-2">
+            <h1 className="max-w-md text-5xl font-black leading-tight text-white">Acompanhe o vôlei de perto.</h1>
+            <p className="mt-4 max-w-sm text-sm font-semibold leading-7 text-slate-200">
+              Com esta conta você vê campeonatos, jogos e a tabela. Quem organiza o campeonato continua no painel próprio.
+            </p>
+          </div>
+        </section>
+
+        <section className="admin-login-form p-6 sm:p-10 lg:p-12">
+          <div className="mx-auto max-w-sm">
+            <div className="mb-8 text-center">
+              <Link href="/" className="relative mx-auto flex h-20 w-20 overflow-hidden rounded-2xl">
+                <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="80px" className="object-contain" />
+              </Link>
+              <h2 className="mt-5 text-4xl font-black text-white">Cadastro</h2>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">
+                Esta conta acompanha campeonatos, jogos e tabela. Ao concluir, você volta para entrar com estes dados.
+              </p>
+              <Link href="/login" className="mt-3 block text-xs font-semibold text-slate-300 underline decoration-white/30 underline-offset-4 transition hover:text-white">
+                Já tem conta? Entre aqui
+              </Link>
+            </div>
+
+            <form autoComplete="off" onSubmit={enviar} className="grid gap-4">
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Nome</span>
+                <input
+                  name="cadastro-nome"
+                  required
+                  disabled={loading}
+                  autoComplete="name"
+                  readOnly={!aberto.nome}
+                  onFocus={() => setAberto((current) => ({ ...current, nome: true }))}
+                  value={publico.nome}
+                  onChange={(event) => setPublico((current) => ({ ...current, nome: event.target.value }))}
+                  className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+                  placeholder="Seu nome"
+                />
+                {tentou && !publico.nome.trim() && <p className="cadastro-field-error text-sm font-semibold">Informe seu nome.</p>}
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">E-mail</span>
+                <input
+                  name="cadastro-email"
+                  type="email"
+                  required
+                  disabled={loading}
+                  autoComplete="off"
+                  readOnly={!aberto.email}
+                  onFocus={() => setAberto((current) => ({ ...current, email: true }))}
+                  onBlur={() => setEmailSaiu(true)}
+                  value={publico.email}
+                  onChange={(event) => setPublico((current) => ({ ...current, email: event.target.value }))}
+                  className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+                  placeholder="Coloque seu e-mail aqui"
+                />
+                {(tentou || emailSaiu) && emailInvalido && <p className="cadastro-field-error text-sm font-semibold">Informe um e-mail válido.</p>}
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Senha</span>
+                <span className="relative block">
+                  <input
+                    name="cadastro-senha"
+                    type={mostrarSenha ? 'text' : 'password'}
+                    required
+                    disabled={loading}
+                    minLength={8}
+                    autoComplete="new-password"
+                    readOnly={!aberto.senha}
+                    onFocus={() => setAberto((current) => ({ ...current, senha: true }))}
+                    value={publico.senha}
+                    onChange={(event) => setPublico((current) => ({ ...current, senha: event.target.value }))}
+                    className="admin-login-input w-full rounded-2xl px-4 py-4 pr-12 text-sm font-semibold outline-none transition"
+                    placeholder="Coloque sua senha aqui"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha((current) => !current)}
+                    className="cadastro-reveal absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl"
+                    aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </span>
+                {publico.senha.length === 0 && !tentou && <p className="text-sm font-semibold">Use pelo menos 8 caracteres.</p>}
+                {(senhaCurta || (tentou && publico.senha.length < 8)) && <p className="cadastro-field-error text-sm font-semibold">A senha precisa de pelo menos 8 caracteres.</p>}
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Confirmar senha</span>
+                <input
+                  name="cadastro-confirmar"
+                  type={mostrarSenha ? 'text' : 'password'}
+                  required
+                  disabled={loading}
+                  minLength={8}
+                  autoComplete="new-password"
+                  readOnly={!aberto.confirmar}
+                  onFocus={() => setAberto((current) => ({ ...current, confirmar: true }))}
+                  value={publico.confirmarSenha}
+                  onChange={(event) => setPublico((current) => ({ ...current, confirmarSenha: event.target.value }))}
+                  className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+                  placeholder="Repita a senha"
+                />
+                {senhasDiferentes && <p className="cadastro-field-error text-sm font-semibold">As senhas ainda não são iguais.</p>}
+                {senhasIguais && <p className="cadastro-field-ok text-sm font-semibold">As duas senhas conferem.</p>}
+                {tentou && !publico.confirmarSenha && <p className="cadastro-field-error text-sm font-semibold">Repita a senha para confirmar.</p>}
+              </label>
+
+              {serverError && <p className="cadastro-field-error text-sm font-semibold leading-6">{serverError}</p>}
+
+              <ActionBar
+                type="submit"
+                loading={loading}
+                loadingLabel="Criando conta"
+                className="admin-login-button mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black transition disabled:opacity-60"
+              >
+                Criar conta
+                <ArrowRight size={18} />
+              </ActionBar>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+  )
+}
+
 function LoginPanel({
   login,
   setLogin,
   showPassword,
   setShowPassword,
+  campoUsuario,
+  loading,
   onSubmit,
   onForgotPassword,
+  recuperando,
 }: {
-  login: { email: string; senha: string; lembrar: boolean }
-  setLogin: React.Dispatch<React.SetStateAction<{ email: string; senha: string; lembrar: boolean }>>
+  login: { email: string; senha: string; codigo: string; lembrar: boolean }
+  setLogin: React.Dispatch<React.SetStateAction<{ email: string; senha: string; codigo: string; lembrar: boolean }>>
   showPassword: boolean
   setShowPassword: React.Dispatch<React.SetStateAction<boolean>>
+  campoUsuario: string
+  loading: boolean
   onSubmit: (event: React.FormEvent) => void
   onForgotPassword: () => void
+  recuperando: boolean
 }) {
+  const [emailAberto, setEmailAberto] = useState(false)
+  const [senhaAberta, setSenhaAberta] = useState(false)
+
   return (
-    <form onSubmit={onSubmit}>
+    <form autoComplete="off" onSubmit={onSubmit}>
       <div className="space-y-5">
-        <Field label="E-mail" required>
+        <Field label={campoUsuario} required>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/58" size={18} />
             <input
               required
+              disabled={loading}
               type="email"
+              name="acesso-email"
+              autoComplete="off"
+              readOnly={!emailAberto}
+              onFocus={() => setEmailAberto(true)}
               value={login.email}
               onChange={(event) => setLogin((current) => ({ ...current, email: event.target.value }))}
               className={`${inputBase} [padding-left:3rem]`}
-              placeholder="voce@email.com"
+              placeholder={campoUsuario === 'Usuário' ? 'Digite seu usuário aqui' : 'Digite seu email aqui'}
             />
           </div>
         </Field>
@@ -455,11 +687,16 @@ function LoginPanel({
             <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 text-white/58" size={18} />
             <input
               required
+              disabled={loading}
               type={showPassword ? 'text' : 'password'}
+              name="acesso-senha"
+              autoComplete="new-password"
+              readOnly={!senhaAberta}
+              onFocus={() => setSenhaAberta(true)}
               value={login.senha}
               onChange={(event) => setLogin((current) => ({ ...current, senha: event.target.value }))}
               className={`${inputBase} [padding-left:3rem] [padding-right:3rem]`}
-              placeholder="Digite sua senha"
+              placeholder="Digite sua senha aqui"
             />
             <button
               type="button"
@@ -483,15 +720,17 @@ function LoginPanel({
           />
           Manter conectado
         </label>
-        <button type="button" onClick={onForgotPassword} className="text-left text-sm font-black text-luva-amber transition hover:text-amber-600">
+        {recuperando ? <LoadingTrack label="Enviando" /> : (
+        <button type="button" disabled={loading} onClick={onForgotPassword} className="text-left text-sm font-black text-luva-amber transition hover:text-amber-600 disabled:opacity-50">
           Esqueceu a senha?
         </button>
+        )}
       </div>
 
-      <button type="submit" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-luva-amber px-6 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:-translate-y-0.5 hover:bg-luva-amber">
+      <ActionBar type="submit" loading={loading} loadingLabel="Entrando" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-luva-amber px-6 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:-translate-y-0.5 hover:bg-luva-amber">
         Entrar
         <ArrowRight size={18} />
-      </button>
+      </ActionBar>
     </form>
   )
 }
@@ -590,14 +829,15 @@ function CadastroPanel({
           Voltar
         </button>
 
-        <button
+        <ActionBar
           type="submit"
-          disabled={loading}
+          loading={loading}
+          loadingLabel="Concluindo"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-luva-amber px-6 py-3 text-sm font-black uppercase tracking-wide text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:opacity-50"
         >
           {step === steps.length - 1 ? <Send size={18} /> : <ArrowRight size={18} />}
-          {loading ? 'Concluindo...' : step === steps.length - 1 ? 'Concluir cadastro' : 'Continuar'}
-        </button>
+          {step === steps.length - 1 ? 'Concluir cadastro' : 'Continuar'}
+        </ActionBar>
       </div>
     </form>
   )
@@ -700,6 +940,7 @@ function EquipeIdentidade({ form, setField }: FieldProps) {
         <input required value={String(form.nome)} onChange={(event) => setField('nome', event.target.value)} className={`${inputBase} [padding-left:2.75rem]`} placeholder="Ex: Kimura Vôlei" />
       </Field>
       <Field label="Emblema da equipe" icon={<ImageIcon size={17} />}>
+        {uploading ? <LoadingTrack label="Enviando" className="w-full rounded-2xl" /> : (
         <label className="flex min-h-[4.25rem] cursor-pointer items-center gap-4 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 transition hover:border-luva-amber/70 hover:bg-white/10">
           {previewUrl || emblemaUrl ? (
             <img src={previewUrl || emblemaUrl} alt="Emblema da equipe" className="h-12 w-12 rounded-xl border border-white/15 object-cover" />
@@ -709,7 +950,7 @@ function EquipeIdentidade({ form, setField }: FieldProps) {
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-black text-white">{uploading ? 'Processando e enviando...' : emblemaUrl ? 'Emblema enviado' : 'Enviar imagem do emblema'}</span>
+            <span className="block text-sm font-black text-white">{emblemaUrl ? 'Emblema enviado' : 'Enviar imagem do emblema'}</span>
             <span className="mt-1 block text-xs font-bold text-white/62">{imageUploadRules.allowedLabel}. Até {formatBytes(imageUploadRules.maxOriginalBytes)}; comprimimos automaticamente antes do envio.</span>
             {uploadInfo && <span className="mt-1 block text-xs font-black text-emerald-200">{uploadInfo}</span>}
           </span>
@@ -725,6 +966,7 @@ function EquipeIdentidade({ form, setField }: FieldProps) {
             }}
           />
         </label>
+        )}
       </Field>
     </Grid>
   )
@@ -903,12 +1145,6 @@ function OrganizadorDados({ form, setField }: FieldProps) {
         <input value={String(form.telefone)} onChange={(event) => setField('telefone', formatPhone(event.target.value))} className={inputBase} placeholder="(00) 00000-0000" maxLength={15} />
       </Field>
       <PasswordFields form={form} setField={setField} />
-      <div className="md:col-span-2 rounded-2xl border border-luva-amber/35 bg-luva-amber/10 p-4">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Acesso padrão</p>
-        <p className="mt-2 text-sm font-bold leading-6 text-white/82">
-          Sua conta de criador é ativada na hora. Depois de entrar, você completa os dados da sua organização e já pode cadastrar campeonatos, abrir inscrições e operar suas competições.
-        </p>
-      </div>
     </Grid>
   )
 }
@@ -1385,7 +1621,7 @@ function payloadByTipo(tipo: CadastroTipo, form: FormState) {
   }
   if (tipo === 'arbitro') return { nome: form.nome, email: form.email, telefone, senha, cref: form.cref, diplomaUrl: form.diplomaUrl }
   if (tipo === 'organizador') {
-    return { nome: form.nome, email: form.email, telefone, senha, plano: 'PADRAO' }
+    return { nome: form.nome, email: form.email, telefone, senha, plano: 'PADRAO', codigoAcesso: form.codigoAcesso }
   }
   const quadraHorarioTotal = Math.max(1, Number(form.quadraHorarioTotal || 1))
   const horariosDisponiveis = Array.from({ length: quadraHorarioTotal }, (_, i) => i + 1)

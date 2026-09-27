@@ -50,6 +50,7 @@ interface FloatingLabelNumberInputProps {
   max?: number
   required?: boolean
   disabled?: boolean
+  className?: string
 }
 
 // Variante numérica — mesmo parsing de NumberInput.tsx (string|'' -> number|null).

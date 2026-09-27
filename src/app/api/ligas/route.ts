@@ -140,6 +140,6 @@ function normalizeLeaguePayload(data: any) {
     ? 'NENHUMA'
     : normalizeEliminatoryPhase(data.faseEliminatoria || 'SEMIFINAL')
 
-  return { ...data, formato, faseEliminatoria }
+  return { ...data, formato, faseEliminatoria, status: data.status || 'EM_BREVE' }
 }
 

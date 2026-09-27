@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { unstable_noStore as noStore } from 'next/cache'
 import { BarChart3, Trophy } from 'lucide-react'
 import { PageHero } from '@/components/layout/PageHero'
-import { ClassificacaoTable, type ClassificacaoGroup } from '@/components/classificacao/ClassificacaoTable'
+import { type ClassificacaoGroup } from '@/components/classificacao/ClassificacaoTable'
+import { ChampionshipTableSection } from '@/components/classificacao/ChampionshipTableSection'
 import { ScoutsGeraisTable } from '@/components/classificacao/ScoutsGeraisTable'
 import { TopScoutsCards } from '@/components/classificacao/TopScoutsCards'
 import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
@@ -11,7 +12,6 @@ import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podium'
-import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { getMataMataBracket } from '@/lib/mata-mata'
@@ -53,19 +53,15 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
   let mataMataChampion: TeamOption | null = null
   let mataMataThirdPlace: BracketSlot | null = null
   let podium: PodiumTeam[] = []
+  let championshipTables: ChampionshipTable[] = []
 
   if (isSupabaseConfigured) {
     if (scope.organizadorId && !scope.selectedLiga) {
       dados = []
+    } else if (!scope.selectedLiga) {
+      championshipTables = await loadChampionshipTables()
+      dados = championshipTables.flatMap((table) => table.dados)
     } else {
-      if (scope.selectedLiga) {
-        try {
-          await recalculateLeagueClassification(scope.selectedLiga.id)
-        } catch (err) {
-          console.error('[classificacao] erro ao recalcular tabela', err)
-        }
-      }
-
       // ClassificacaoEntrada tem uma linha por (ligaId, equipeId), então filtrar
       // direto por ligaId já isola corretamente times que jogam em mais de uma liga.
       let query = supabase
@@ -163,6 +159,14 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
 
         podium = await getChampionshipPodium(scope.selectedLiga.id)
       }
+
+      championshipTables = [{
+        id: scope.selectedLiga.id,
+        nome: scope.selectedLiga.nome,
+        dados,
+        groups: groups.length ? groups : categoryGroups(dados, parseCriterios(scope.selectedLiga.criteriosClassificacao)),
+        regra: REGRA_VIGENTE,
+      }]
     }
   }
 
@@ -188,19 +192,21 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <PageHero
         eyebrow={<><BarChart3 size={16} /> Classificação geral</>}
-        title={scope.selectedLiga ? `Tabela - ${scope.selectedLiga.nome}` : 'Tabela da liga'}
+        title={championshipTables.length > 1 ? 'Tabelas dos campeonatos' : scope.selectedLiga ? `Tabela de ${scope.selectedLiga.nome}` : 'Tabela do campeonato'}
         description={
-          categoriaFiltro
-            ? `Categoria ${formatCategoriaLabel(categoriaFiltro, serieFiltro)} — ${scope.selectedLiga?.nome ?? ''}`
+          championshipTables.length > 1
+            ? 'Cada campeonato fica na própria tabela, só com as equipes e os jogos daquela competição.'
+            : categoriaFiltro
+            ? `Categoria ${formatCategoriaLabel(categoriaFiltro, serieFiltro)} de ${scope.selectedLiga?.nome ?? 'campeonato'}.`
             : scope.organizadorId
-              ? 'Filtre a classificação por campeonato criado na sua conta.'
-              : 'Pontos, vitórias, saldo de sets, punições e campanha da categoria Masculino Ouro.'
+              ? 'Filtre a classificação pelo campeonato da sua conta.'
+              : 'Pontos, vitórias, saldo de sets e campanha das equipes.'
         }
         aside={
           <div className="luva-surface rounded-2xl p-5">
             <p className="luva-kicker flex items-center gap-2"><Trophy size={16} /> Líder</p>
-            <p className="mt-3 font-display text-2xl font-black text-white">{lider?.equipe?.nome ?? 'A definir'}</p>
-            <p className="mt-1 text-sm font-bold text-slate-200">{lider ? `${lider.pontos} pontos em ${lider.jogos} jogos` : 'Sem jogos registrados'}</p>
+            <p className="mt-3 font-display text-2xl font-black text-white">{championshipTables.length > 1 ? `${championshipTables.length} campeonatos` : lider?.equipe?.nome ?? 'A definir'}</p>
+            <p className="mt-1 text-sm font-bold text-slate-200">{championshipTables.length > 1 ? 'Tabelas separadas pela regra de cada um.' : lider ? `${lider.pontos} pontos em ${lider.jogos} jogos` : 'Sem jogos registrados'}</p>
           </div>
         }
       />
@@ -244,24 +250,23 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
                 <ScoutsGeraisTable dados={scouts} equipeInfoById={equipeInfoById} />
               </div>
             )}
-            <ClassificacaoTable
-              dados={dados as any}
-              groups={groups}
-              ligaId={scope.selectedLiga?.id}
-              requiredClassified={requiredClassified}
-              automaticLimit={requiredClassified > 0 ? automaticLimit : 0}
-              initialManualClassifiedIds={manualClassifiedIds}
-              organizerMode={Boolean(scope.organizadorId && scope.selectedLiga)}
-              organizadorId={scope.organizadorId}
-              locked={knockoutLocked}
-              groupStageFinished={groupStageFinished}
-            />
-            <div className="mt-4 grid gap-3 text-xs font-black uppercase tracking-[0.12em] sm:grid-cols-2 lg:grid-cols-4">
-              <span className="rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100">P = pontos</span>
-              <span className="rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100">J, V, D = jogos, vitórias, derrotas</span>
-              <span className="rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100">DS = saldo de sets</span>
-              <span className="rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100">DP = saldo de pontos</span>
-            </div>
+            {championshipTables.map((table) => (
+              <ChampionshipTableSection
+                key={table.id}
+                nome={table.nome}
+                regra={table.regra}
+                dados={table.dados as any}
+                groups={table.groups}
+                ligaId={table.id}
+                requiredClassified={championshipTables.length > 1 ? 0 : requiredClassified}
+                automaticLimit={championshipTables.length > 1 ? 0 : requiredClassified > 0 ? automaticLimit : 0}
+                initialManualClassifiedIds={championshipTables.length > 1 ? [] : manualClassifiedIds}
+                organizerMode={Boolean(scope.organizadorId && scope.selectedLiga && scope.selectedLiga.id === table.id)}
+                organizadorId={scope.organizadorId}
+                locked={knockoutLocked}
+                groupStageFinished={groupStageFinished}
+              />
+            ))}
           </>
         )}
       </section>
@@ -295,4 +300,116 @@ function buildClassificationGroups(dados: any[], groupRows: any[], groupLinks: a
   })
 
   return Array.from(groupById.values()).filter((group) => group.dados.length > 0)
+}
+
+type ChampionshipTable = {
+  id: number
+  nome: string
+  dados: any[]
+  groups: ClassificacaoGroup[]
+  regra: string
+}
+
+const REGRA_VIGENTE = 'Vitória por 2 sets a 0 vale 3 pontos. Vitória por 2 sets a 1 vale 2 pontos para o vencedor e 1 para o perdedor.'
+
+const CLASSIFICATION_SELECT = '*, equipe:Equipe(id,nome,corHex,logoUrl,ligaId,categoria,serie)'
+
+async function loadChampionshipTables(): Promise<ChampionshipTable[]> {
+  const { data: ligas, error } = await supabase
+    .from('Liga')
+    .select('id,nome,criteriosClassificacao')
+    .in('status', ['ATIVA', 'EM_BREVE', 'ENCERRADA'])
+    .order('nome', { ascending: true })
+
+  if (error || !ligas?.length) {
+    if (error) console.error('[classificacao] erro ao listar campeonatos', error)
+    return []
+  }
+
+  const ids = ligas.map((liga) => liga.id)
+  const { data, error: rowsError } = await supabase
+    .from('ClassificacaoEntrada')
+    .select(CLASSIFICATION_SELECT)
+    .in('ligaId', ids)
+    .order('posicao', { ascending: true })
+
+  if (rowsError) {
+    console.error('[classificacao] erro ao ler tabelas', rowsError)
+    return []
+  }
+
+  const byLiga = new Map<number, any[]>()
+  for (const row of data ?? []) {
+    const ligaId = Number(row.ligaId)
+    const list = byLiga.get(ligaId) ?? []
+    list.push(row)
+    byLiga.set(ligaId, list)
+  }
+
+  return ligas.flatMap((liga) => {
+    const rows = byLiga.get(liga.id) ?? []
+    if (!rows.length) return []
+    return [{
+      id: liga.id,
+      nome: liga.nome,
+      dados: rows,
+      groups: categoryGroups(rows, parseCriterios(liga.criteriosClassificacao)),
+      regra: REGRA_VIGENTE,
+    }]
+  })
+}
+
+function parseCriterios(raw: string | null | undefined) {
+  if (!raw) return ['PONTOS', 'VITORIAS', 'SALDO_SETS', 'SALDO_PONTOS']
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed.map(String) : ['PONTOS', 'VITORIAS', 'SALDO_SETS', 'SALDO_PONTOS']
+  } catch {
+    return ['PONTOS', 'VITORIAS', 'SALDO_SETS', 'SALDO_PONTOS']
+  }
+}
+
+function categoryGroups(dados: any[], criterios: string[]): ClassificacaoGroup[] {
+  const buckets = new Map<string, any[]>()
+  for (const row of dados) {
+    const categoria = String(row.categoria || row.equipe?.categoria || 'GERAL')
+    const serie = String(row.serie || row.equipe?.serie || 'UNICA')
+    const key = `${categoria}:${serie}`
+    const list = buckets.get(key) ?? []
+    list.push(row)
+    buckets.set(key, list)
+  }
+
+  if (buckets.size <= 1) return []
+
+  return Array.from(buckets.entries()).map(([key, rows]) => {
+    const [categoria, serie] = key.split(':')
+    return {
+      id: key,
+      nome: formatCategoriaLabel(categoria, serie === 'UNICA' ? null : serie),
+      dados: [...rows].sort((a, b) => compareClassificacao(a, b, criterios)),
+      automaticLimit: 0,
+    }
+  })
+}
+
+function compareClassificacao(a: any, b: any, criterios: string[]) {
+  for (const criterio of criterios) {
+    const left = classificationMetric(a, criterio)
+    const right = classificationMetric(b, criterio)
+    const diff = criterio === 'DERROTAS' ? left - right : right - left
+    if (diff) return diff
+  }
+  return 0
+}
+
+function classificationMetric(entrada: any, criterio: string) {
+  if (criterio === 'PONTOS') return Number(entrada.pontos ?? 0)
+  if (criterio === 'VITORIAS') return Number(entrada.vitorias ?? 0)
+  if (criterio === 'DERROTAS') return Number(entrada.derrotas ?? 0)
+  if (criterio === 'SALDO_SETS') return Number(entrada.setsPro ?? 0) - Number(entrada.setsContra ?? 0)
+  if (criterio === 'SALDO_PONTOS') return Number(entrada.pontosPro ?? 0) - Number(entrada.pontosContra ?? 0)
+  if (criterio === 'SETS_PRO') return Number(entrada.setsPro ?? 0)
+  if (criterio === 'PONTOS_PRO') return Number(entrada.pontosPro ?? 0)
+  return 0
 }

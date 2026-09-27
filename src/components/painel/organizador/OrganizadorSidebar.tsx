@@ -2,10 +2,10 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Home, LogOut, Settings } from 'lucide-react'
+import { BadgeCheck, Home, LogOut, Settings } from 'lucide-react'
 
 interface OrganizadorSidebarProps {
-  view: 'home' | 'settings'
+  view: 'home' | 'settings' | 'arbitros'
   onSelectView: (view: 'home' | 'settings') => void
   organizacaoNome: string | null
   organizacaoLogoUrl: string | null
@@ -17,6 +17,7 @@ interface OrganizadorSidebarProps {
 
 const NAV_ITEMS = [
   { key: 'home' as const, label: 'Início', icon: Home },
+  { key: 'arbitros' as const, label: 'Árbitros', icon: BadgeCheck },
   { key: 'settings' as const, label: 'Configurações', icon: Settings },
 ]
 

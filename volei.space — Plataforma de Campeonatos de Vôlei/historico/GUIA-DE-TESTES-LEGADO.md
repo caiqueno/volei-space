@@ -1,3 +1,15 @@
+---
+title: >-
+  Guia de testes legado
+category: historico
+tags: [historico, testes]
+sources: [repo:athrios/volei-space]
+summary: >-
+  Guia de testes da fase legada.
+status: historico
+created: 2026-09-20
+updated: 2026-09-25
+---
 # Guia de testes legado
 
 `COMO-TESTAR.txt`, o `README.md` antigo e materiais LUVA descrevem contas, seeds, caminhos locais e fluxos de uma fase anterior. Eles não são instruções para validar o produto atual. Não reutilize credenciais de exemplo nem assuma que um ambiente local corresponde ao banco de produção.

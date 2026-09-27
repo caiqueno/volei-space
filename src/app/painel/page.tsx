@@ -25,6 +25,7 @@ type Session = {
   email?: string
   candidaturaId?: string | null
   status?: string
+  trocarSenha?: boolean
 }
 
 type PanelCardData = {
@@ -88,11 +89,11 @@ const contentByType: Record<'arbitro' | 'quadra' | 'organizador', {
     statusText: 'Criação de campeonatos, inscrições, calendário e operação ficam disponíveis neste painel.',
     cards: [
       { icon: CalendarPlus, title: 'Campeonatos', text: 'Crie e gerencie competições da sua organização.', status: 'Liberado' },
-      { icon: ClipboardCheck, title: 'Inscrições', text: 'Acompanhe equipes candidatas por campeonato.', status: 'Liberado' },
+      { icon: ClipboardCheck, title: 'Inscrições', text: 'Acompanhe as equipes inscritas em cada campeonato.', status: 'Liberado' },
       { icon: CalendarDays, title: 'Calendário', text: 'Rodadas, locais e horários organizados por competição.', status: 'Liberado' },
       { icon: ShieldCheck, title: 'Operação', text: 'Equipes, súmulas e resultados em um painel dedicado.', status: 'Liberado' },
     ],
-    steps: ['Criar o primeiro campeonato', 'Abrir inscrições para equipes', 'Validar participantes', 'Operar calendário e súmulas'],
+    steps: ['Criar o campeonato', 'Enviar o link de inscrição para as equipes', 'Acompanhar as equipes inscritas', 'Operar calendário e súmulas'],
   },
 }
 
@@ -102,7 +103,12 @@ export default function PainelPage() {
 
   useEffect(() => {
     try {
-      setSession(JSON.parse(window.localStorage.getItem('luva_session') ?? 'null'))
+      const stored = JSON.parse(window.localStorage.getItem('luva_session') ?? 'null') as Session | null
+      if ((stored?.tipo === 'organizador' || stored?.tipo === 'arbitro') && stored.trocarSenha) {
+        window.location.replace('/trocar-senha')
+        return
+      }
+      setSession(stored)
     } catch {
       setSession(null)
     }
@@ -153,6 +159,24 @@ export default function PainelPage() {
     window.location.href = '/'
   }
 
+  if (session?.tipo === 'publico') {
+    return (
+      <main className="luva-shell public-dashboard min-h-screen px-4 py-12">
+        <section className="public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
+          <p className="luva-kicker">Acompanhamento</p>
+          <h1 className="type-page-title mt-3">Sua conta é só para visualizar</h1>
+          <p className="type-lead mx-auto mt-3 max-w-xl">
+            O público acompanha campeonatos, jogos e tabela. O gerenciamento do evento fica com o organizador.
+          </p>
+          <Link href="/portal" className="public-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black transition">
+            Ir para o portal
+            <ArrowRight size={17} />
+          </Link>
+        </section>
+      </main>
+    )
+  }
+
   if (session?.tipo === 'organizador') {
     return <OrganizadorHome session={session} logout={logout} />
   }
@@ -162,9 +186,9 @@ export default function PainelPage() {
       <main className="luva-shell public-dashboard min-h-screen px-4 py-12">
         <section className="public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
           <p className="luva-kicker">Painel da equipe</p>
-          <h1 className="mt-3 font-display text-4xl font-black text-white">Use o painel da equipe.</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">
-            O acompanhamento de equipe, atletas e QR Codes fica em uma área dedicada.
+          <h1 className="type-page-title mt-3">O painel da equipe fica em outra página</h1>
+          <p className="type-lead mx-auto mt-3 max-w-xl">
+            Elenco, dados da equipe e jogos ficam na área da equipe.
           </p>
           <Link href="/capitao" className="public-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black transition">
             Ir para o painel
@@ -180,11 +204,11 @@ export default function PainelPage() {
       <main className="luva-shell public-dashboard min-h-screen px-4 py-12">
         <section className="public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
           <p className="luva-kicker">Acesso restrito</p>
-          <h1 className="mt-3 font-display text-4xl font-black text-white">Entre para acessar seu painel.</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">
-            Use o e-mail e a senha informados no cadastro para acompanhar o status da candidatura.
+          <h1 className="type-page-title mt-3">Entre para acessar o painel</h1>
+          <p className="type-lead mx-auto mt-3 max-w-xl">
+            Use o e-mail e a senha do cadastro.
           </p>
-          <Link href="/cadastro?modo=login" className="public-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black transition">
+          <Link href="/login" className="public-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black transition">
             Entrar
             <ArrowRight size={17} />
           </Link>
@@ -209,7 +233,9 @@ export default function PainelPage() {
               Bem-vindo, {session.nome || content.fallbackName}.
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-200">
-              {content.description}
+              {session.tipo === 'arbitro' && released
+                ? 'Este acesso foi criado pelo organizador. Aqui você acompanha as partidas em que pode atuar.'
+                : content.description}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/portal" className="public-primary-action inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black transition">

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { unstable_noStore as noStore } from 'next/cache'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
@@ -24,6 +25,7 @@ type PageProps = {
 }
 
 export default async function CampeonatosPage({ searchParams }: PageProps) {
+  noStore()
   const params = searchParams ? await searchParams : {}
   const status = params.status ?? ''
   const busca = (params.q ?? '').trim()
@@ -56,12 +58,10 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
     <main className="luva-shell min-h-screen">
       <section className="orange-wave">
         <div className="mx-auto max-w-7xl px-4 py-14">
-          <p className="luva-kicker">Campeonatos volei.space</p>
-          <h1 className="mt-4 max-w-4xl font-display text-5xl font-black leading-none text-white md:text-7xl">
-            Escolha uma competição para acompanhar ou inscrever sua equipe.
-          </h1>
-          <p className="mt-5 max-w-2xl text-base font-semibold leading-8 text-slate-200">
-            Todos os campeonatos publicados na plataforma aparecem aqui com status, formato, limite de equipes e acesso à página oficial.
+          <p className="luva-kicker">Campeonatos</p>
+          <h1 className="type-page-title mt-3 max-w-4xl">Campeonatos publicados</h1>
+          <p className="type-lead mt-4 max-w-2xl">
+            Escolha um campeonato para acompanhar a tabela, os jogos e as equipes.
           </p>
         </div>
       </section>
@@ -69,8 +69,8 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
       <section className="mx-auto max-w-7xl px-4 py-8">
         <div className="championship-filter-bar flex flex-col gap-3 rounded-[1.5rem] border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-luva-amber">Filtro</p>
-            <p className="mt-1 text-sm font-semibold text-slate-200">{campeonatos.length} campeonato(s) encontrado(s)</p>
+            <p className="type-kicker text-luva-amber">Filtro</p>
+            <p className="type-lead mt-1">{campeonatos.length === 1 ? '1 campeonato nesta lista' : `${campeonatos.length} campeonatos nesta lista`}</p>
           </div>
           <form action="/campeonatos" className="flex flex-col gap-2 sm:min-w-[280px] sm:flex-row">
             {status && <input type="hidden" name="status" value={status} />}

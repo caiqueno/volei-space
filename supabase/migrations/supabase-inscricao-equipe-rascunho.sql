@@ -64,10 +64,18 @@ create trigger "InscricaoEquipeRascunho_touch"
 before update on public."InscricaoEquipeRascunho"
 for each row execute function public.touch_inscricao_equipe_rascunho();
 
+create or replace function public.touch_inscricao_equipe_jogador_rascunho()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  new."atualizadoEm" = now();
+  return new;
+end;
+$$;
+
 drop trigger if exists "InscricaoEquipeJogadorRascunho_touch" on public."InscricaoEquipeJogadorRascunho";
 create trigger "InscricaoEquipeJogadorRascunho_touch"
 before update on public."InscricaoEquipeJogadorRascunho"
-for each row execute function public.touch_inscricao_equipe_rascunho();
+for each row execute function public.touch_inscricao_equipe_jogador_rascunho();
 
 alter table public."InscricaoEquipeRascunho" enable row level security;
 alter table public."InscricaoEquipeJogadorRascunho" enable row level security;

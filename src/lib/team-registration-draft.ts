@@ -1,9 +1,8 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import {
-  buildFallbackCategoriaSerieOptions,
   isFieldRequired,
-  parseCategoriaSerieOptions,
   resolveFormularioRapidaConfig,
+  resolveInscricaoCategoria,
 } from '@/lib/inscricao-rapida'
 import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
 import { slugify } from '@/utils/slug'
@@ -13,6 +12,7 @@ export type RegistrationDraftStatus = 'RASCUNHO' | 'ENVIADA'
 export type RegistrationLeague = {
   id: number
   nome: string
+  nomeCurto?: string | null
   status: string
   inscricoesAbertas: boolean | null
   inscricoesAberturaEm: string | null
@@ -70,7 +70,7 @@ export class RegistrationDraftError extends Error {
 }
 
 const LEAGUE_COLUMNS = [
-  'id', 'nome', 'status', 'inscricoesAbertas', 'inscricoesAberturaEm', 'inscricoesEncerramentoEm',
+  'id', 'nome', 'nomeCurto', 'status', 'inscricoesAbertas', 'inscricoesAberturaEm', 'inscricoesEncerramentoEm',
   'inscricaoAprovacaoAutomatica', 'inscricaoPermiteEdicaoAposEnvio', 'inscricaoPrazoEdicaoDias',
   'elencoQuantidadeMinima', 'elencoQuantidadeMaxima', 'elencoCadastroDuranteInscricao',
   'elencoCadastroAposAprovacao', 'prazoAlteracaoElencoDias', 'quantidadeEquipes',
@@ -148,9 +148,9 @@ export async function createRegistrationDraft(input: { ligaId: number; nomeEquip
     if ((count ?? 0) >= liga.quantidadeEquipes) throw new RegistrationDraftError('O limite de equipes aprovadas deste campeonato já foi atingido.', 409)
   }
 
-  const fixed = parseCategoriaSerieOptions(liga.categoriasConfig)
-  const categoria = fixed.length === 1 ? fixed[0].categoria : input.categoria || null
-  const serie = fixed.length === 1 ? fixed[0].serie : input.serie || null
+  const fixed = resolveInscricaoCategoria(liga).categoriaFixa
+  const categoria = fixed ? fixed.categoria : input.categoria || null
+  const serie = fixed ? fixed.serie : input.serie || null
   const { data, error } = await supabase.from('InscricaoEquipeRascunho').insert({
     ligaId: input.ligaId,
     nomeEquipe: input.nomeEquipe,
@@ -206,8 +206,8 @@ export async function updateRegistrationDraft(token: string, patch: Record<strin
   if ('categoria' in patch || 'serie' in patch) {
     const categoria = String(patch.categoria ?? context.draft.categoria ?? '')
     const serie = String(patch.serie ?? context.draft.serie ?? '')
-    const parametrized = parseCategoriaSerieOptions(context.liga.categoriasConfig)
-    const allowed = parametrized.length > 0 ? parametrized : buildFallbackCategoriaSerieOptions()
+    const resolved = resolveInscricaoCategoria(context.liga)
+    const allowed = resolved.categoriaFixa ? [resolved.categoriaFixa] : resolved.categoriaOptions
     if (!allowed.some((option) => option.categoria === categoria && option.serie === serie)) {
       throw new RegistrationDraftError('Selecione uma categoria válida para este campeonato.', 422)
     }
@@ -264,8 +264,28 @@ async function editableRosterContext(token: string) {
   return context
 }
 
+function assertRosterPlayer(input: Record<string, unknown>, context: Awaited<ReturnType<typeof getRegistrationDraftByToken>>, playerId?: string) {
+  const config = resolveFormularioRapidaConfig(context.liga.formularioInscricaoConfig)
+  const current = playerId ? context.players.find((player) => String(player.id) === String(playerId)) : undefined
+  const numero = input.numero !== undefined ? input.numero : current?.numero
+  if (numero != null && numero !== '' && context.players.some((player) => String(player.id) !== String(playerId ?? '') && player.numero === Number(numero))) {
+    throw new RegistrationDraftError('Já existe um jogador ativo com esse número nesta equipe.', 409)
+  }
+
+  const foto = input.fotoUrl !== undefined ? input.fotoUrl : current?.fotoUrl
+  const nascimento = input.dataNascimento !== undefined ? input.dataNascimento : current?.dataNascimento
+  const documentoTipo = input.documentoTipo !== undefined ? input.documentoTipo : current?.documentoTipo
+  const documentoNumero = input.documentoNumero !== undefined ? input.documentoNumero : current?.documentoNumero
+  if (isFieldRequired(config.atleta.foto) && !foto) throw new RegistrationDraftError('Foto do jogador é obrigatória.', 422)
+  if (isFieldRequired(config.atleta.dataNascimento) && !nascimento) throw new RegistrationDraftError('Data de nascimento do jogador é obrigatória.', 422)
+  if (isFieldRequired(config.atleta.documento) && (!documentoTipo || !documentoNumero)) {
+    throw new RegistrationDraftError('Documento do jogador é obrigatório.', 422)
+  }
+}
+
 export async function createRegistrationPlayer(token: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
+  assertRosterPlayer(input, context)
   const maximum = context.liga.elencoQuantidadeMaxima
   if (maximum != null && context.players.length >= maximum) throw new RegistrationDraftError(`O elenco permite no máximo ${maximum} jogadores.`, 422)
   const target = context.draft.status === 'ENVIADA' ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
@@ -280,6 +300,7 @@ export async function createRegistrationPlayer(token: string, input: Record<stri
 
 export async function updateRegistrationPlayer(token: string, playerId: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
+  assertRosterPlayer(input, context, playerId)
   const target = context.draft.status === 'ENVIADA' ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
   let query = supabase.from(target).update(configuredPlayerPayload(input, context.liga)).eq('id', playerId)
   query = context.draft.status === 'ENVIADA'
@@ -315,8 +336,8 @@ function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDra
   if (!draft.nomeEquipe.trim()) issues.push('Nome da equipe é obrigatório.')
   if (isFieldRequired(config.equipe.logo) && !draft.logoUrl) issues.push('Logo da equipe é obrigatório.')
   if (isFieldRequired(config.lider.nomeCompleto) && !draft.lider) issues.push('Nome do líder é obrigatório.')
-  const options = parseCategoriaSerieOptions(liga.categoriasConfig)
-  const allowed = options.length > 0 ? options : buildFallbackCategoriaSerieOptions()
+  const resolved = resolveInscricaoCategoria(liga)
+  const allowed = resolved.categoriaFixa ? [resolved.categoriaFixa] : resolved.categoriaOptions
   if (!allowed.some((option) => option.categoria === draft.categoria && option.serie === draft.serie)) issues.push('Selecione uma categoria válida para este campeonato.')
   if (players.length === 0) issues.push('Cadastre ao menos um jogador.')
   if (liga.elencoQuantidadeMinima != null && players.length < liga.elencoQuantidadeMinima) issues.push(`Cadastre ao menos ${liga.elencoQuantidadeMinima} jogadores.`)

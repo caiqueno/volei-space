@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
 
     const token = randomUUID()
     const convitePayload = {
+      id: randomUUID(),
       token,
       ligaId,
       organizadorId: auth.userId,
