@@ -140,6 +140,7 @@ async function findPublicAccount(email: string): Promise<PublicUser | null> {
 
   if (lookupError) {
     console.error('[AUTH PUBLICO DB ERROR]', lookupError.message)
+    if (/does not exist|schema cache/i.test(lookupError.message)) return null
     throw new Error('Nao foi possivel consultar o publico.')
   }
 
@@ -167,6 +168,23 @@ async function findParticipant(email: string): Promise<PublicUser | null> {
 
 async function findPublicUser(email: string): Promise<PublicUser | null> {
   return findInTables(email, ['CandidaturaEquipe', 'CandidaturaArbitro', 'CandidaturaQuadra', 'CandidaturaOrganizador', 'ContaPublico'])
+}
+
+function colunaAusenteNoSelect(mensagem: string, select: string) {
+  if (!/does not exist|schema cache/i.test(mensagem)) return null
+  const colunas = select.split(',').sort((a, b) => b.length - a.length)
+  return colunas.find((coluna) => mensagem.includes(coluna)) ?? null
+}
+
+async function consultarPorEmail(table: string, select: string, email: string) {
+  const pedir = (colunas: string) => supabase.from(table).select(colunas).ilike('email', email).limit(1)
+  let resultado = await pedir(select)
+  const colunaAusente = colunaAusenteNoSelect(resultado.error?.message ?? '', select)
+  if (colunaAusente) {
+    const semColuna = select.split(',').filter((coluna) => coluna !== colunaAusente).join(',')
+    resultado = await pedir(semColuna)
+  }
+  return resultado
 }
 
 async function findInTables(email: string, tables: string[]): Promise<PublicUser | null> {
@@ -204,14 +222,11 @@ async function findInTables(email: string, tables: string[]): Promise<PublicUser
   const selected = lookups.filter((item) => tables.includes(item.table))
   const [found, publicAccount] = await Promise.all([
     Promise.all(selected.map(async (lookup) => {
-      const { data, error: lookupError } = await supabase
-        .from(lookup.table)
-        .select(lookup.select)
-        .ilike('email', email)
-        .limit(1)
+      const { data, error: lookupError } = await consultarPorEmail(lookup.table, lookup.select, email)
 
       if (lookupError) {
         console.error(`[AUTH PUBLIC DB ERROR] ${lookup.table}`, lookupError.message)
+        if (/does not exist|schema cache/i.test(lookupError.message)) return null
         throw new Error(`Nao foi possivel consultar ${lookup.perfil}.`)
       }
 

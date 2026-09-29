@@ -13,6 +13,11 @@ updated: 2026-09-29
 
 # Log
 
+## [2026-09-29] fix | login quando falta a coluna de troca de senha
+
+- pages_updated=`07-SEGURANCA`, `log`, `hot`
+- O login deixa de falhar com “Não foi possível consultar Criador de campeonatos” quando `CandidaturaOrganizador.trocarSenha` (ou a coluna equivalente do árbitro) não existe no banco do ambiente. A consulta segue sem essa coluna. Isso não troca o projeto Supabase da Vercel.
+
 ## [2026-09-29] fix | login do administrador no banco em uso
 
 - pages_updated=`07-SEGURANCA`, `log`, `hot`

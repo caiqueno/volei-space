@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O login de administrador usa a conta da tabela Admin no Supabase do ambiente.
+  O login segue mesmo se o banco do ambiente ainda não tem a coluna trocarSenha.
 status: implementado
 created: 2026-09-25
 updated: 2026-09-29
@@ -15,7 +15,7 @@ updated: 2026-09-29
 
 ## Foco atual
 
-O login de administrador usa a conta da tabela Admin no Supabase do ambiente. Fonte: [[07-SEGURANCA]].
+O login segue mesmo se o banco do ambiente ainda não tem a coluna de troca de senha. Fonte: [[07-SEGURANCA]].
 
 ## Key Takeaways
 
