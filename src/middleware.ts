@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
+import { isAdminSession } from '@/lib/admin-access'
 
 const ADMIN_PREFIX = '/admin'
 const LOGIN_PATH = '/login'
-const OFFICIAL_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@luv.com.br').trim().toLowerCase()
 const NOINDEX_PREFIXES = [
   '/admin',
   '/login',
@@ -60,7 +60,7 @@ export async function middleware(req: NextRequest) {
     const secret = process.env.JWT_SECRET
     if (!secret) return redirectToLogin(req)
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
-    if (String(payload.email ?? '').trim().toLowerCase() !== OFFICIAL_ADMIN_EMAIL) {
+    if (!isAdminSession(payload)) {
       return redirectToLogin(req)
     }
     return nextResponse(pathname)

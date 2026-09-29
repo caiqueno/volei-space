@@ -5,8 +5,7 @@ import { jwtVerify, JWTPayload } from 'jose'
 import { Home, LogOut, ShieldCheck, Trophy } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 import { AdminNav } from './AdminNav'
-
-const OFFICIAL_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@luv.com.br').trim().toLowerCase()
+import { isAdminSession } from '@/lib/admin-access'
 
 async function getAdmin(): Promise<JWTPayload | null> {
   const cookieStore = cookies()
@@ -17,7 +16,7 @@ async function getAdmin(): Promise<JWTPayload | null> {
     if (!jwtSecret) return null
     const secret = new TextEncoder().encode(jwtSecret)
     const { payload } = await jwtVerify(token, secret)
-    if (String(payload.email ?? '').trim().toLowerCase() !== OFFICIAL_ADMIN_EMAIL) return null
+    if (!isAdminSession(payload)) return null
     return payload
   } catch {
     return null

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  No perfil do organizador, Início, tabela e galeria leem os campeonatos numa consulta. A guia já visitada fica montada.
+  O login de administrador usa a conta da tabela Admin no Supabase do ambiente.
 status: implementado
 created: 2026-09-25
 updated: 2026-09-29
@@ -15,7 +15,7 @@ updated: 2026-09-29
 
 ## Foco atual
 
-No perfil do organizador, Início, tabela e galeria leem os campeonatos numa consulta. A guia já visitada fica montada. Fonte: [[09-UI-UX]].
+O login de administrador usa a conta da tabela Admin no Supabase do ambiente. Fonte: [[07-SEGURANCA]].
 
 ## Key Takeaways
 

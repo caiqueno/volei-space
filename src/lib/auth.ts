@@ -1,9 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
 
 const COOKIE_NAME = 'luva_token'
-export const OFFICIAL_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@luv.com.br').trim().toLowerCase()
+export const OFFICIAL_ADMIN_EMAIL = configuredAdminEmail() || ''
 
 function getSecret() {
   const secret = process.env.JWT_SECRET
@@ -159,7 +160,7 @@ export async function verifyToken(req: NextRequest): Promise<JWTPayload | null> 
     if (!token) return null
 
     const { payload } = await jwtVerify(token, getSecret())
-    if (String(payload.email ?? '').trim().toLowerCase() !== OFFICIAL_ADMIN_EMAIL) return null
+    if (!isAdminSession(payload)) return null
     return payload as unknown as JWTPayload
   } catch {
     return null

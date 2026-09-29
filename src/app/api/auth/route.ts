@@ -3,7 +3,8 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { OFFICIAL_ADMIN_EMAIL, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
+import { signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
+import { adminEmailAllowed } from '@/lib/admin-access'
 import { loginDestination } from '@/lib/login-destination'
 import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
 const loginSchema = z.object({
@@ -37,9 +38,9 @@ export async function POST(req: NextRequest) {
       return error('SUPABASE_SERVICE_ROLE_KEY não está configurada no ambiente da Vercel.', 500)
     }
 
-    if (adminOnly || email === OFFICIAL_ADMIN_EMAIL) {
-      return loginAdmin(email, senha)
-    }
+    const adminResponse = await loginAdmin(email, senha)
+    if (adminResponse) return adminResponse
+    if (adminOnly) return error('Administrador não encontrado. Verifique se este e-mail existe na tabela Admin.', 401)
 
     const perfil = parsed.data.perfil
     const usuario = perfil === 'publico'
@@ -101,22 +102,22 @@ export async function POST(req: NextRequest) {
 }
 
 async function loginAdmin(email: string, senha: string) {
-  if (email !== OFFICIAL_ADMIN_EMAIL) {
-    return error('Esta conta não tem permissão de administrador.', 403)
-  }
-
-  const { data: admin, error: dbErr } = await supabase
+  const { data, error: dbErr } = await supabase
     .from('Admin')
     .select('id,email,nome,senhaHash')
-    .eq('email', email)
-    .maybeSingle()
+    .ilike('email', email)
+    .limit(1)
 
   if (dbErr) {
     console.error('[AUTH ADMIN DB ERROR]', dbErr.message)
     return error('Não foi possível consultar o usuário administrador.', 500)
   }
 
-  if (!admin) return error('Administrador não encontrado. Verifique se este e-mail existe na tabela Admin.', 401)
+  const admin = Array.isArray(data) && data.length > 0 ? data[0] : null
+  if (!admin) return null
+  if (!adminEmailAllowed(email)) {
+    return error('Esta conta não tem permissão de administrador.', 403)
+  }
   if (!admin.senhaHash) return error('Administrador sem senha configurada.', 401)
 
   const senhaOk = await bcrypt.compare(senha, admin.senhaHash)

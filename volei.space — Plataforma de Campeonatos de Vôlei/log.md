@@ -13,6 +13,11 @@ updated: 2026-09-29
 
 # Log
 
+## [2026-09-29] fix | login do administrador no banco em uso
+
+- pages_updated=`07-SEGURANCA`, `log`, `hot`
+- O login reconhece a conta que está na tabela `Admin` do Supabase ligado ao ambiente. O e-mail legado `admin@luv.com.br` deixa de ser o único administrador quando `ADMIN_EMAIL` não está definido.
+
 ## [2026-09-29] fix | status da inscrição rápida no build
 
 - pages_updated=`log`
