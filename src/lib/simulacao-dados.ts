@@ -24,12 +24,12 @@ const SENHA_SIMULACAO_DEV = 'teste123456'
 let organizadorSimulacao: Promise<string | null> | null = null
 
 function idOrganizadorSimulacao() {
-  organizadorSimulacao ??= supabaseAdmin
+  organizadorSimulacao ??= Promise.resolve(supabaseAdmin
     .from('CandidaturaOrganizador')
     .select('id')
     .ilike('email', 'organizador@volei.space')
     .maybeSingle()
-    .then(({ data }) => (data?.id ? String(data.id) : null))
+    .then(({ data }) => (data?.id ? String(data.id) : null)))
   return organizadorSimulacao
 }
 

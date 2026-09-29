@@ -227,7 +227,7 @@ type TabelaTree = {
 }
 
 function buildGameTree(partidas: any[]): TabelaTree[] {
-  const knockoutFases = new Set(FASES_ELIMINATORIAS.filter((fase) => fase !== 'NENHUMA'))
+  const knockoutFases = new Set<string>(FASES_ELIMINATORIAS.filter((fase) => fase !== 'NENHUMA'))
   const categoriasPorLiga = new Map<number, Set<string>>()
   for (const partida of partidas) {
     const ligaId = Number(partida.ligaId ?? 0)

@@ -29,7 +29,7 @@ export default async function InscricaoRapidaTokenPage({ params }: PageProps) {
           tecnico: context.draft.tecnico,
           categoria: context.draft.categoria,
           serie: context.draft.serie,
-          status: context.draft.status,
+          status: context.draft.status === 'CONCLUIDO' || context.draft.status === 'ENVIADA' ? 'ENVIADA' : 'RASCUNHO',
           jogadores: context.players,
         }}
         canEdit={context.canEdit}

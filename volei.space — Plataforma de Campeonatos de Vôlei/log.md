@@ -13,6 +13,11 @@ updated: 2026-09-29
 
 # Log
 
+## [2026-09-29] fix | status da inscrição rápida no build
+
+- pages_updated=`log`
+- A página do link trata inscrição ainda aberta como rascunho e inscrição concluída como enviada, para o build aceitar os status do rascunho. Os outros erros de tipo do mesmo build (fases do mata-mata, salvamento do wizard, card público e o organizador da simulação) foram alinhados. Os testes em `scripts/` ficam fora do typecheck do Next.
+
 ## [2026-09-29] perf | consultas do perfil do organizador
 
 - pages_updated=`09-UI-UX`, `log`, `hot`

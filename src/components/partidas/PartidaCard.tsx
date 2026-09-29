@@ -10,8 +10,8 @@ type Partida = {
   status: string
   dataHora: Date | string | null
   localNome: string | null
-  equipeA: Equipe
-  equipeB: Equipe
+  equipeA: Equipe | null
+  equipeB: Equipe | null
   setsPorA: number | null
   setsPorB: number | null
   sets: Set[]
@@ -131,14 +131,15 @@ function formatMatchDate(value: Date | string | null) {
   })
 }
 
-function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe; align?: 'left' | 'right' }) {
+function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 'left' | 'right' }) {
+  const nome = equipe?.nome || 'Equipe'
   return (
     <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
       <div className={`flex ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
-        <TeamIdentity nome={equipe.nome} cor={equipe.corHex} compact showName={false} />
+        <TeamIdentity nome={nome} cor={equipe?.corHex} compact showName={false} />
       </div>
       <p className="mt-3 min-h-[42px] overflow-hidden text-sm font-black leading-[1.35] text-slate-950 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-        {equipe.nome}
+        {nome}
       </p>
     </div>
   )

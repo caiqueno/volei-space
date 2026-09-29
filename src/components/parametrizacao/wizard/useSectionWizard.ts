@@ -36,6 +36,12 @@ interface UseSectionWizardResult<T extends object> {
 
 const DEBOUNCE_MS = 700
 const MAX_WAIT_MS = 5000
+const flushPendentes = new Set<() => Promise<boolean>>()
+
+export async function flushWizardChanges() {
+  const resultados = await Promise.all(Array.from(flushPendentes, (flush) => flush()))
+  return resultados.every(Boolean)
+}
 
 export function useSectionWizard<T extends object>(
   section: SetupSection,
@@ -61,6 +67,7 @@ export function useSectionWizard<T extends object>(
   const pendingRef = useRef<Partial<T> | null>(null)
   const dataRef = useRef<T | null>(null)
   const inFlightRef = useRef<Promise<unknown> | null>(null)
+  const salvoRef = useRef(true)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const maxWaitRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -112,8 +119,10 @@ export function useSectionWizard<T extends object>(
         if (!response.ok) {
           rememberFieldFailure(payload, setFieldMessages, setAutosaveError)
           setAutosaveStatus('error')
+          salvoRef.current = false
           return
         }
+        salvoRef.current = true
         setFieldMessages({})
         const returned = payload.data as T & { setupStatus?: ChampionshipSetupStatus }
 
@@ -135,6 +144,7 @@ export function useSectionWizard<T extends object>(
         setAutosaveStatus('saved')
       })
       .catch((err) => {
+        salvoRef.current = false
         setAutosaveStatus('error')
         setAutosaveError(err instanceof Error ? err.message : 'Erro ao salvar.')
         // Não reenfileira sozinho — evitaria tempestade de requisições
@@ -159,6 +169,22 @@ export function useSectionWizard<T extends object>(
     }
     drain()
   }, [drain])
+
+  useEffect(() => {
+    const executar = async () => {
+      const tinhaTrabalho = pendingRef.current != null || inFlightRef.current != null
+      if (!tinhaTrabalho) return true
+      salvoRef.current = true
+      flush()
+      const voo = inFlightRef.current
+      if (voo) {
+        try { await voo } catch { return false }
+      }
+      return salvoRef.current && pendingRef.current == null
+    }
+    flushPendentes.add(executar)
+    return () => { flushPendentes.delete(executar) }
+  }, [flush])
 
   const enqueue = useCallback(
     (patch: Partial<T>, immediate: boolean) => {
