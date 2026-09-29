@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     .order('criadoEm', { ascending: false })
 
   if (organizadorId) query = query.eq('organizadorId', organizadorId)
+  else query = query.eq('simulacao', false)
   if (status) query = query.eq('status', status)
   if (busca) {
     const safeBusca = busca.replace(/[%_,]/g, ' ')

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
 import { requireAuth } from '@/lib/auth'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authErr = await requireAuth(req)
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (fetchErr || !partida) return error('Partida não encontrada', 404)
     if (partida.status !== 'PENDENTE_APROVACAO') return error('Partida não está pendente de aprovação', 400)
+    const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
+    if (bloqueio) return bloqueio
 
     // Calculate sets won
     const sets = (partida.sets ?? []) as any[]

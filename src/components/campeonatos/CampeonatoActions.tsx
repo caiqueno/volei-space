@@ -14,10 +14,12 @@ export function CampeonatoActions({
   ligaId,
   inscricoesAbertas = true,
   vagasDisponiveis = null,
+  finalizado = false,
 }: {
   ligaId: number
   inscricoesAbertas?: boolean
   vagasDisponiveis?: number | null
+  finalizado?: boolean
 }) {
   const [session, setSession] = useState<Session | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -58,7 +60,9 @@ export function CampeonatoActions({
         </Link>
         {!inscricoesAbertas && (
           <p className="rounded-2xl border border-luva-amber/25 bg-luva-amber/10 px-4 py-3 text-sm font-bold text-slate-100">
-            As inscrições estão fechadas ou o limite de equipes aprovadas foi atingido.
+            {finalizado
+              ? 'Este campeonato está finalizado e não aceita novas inscrições.'
+              : 'As inscrições estão fechadas ou o limite de equipes aprovadas foi atingido.'}
           </p>
         )}
         {vagasDisponiveis !== null && inscricoesAbertas && (

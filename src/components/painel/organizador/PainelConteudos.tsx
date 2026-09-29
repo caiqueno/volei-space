@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import Link from 'next/link'
 import { Image as ImageIcon, PlaySquare } from 'lucide-react'
 import { ChampionshipTableSection } from '@/components/classificacao/ChampionshipTableSection'
-import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
@@ -24,29 +24,9 @@ type LigaLista = {
   inscricoesAbertas?: boolean | null
 }
 
-export function PainelCampeonatos({ organizadorId }: { organizadorId: string }) {
-  const [ligas, setLigas] = useState<LigaLista[]>([])
-  const [loading, setLoading] = useState(true)
+export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
   const [status, setStatus] = useState('')
   const [busca, setBusca] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-    fetch(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((payload) => {
-        if (!cancelled) setLigas(Array.isArray(payload.data) ? payload.data : [])
-      })
-      .catch(() => {
-        if (!cancelled) setLigas([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [organizadorId])
 
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -56,8 +36,6 @@ export function PainelCampeonatos({ organizadorId }: { organizadorId: string }) 
       return [liga.nome, liga.subtitulo, liga.descricao].some((campo) => String(campo ?? '').toLowerCase().includes(termo))
     })
   }, [ligas, status, busca])
-
-  if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
 
   return (
     <section>
@@ -83,6 +61,7 @@ export function PainelCampeonatos({ organizadorId }: { organizadorId: string }) 
             { value: 'EM_BREVE', label: 'Em breve' },
             { value: 'ATIVA', label: 'Ativos' },
             { value: 'ENCERRADA', label: 'Encerrados' },
+            { value: 'FINALIZADO', label: 'Finalizados' },
           ].map((option) => (
             <button
               key={option.value || 'todos'}
@@ -134,31 +113,33 @@ export function PainelCampeonatos({ organizadorId }: { organizadorId: string }) 
 }
 
 export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem[]; organizadorId: string }) {
-  const [tabelas, setTabelas] = useState<Array<{ id: number; nome: string; dados: any[] }>>([])
-  const [loading, setLoading] = useState(true)
+  const [tabelas, setTabelas] = useState<Array<{ id: number; nome: string; dados: any[]; pendente: boolean }>>([])
 
   useEffect(() => {
-    let cancelled = false
-    Promise.all(ligas.map(async (liga) => {
-      const response = await fetch(`/api/classificacao?ligaId=${liga.id}`, { cache: 'no-store' })
-      const payload = await response.json().catch(() => ({}))
-      return { id: liga.id, nome: liga.nome, dados: Array.isArray(payload.data) ? payload.data : [] }
-    }))
-      .then((rows) => {
-        if (!cancelled) setTabelas(rows)
-      })
-      .catch(() => {
-        if (!cancelled) setTabelas([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
+    if (ligas.length === 0) {
+      setTabelas([])
+      return
     }
+    const controlador = new AbortController()
+    setTabelas(ligas.map((liga) => ({ id: liga.id, nome: liga.nome, dados: [], pendente: true })))
+    const ids = ligas.map((liga) => liga.id).join(',')
+    consultar<{ data?: Array<{ ligaId?: number }> }>(`/api/classificacao?ligaIds=${ids}`, { signal: controlador.signal })
+      .then((payload) => {
+        const linhas = Array.isArray(payload.data) ? payload.data : []
+        setTabelas(ligas.map((liga) => ({
+          id: liga.id,
+          nome: liga.nome,
+          dados: linhas.filter((linha) => Number(linha.ligaId) === liga.id),
+          pendente: false,
+        })))
+      })
+      .catch((erro) => {
+        if (erro instanceof ConsultaCancelada) return
+        setTabelas(ligas.map((liga) => ({ id: liga.id, nome: liga.nome, dados: [], pendente: false })))
+      })
+    return () => controlador.abort()
   }, [ligas])
 
-  if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
   if (ligas.length === 0) {
     return (
       <section>
@@ -171,7 +152,11 @@ export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem
     <section className="space-y-8">
       {tabelas.map((tabela) => (
         <div key={tabela.id}>
-          {tabela.dados.length === 0 ? (
+          {tabela.pendente ? (
+            <CollapseBar title={tabela.nome}>
+              <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
+            </CollapseBar>
+          ) : tabela.dados.length === 0 ? (
             <CollapseBar title={tabela.nome}>
               <EstadoVazio titulo="Nenhuma partida registrada" descricao="A classificação aparece aqui após o primeiro resultado aprovado." />
             </CollapseBar>
@@ -191,69 +176,180 @@ export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem
   )
 }
 
-export function PainelJogos({ ligas }: { ligas: LigaCarouselItem[] }) {
-  const [blocos, setBlocos] = useState<Array<{ id: number; nome: string; partidas: any[] }>>([])
+type ArbitroConta = { id: string; nome: string; email: string; status: string; arbitroId?: number | null }
+type PartidaOrganizacao = {
+  id: number
+  ligaId: number
+  rodada?: number | null
+  status?: string | null
+  dataHora?: string | null
+  setsPorA?: number | null
+  setsPorB?: number | null
+  pontosPorA?: number | null
+  pontosPorB?: number | null
+  equipeA?: { nome?: string | null } | null
+  equipeB?: { nome?: string | null } | null
+  liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
+  escala?: Array<{ arbitroId?: number | null; cargo?: string | null; arbitro?: { nome?: string | null; email?: string | null } | null }>
+}
+
+const STATUS_JOGO: Record<string, string> = {
+  AGENDADA: 'Agendada',
+  EM_ANDAMENTO: 'Em andamento',
+  ENCERRADA: 'Encerrada',
+  CANCELADA: 'Cancelada',
+  WO: 'W.O.',
+}
+const STATUS_EDITA_ARBITRO = new Set(['AGENDADA', 'PENDENTE', 'PENDENTE_APROVACAO'])
+
+function ligaDaPartida(partida: PartidaOrganizacao) {
+  return Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
+}
+
+function arbitroResponsavel(partida: PartidaOrganizacao) {
+  const escala = (partida.escala ?? []).find((item) => item.cargo === 'PRIMEIRO_ARBITRO') ?? partida.escala?.[0]
+  return escala?.arbitroId ? Number(escala.arbitroId) : null
+}
+
+export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]; ativo?: boolean }) {
+  const [partidas, setPartidas] = useState<PartidaOrganizacao[]>([])
+  const [arbitros, setArbitros] = useState<ArbitroConta[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState<number | null>(null)
+
+  async function carregar(silencioso = false) {
+    if (!silencioso) setLoading(true)
+    try {
+      const [jogos, contas] = await Promise.all([
+        consultar<{ data?: PartidaOrganizacao[] }>('/api/organizador/partidas', { forcar: silencioso }),
+        consultar<{ data?: ArbitroConta[] }>('/api/organizador/arbitros', { forcar: silencioso }),
+      ])
+      setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
+      setArbitros(Array.isArray(contas.data) ? contas.data : [])
+      setErro(null)
+    } catch (falha) {
+      if (falha instanceof ConsultaCancelada) return
+      setErro('Não foi possível carregar a tabela de jogos.')
+    } finally {
+      if (!silencioso) setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    Promise.all(ligas.map(async (liga) => {
-      const response = await fetch(`/api/partidas?ligaId=${liga.id}`, { cache: 'no-store' })
-      const payload = await response.json().catch(() => ({}))
-      const partidas = Array.isArray(payload.data) ? payload.data : []
-      return { id: liga.id, nome: liga.nome, partidas }
-    }))
-      .then((rows) => {
-        if (!cancelled) setBlocos(rows)
+    if (!ativo) return
+    carregar()
+    const timer = window.setInterval(() => carregar(true), 8000)
+    return () => window.clearInterval(timer)
+  }, [ativo])
+
+  async function designar(partidaId: number, arbitroId: string) {
+    setSalvando(partidaId)
+    setErro(null)
+    try {
+      const resposta = await fetch(`/api/organizador/partidas/${partidaId}/arbitro`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arbitroId: arbitroId ? Number(arbitroId) : null }),
       })
-      .catch(() => {
-        if (!cancelled) setBlocos([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
+      const json = await resposta.json().catch(() => ({}))
+      if (!resposta.ok) throw new Error(json.error || 'Não foi possível designar o árbitro.')
+      await carregar(true)
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : 'Não foi possível designar o árbitro.')
+    } finally {
+      setSalvando(null)
     }
-  }, [ligas])
+  }
 
   if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
-  if (ligas.length === 0) {
+
+  const grupos = new Map<number, { nome: string; simulacao: boolean; partidas: PartidaOrganizacao[] }>()
+  partidas.forEach((partida) => {
+    const liga = ligaDaPartida(partida)
+    const atual = grupos.get(partida.ligaId) ?? {
+      nome: liga?.nome || ligas.find((item) => item.id === partida.ligaId)?.nome || 'Campeonato',
+      simulacao: liga?.simulacao === true,
+      partidas: [],
+    }
+    atual.partidas.push(partida)
+    grupos.set(partida.ligaId, atual)
+  })
+
+  if (grupos.size === 0) {
     return (
       <section>
-        <EstadoVazio titulo="Nenhum campeonato com agenda." descricao="Crie um campeonato em Início. Os jogos ficam nesta página quando o calendário for montado." />
+        <EstadoVazio titulo="Nenhum jogo cadastrado" descricao="As partidas aparecem aqui quando o calendário for montado. A coluna de árbitro fica nesta tabela." />
       </section>
     )
   }
 
   return (
     <section className="space-y-6">
-      {blocos.map((bloco) => {
-        const rodadas = new Map<number, any[]>()
-        bloco.partidas.forEach((partida) => {
-          const rodada = Number(partida.rodada) || 0
-          const lista = rodadas.get(rodada) ?? []
-          lista.push(partida)
-          rodadas.set(rodada, lista)
-        })
-        return (
-          <CollapseBar key={bloco.id} title={bloco.nome}>
-            {bloco.partidas.length === 0 ? (
-              <EstadoVazio titulo="Nenhum jogo cadastrado" descricao="As partidas aparecem aqui quando a organização montar o calendário." />
-            ) : (
-              <div className="grid gap-3">
-                {Array.from(rodadas.entries()).sort((a, b) => a[0] - b[0]).map(([rodada, partidas]) => (
-                  <CollapseBar key={rodada} title={rodada ? `Rodada ${rodada}` : 'Jogos'}>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {partidas.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
-                    </div>
-                  </CollapseBar>
-                ))}
-              </div>
-            )}
-          </CollapseBar>
-        )
-      })}
+      {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
+      {Array.from(grupos.entries()).map(([ligaId, grupo]) => (
+        <CollapseBar key={ligaId} title={grupo.simulacao ? `${grupo.nome} · simulação` : grupo.nome}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm text-white">
+              <thead className="text-xs font-black uppercase tracking-wide text-white/60">
+                <tr>
+                  <th className="px-3 py-2">Rodada</th>
+                  <th className="px-3 py-2">Jogo</th>
+                  <th className="px-3 py-2">Horário</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Placar</th>
+                  <th className="px-3 py-2">Árbitro responsável</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grupo.partidas.map((partida) => {
+                  const status = String(partida.status || 'AGENDADA').toUpperCase()
+                  const editavel = STATUS_EDITA_ARBITRO.has(status)
+                  const atual = arbitroResponsavel(partida)
+                  const opcoes = arbitros.filter((conta) => {
+                    if (!conta.arbitroId) return false
+                    if (!['ATIVA', 'APROVADA', 'ATIVO', 'APROVADO'].includes(String(conta.status).toUpperCase())) return false
+                    const teste = conta.email.endsWith('@example.invalid')
+                    return grupo.simulacao ? teste : !teste
+                  })
+                  const quando = partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'A definir'
+                  const emJogo = status === 'EM_ANDAMENTO'
+                  return (
+                    <tr key={partida.id} className="border-t border-white/10">
+                      <td className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
+                      <td className="px-3 py-3 font-black">{partida.equipeA?.nome ?? 'Equipe A'} × {partida.equipeB?.nome ?? 'Equipe B'}</td>
+                      <td className="px-3 py-3">{quando}</td>
+                      <td className="px-3 py-3">{STATUS_JOGO[status] ?? status}</td>
+                      <td className="px-3 py-3 font-bold">
+                        {partida.setsPorA ?? 0} × {partida.setsPorB ?? 0}
+                        {emJogo ? <span className="mt-1 block text-xs font-semibold text-white/70">{partida.pontosPorA ?? 0} a {partida.pontosPorB ?? 0}</span> : null}
+                      </td>
+                      <td className="px-3 py-3">
+                        {editavel ? (
+                          <select
+                            aria-label={`Árbitro responsável da partida ${partida.id}`}
+                            value={atual ?? ''}
+                            disabled={salvando === partida.id}
+                            onChange={(evento) => designar(partida.id, evento.target.value)}
+                            className="w-full rounded-xl border border-white/15 bg-[#07111f] px-3 py-2 text-sm font-semibold text-white"
+                          >
+                            <option value="">Não designado</option>
+                            {opcoes.map((conta) => (
+                              <option key={conta.id} value={conta.arbitroId || ''}>{conta.nome}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span>{opcoes.find((conta) => conta.arbitroId === atual)?.nome || partida.escala?.find((item) => item.arbitroId === atual)?.arbitro?.nome || 'Não designado'}</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CollapseBar>
+      ))}
     </section>
   )
 }
@@ -264,13 +360,23 @@ export function PainelGaleria({ ligas }: { ligas: LigaCarouselItem[] }) {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all(ligas.map(async (liga) => {
-      const response = await fetch(`/api/galeria?ligaId=${liga.id}`, { cache: 'no-store' })
-      const payload = await response.json().catch(() => ({}))
-      return { id: liga.id, nome: liga.nome, midias: Array.isArray(payload.data) ? payload.data : [] }
-    }))
-      .then((rows) => {
-        if (!cancelled) setBlocos(rows)
+    const controlador = new AbortController()
+    const ids = ligas.map((liga) => liga.id).join(',')
+    if (!ids) {
+      setBlocos([])
+      setLoading(false)
+      return
+    }
+    consultar<{ data?: Array<{ ligaId?: number }> }>(`/api/galeria?ligaIds=${ids}`, { signal: controlador.signal })
+      .then((payload) => {
+        const midias = Array.isArray(payload.data) ? payload.data : []
+        if (!cancelled) {
+          setBlocos(ligas.map((liga) => ({
+            id: liga.id,
+            nome: liga.nome,
+            midias: midias.filter((midia) => Number(midia.ligaId) === liga.id),
+          })))
+        }
       })
       .catch(() => {
         if (!cancelled) setBlocos([])
@@ -280,6 +386,7 @@ export function PainelGaleria({ ligas }: { ligas: LigaCarouselItem[] }) {
       })
     return () => {
       cancelled = true
+      controlador.abort()
     }
   }, [ligas])
 

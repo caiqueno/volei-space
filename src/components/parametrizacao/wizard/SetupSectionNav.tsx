@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { consultar } from '@/lib/api-cliente'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, Circle, Clock, Lock, type LucideIcon } from 'lucide-react'
 import type { ChampionshipSetupOverviewDTO } from '@/types/championship-setup'
@@ -23,14 +24,15 @@ export function SetupSectionNav({ ligaId, activeSection }: { ligaId: number; act
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/organizador/ligas/${ligaId}/setup`, { cache: 'no-store' })
-      .then((res) => res.json())
+    const controlador = new AbortController()
+    consultar<{ data?: ChampionshipSetupOverviewDTO }>(`/api/organizador/ligas/${ligaId}/setup`, { signal: controlador.signal })
       .then((payload) => {
-        if (!cancelled) setOverview(payload.data)
+        if (!cancelled && payload.data) setOverview(payload.data)
       })
       .catch(() => {})
     return () => {
       cancelled = true
+      controlador.abort()
     }
   }, [ligaId, activeSection])
 

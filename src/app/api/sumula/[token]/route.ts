@@ -3,7 +3,10 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { sumulaSchema } from '@/lib/schemas'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
-import { requireSumulaTokenAccess } from '@/lib/sumula-access'
+import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-access'
+import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
 
 const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
 
@@ -13,7 +16,7 @@ async function assertDb<T extends { error: any }>(operation: PromiseLike<T>) {
   return result
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
 
   if (DEMO_SUMULA_TOKENS.has(token)) {
@@ -22,6 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
+  const leitura = await requireSumulaLeitura(req, access.partida)
+  if (leitura) return leitura
   return success(access.partida)
 }
 
@@ -29,23 +34,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const { token } = await params
   try {
     if (DEMO_SUMULA_TOKENS.has(token)) {
-      return success({ submetida: true, oficial: false, modoTeste: true, status: 'ENCERRADA' })
+      return success({ submetida: true, oficial: false, modoTeste: true, status: 'ENCERRADA', publico: '/partidas/9001/ao-vivo' })
     }
 
-    const access = await requireSumulaTokenAccess(token)
+    const access = await requireArbitroPartidaAccess(req, token)
     if (access instanceof Response) return access
 
     const partida = access.partida
-    if (partida.status === 'ENCERRADA') return error('Partida já encerrada', 400)
+    const publico = `/partidas/${partida.id}/ao-vivo`
+    if (partida.sumulaAprovadaEm) {
+      return success({ submetida: true, oficial: true, jaOficial: true, status: 'ENCERRADA', publico })
+    }
+    const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
+    if (bloqueio) return bloqueio
 
     const body = await req.json()
     const parsed = sumulaSchema.safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
 
     const { presencas, sets, ocorrencias, destaques } = parsed.data
-    const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: true })
+    const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: !campeonatoDeSimulacao(partida) })
     if (validationError) return error(validationError, 422)
     if (sets.length === 0) return error('A súmula só pode ser enviada com pelo menos um set registrado.', 422)
+    const regra = regrasDaPartida(partida.liga)
+    const placarInvalido = validateCategoryResult(sets, regra)
+    if (placarInvalido) return error(placarInvalido, 422)
 
     let setsPorA = 0
     let setsPorB = 0
@@ -70,10 +83,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       await assertDb(supabase.from('SumulaPresenca').insert(presencas.map((presenca) => ({ ...presenca, partidaId: partida.id }))))
     }
 
-    await assertDb(supabase.from('OcorrenciaPartida').delete().eq('partidaId', partida.id))
-    if (ocorrencias?.length) {
-      await assertDb(supabase.from('OcorrenciaPartida').insert(ocorrencias.map((ocorrencia) => ({ ...ocorrencia, partidaId: partida.id }))))
-    }
+    await substituirOcorrencias(partida.id, ocorrencias, access.candidatura.arbitroId, sets)
 
     await assertDb(supabase.from('DestaquesPartida').delete().eq('partidaId', partida.id))
     if (destaques?.length) {
@@ -95,10 +105,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       .eq('id', partida.id)
 
     if (updateErr) throw updateErr
-    await recalculateLeagueClassification(partida.ligaId)
-    await syncLeagueLifecycle(partida.ligaId)
+    await concluirPublicacao(partida.ligaId)
 
-    return success({ submetida: true, oficial: true, status: 'ENCERRADA' })
+    return success({ submetida: true, oficial: true, status: 'ENCERRADA', publico })
   } catch (err) {
     console.error('[sumula] erro ao submeter', err)
     return error('Erro ao submeter súmula', 500)
@@ -112,11 +121,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
       return success({ salva: true, oficial: false, modoTeste: true, status: 'EM_ANDAMENTO' })
     }
 
-    const access = await requireSumulaTokenAccess(token)
+    const access = await requireArbitroPartidaAccess(req, token)
     if (access instanceof Response) return access
 
     const partida = access.partida
     if (partida.status === 'ENCERRADA') return error('Partida já encerrada', 400)
+    const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
+    if (bloqueio) return bloqueio
 
     const body = await req.json()
     const parsed = sumulaSchema.safeParse(body)
@@ -125,6 +136,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     const { presencas, sets, ocorrencias, destaques } = parsed.data
     const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: false })
     if (validationError) return error(validationError, 422)
+    const andamentoInvalido = validateCategoryProgress(sets, regrasDaPartida(partida.liga))
+    if (andamentoInvalido) return error(andamentoInvalido, 422)
     const liveSummary = buildLiveSummary(sets, partida.liga)
 
     await assertDb(supabase.from('SetPartida').delete().eq('partidaId', partida.id))
@@ -139,10 +152,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
         .insert(presencas.map((presenca) => ({ ...presenca, partidaId: partida.id }))))
     }
 
-    await assertDb(supabase.from('OcorrenciaPartida').delete().eq('partidaId', partida.id))
-    if (ocorrencias?.length) {
-      await assertDb(supabase.from('OcorrenciaPartida').insert(ocorrencias.map((ocorrencia) => ({ ...ocorrencia, partidaId: partida.id }))))
-    }
+    await substituirOcorrencias(partida.id, ocorrencias, access.candidatura.arbitroId, sets)
 
     await assertDb(supabase.from('DestaquesPartida').delete().eq('partidaId', partida.id))
     if (destaques?.length) {
@@ -166,6 +176,64 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
   } catch (err) {
     console.error('[sumula] erro ao salvar andamento', err)
     return error('Erro ao salvar andamento da súmula', 500)
+  }
+}
+
+async function substituirOcorrencias(
+  partidaId: number,
+  ocorrencias: Array<{ tipo: string; descricao?: string | null; set?: number | null; jogadorId?: number | null }> | undefined,
+  arbitroId: number | null,
+  sets: Array<{ numero: number; pontosA: number; pontosB: number }>,
+) {
+  const { data: atuais, error: leituraErr } = await supabase
+    .from('OcorrenciaPartida')
+    .select('id,descricao')
+    .eq('partidaId', partidaId)
+  if (leituraErr) throw leituraErr
+  const apagar = (atuais ?? [])
+    .filter((item) => !String(item.descricao ?? '').startsWith('Registro de '))
+    .map((item) => item.id)
+  if (apagar.length > 0) {
+    await assertDb(supabase.from('OcorrenciaPartida').delete().in('id', apagar))
+  }
+  if (ocorrencias?.length) {
+    await assertDb(supabase.from('OcorrenciaPartida').insert(ocorrencias.map((ocorrencia) => ({ ...ocorrencia, partidaId }))))
+  }
+  const resumo = sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
+  await assertDb(supabase.from('OcorrenciaPartida').insert({
+    partidaId,
+    tipo: 'OBSERVACAO',
+    descricao: `Registro de placar pelo árbitro ${arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`,
+  }))
+}
+
+async function concluirPublicacao(ligaId: number) {
+  try {
+    await recalculateLeagueClassification(ligaId)
+  } catch (err) {
+    console.error('[sumula] súmula gravada; classificação não recalculada', err)
+  }
+  try {
+    await syncLeagueLifecycle(ligaId)
+  } catch (err) {
+    console.error('[sumula] súmula gravada; ciclo do campeonato não atualizado', err)
+  }
+}
+
+function campeonatoDeSimulacao(partida: any) {
+  const liga = Array.isArray(partida?.liga) ? partida.liga[0] : partida?.liga
+  return liga?.simulacao === true
+}
+
+function regrasDaPartida(liga: any): CategoryMatchRules {
+  const source = Array.isArray(liga) ? liga[0] : liga
+  return {
+    setsPorPartida: readPositiveNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets'], 3),
+    pontosPorSet: readPositiveNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet'], 21),
+    tieBreakUltimoSet: readBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set'], false),
+    pontosUltimoSet: readPositiveNumber(source, ['pontosUltimoSet', 'pontos_ultimo_set'], 15),
+    setsFormato: typeof source?.setsFormato === 'string' ? source.setsFormato : undefined,
+    terceiroSetObrigatorio: source?.terceiroSetObrigatorio === true,
   }
 }
 

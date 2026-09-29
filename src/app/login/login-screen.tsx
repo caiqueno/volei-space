@@ -2,15 +2,17 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertCircle, LockKeyhole } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { loginDestination } from '@/lib/login-destination'
+import { lerSessaoPublica } from '@/lib/sessao-publica'
 
 export function LoginScreen() {
   const searchParams = useSearchParams()
   const contaCriada = searchParams.get('conta') === 'criada'
+  const [lendoSessao, setLendoSessao] = useState(true)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [email, setEmail] = useState('')
@@ -18,26 +20,22 @@ export function LoginScreen() {
   const [emailAberto, setEmailAberto] = useState(false)
   const [senhaAberta, setSenhaAberta] = useState(false)
 
+  useEffect(() => {
+    const sessao = lerSessaoPublica()
+    if (sessao?.tipo) {
+      window.location.replace(loginDestination(sessao.tipo, Boolean(sessao.trocarSenha)))
+      return
+    }
+    setLendoSessao(false)
+  }, [])
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (loading) return
     setErro('')
     setLoading(true)
 
     try {
-      const adminRes = await fetch('/api/auth?admin=1', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha }),
-      })
-      const adminJson = await adminRes.json().catch(() => ({}))
-
-      if (adminRes.ok && adminJson.data?.admin) {
-        const next = searchParams.get('next')
-        const destino = next?.startsWith('/admin') && !next.startsWith('/admin/login') ? next : '/admin'
-        window.location.href = destino
-        return
-      }
-
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,6 +45,14 @@ export function LoginScreen() {
 
       if (!res.ok) {
         setErro(json.error ?? 'Usuário ou senha não conferem.')
+        setLoading(false)
+        return
+      }
+
+      if (json.data?.admin) {
+        const next = searchParams.get('next')
+        const destino = next?.startsWith('/admin') && !next.startsWith('/admin/login') ? next : '/admin'
+        window.location.assign(destino)
         return
       }
 
@@ -54,11 +60,12 @@ export function LoginScreen() {
         window.localStorage.setItem('luva_session', JSON.stringify(json.data.user))
       }
 
-      const destino = loginDestination(json.data?.user?.tipo ?? '', Boolean(json.data?.user?.trocarSenha))
-      window.location.href = destino
+      const destino = typeof json.data?.redirectTo === 'string'
+        ? json.data.redirectTo
+        : loginDestination(json.data?.user?.tipo ?? '', Boolean(json.data?.user?.trocarSenha))
+      window.location.assign(destino)
     } catch {
       setErro('Falha na conexão. Tente novamente em instantes.')
-    } finally {
       setLoading(false)
     }
   }
@@ -94,6 +101,9 @@ export function LoginScreen() {
               )}
             </div>
 
+            {lendoSessao ? (
+              <p className="text-center text-sm font-semibold text-slate-300">Abrindo sua área...</p>
+            ) : (
             <form autoComplete="off" onSubmit={handleSubmit} className="grid gap-4">
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">E-mail</span>
@@ -145,6 +155,7 @@ export function LoginScreen() {
                 Entrar
               </ActionBar>
             </form>
+            )}
           </div>
         </section>
       </div>

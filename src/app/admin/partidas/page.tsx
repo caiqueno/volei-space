@@ -29,8 +29,8 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
     .from('Partida')
     .select(`
       *,
-      equipeA:Equipe!equipeAId(*),
-      equipeB:Equipe!equipeBId(*),
+      equipeA:Equipe!Partida_equipeAId_fkey(*),
+      equipeB:Equipe!Partida_equipeBId_fkey(*),
       sets:SetPartida(*),
       escala:EscalaArbitro(*, arbitro:Arbitro(*)),
       candidaturasArbitro:CandidaturaPartidaArbitro(*, candidatura:CandidaturaArbitro(*))
@@ -89,8 +89,8 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
         </div>
       ) : (
         <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b1726]/90 shadow-[0_24px_70px_rgba(0,0,0,.22)]">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
+          <div className="max-w-full">
+            <table data-stack className="w-full text-sm">
               <thead className="border-b border-white/10 bg-white/[0.04]">
                 <tr>
                   <th className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.16em] text-slate-300">Rd</th>
@@ -120,22 +120,22 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
 
                   return (
                     <tr key={p.id} className="transition hover:bg-white/[0.035]">
-                      <td className="px-5 py-5">
+                      <td data-label="Rodada" className="px-5 py-4">
                         <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-luva-amber px-2 text-xs font-black text-white">
                           {p.rodada}
                         </span>
                       </td>
-                      <td className="px-5 py-5">
+                      <td data-label="Partida" className="px-5 py-4">
                         <p className="font-black text-white">{p.equipeA?.nome ?? 'Equipe A'} × {p.equipeB?.nome ?? 'Equipe B'}</p>
                         <p className="mt-1 text-xs font-bold text-slate-400">{p.localNome || p.localEndereco || 'Local a definir'}</p>
                       </td>
-                      <td className="px-5 py-5 font-bold text-slate-200">
+                      <td data-label="Data" className="px-5 py-4 font-bold text-slate-200">
                         {formatDateTime(p.dataHora)}
                       </td>
-                      <td className="px-5 py-5">
+                      <td data-label="Placar" className="px-5 py-4">
                         <span className="font-black text-white">{sets.length > 0 ? `${setsPlacar.a} × ${setsPlacar.b}` : '—'}</span>
                       </td>
-                      <td className="px-5 py-5">
+                      <td data-label="Arbitragem" className="px-5 py-4">
                         {escala.length > 0 ? (
                           <div className="space-y-1">
                             {escala.map((item) => (
@@ -160,12 +160,12 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
                           <span className="text-xs font-bold text-slate-400">Sem candidatura</span>
                         )}
                       </td>
-                      <td className="px-5 py-5">
+                      <td data-label="Status" className="px-5 py-4">
                         <Badge variant={statusVariant[p.status] ?? 'neutral'}>
                           {statusLabel[p.status] ?? normalizeStatus(p.status)}
                         </Badge>
                       </td>
-                      <td className="px-5 py-5">
+                      <td data-label="Ações" className="px-5 py-4">
                         <div className="flex flex-wrap items-center gap-2">
                           {p.sumulaToken && (
                             <>

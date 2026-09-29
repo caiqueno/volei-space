@@ -8,7 +8,7 @@ summary: >-
   Regras aprovadas do produto.
 status: misto
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-09-28
 ---
 # Regras de negócio aprovadas
 
@@ -18,6 +18,8 @@ updated: 2026-09-25
 ## Categorias como competições — aprovado, pendente
 
 Cada categoria de uma `Liga` é uma competição interna independente. Equipes, convites, inscrições, grupos, partidas, tabelas, classificados, eliminatórias, scouts, rankings e resultados não se misturam entre categorias. `CategoriaCampeonato` e `categoriaCampeonatoId` são a arquitetura-alvo; o modelo atual por strings precisa de migração. Regras esportivas podem ser comuns ao campeonato, sem presumir variações por categoria. Séries Ouro/Prata são legado LUVA, não divisões do volei.space. Especificação e critérios: [[references/CATEGORIAS-COMO-COMPETICOES]].
+
+Desde 2026-09-28 este working tree grava `CategoriaCampeonato` e a configuração esportiva em `CategoriaConfiguracao`, a pedido de trazer a branch `feature/segregacao-categoria-precificacao` (`108d0b5`). O preço do organizador soma as categorias, com um único valor de ativação. A margem de set aprovada continua sendo a mínima de 2, sem teto: 23×19 com alvo 21 é válido. A branch exigia margem exatamente 2; isso não foi copiado. A classificação conta equipes `ATIVA` da categoria. O pagamento novo só segue depois que cada categoria ativa está `CONCLUIDA`. O levantamento está em `docs/comparacao-segregacao-categoria-precificacao.md`.
 
 ## Inscrições
 
@@ -30,6 +32,18 @@ O organizador escolhe livremente a pontuação dos sets regulares (`Np`) e confi
 ## Substituições, MVP e correção
 
 Oito substituições por equipe e set; o mesmo par pode trocar e retornar repetidamente, respeitando o limite. Líbero gera apenas registro informativo. Antes da oficialização, selecionar MVP da vencedora; sugerir pelos scouts da partida e destacar nome, número, posição e scouts no resumo. O link corrige a súmula até 30 minutos do primeiro encerramento; depois, somente o organizador autorizado. Correção não renova o prazo e deve atualizar dados derivados. Ver [[modulos/SUMULA-DIGITAL]].
+
+## Simulação — implementado no desenvolvimento
+
+A Central de Simulações fica em `/admin/simulacoes` e só responde fora de produção, com o administrador oficial. Os campeonatos criados têm `Liga.simulacao = true` e não entram no portal, na lista pública, na classificação, no sitemap nem na inscrição rápida. A limpeza apaga somente essas linhas. Um campeonato real `FINALIZADO` continua bloqueado; a exceção do trigger vale só quando `simulacao = true`, para o cenário de teste poder ser recriado.
+
+O relógio de cada partida fica em `Liga.simulacaoRelogio`. O painel lê o servidor a cada 8 segundos e desenha o tempo a partir desse instante, para duas telas não dependerem cada uma do próprio relógio. Não publiquei a tabela inteira no Realtime: o banco está sem RLS e o canal público enxergaria as linhas de teste. Quando uma partida de teste encerra, a classificação usa a função já existente `recalcular_classificacao_liga` (3 pontos no 2×0, 2 no 2×1, 1 para quem perde de 2×1). O requisito da súmula pede pares configuráveis por margem; essa função do banco ainda não lê `pontuacaoResultado`. O árbitro de teste passa a ter senha só fora de produção, para operar a partida em que foi escalado. Em produção esse e-mail não entra. A limpeza continua apagando só linhas `simulacao=true`.
+
+O organizador designa o árbitro na tabela de jogos do painel, na coluna «Árbitro responsável». A alteração vale enquanto a partida está agendada. O árbitro vê e opera somente essa escala. Ele não se candidata à partida. Na operação, confirma ou marca ausente cada atleta daquela partida; isso não tira o atleta da equipe nem da inscrição. Iniciar a partida grava `EM_ANDAMENTO` e abre a súmula pelo id. A leitura da súmula exige o árbitro escalado ou o organizador da liga. A súmula grava o placar com a regra já existente do set (alvo configurado e diferença mínima de 2, sem teto) e recusa lançamento depois do encerramento. Cada gravação deixa uma ocorrência «Registro de placar», «Registro de presença» ou «Registro de início», com o árbitro e o horário. O MVP obrigatório antes de oficializar continua pendente na API.
+
+## Finalização do campeonato — implementado
+
+O status operacional ativo continua `ATIVA`. `ENCERRADA` segue o encerramento de temporada já existente. `FINALIZADO` é o estado terminal de consulta: o organizador dono, ou o administrador já autorizado, confirma em `POST /api/organizador/ligas/[id]/finalizar`. A gravação leva `status`, `finalizadoEm` e `finalizadoPor`, fecha inscrições e não apaga histórico. Depois disso, o painel só consulta e a API recusa alteração operacional. O portal público mantém a página pelo slug, com o selo Finalizado, fora do carrossel de ativos. A sincronização automática de status pelas partidas não reabre um campeonato finalizado.
 
 ## Outras regras
 

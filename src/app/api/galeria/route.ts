@@ -8,10 +8,16 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const ligaId = searchParams.get('ligaId')
+    const ligaIds = (searchParams.get('ligaIds') ?? '')
+      .split(',')
+      .map((valor) => Number(valor))
+      .filter((valor) => Number.isInteger(valor) && valor > 0)
+      .slice(0, 40)
     const tag = searchParams.get('tag')
 
     let q = supabase.from('Midia').select('*').order('criadoEm', { ascending: false })
-    if (ligaId) q = q.eq('ligaId', Number(ligaId))
+    if (ligaIds.length) q = q.in('ligaId', ligaIds)
+    else if (ligaId) q = q.eq('ligaId', Number(ligaId))
     if (tag) q = q.eq('tag', tag)
 
     const { data, error: err } = await q

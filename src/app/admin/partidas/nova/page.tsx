@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { consultar } from '@/lib/api-cliente'
 import { ActionBar } from '@/components/ui/action-bar'
 
 export default function NovaPartidaPage() {
@@ -16,7 +17,7 @@ export default function NovaPartidaPage() {
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    fetch('/api/ligas').then(r => r.json()).then(j => {
+    consultar<{ data?: Array<{ id: number }> }>('/api/ligas').then((j) => {
       const items = j.data ?? []
       setLigas(items)
       if (items[0]) {

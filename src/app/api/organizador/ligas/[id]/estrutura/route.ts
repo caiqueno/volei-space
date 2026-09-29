@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 
 export const dynamic = 'force-dynamic'
@@ -127,6 +128,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const ligaResult = await getOwnedLiga(ligaId, auth.userId)
     if (ligaResult instanceof Response) return ligaResult
     const liga = ligaResult
+    const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+    if (bloqueio) return bloqueio
     if (!liga.pagamentoConfirmadoEm) return error('Pagamento pendente para este campeonato.', 403, { code: 'PAGAMENTO_PENDENTE' })
 
     const body = await req.json()

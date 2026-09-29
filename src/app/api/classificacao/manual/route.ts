@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 
 export const dynamic = 'force-dynamic'
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
 
     if (ligaErr || !liga) return error('Campeonato nao encontrado.', 404)
     if (liga.organizadorId !== auth.userId) return error('Voce nao pode alterar a classificacao deste campeonato.', 403)
+    const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+    if (bloqueio) return bloqueio
 
     const locked = await hasKnockoutBracket(ligaId)
     if (locked) return error('O chaveamento eliminatorio ja foi confirmado ou iniciado. Alteracoes exigem acao administrativa explicita.', 409)

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ArrowLeft, CalendarPlus, Trophy } from 'lucide-react'
-import PageLoading from '@/components/ui/page-loading'
+import { useConsulta } from '@/lib/use-consulta'
 import { formatLigaFormato, formatLigaStatusLabel, type LigaPanel } from '@/lib/liga-panel'
 
 type Session = {
@@ -14,8 +14,6 @@ type Session = {
 export default function MeusCampeonatosPage() {
   const [hydrated, setHydrated] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
-  const [ligas, setLigas] = useState<LigaPanel[]>([])
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     try {
@@ -28,42 +26,46 @@ export default function MeusCampeonatosPage() {
 
   const organizadorId = session?.candidaturaId
 
-  useEffect(() => {
-    if (!organizadorId) {
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    setLoading(true)
-    fetch(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((json) => {
-        if (cancelled) return
-        setLigas(Array.isArray(json.data) ? json.data : [])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [organizadorId])
+  const consulta = useConsulta<{ data?: LigaPanel[] }>(organizadorId ? `/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}` : null)
+  const ligas = consulta.dados?.data ?? []
+  const loading = Boolean(organizadorId) && consulta.carregando && ligas.length === 0
 
   if (!hydrated || loading) {
     return (
-      <main className="luva-shell public-dashboard creator-dashboard min-h-screen">
-        <PageLoading label="Carregando seus campeonatos..." />
+      <main className="luva-shell public-dashboard creator-dashboard min-h-screen px-4 py-16 text-white">
+        <p className="text-sm font-bold text-white/60">Carregando seus campeonatos...</p>
       </main>
     )
   }
 
-  if (!session || session.tipo !== 'organizador') {
+  if (consulta.erro && ligas.length === 0) {
+    return (
+      <main className="luva-shell public-dashboard min-h-screen px-4 py-16 text-white">
+        <p className="text-sm font-bold text-amber-200">{consulta.erro}</p>
+        <button type="button" onClick={() => consulta.tentarNovamente()} className="mt-4 rounded-full bg-[#ffb331] px-4 py-2 text-sm font-black text-[#050914]">Tentar novamente</button>
+      </main>
+    )
+  }
+
+  if (session && session.tipo !== 'organizador') {
     return (
       <main className="luva-shell public-dashboard min-h-screen px-4 py-10 text-white">
         <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center">
-          <h1 className="font-display text-3xl font-black">Acesso restrito</h1>
-          <p className="mt-3 text-sm font-semibold text-slate-300">Entre com sua conta de organizador para ver seus campeonatos.</p>
-          <Link href="/painel" className="mt-6 inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white">Voltar ao painel</Link>
+          <h1 className="font-display text-3xl font-black">Acesso negado</h1>
+          <p className="mt-3 text-sm font-semibold text-slate-300">Esta lista é do organizador. A conta atual não cria campeonatos.</p>
+          <Link href="/painel" className="mt-6 inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white">Ir para o seu painel</Link>
+        </section>
+      </main>
+    )
+  }
+
+  if (!session) {
+    return (
+      <main className="luva-shell public-dashboard min-h-screen px-4 py-10 text-white">
+        <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center">
+          <h1 className="font-display text-3xl font-black">Entre para ver seus campeonatos</h1>
+          <p className="mt-3 text-sm font-semibold text-slate-300">Use a conta de organizador para abrir esta lista.</p>
+          <Link href="/login" className="mt-6 inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white">Entrar</Link>
         </section>
       </main>
     )

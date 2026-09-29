@@ -20,7 +20,7 @@ export default async function AdminDashboardPage() {
 
     const { data } = await supabase
       .from('Partida')
-      .select('*, equipeA:Equipe!equipeAId(nome), equipeB:Equipe!equipeBId(nome)')
+      .select('*, equipeA:Equipe!Partida_equipeAId_fkey(nome), equipeB:Equipe!Partida_equipeBId_fkey(nome)')
       .in('status', ['AGENDADA', 'EM_ANDAMENTO'])
       .order('dataHora', { ascending: true })
       .limit(5)

@@ -11,7 +11,10 @@
     "test:team-sync": "set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node scripts/team-registration-sync.test.ts",
     "test:registration-draft": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/team-registration-draft.test.ts",
     "test:championship-setup": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/championship-setup.test.ts",
-    "test:pricing": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/pricing.test.ts"
+    "test:pricing": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/pricing.test.ts",
+    "test:categorias": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/category-match-rules.test.ts && ts-node -r tsconfig-paths/register scripts/category-pricing.test.ts && ts-node -r tsconfig-paths/register scripts/category-replication.test.ts",
+    "test:simulacao": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/simulacao.test.ts",
+    "seed:simulacao": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/recriar-simulacao.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

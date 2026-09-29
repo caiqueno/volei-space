@@ -1,12 +1,9 @@
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
-import Link from 'next/link'
-import { ArrowRight, BarChart3, CalendarDays, ClipboardCheck, QrCode, Trophy, Users } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardCheck, QrCode, Trophy } from 'lucide-react'
 import { EquipeCard } from '@/components/equipes/EquipeCard'
-import { TeamIdentity } from '@/components/equipes/TeamIdentity'
-import { PartidaCard } from '@/components/partidas/PartidaCard'
-import { PodioFinal } from '@/components/classificacao/PodioFinal'
+import { PortalAtivosCarousel } from '@/components/portal/PortalAtivosCarousel'
+import { PortalAgenda } from '@/components/portal/PortalAgenda'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { readPublicSession } from '@/lib/auth'
@@ -25,108 +22,14 @@ type PageProps = {
 
 export default async function PortalPage({ searchParams }: PageProps) {
   const params = searchParams ? await searchParams : {}
-  const { scope, liga, equipes, partidas, partidaDestaque, emAndamento, podium, mensagens, premiacoes } = await getPortalHome(params)
-  const totalAtletas = equipes.reduce((acc: number, equipe: any) => acc + Number(equipe.quantidadeJogadores ?? equipe.jogadores?.length ?? 0), 0)
+  const { scope, liga, equipes, grupos, partidasFalha, agendaGlobal, mensagens, premiacoes } = await getPortalHome(params)
   const session = await readPublicSession()
   const perfilPublico = session?.tipo === 'publico'
   const esconderGuia = perfilPublico || params.embed === '1'
 
   return (
     <main className="luva-shell min-h-screen overflow-hidden pb-28 lg:pb-0">
-      <section className="orange-wave">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 lg:grid-cols-[1fr_500px] lg:items-center lg:py-16">
-          <div className="motion-in">
-            <p className="luva-kicker">{liga?.subtitulo ?? 'Portal do campeonato'}</p>
-            <h1 className="mt-5 max-w-4xl font-display text-5xl font-black leading-[0.9] text-white md:text-7xl">
-              {liga?.nome ?? 'Crie seu primeiro campeonato.'}
-            </h1>
-            <p className="mt-6 max-w-2xl text-base font-semibold leading-8 text-slate-200">
-              {liga?.descricao ?? 'O portal ficará pronto assim que você criar um campeonato no painel do criador.'}
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {scope.organizadorId && !scope.selectedLiga ? (
-                <Link href="/painel" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-3.5 text-sm font-black text-slate-950 transition hover:bg-amber-300">
-                  Criar campeonato
-                  <ArrowRight size={18} />
-                </Link>
-              ) : (
-                <>
-                  <Link href={scope.selectedLiga ? buildScopedHref('/jogos', scope) : '/jogos'} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-luva-amber px-5 py-3.5 text-sm font-black text-slate-950 transition hover:bg-amber-300">
-                    Ver calendário
-                    <ArrowRight size={18} />
-                  </Link>
-                  <Link href={scope.selectedLiga ? buildScopedHref('/classificacao', scope) : '/classificacao'} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/8 px-5 py-3.5 text-sm font-black text-white shadow-sm transition hover:border-luva-amber/70">
-                    Ver classificação
-                  </Link>
-                </>
-              )}
-            </div>
-
-            <div className="mt-10 grid max-w-2xl grid-cols-3 gap-3">
-              <Metric label="Equipes" value={equipes.length} />
-              <Metric label="Atletas" value={totalAtletas || 0} />
-              <Metric label="Jogos" value={partidas.length} />
-            </div>
-
-            {podium.length > 0 && (
-              <div className="mt-10 max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="luva-kicker mb-3">Pódio final</p>
-                <PodioFinal podium={podium} variant="hero" />
-              </div>
-            )}
-          </div>
-
-          <div className="motion-in-delay luva-surface overflow-hidden rounded-[30px]">
-            <div className="relative h-52 bg-slate-950/60">
-              <Image src="/brand/volei-space_fundo-quadrado.png" alt="volei.space" fill sizes="500px" className="object-cover opacity-50" priority />
-              <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/90 via-slate-950/30 to-luva-amber/20" />
-              <div className="absolute left-5 top-5 flex items-center gap-3">
-                <span className="relative h-12 w-12 overflow-hidden rounded-xl">
-                  <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="48px" className="object-contain" />
-                </span>
-                <div>
-                  <p className="font-display text-lg font-black text-[#ffffff]">{liga?.nome ?? 'volei.space'}</p>
-                  <p className="text-xs font-bold text-slate-200">Central da competição</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="luva-kicker">{emAndamento ? 'Ao vivo agora' : 'Próximo jogo'}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-200">{emAndamento ? 'Acompanhe a partida em tempo real' : 'Agenda da rodada'}</p>
-                </div>
-                {emAndamento ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1 text-xs font-black text-sky-200">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-300" />
-                    Ao vivo
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-black text-emerald-200">Agendado</span>
-                )}
-              </div>
-
-              {partidaDestaque ? (
-                <Link
-                  href={`/partidas/${partidaDestaque.id}/ao-vivo`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 transition hover:border-luva-amber/60"
-                >
-                  <TeamPreview equipe={partidaDestaque.equipeA} />
-                  <span className="rounded-2xl bg-luva-amber px-3 py-2 text-sm font-black text-slate-950">
-                    {emAndamento ? `${partidaDestaque.setsPorA ?? 0}x${partidaDestaque.setsPorB ?? 0}` : 'VS'}
-                  </span>
-                  <TeamPreview equipe={partidaDestaque.equipeB} align="right" />
-                </Link>
-              ) : (
-                <p className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-bold text-slate-200">Calendário em montagem.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+      <PortalAtivosCarousel />
 
       <LeagueScopeBar ligas={scope.ligas} selected={scope.selectedLiga} organizadorId={scope.organizadorId} basePath="/portal" />
 
@@ -143,21 +46,16 @@ export default async function PortalPage({ searchParams }: PageProps) {
             </section>
           )}
 
-          <section className={`mx-auto grid max-w-7xl gap-8 px-4 py-8 ${esconderGuia ? '' : 'lg:grid-cols-[1.15fr_0.85fr]'}`}>
-            <div>
-              <SectionHeader label={perfilPublico ? 'Jogos' : 'Agenda'} title="Jogos em destaque" />
-              {partidas.length === 0 ? (
-                <EstadoVazio titulo="Nenhum jogo agendado" descricao="As partidas aparecerão aqui quando forem cadastradas pela organização." />
-              ) : (
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  {partidas.map((partida: any) => <PartidaCard key={partida.id} partida={partida} />)}
-                </div>
-              )}
+          <section className="mx-auto max-w-7xl px-4 py-8">
+            <SectionHeader label={agendaGlobal ? 'Todos os campeonatos' : (liga?.nome || (perfilPublico ? 'Jogos' : 'Agenda'))} title="Jogos do campeonato" />
+            <div className="mt-5">
+              <PortalAgenda ligaId={agendaGlobal ? null : liga?.id ?? null} global={agendaGlobal} inicial={grupos} falhaInicial={partidasFalha} />
             </div>
+          </section>
 
-            {!esconderGuia && (
-              <div>
-                <SectionHeader label="Operação" title="Fluxo da competição" />
+          {!esconderGuia && (
+          <section className="mx-auto max-w-7xl px-4">
+              <SectionHeader label="Operação" title="Fluxo da competição" />
                 <div className="luva-surface mt-5 overflow-hidden rounded-2xl">
                   {['Cadastrar equipes e atletas', 'Gerar QR Codes de inscrição', 'Registrar súmula da partida', 'Aprovar resultado e atualizar tabela'].map((item, index) => (
                     <div key={item} className="flex items-center gap-4 border-b border-white/10 p-4 last:border-b-0">
@@ -166,13 +64,12 @@ export default async function PortalPage({ searchParams }: PageProps) {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </section>
+            </section>
+          )}
 
           <section>
             <div className="mx-auto max-w-7xl px-4 py-10">
-              <SectionHeader label="Elencos" title="Equipes participantes" />
+              <SectionHeader label={liga?.nome || 'Elencos'} title="Equipes participantes" />
               {equipes.length === 0 ? (
                 <div className="mt-5"><EstadoVazio titulo="Nenhuma equipe cadastrada" descricao="As equipes serão exibidas aqui quando a organização ativar a temporada." /></div>
               ) : (
@@ -219,31 +116,6 @@ export default async function PortalPage({ searchParams }: PageProps) {
         </>
       )}
     </main>
-  )
-}
-
-function buildScopedHref(path: string, scope: { organizadorId: string | null; selectedLiga: { id: number } | null }) {
-  const params = new URLSearchParams()
-  if (scope.organizadorId) params.set('organizador', scope.organizadorId)
-  if (scope.selectedLiga) params.set('ligaId', String(scope.selectedLiga.id))
-  const query = params.toString()
-  return query ? `${path}?${query}` : path
-}
-
-function Metric({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/8 p-4 shadow-sm backdrop-blur-xl">
-      <p className="text-3xl font-black text-white">{value}</p>
-      <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-200">{label}</p>
-    </div>
-  )
-}
-
-function TeamPreview({ equipe, align = 'left' }: { equipe: any; align?: 'left' | 'right' }) {
-  return (
-    <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
-      <TeamIdentity nome={equipe.nome} cor={equipe.corHex} align={align} compact />
-    </div>
   )
 }
 

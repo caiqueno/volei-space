@@ -5,6 +5,7 @@ import { requireAuth, requirePublicRole } from '@/lib/auth'
 import { ligaSchema } from '@/lib/schemas'
 import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
+import { isCampeonatoFinalizado, respostaCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -37,6 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ slug
       .single()
 
     if (ligaErr || !ligaAtual) return error('Liga nao encontrada', 404)
+    if (isCampeonatoFinalizado(ligaAtual.status)) return respostaCampeonatoFinalizado()
 
     if (ligaAtual.organizadorId) {
       const auth = await requirePublicRole(req, ['organizador'], { releasedOnly: true })
@@ -110,11 +112,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ s
   try {
     const { data: liga, error: ligaErr } = await supabase
       .from('Liga')
-      .select('id,slug,nome,organizadorId')
+      .select('id,slug,nome,organizadorId,status')
       .eq('slug', slug)
       .single()
 
     if (ligaErr || !liga) return error('Liga nao encontrada', 404)
+    if (isCampeonatoFinalizado(liga.status)) return respostaCampeonatoFinalizado()
 
     if (liga.organizadorId) {
       const auth = await requirePublicRole(req, ['organizador'], { releasedOnly: true })

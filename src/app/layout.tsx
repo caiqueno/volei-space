@@ -3,6 +3,7 @@ import { Manrope } from 'next/font/google'
 import './globals.css'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
+import { IndicadorDemora } from '@/components/ui/IndicadorDemora'
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
 
 const manrope = Manrope({ subsets: ['latin'] })
@@ -91,6 +92,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={manrope.className}>
         <script dangerouslySetInnerHTML={{ __html: "try{if(window.self!==window.top)document.documentElement.classList.add('painel-embed')}catch(e){}" }} />
+        <IndicadorDemora />
         <Header />
         <div className="min-w-0">{children}</div>
         <Footer />

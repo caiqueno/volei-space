@@ -32,7 +32,7 @@ create policy "luv_public_select_liga"
 on public."Liga"
 for select
 to anon, authenticated
-using ("status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA'));
+using ("status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO'));
 
 drop policy if exists "luv_public_select_equipe" on public."Equipe";
 create policy "luv_public_select_equipe"
@@ -43,7 +43,7 @@ using (
   exists (
     select 1 from public."Liga" l
     where l.id = "Equipe"."ligaId"
-      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA')
+      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -58,7 +58,7 @@ using (
     from public."Equipe" e
     join public."Liga" l on l.id = e."ligaId"
     where e.id = "Jogador"."equipeId"
-      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA')
+      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -71,7 +71,7 @@ using (
   exists (
     select 1 from public."Liga" l
     where l.id = "Partida"."ligaId"
-      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA')
+      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -86,7 +86,7 @@ using (
     from public."Partida" p
     join public."Liga" l on l.id = p."ligaId"
     where p.id = "SetPartida"."partidaId"
-      and l."status" in ('ATIVA', 'ENCERRADA')
+      and l."status" in ('ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -101,7 +101,7 @@ using (
     from public."Equipe" e
     join public."Liga" l on l.id = e."ligaId"
     where e.id = "ClassificacaoEntrada"."equipeId"
-      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA')
+      and l."status" in ('EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -114,7 +114,7 @@ using (
   exists (
     select 1 from public."Liga" l
     where l.id = "Premiacao"."ligaId"
-      and l."status" in ('ATIVA', 'ENCERRADA')
+      and l."status" in ('ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -127,7 +127,7 @@ using (
   exists (
     select 1 from public."Liga" l
     where l.id = "Midia"."ligaId"
-      and l."status" in ('ATIVA', 'ENCERRADA')
+      and l."status" in ('ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -141,7 +141,7 @@ using (
   and exists (
     select 1 from public."Liga" l
     where l.id = "Mensagem"."ligaId"
-      and l."status" in ('ATIVA', 'ENCERRADA')
+      and l."status" in ('ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 
@@ -157,7 +157,7 @@ using (
     join public."Liga" l on l.id = p."ligaId"
     where p.id = "DestaquesPartida"."partidaId"
       and p.status = 'ENCERRADA'
-      and l."status" in ('ATIVA', 'ENCERRADA')
+      and l."status" in ('ATIVA', 'ENCERRADA', 'FINALIZADO')
   )
 );
 

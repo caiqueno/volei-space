@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { requireSumulaTokenAccess } from '@/lib/sumula-access'
+import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 
 const schema = z.object({
   qrToken: z.string().min(1),
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const { token } = await params
 
   try {
-    const access = await requireSumulaTokenAccess(token)
+    const access = await requireArbitroPartidaAccess(req, token)
     if (access instanceof Response) return access
     if (access.partida.status === 'ENCERRADA') return error('Partida já encerrada.', 400)
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ChampionshipSetupCardList } from './ChampionshipSetupCardList'
@@ -19,17 +20,15 @@ export function ChampionshipSetupDashboard({ ligaId }: { ligaId: number }) {
     setLoading(true)
     setErrorMessage(null)
 
-    fetch(`/api/organizador/ligas/${ligaId}/setup`, { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error || 'Erro ao carregar a parametrização do campeonato.')
-        return payload.data as ChampionshipSetupOverviewDTO
-      })
+    const controlador = new AbortController()
+    consultar<{ data: ChampionshipSetupOverviewDTO }>(`/api/organizador/ligas/${ligaId}/setup`, { signal: controlador.signal })
+      .then((payload) => payload.data)
       .then((data) => {
         if (!cancelled) setOverview(data)
       })
       .catch((err) => {
-        if (!cancelled) setErrorMessage(err instanceof Error ? err.message : 'Erro ao carregar a parametrização do campeonato.')
+        if (cancelled || err instanceof ConsultaCancelada) return
+        setErrorMessage(err instanceof Error ? err.message : 'Erro ao carregar a parametrização do campeonato.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -37,6 +36,7 @@ export function ChampionshipSetupDashboard({ ligaId }: { ligaId: number }) {
 
     return () => {
       cancelled = true
+      controlador.abort()
     }
   }, [ligaId])
 
@@ -86,6 +86,16 @@ export function ChampionshipSetupDashboard({ ligaId }: { ligaId: number }) {
       </div>
 
       <div className="mt-8">
+        <Link
+          href={`/painel/parametrizacao/categorias?ligaId=${ligaId}`}
+          className="mb-4 flex items-center justify-between rounded-2xl border border-amber-400/40 bg-amber-400/10 px-5 py-4 text-white"
+        >
+          <div>
+            <strong className="block font-display text-lg">Categorias</strong>
+            <p className="text-sm text-slate-300">Cada categoria é uma competição, com tabela, jogos e preço próprios.</p>
+          </div>
+          <span className="text-sm font-bold text-amber-200">Abrir</span>
+        </Link>
         <ChampionshipSetupCardList cards={cards} />
       </div>
     </div>

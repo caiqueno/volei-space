@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error: listError } = await supabase
     .from('CandidaturaArbitro')
-    .select('id,nome,email,status,criadaEm')
+    .select('id,nome,email,status,criadaEm,arbitroId')
     .eq('organizadorId', auth.userId)
     .order('criadaEm', { ascending: false })
 

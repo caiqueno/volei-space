@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import {
   Activity,
   AlertCircle,
@@ -15,8 +16,8 @@ import {
   HelpCircle,
   Menu,
   MessageSquare,
-  Pencil,
   QrCode,
+  Pencil,
   RefreshCw,
   Repeat2,
   RotateCcw,
@@ -116,9 +117,14 @@ export default function SumulaPage() {
   const [partida, setPartida] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [falha, setFalha] = useState('Não foi possível abrir a súmula.')
+  const [tentativa, setTentativa] = useState(0)
   const [submitted, setSubmitted] = useState(false)
+  const [linkPublico, setLinkPublico] = useState('')
+  const [erroOficial, setErroOficial] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [vistaQuadra, setVistaQuadra] = useState<'2d' | '3d'>('3d')
   const [activeTab, setActiveTab] = useState<TabId>('pre')
   const [matchStatus, setMatchStatus] = useState<'pre-game' | 'live' | 'finished'>('pre-game')
   const [currentSet, setCurrentSet] = useState(1)
@@ -164,16 +170,23 @@ export default function SumulaPage() {
   const [substitutionsUsed, setSubstitutionsUsed] = useState<Record<number, Record<TeamId, number>>>({})
   const [sidesInverted, setSidesInverted] = useState(false)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
 
   useEffect(() => {
+    let ativo = true
+    setLoading(true)
+    setNotFound(false)
     fetch(`/api/sumula/${token}`)
-      .then((res) => {
-        if (!res.ok) throw new Error()
-        return res.json()
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json.error || 'Não foi possível abrir a súmula.')
+        return json
       })
       .then((json) => {
+        if (!ativo) return
         const data = json.data
+        if (!data?.equipeA || !data?.equipeB) throw new Error('A partida não tem as duas equipes cadastradas.')
         const teamA = makeTeam('teamA', data.equipeA)
         const teamB = makeTeam('teamB', data.equipeB)
         const loadedRules = getMatchRules(data.liga)
@@ -226,7 +239,7 @@ export default function SumulaPage() {
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setValidatedB(teamB.players.concat(teamB.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setMatchNumberOverrides(restoreMatchNumberOverrides(teamA, teamB, savedPresence))
-        setEvents(savedOccurrences.map((o: any) => ({
+        setEvents(savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => ({
           id: `saved-${o.id}`,
           type: normalizeSavedEventType(o.tipo),
           text: o.descricao ?? 'Ocorrência registrada',
@@ -235,13 +248,18 @@ export default function SumulaPage() {
           score: '--',
           jogadorId: o.jogadorId ?? undefined,
         })))
+        if (!ativo) return
         setLoading(false)
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!ativo) return
+        const rede = err instanceof TypeError
+        setFalha(rede ? 'Falha de conexão. Tente novamente.' : (err instanceof Error && err.message ? err.message : 'Não foi possível abrir a súmula.'))
         setNotFound(true)
         setLoading(false)
       })
-  }, [token])
+    return () => { ativo = false }
+  }, [token, tentativa])
 
   const teamA = useMemo(() => partida ? makeTeam('teamA', partida.equipeA) : null, [partida])
   const teamB = useMemo(() => partida ? makeTeam('teamB', partida.equipeB) : null, [partida])
@@ -309,6 +327,16 @@ export default function SumulaPage() {
     }
     setEvents((current) => [item, ...current])
     return item.id
+  }
+
+  useEffect(() => {
+    const salva = window.localStorage.getItem('volei-quadra-vista')
+    if (salva === '2d' || salva === '3d') setVistaQuadra(salva)
+  }, [])
+
+  function escolherVista(vista: '2d' | '3d') {
+    setVistaQuadra(vista)
+    window.localStorage.setItem('volei-quadra-vista', vista)
   }
 
   function toggleSidesInverted() {
@@ -659,6 +687,20 @@ export default function SumulaPage() {
     setLineup(nextLineup)
     setBench(getBenchNumbers(team, nextLineup, selectedLibero))
     setEditingSlot(null)
+    const formacaoA = teamId === 'teamA' ? nextLineup : lineupA
+    const formacaoB = teamId === 'teamB' ? nextLineup : lineupB
+    setEvents((current) => {
+      const item: MatchEvent = {
+        id: `ev-formacao-${currentSet}`,
+        type: 'anotacao',
+        text: `Formação da quadra atualizada.${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        set: currentSet,
+        score: scoreString(),
+      }
+      return [item, ...current.filter((event) => !event.text.startsWith('Formação da quadra atualizada.'))]
+    })
+    setFormacaoVersao((atual) => atual + 1)
   }
 
   function askSubstitution(teamId: TeamId, index: number) {
@@ -713,11 +755,13 @@ export default function SumulaPage() {
     const inName = inPlayer ? displayPlayerName(inPlayer.name, team.name) : ''
     const outMatchNumber = getMatchNumber(subModal.teamId, subModal.outNumber)
     const inMatchNumber = getMatchNumber(subModal.teamId, inNumber)
+    const formacaoA = isA ? nextLineup : lineupA
+    const formacaoB = isA ? lineupB : nextLineup
     addMatchEvent(
       isLiberoExchange ? 'libero_exchange' : 'substitution',
-      isLiberoExchange
+      `${isLiberoExchange
         ? `Troca de líbero ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`
-        : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`,
+        : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
       subModal.teamId,
     )
     if (!isLiberoExchange) {
@@ -911,10 +955,10 @@ export default function SumulaPage() {
     return () => {
       if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     }
-  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides])
+  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao])
 
   useEffect(() => {
-    if (matchStatus !== 'finished' || submitted || submitting || finalSubmitRef.current) return
+    if (matchStatus !== 'finished' || submitted || submitting || finalSubmitRef.current || partida?.sumulaAprovadaEm) return
     finalSubmitRef.current = true
     let cancelado = false
     const maxTentativas = 3
@@ -928,7 +972,6 @@ export default function SumulaPage() {
         return
       }
       finalSubmitRef.current = false
-      addToast('Não foi possível oficializar automaticamente após várias tentativas. Tente pelo botão de envio final.')
     }
 
     tentarEnvioAutomatico(1)
@@ -943,6 +986,7 @@ export default function SumulaPage() {
     }
     if (submitting) return false
     setSubmitting(true)
+    setErroOficial('')
     if (automatic) addToast('Partida encerrada. Enviando súmula final...')
     const payload = buildSumulaPayload(true)
     let res: Response
@@ -954,32 +998,44 @@ export default function SumulaPage() {
       })
     } catch {
       setSubmitting(false)
+      setErroOficial('Não foi possível enviar a súmula. Verifique sua conexão.')
       if (!automatic) addToast('Não foi possível enviar a súmula. Verifique sua conexão.')
       return false
     }
     setSubmitting(false)
+    const json = await res.json().catch(() => ({}))
     if (res.ok) {
+      const publico = json.data?.publico || `/partidas/${partida.id}/ao-vivo`
       if (String(token).includes('demo')) {
         window.localStorage.setItem(`luv-live-match-${partida.id}`, JSON.stringify(buildDemoLiveSnapshot(payload, 'ENCERRADA')))
       }
-      setPartida((current: any) => current ? { ...current, status: 'ENCERRADA' } : current)
-      addToast('Súmula oficializada e partida encerrada.')
+      setPartida((current: any) => current ? { ...current, status: 'ENCERRADA', sumulaAprovadaEm: current.sumulaAprovadaEm || new Date().toISOString() } : current)
+      setLinkPublico(publico)
+      addToast('Súmula oficializada. O resultado público já pode ser visto.')
       setSubmitted(true)
       return true
     }
 
-    let message = 'Não foi possível enviar a súmula.'
-    try {
-      const json = await res.json()
-      message = json.error || message
-    } catch {}
+    const message = json.error || 'Não foi possível enviar a súmula.'
+    setErroOficial(message)
     if (!automatic) addToast(message)
     return false
   }
 
   if (loading) return <Status icon={<ClipboardList size={26} />} title="Carregando súmula" description="Buscando dados oficiais da partida..." />
-  if (notFound || !partida || !teamA || !teamB) return <Status icon={<ShieldAlert size={26} />} title="Súmula indisponível" description="O link não foi encontrado ou expirou." />
-  if (submitted) return <Status icon={<CheckCircle2 size={28} />} title="Súmula oficializada" description="Resultado, presença, ocorrências e classificação foram registrados como oficiais." success />
+  if (notFound || !partida || !teamA || !teamB) return <Status icon={<ShieldAlert size={26} />} title={notFound ? tituloFalhaSumula(falha) : 'Súmula incompleta'} description={notFound ? falha : 'A partida não tem as duas equipes cadastradas.'} onRetry={() => setTentativa((atual) => atual + 1)} />
+  if (submitted) {
+    const publico = linkPublico || `/partidas/${partida.id}/ao-vivo`
+    return (
+      <Status
+        icon={<CheckCircle2 size={28} />}
+        title="Súmula oficializada"
+        description="O resultado ficou público. Qualquer pessoa com o endereço abaixo vê o placar, os sets e os lances."
+        success
+        action={<a className="official-public-sumula" href={publico} target="_blank" rel="noreferrer">Abrir súmula pública</a>}
+      />
+    )
+  }
 
   if (matchStatus === 'pre-game') {
     return (
@@ -1087,10 +1143,15 @@ export default function SumulaPage() {
         <div className="official-sidebar-footer">
           <span>Status</span>
           <strong>{matchStatus === 'live' ? 'Em jogo' : 'Finalizada'}</strong>
-          <ActionBar type="button" onClick={() => submitSumula()} loading={submitting} loadingLabel="Enviando" disabled={matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : undefined}>
-            <Send size={14} />
-            {matchStatus === 'finished' ? 'Oficializar súmula' : 'Aguardando fim'}
-          </ActionBar>
+          {partida.sumulaAprovadaEm ? (
+            <a className="official-public-sumula" href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer">Ver súmula pública</a>
+          ) : (
+            <ActionBar type="button" onClick={() => submitSumula()} loading={submitting} loadingLabel="Enviando" disabled={matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : undefined}>
+              <Send size={14} />
+              {matchStatus === 'finished' ? 'Oficializar súmula' : 'Aguardando fim'}
+            </ActionBar>
+          )}
+          {erroOficial && <p className="official-submit-error" role="alert">{erroOficial}</p>}
         </div>
       </aside>
 
@@ -1105,6 +1166,10 @@ export default function SumulaPage() {
             <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="official-live-public-link">
               Acompanhar ao vivo
             </a>
+            <div className="official-court-switch" role="group" aria-label="Versão da quadra">
+              <button type="button" aria-pressed={vistaQuadra === '2d'} className={vistaQuadra === '2d' ? 'is-active' : ''} onClick={() => escolherVista('2d')}>2D</button>
+              <button type="button" aria-pressed={vistaQuadra === '3d'} className={vistaQuadra === '3d' ? 'is-active' : ''} onClick={() => escolherVista('3d')}>3D</button>
+            </div>
             {activeTab === 'pontuacao' && podeEncerrarSet && (
               <button
                 type="button"
@@ -1205,6 +1270,7 @@ export default function SumulaPage() {
             timeoutsUsedB={timeoutsUsedB}
             onTimeout={requestTimeout}
             saveNote={saveNote}
+            vistaQuadra={vistaQuadra}
           />
         )}
 
@@ -1235,6 +1301,8 @@ export default function SumulaPage() {
             closeSubModal={() => setSubModal(null)}
             getMatchNumber={getMatchNumber}
             onMatchNumberChange={updateMatchNumber}
+            vistaQuadra={vistaQuadra}
+            sidesInverted={sidesInverted}
           />
         )}
 
@@ -1847,6 +1915,7 @@ function PontuacaoTab(props: {
   timeoutsUsedB: number
   onTimeout: (teamId: TeamId) => void
   saveNote: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
+  vistaQuadra: '2d' | '3d'
 }) {
   const [cardModal, setCardModal] = useState<{ teamId: TeamId; tipo: 'Cartão amarelo' | 'Cartão vermelho' } | null>(null)
   const substitutionTeam = props.subModal?.teamId === 'teamA' ? props.teamA : props.teamB
@@ -1867,9 +1936,15 @@ function PontuacaoTab(props: {
 
   return (
     <>
-      <div className="official-score-layout">
+      {props.vistaQuadra === '2d' ? (
+      <>
+      <div className="official-facing-court" aria-label="Quadra 2D com as equipes de frente">
+        <RosterClickers key={leftTeamId} teamId={leftTeamId} mirrored={false} team={leftTeam} lineup={leftLineup} servingTeam={props.servingTeamId === leftTeamId} serverIndex={leftServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} onAttack={(number) => props.onAttack(leftTeamId, number)} onBlock={(number) => props.onBlock(leftTeamId, number)} onSubstitution={props.onSubstitution} />
+        <div className="official-facing-net" aria-hidden="true"><span>Rede</span></div>
+        <RosterClickers key={rightTeamId} teamId={rightTeamId} mirrored={true} team={rightTeam} lineup={rightLineup} servingTeam={props.servingTeamId === rightTeamId} serverIndex={rightServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} onAttack={(number) => props.onAttack(rightTeamId, number)} onBlock={(number) => props.onBlock(rightTeamId, number)} onSubstitution={props.onSubstitution} />
+      </div>
+      <div className="official-score-layout is-facing">
         <div className="official-team-score-group is-team-a">
-          <RosterClickers teamId={leftTeamId} mirrored={false} team={leftTeam} lineup={leftLineup} servingTeam={props.servingTeamId === leftTeamId} serverIndex={leftServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} onAttack={(number) => props.onAttack(leftTeamId, number)} onBlock={(number) => props.onBlock(leftTeamId, number)} onSubstitution={props.onSubstitution} />
           <CompactTeamControl
             teamId={leftTeamId}
             team={leftTeam}
@@ -1903,9 +1978,55 @@ function PontuacaoTab(props: {
             timeoutsUsed={rightTimeoutsUsed}
             onTimeout={() => props.onTimeout(rightTeamId)}
           />
-          <RosterClickers teamId={rightTeamId} mirrored={true} team={rightTeam} lineup={rightLineup} servingTeam={props.servingTeamId === rightTeamId} serverIndex={rightServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} onAttack={(number) => props.onAttack(rightTeamId, number)} onBlock={(number) => props.onBlock(rightTeamId, number)} onSubstitution={props.onSubstitution} />
         </div>
       </div>
+      </>
+      ) : (
+      <div className="official-match-board">
+        <div className="official-match-controls">
+          <CompactTeamControl
+            teamId={leftTeamId}
+            team={leftTeam}
+            score={props.currentScore[leftTeamId]}
+            serving={props.servingTeamId === leftTeamId}
+            onAce={props.onAce}
+            onPoint={() => props.onTeamPoint(leftTeamId)}
+            onUndo={() => props.onUndoTeamPoint(leftTeamId)}
+            onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
+            timeoutsUsed={leftTimeoutsUsed}
+            onTimeout={() => props.onTimeout(leftTeamId)}
+          />
+          <div className="official-compact-set-score" aria-label="Placar de sets">
+            <span>{props.setsWon[leftTeamId]}</span>
+            <small>sets</small>
+            <span>{props.setsWon[rightTeamId]}</span>
+          </div>
+          <CompactTeamControl
+            teamId={rightTeamId}
+            team={rightTeam}
+            score={props.currentScore[rightTeamId]}
+            serving={props.servingTeamId === rightTeamId}
+            onAce={props.onAce}
+            onPoint={() => props.onTeamPoint(rightTeamId)}
+            onUndo={() => props.onUndoTeamPoint(rightTeamId)}
+            onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
+            timeoutsUsed={rightTimeoutsUsed}
+            onTimeout={() => props.onTimeout(rightTeamId)}
+          />
+        </div>
+        <QuadraVolei
+          modo="jogo"
+          numeroExibido={props.getMatchNumber}
+          destaque={props.pointFlash ? { teamId: props.pointFlash.teamId, numero: props.pointFlash.number } : null}
+          esquerda={ladoQuadra(leftTeam, leftLineup, props.servingTeamId === leftTeamId, leftServerIndex)}
+          direita={ladoQuadra(rightTeam, rightLineup, props.servingTeamId === rightTeamId, rightServerIndex)}
+          onAtaque={(teamId, numero) => props.onAttack(teamId, numero)}
+          onBloqueio={(teamId, numero) => props.onBlock(teamId, numero)}
+          onAce={() => props.onAce()}
+          onSubstituicao={props.onSubstitution}
+        />
+      </div>
+      )}
       {props.subModal && (
         <PlayerModal
           title="Substituir atleta"
@@ -1960,8 +2081,11 @@ function EscalacaoTab(props: {
   closeSubModal: () => void
   getMatchNumber: (teamId: TeamId, number: string) => string
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
+  vistaQuadra: '2d' | '3d'
+  sidesInverted: boolean
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId>('teamA')
+  const [pickedNumber, setPickedNumber] = useState<string | null>(null)
   const [substitutionMode, setSubstitutionMode] = useState(false)
   const [editingNumberSlot, setEditingNumberSlot] = useState<number | null>(null)
   const [editingNumberDraft, setEditingNumberDraft] = useState('')
@@ -1973,16 +2097,110 @@ function EscalacaoTab(props: {
   useEffect(() => {
     setSubstitutionMode(false)
     setEditingNumberSlot(null)
+    setPickedNumber(null)
   }, [selectedTeamId, props.currentSet, props.lineupConfirmed])
   const team = selectedTeamId === 'teamA' ? props.teamA : props.teamB
   const lineup = selectedTeamId === 'teamA' ? props.lineupA : props.lineupB
   const bench = (selectedTeamId === 'teamA' ? props.benchA : props.benchB).filter((number) => number !== (props.startingLiberos[selectedTeamId] ?? ''))
   const selectedLibero = props.startingLiberos[selectedTeamId] ?? ''
   const liberoOptions = getLiberoOptions(team, lineup)
-  const positions = ['P4', 'P3', 'P2', 'P5', 'P6', 'P1']
+  const posicoes = ['P4', 'P3', 'P2', 'P5', 'P6', 'P1']
   const selectedTeamConfirmed = selectedTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
   const reviewLibero = props.startingLiberos[selectedTeamId] ?? ''
   const buttonLabel = selectedTeamConfirmed ? `${team.name} confirmado` : `Confirmar ${team.name}`
+  const ladoEsquerdoId: TeamId = props.sidesInverted ? 'teamB' : 'teamA'
+  const ladoDireitoId: TeamId = props.sidesInverted ? 'teamA' : 'teamB'
+  const equipeEsquerda = ladoEsquerdoId === 'teamA' ? props.teamA : props.teamB
+  const equipeDireita = ladoDireitoId === 'teamA' ? props.teamA : props.teamB
+  const escalacaoEsquerda = ladoEsquerdoId === 'teamA' ? props.lineupA : props.lineupB
+  const escalacaoDireita = ladoDireitoId === 'teamA' ? props.lineupA : props.lineupB
+  const zonasEsquerda = [
+    { label: 'P5', index: 3 },
+    { label: 'P4', index: 0 },
+    { label: 'P6', index: 4 },
+    { label: 'P3', index: 1 },
+    { label: 'P1', index: 5 },
+    { label: 'P2', index: 2 },
+  ]
+  const zonasDireita = [
+    { label: 'P2', index: 2 },
+    { label: 'P1', index: 5 },
+    { label: 'P3', index: 1 },
+    { label: 'P6', index: 4 },
+    { label: 'P4', index: 0 },
+    { label: 'P5', index: 3 },
+  ]
+
+  function abrirPosicao(teamId: TeamId, index: number) {
+    if (teamId !== selectedTeamId) setSelectedTeamId(teamId)
+    if (props.lineupConfirmed) props.askSubstitution(teamId, index)
+    else props.setEditingSlot({ teamId, index })
+  }
+
+  function ladoEscalacao2d(teamId: TeamId, zonas: Array<{ label: string; index: number }>) {
+    const sideTeam = teamId === 'teamA' ? props.teamA : props.teamB
+    const sideLineup = teamId === 'teamA' ? props.lineupA : props.lineupB
+    const sideConfirmed = teamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
+    const sideLibero = props.startingLiberos[teamId] ?? ''
+    return (
+      <div className={`official-court is-facing ${teamId === selectedTeamId ? 'is-selected' : ''}`}>
+        <strong>{sideTeam.name}</strong>
+        <div>
+          {zonas.map((slot) => {
+            const number = sideLineup[slot.index]
+            const player = getAnyPlayer(sideTeam, number)
+            const canEditNumber = props.currentSet === 1 && teamId === selectedTeamId && !sideConfirmed && Boolean(number)
+            const displayNumber = number ? props.getMatchNumber(teamId, number) : number
+            return (
+              <div
+                key={`${teamId}-${slot.label}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => abrirPosicao(teamId, slot.index)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  abrirPosicao(teamId, slot.index)
+                }}
+                className={`${number ? 'is-filled' : ''} ${teamId === selectedTeamId && substitutionMode ? 'is-substitution-mode' : ''} ${number && number === sideLibero ? 'is-libero-start' : ''}`}
+              >
+                <span>{slot.label}</span>
+                {number && canEditNumber && editingNumberSlot === slot.index ? (
+                  <input
+                    className="official-slot-number-edit"
+                    value={editingNumberDraft}
+                    autoFocus
+                    aria-label="Número do atleta na partida"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      event.stopPropagation()
+                      if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur()
+                    }}
+                    onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
+                    onBlur={() => { props.onMatchNumberChange(teamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
+                  />
+                ) : (
+                  <strong>{number ? `#${displayNumber}` : 'Sem atleta'}</strong>
+                )}
+                {number && number === sideLibero && <em>Líbero</em>}
+                <small>{player ? displayPlayerName(player.name, sideTeam.name) : 'Clique para escalar'}</small>
+                {canEditNumber && (
+                  <button
+                    type="button"
+                    className="official-sub-action is-icon official-slot-edit-number"
+                    onClick={(event) => { event.stopPropagation(); setSelectedTeamId(teamId); setEditingNumberDraft(displayNumber); setEditingNumberSlot(slot.index) }}
+                    aria-label={`Corrigir número do atleta ${number} nesta partida`}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="official-panel">
@@ -2014,65 +2232,69 @@ function EscalacaoTab(props: {
               <span>{team.name}</span>
             </div>
           </div>
-          <div className="official-court">
-            <div>
-              {positions.map((position, index) => {
+          {props.vistaQuadra === '2d' ? (
+          <div className="official-facing-court" aria-label="Escalação 2D com as equipes de frente">
+            {ladoEscalacao2d(ladoEsquerdoId, zonasEsquerda)}
+            <div className="official-facing-net" aria-hidden="true"><span>Rede</span></div>
+            {ladoEscalacao2d(ladoDireitoId, zonasDireita)}
+          </div>
+          ) : (
+          <>
+          <p className="volley-help">{props.lineupConfirmed ? 'A formação em quadra segue a rotação oficial. Toque em um atleta para substituir.' : 'Toque numa posição ou arraste um atleta do banco. A equipe selecionada é a que pode ser editada.'}{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}{substitutionMode ? ' Modo substituição ativo.' : ''}</p>
+          <QuadraVolei
+            modo="escalacao"
+            numeroExibido={props.getMatchNumber}
+            esquerda={ladoEscalacao(equipeEsquerda, escalacaoEsquerda, !props.lineupConfirmed && selectedTeamId === ladoEsquerdoId, props.startingLiberos[ladoEsquerdoId] ?? '')}
+            direita={ladoEscalacao(equipeDireita, escalacaoDireita, !props.lineupConfirmed && selectedTeamId === ladoDireitoId, props.startingLiberos[ladoDireitoId] ?? '')}
+            onAtivar={(teamId, indice) => {
+              if (!props.lineupConfirmed && teamId !== selectedTeamId) {
+                setSelectedTeamId(teamId)
+                setPickedNumber(null)
+                return
+              }
+              if (!props.lineupConfirmed && pickedNumber) {
+                props.changeSlot(teamId, indice, pickedNumber)
+                setPickedNumber(null)
+                return
+              }
+              if (props.lineupConfirmed) props.askSubstitution(teamId, indice)
+              else props.setEditingSlot({ teamId, index: indice })
+            }}
+            onSoltar={(teamId, indice, numero) => {
+              if (props.lineupConfirmed || teamId !== selectedTeamId) return
+              props.changeSlot(teamId, indice, numero)
+              setPickedNumber(null)
+            }}
+          />
+          {props.currentSet === 1 && !selectedTeamConfirmed && (
+            <div className="volley-numbers">
+              {posicoes.map((posicao, index) => {
                 const number = lineup[index]
-                const player = getAnyPlayer(team, number)
-                const canEditNumber = props.currentSet === 1 && !selectedTeamConfirmed && Boolean(number)
-                const displayNumber = number ? props.getMatchNumber(selectedTeamId, number) : number
+                if (!number) return null
+                const displayNumber = props.getMatchNumber(selectedTeamId, number)
+                const editing = editingNumberSlot === index
                 return (
-                  <div
-                    key={position}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      if (props.lineupConfirmed) return props.askSubstitution(selectedTeamId, index)
-                      return props.setEditingSlot({ teamId: selectedTeamId, index })
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter' && event.key !== ' ') return
-                      event.preventDefault()
-                      if (props.lineupConfirmed) props.askSubstitution(selectedTeamId, index)
-                      else props.setEditingSlot({ teamId: selectedTeamId, index })
-                    }}
-                    className={`${number ? 'is-filled' : ''} ${substitutionMode ? 'is-substitution-mode' : ''} ${number && number === selectedLibero ? 'is-libero-start' : ''}`}
-                  >
-                    <span>{position}</span>
-                    {number && canEditNumber && editingNumberSlot === index ? (
+                  <label key={posicao}>
+                    <span>{posicao}</span>
+                    {editing ? (
                       <input
-                        className="official-slot-number-edit"
                         value={editingNumberDraft}
                         autoFocus
-                        aria-label="Número do atleta na partida"
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                          event.stopPropagation()
-                          if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur()
-                        }}
+                        aria-label={`Número de ${posicao} nesta partida`}
                         onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
                         onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
+                        onKeyDown={(event) => { if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur() }}
                       />
                     ) : (
-                      <strong>{number ? `#${displayNumber}` : 'Sem atleta'}</strong>
+                      <button type="button" onClick={() => { setEditingNumberDraft(displayNumber); setEditingNumberSlot(index) }} aria-label={`Corrigir número do atleta ${number}`}>#{displayNumber}</button>
                     )}
-                    {number && number === selectedLibero && <em>Líbero</em>}
-                    <small>{player?.name ?? 'Clique para escalar'}</small>
-                    {canEditNumber && (
-                      <button
-                        type="button"
-                        className="official-sub-action is-icon official-slot-edit-number"
-                        onClick={(event) => { event.stopPropagation(); setEditingNumberDraft(displayNumber); setEditingNumberSlot(index) }}
-                        aria-label={`Corrigir número do atleta ${number} nesta partida`}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    )}
-                  </div>
+                  </label>
                 )
               })}
             </div>
-          </div>
+          )}
+          </>
+          )}
           <div className="official-libero-start">
             <div>
               <span>Líbero inicial</span>
@@ -2100,7 +2322,22 @@ function EscalacaoTab(props: {
         <section className="official-mini-panel official-span-4">
           <div className="official-section-row"><h3>Banco de reservas</h3><span>{bench.length} atletas</span></div>
           <div className="official-bench">
-            {bench.map((number) => <div key={number}><strong>#{number}</strong><span>{getAnyPlayer(team, number)?.name ?? 'Atleta'}</span></div>)}
+            {bench.map((number) => (
+              <button
+                key={number}
+                type="button"
+                draggable={!props.lineupConfirmed}
+                className={pickedNumber === number ? 'is-picked' : ''}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('text/plain', number)
+                  event.dataTransfer.effectAllowed = 'move'
+                }}
+                onClick={() => setPickedNumber((atual) => atual === number ? null : number)}
+              >
+                <strong>#{props.getMatchNumber(selectedTeamId, number)}</strong>
+                <span>{getAnyPlayer(team, number)?.name ?? 'Atleta'}</span>
+              </button>
+            ))}
           </div>
         </section>
       </div>
@@ -2614,6 +2851,28 @@ function StartMatchConfirmModal({
   )
 }
 
+function ladoQuadra(team: Team, escalacao: string[], sacando: boolean, indiceSaque: number) {
+  return {
+    id: team.id,
+    nome: team.name,
+    atletas: [...team.players, ...team.reserves],
+    escalacao,
+    sacando,
+    indiceSaque,
+  }
+}
+
+function ladoEscalacao(team: Team, escalacao: string[], editavel: boolean, libero: string) {
+  return {
+    id: team.id,
+    nome: team.name,
+    atletas: [...team.players, ...team.reserves],
+    escalacao,
+    libero,
+    editavel,
+  }
+}
+
 function RosterClickers({
   teamId,
   mirrored,
@@ -2641,30 +2900,32 @@ function RosterClickers({
 }) {
   const visualSlots = !mirrored
     ? [
-      { label: 'P1', index: 5 },
-      { label: 'P6', index: 4 },
       { label: 'P5', index: 3 },
-      { label: 'P2', index: 2 },
-      { label: 'P3', index: 1 },
       { label: 'P4', index: 0 },
+      { label: 'P6', index: 4 },
+      { label: 'P3', index: 1 },
+      { label: 'P1', index: 5 },
+      { label: 'P2', index: 2 },
     ]
     : [
-      { label: 'P4', index: 0 },
-      { label: 'P3', index: 1 },
       { label: 'P2', index: 2 },
-      { label: 'P5', index: 3 },
-      { label: 'P6', index: 4 },
       { label: 'P1', index: 5 },
+      { label: 'P3', index: 1 },
+      { label: 'P6', index: 4 },
+      { label: 'P4', index: 0 },
+      { label: 'P5', index: 3 },
     ]
   return (
     <section className="official-mini-panel">
       <div className="official-section-row official-roster-header">
         <h3>{team.name}</h3>
       </div>
-      <div className="official-player-grid">
+      <div className="official-player-grid is-facing">
         {visualSlots.map((slot) => {
           const index = slot.index
           const number = lineup[index]
+          const player = number ? getAnyPlayer(team, number) : undefined
+          const nome = player ? displayPlayerName(player.name, team.name) : ''
           const scored = pointFlash?.teamId === teamId && pointFlash.number === number
           const frontRow = ['P2', 'P3', 'P4'].includes(slot.label)
           return (
@@ -2686,11 +2947,14 @@ function RosterClickers({
               <div className="official-player-card-top">
                 <i>{slot.label}</i>
               </div>
-              {number ? (
-                <span className="official-player-number-edit">{getMatchNumber(teamId, number)}</span>
-              ) : (
-                <span>--</span>
-              )}
+              <div className="official-player-identity">
+                {number ? (
+                  <span className="official-player-number-edit">{getMatchNumber(teamId, number)}</span>
+                ) : (
+                  <span>--</span>
+                )}
+                {nome && <small className="official-player-name">{nome}</small>}
+              </div>
               <div className="official-player-actions">
                 {frontRow && number && <button className="official-point-action is-block" type="button" onClick={(event) => { event.stopPropagation(); onBlock(number) }} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
                 {number && <button className="official-sub-action is-icon" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
@@ -2874,8 +3138,17 @@ function Empty({ text }: { text: string }) {
   return <div className="official-empty"><HelpCircle size={24} /><p>{text}</p></div>
 }
 
-function Status({ icon, title, description, success = false }: { icon: ReactNode; title: string; description: string; success?: boolean }) {
-  return <main className="official-sumula official-status"><div className="official-panel"><span className={success ? 'success' : ''}>{icon}</span><h1>{title}</h1><p>{description}</p></div></main>
+function tituloFalhaSumula(mensagem: string) {
+  if (mensagem.includes('Entre para')) return 'Entre para abrir a súmula'
+  if (mensagem.includes('escalado') || mensagem.includes('não pode abrir') || mensagem.includes('não é do seu')) return 'Sem autorização'
+  if (mensagem.includes('não encontrada')) return 'Partida não encontrada'
+  if (mensagem.includes('expirou')) return 'Link expirado'
+  if (mensagem.includes('Falha de conexão')) return 'Falha de conexão'
+  return 'Súmula indisponível'
+}
+
+function Status({ icon, title, description, success = false, onRetry, action }: { icon: ReactNode; title: string; description: string; success?: boolean; onRetry?: () => void; action?: ReactNode }) {
+  return <main className="official-sumula official-status"><div className="official-panel"><span className={success ? 'success' : ''}>{icon}</span><h1>{title}</h1><p>{description}</p>{action}<div className="mt-4">{onRetry ? <button type="button" onClick={onRetry} className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950">Tentar novamente</button> : null}</div></div></main>
 }
 
 function restoreMatchNumberOverrides(teamA: Team, teamB: Team, savedPresence: any[]): Record<TeamId, Record<number, string>> {

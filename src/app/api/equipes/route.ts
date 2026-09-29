@@ -57,9 +57,18 @@ export async function POST(req: NextRequest) {
     const parsed = equipeSchema.safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
 
+    const { data: categoria } = await supabase
+      .from('CategoriaCampeonato')
+      .select('id')
+      .eq('ligaId', parsed.data.ligaId)
+      .eq('codigo', parsed.data.categoria)
+      .is('removidaEm', null)
+      .maybeSingle()
+    if (!categoria) return error('Esta categoria não está disponível no campeonato.', 422)
+
     const { data, error: err } = await supabase
       .from('Equipe')
-      .insert(parsed.data)
+      .insert({ ...parsed.data, serie: null, categoriaCampeonatoId: categoria.id })
       .select()
       .single()
 

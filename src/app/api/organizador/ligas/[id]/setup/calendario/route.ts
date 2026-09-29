@@ -17,6 +17,7 @@ import {
   readSetupIntent,
 } from '@/lib/championship-setup-access'
 import { setupCalendarioSchema } from '@/lib/schemas'
+import { categoryIdFromRequest, loadCategorySection, saveCategorySection } from '@/lib/category-setup-delegate'
 import { describeSchemaError } from '@/lib/setup-field-errors'
 import { coerceIsoDate } from '@/lib/date-brazil'
 
@@ -36,6 +37,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const ligaId = Number(id)
   const liga = await requireOwnedLigaForSetup(req, ligaId, COLUMNS)
   if (liga instanceof Response) return liga
+  if (categoryIdFromRequest(req)) {
+    const categoryView = await loadCategorySection(req, ligaId)
+    if (categoryView && categoryView.status !== 200) return categoryView
+    const payload = await categoryView!.json()
+    return success({ ...payload.data, locais: await listLocais(ligaId) })
+  }
 
   return success({ ...liga, locais: await listLocais(ligaId) })
 }
@@ -69,6 +76,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const intent = readSetupIntent(req)
+  const categorySave = await saveCategorySection({
+    req, ligaId, organizadorId: String(liga.organizadorId), section: 'calendario', patch: parsed.data, intent,
+  })
+  if (categorySave) {
+    if (categorySave.status !== 200) return categorySave
+    const payload = await categorySave.json()
+    return success({ ...payload.data, locais: await listLocais(ligaId) })
+  }
   const applied = await applySectionPatch({
     ligaId,
     section: 'calendario',
@@ -81,6 +96,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (applied instanceof Response) return applied
 
   const finalized = await finalizeSectionPatch({ ligaId, section: 'calendario', intent, ligaAfterPatch: applied.data })
+  if (finalized instanceof Response) return finalized
 
   // Devolve `locais` também no PATCH (o GET já devolvia) para o wizard não
   // precisar de um segundo fetch depois de cada autosave.

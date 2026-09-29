@@ -22,7 +22,7 @@ export async function getLeaguePlayerScouts(ligaId: number): Promise<PlayerScout
 
   const { data: partidas, error: partidasErr } = await supabase
     .from('Partida')
-    .select('id,equipeAId,equipeBId,status,vencedorId,sumulaSubmetidaEm,sumulaAprovadaEm,equipeA:Equipe!equipeAId(nome),equipeB:Equipe!equipeBId(nome)')
+    .select('id,equipeAId,equipeBId,status,vencedorId,sumulaSubmetidaEm,sumulaAprovadaEm,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)')
     .eq('ligaId', ligaId)
   if (partidasErr) throw partidasErr
 

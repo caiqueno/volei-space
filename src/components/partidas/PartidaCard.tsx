@@ -16,27 +16,36 @@ type Partida = {
   setsPorB: number | null
   sets: Set[]
   sumulaToken?: string | null
+  fase?: string | null
+  liga?: { id?: number; nome?: string | null } | null
 }
 
 const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' | 'warning' | 'success' | 'error' }> = {
   AGENDADA: { label: 'Agendada', variant: 'neutral' },
-  EM_ANDAMENTO: { label: 'Ao vivo', variant: 'info' },
+  EM_ANDAMENTO: { label: 'Em andamento', variant: 'info' },
+  CANCELADA: { label: 'Cancelada', variant: 'neutral' },
   PENDENTE_APROVACAO: { label: 'Em análise', variant: 'warning' },
   ENCERRADA: { label: 'Encerrada', variant: 'success' },
   WO: { label: 'W.O.', variant: 'error' },
 }
 
 export function PartidaCard({ partida, showSumulaLink = false, roundLabel }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string }) {
-  const badge = statusBadge[partida.status] ?? { label: partida.status, variant: 'neutral' as const }
+  const badge = statusBadge[partida.status] ?? { label: partida.status || 'Status não informado', variant: 'neutral' as const }
+  const emAndamento = partida.status === 'EM_ANDAMENTO'
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
+  const mostraPlacar = emAndamento || encerrada
+  const setAtual = emAndamento ? [...(partida.sets ?? [])].sort((a, b) => a.numero - b.numero).at(-1) : null
   const dataFmt = formatMatchDate(partida.dataHora)
-  const liveLabel = encerrada ? 'Resumo da partida' : partida.status === 'EM_ANDAMENTO' ? 'Acompanhar ao vivo' : 'Link público'
+  const liveLabel = encerrada ? 'Resumo da partida' : emAndamento ? 'Acompanhar ao vivo' : 'Link público'
   const sumulaHref = showSumulaLink && partida.sumulaToken ? `/sumula/${encodeURIComponent(partida.sumulaToken)}` : null
 
   return (
     <article className="luva-card flex min-h-[258px] flex-col rounded-2xl p-5">
       <div className="mb-5 flex items-start justify-between gap-3">
-        <span className="min-w-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">{roundLabel ?? `Rodada ${partida.rodada}`}</span>
+        <span className="min-w-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+          {partida.liga?.nome && <span className="mb-1 block normal-case tracking-normal text-slate-400">{partida.liga.nome}</span>}
+          {roundLabel ?? `Rodada ${partida.rodada}`}{partida.fase ? ` · ${partida.fase}` : ''}
+        </span>
         <span className="shrink-0"><Badge variant={badge.variant}>{badge.label}</Badge></span>
       </div>
 
@@ -44,12 +53,17 @@ export function PartidaCard({ partida, showSumulaLink = false, roundLabel }: { p
         <TeamBlock equipe={partida.equipeA} align="right" />
 
         <div className="flex min-w-0 flex-col items-center pt-3 text-center">
-          {encerrada ? (
+          {mostraPlacar ? (
             <>
-              <div className="w-full rounded-2xl bg-slate-100 px-2 py-3 font-mono text-xl font-black text-slate-950">
+              <div className={`w-full rounded-2xl px-2 py-3 font-mono text-xl font-black text-slate-950 ${emAndamento ? 'bg-sky-100' : 'bg-slate-100'}`}>
                 {partida.setsPorA ?? 0}<span className="px-1 text-luva-amber">x</span>{partida.setsPorB ?? 0}
               </div>
-              {partida.sets?.length > 0 && (
+              {setAtual && (
+                <p className="mt-2 max-w-[86px] text-[10px] font-bold leading-4 text-slate-500">
+                  Set {setAtual.numero}: {setAtual.pontosA}-{setAtual.pontosB}
+                </p>
+              )}
+              {encerrada && partida.sets?.length > 0 && (
                 <p className="mt-2 max-w-[86px] text-[10px] font-bold leading-4 text-slate-500">
                   {partida.sets.map((s) => `${s.pontosA}-${s.pontosB}`).join(' / ')}
                 </p>
@@ -108,7 +122,8 @@ function formatMatchDate(value: Date | string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'A definir'
 
-  return date.toLocaleDateString('pt-BR', {
+  return date.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
     day: '2-digit',
     month: 'short',
     hour: '2-digit',

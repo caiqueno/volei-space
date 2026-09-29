@@ -128,7 +128,7 @@ export async function getMataMataBracket(
     getClassifiedTeamIds(ligaId),
     supabase
       .from('Partida')
-      .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,sumulaToken,equipeAId,equipeBId,equipeA:Equipe!equipeAId(id,nome,corHex,logoUrl),equipeB:Equipe!equipeBId(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
+      .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,sumulaToken,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
       .eq('ligaId', ligaId)
       .in('fase', fasesParaBuscar),
   ])

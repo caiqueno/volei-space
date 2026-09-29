@@ -18,6 +18,7 @@ const statusOptions = [
   { value: 'EM_BREVE', label: 'Em breve' },
   { value: 'ATIVA', label: 'Ativos' },
   { value: 'ENCERRADA', label: 'Encerrados' },
+  { value: 'FINALIZADO', label: 'Finalizados' },
 ]
 
 type PageProps = {
@@ -35,6 +36,7 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
     let query = supabase
       .from('Liga')
       .select('*')
+      .eq('simulacao', false)
       .order('criadoEm', { ascending: false })
 
     if (status) query = query.eq('status', status)

@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!isSupabaseConfigured) return entries
 
   const [{ data: campeonatos }, { data: equipes }] = await Promise.all([
-    supabase.from('Liga').select('slug').not('slug', 'is', null),
+    supabase.from('Liga').select('slug').eq('simulacao', false).not('slug', 'is', null),
     supabase.from('Equipe').select('slug').not('slug', 'is', null),
   ])
 

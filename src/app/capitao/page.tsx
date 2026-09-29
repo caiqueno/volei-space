@@ -7,6 +7,7 @@ import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { CandidateEditForm, type CandidateEditSection } from '@/components/candidate/CandidateEditForm'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
 import { supabase } from '@/lib/supabase'
+import { encerrarSessaoPublica } from '@/lib/sessao-publica'
 
 type Session = {
   tipo: string
@@ -87,6 +88,7 @@ function getPositionLabel(value?: string | null) {
 
 export default function CapitaoPage() {
   const [session, setSession] = useState<Session | null>(null)
+  const [sessaoPronta, setSessaoPronta] = useState(false)
   const [editSection, setEditSection] = useState<CandidateEditSection | null>(null)
   const [campeonatos, setCampeonatos] = useState<any[]>([])
   const [campeonatosLoading, setCampeonatosLoading] = useState(false)
@@ -108,6 +110,8 @@ export default function CapitaoPage() {
       setSession(JSON.parse(window.localStorage.getItem('luva_session') ?? 'null'))
     } catch {
       setSession(null)
+    } finally {
+      setSessaoPronta(true)
     }
   }, [])
 
@@ -346,11 +350,36 @@ export default function CapitaoPage() {
   }
 
   function logout() {
-    window.localStorage.removeItem('luva_session')
-    window.location.href = '/'
+    void encerrarSessaoPublica()
   }
 
-  if (!session || session.tipo !== 'equipe') {
+  if (!sessaoPronta) {
+    return (
+      <main className="luva-shell capitain-dashboard min-h-screen px-4 py-12">
+        <p className="text-center text-sm font-semibold text-slate-300">Abrindo o painel da equipe...</p>
+      </main>
+    )
+  }
+
+  if (session && session.tipo !== 'equipe') {
+    return (
+      <main className="luva-shell capitain-dashboard min-h-screen px-4 py-12">
+        <section className="capitain-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
+          <p className="luva-kicker">Acesso negado</p>
+          <h1 className="type-page-title mt-3">Esta área é da equipe</h1>
+          <p className="type-lead mx-auto mt-3 max-w-xl">
+            A conta atual não gerencia elenco. O painel da equipe fica com o líder.
+          </p>
+          <Link href="/painel" className="capitain-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
+            Ir para o seu painel
+            <ArrowRight size={17} />
+          </Link>
+        </section>
+      </main>
+    )
+  }
+
+  if (!session) {
     return (
       <main className="luva-shell capitain-dashboard min-h-screen px-4 py-12">
         <section className="capitain-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
@@ -359,8 +388,8 @@ export default function CapitaoPage() {
           <p className="type-lead mx-auto mt-3 max-w-xl">
             Use o e-mail e a senha do cadastro para ver o elenco e os dados da equipe.
           </p>
-          <Link href="/cadastro?modo=cadastro" className="capitain-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
-            Criar cadastro
+          <Link href="/login" className="capitain-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
+            Entrar
             <ArrowRight size={17} />
           </Link>
         </section>

@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
+import { encerrarSessaoPublica } from '@/lib/sessao-publica'
 
 type HeaderSession = {
   tipo: string
@@ -123,6 +124,9 @@ export function Header() {
   if (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/cadastro') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/resetar-senha') ||
+    pathname.startsWith('/trocar-senha') ||
     pathname.startsWith('/inscricao') ||
     pathname.startsWith('/sumula') ||
     pathname.startsWith('/arbitro')
@@ -385,8 +389,5 @@ function getProfileLabel(tipo: string) {
 }
 
 function logout() {
-  try {
-    window.localStorage.removeItem('luva_session')
-  } catch {}
-  window.location.href = '/'
+  void encerrarSessaoPublica()
 }

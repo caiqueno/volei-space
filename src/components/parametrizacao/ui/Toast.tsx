@@ -76,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <div
                   key={toast.id}
                   role="alert"
-                  className={`flex w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-xl border p-4 shadow-2xl shadow-slate-950/40 ${classes}`}
+                  className={`flex w-full max-w-sm gap-3 rounded-xl border p-4 shadow-lg shadow-slate-950/30 ${classes}`}
                 >
                   <Icon className="mt-0.5 shrink-0" size={18} />
                   <div className="min-w-0 flex-1">

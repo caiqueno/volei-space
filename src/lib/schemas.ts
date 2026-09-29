@@ -1,6 +1,14 @@
 import { z } from 'zod'
 
 export const categorias = ['FEMININO', 'FEMININO_MASTER', 'MISTO', 'MASCULINO', 'MASCULINO_MASTER'] as const
+
+export const categoriaSelecaoSchema = z.object({
+  categorias: z.array(z.object({
+    codigo: z.string().trim().min(1).max(40).optional(),
+    id: z.string().uuid().optional(),
+    nome: z.string().trim().min(2).max(40).optional(),
+  }).refine((item) => Boolean(item.codigo || item.id || item.nome), 'Informe a categoria.')).min(1).max(20),
+})
 export const series = ['OURO', 'PRATA'] as const
 export const generosEquipe = ['MASCULINO', 'FEMININO', 'MISTO'] as const
 export const categoriasEtariasEquipe = ['SUB15', 'SUB18', 'SUB21', 'ADULTO', 'MASTER'] as const

@@ -7,6 +7,7 @@ import { CalendarioWizard } from './calendario/CalendarioWizard'
 import { InscricoesWizard } from './inscricoes/InscricoesWizard'
 import { PreviaView } from './previa/PreviaView'
 import { PagamentoView } from './pagamento/PagamentoView'
+import { CategoriasWizard } from './categorias/CategoriasWizard'
 import { SECTION_TITLES, CARD_TITLES, type SetupCardKey } from '@/lib/championship-setup-status'
 
 // `pagamento` fica de fora de CARD_ORDER de propósito — é uma tela de ação
@@ -23,6 +24,7 @@ export const SECTION_WIZARD_REGISTRY: Record<SetupCardKey, { component: Componen
   inscricoes: { component: InscricoesWizard, title: SECTION_TITLES.inscricoes },
   previa: { component: PreviaView, title: CARD_TITLES.previa },
   pagamento: { component: PagamentoView, title: CARD_TITLES.pagamento },
+  categorias: { component: CategoriasWizard, title: CARD_TITLES.categorias },
 }
 
 export function isValidSetupSectionSlug(slug: string): slug is SetupCardKey {

@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { ConsultaCancelada, consultar, invalidarConsultas, lerJson } from '@/lib/api-cliente'
 import type { SetupSection, ChampionshipSetupStatus } from '@/types/championship-setup'
 
 export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -39,6 +41,11 @@ export function useSectionWizard<T extends object>(
   section: SetupSection,
   endpoint: string,
 ): UseSectionWizardResult<T> {
+  const searchParams = useSearchParams()
+  const categoryId = section === 'informacoes' ? null : searchParams.get('categoriaCampeonatoId')
+  const scopedEndpoint = categoryId
+    ? `${endpoint}${endpoint.includes('?') ? '&' : '?'}categoriaCampeonatoId=${encodeURIComponent(categoryId)}`
+    : endpoint
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -62,12 +69,9 @@ export function useSectionWizard<T extends object>(
     setLoading(true)
     setLoadError(null)
 
-    fetch(endpoint, { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error || 'Erro ao carregar esta seção.')
-        return payload.data as T
-      })
+    const controlador = new AbortController()
+    consultar<{ data: T }>(scopedEndpoint, { signal: controlador.signal })
+      .then((payload) => payload.data)
       .then((loaded) => {
         if (cancelled) return
         // O GET não devolve setupStatus (só os PATCHs, via finalizeSectionPatch)
@@ -76,7 +80,8 @@ export function useSectionWizard<T extends object>(
         setData(loaded)
       })
       .catch((err) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Erro ao carregar esta seção.')
+        if (cancelled || err instanceof ConsultaCancelada) return
+        setLoadError(err instanceof Error ? err.message : 'Erro ao carregar esta seção.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -84,9 +89,10 @@ export function useSectionWizard<T extends object>(
 
     return () => {
       cancelled = true
+      controlador.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endpoint])
+  }, [scopedEndpoint])
 
   const drain = useCallback(() => {
     if (inFlightRef.current || !pendingRef.current) return
@@ -96,13 +102,13 @@ export function useSectionWizard<T extends object>(
     setAutosaveStatus('saving')
     setAutosaveError(null)
 
-    const request = fetch(endpoint, {
+    const request = fetch(scopedEndpoint, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
       .then(async (response) => {
-        const payload = await response.json()
+        const payload = await lerJson<{ error?: string; data?: T & { setupStatus?: ChampionshipSetupStatus }; details?: { fields?: unknown; messages?: unknown } }>(response)
         if (!response.ok) {
           rememberFieldFailure(payload, setFieldMessages, setAutosaveError)
           setAutosaveStatus('error')
@@ -124,6 +130,8 @@ export function useSectionWizard<T extends object>(
           return next
         })
         if (returned.setupStatus) setSetupStatus(returned.setupStatus)
+        const base = scopedEndpoint.includes('/setup/') ? `${scopedEndpoint.split('/setup/')[0]}/setup` : scopedEndpoint
+        invalidarConsultas(base)
         setAutosaveStatus('saved')
       })
       .catch((err) => {
@@ -138,7 +146,7 @@ export function useSectionWizard<T extends object>(
       })
 
     inFlightRef.current = request
-  }, [endpoint])
+  }, [scopedEndpoint])
 
   const flush = useCallback(() => {
     if (debounceRef.current) {
@@ -204,12 +212,12 @@ export function useSectionWizard<T extends object>(
     setAutosaveError(null)
 
     try {
-      const response = await fetch(`${endpoint}?intent=complete`, {
+      const response = await fetch(`${scopedEndpoint}${scopedEndpoint.includes('?') ? '&' : '?'}intent=complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const payload = await response.json()
+      const payload = await lerJson<{ error?: string; data?: T & { setupStatus?: ChampionshipSetupStatus; issues?: ValidationIssueLike[] }; details?: { fields?: unknown; messages?: unknown } }>(response)
 
       if (!response.ok) {
         const failure = rememberFieldFailure(payload, setFieldMessages, setAutosaveError)
@@ -234,7 +242,7 @@ export function useSectionWizard<T extends object>(
       setAutosaveError(err instanceof Error ? err.message : 'Não foi possível concluir esta seção.')
       return { ok: false, issues: [], fields: [] }
     }
-  }, [endpoint])
+  }, [scopedEndpoint])
 
   // Flush ao desmontar (troca de subetapa/seção) para não perder o que
   // ainda estava no debounce.

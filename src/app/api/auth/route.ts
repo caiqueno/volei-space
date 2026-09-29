@@ -5,6 +5,7 @@ import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/su
 import { success, error } from '@/lib/api-response'
 import { OFFICIAL_ADMIN_EMAIL, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
 import { loginDestination } from '@/lib/login-destination'
+import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
 const loginSchema = z.object({
   email: z.string().email(),
   senha: z.string().min(1),
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
       return error('SUPABASE_SERVICE_ROLE_KEY não está configurada no ambiente da Vercel.', 500)
     }
 
-    if (adminOnly) {
+    if (adminOnly || email === OFFICIAL_ADMIN_EMAIL) {
       return loginAdmin(email, senha)
     }
 
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
     const senhaOk = await bcrypt.compare(senha, usuario.senhaHash)
     if (!senhaOk) {
       return error(perfil === 'organizador' ? 'Usuário ou senha não conferem.' : 'Credenciais inválidas.', 401)
+    }
+    if (EMAIL_ARBITRO_SIMULACAO.test(usuario.email) && process.env.NODE_ENV === 'production') {
+      return error('Credenciais inválidas.', 401)
     }
 
     const trocarSenha = (usuario.tipo === 'organizador' || usuario.tipo === 'arbitro') && usuario.trocarSenha

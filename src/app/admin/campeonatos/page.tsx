@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ExternalLink, Trash2 } from 'lucide-react'
+import { consultar, invalidarConsultas } from '@/lib/api-cliente'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 
 const statusOptions = [
@@ -20,14 +21,13 @@ export default function AdminCampeonatosPage() {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
 
-  async function fetchLigas() {
+  async function fetchLigas(forcar = false) {
     setLoading(true)
     const params = new URLSearchParams()
     if (busca.trim()) params.set('q', busca.trim())
     if (status) params.set('status', status)
 
-    const res = await fetch(`/api/ligas${params.toString() ? `?${params.toString()}` : ''}`, { cache: 'no-store' })
-    const json = await res.json().catch(() => ({}))
+    const json = await consultar<{ data?: unknown[] }>(`/api/ligas${params.toString() ? `?${params.toString()}` : ''}`, { forcar })
     setLigas(json.data ?? [])
     setLoading(false)
   }
@@ -47,6 +47,7 @@ export default function AdminCampeonatosPage() {
       return
     }
 
+    invalidarConsultas('/api/ligas')
     setMsg('Campeonato excluído.')
     fetchLigas()
   }
@@ -81,7 +82,7 @@ export default function AdminCampeonatosPage() {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
-          <button type="button" onClick={fetchLigas} className="rounded-xl bg-[#ffb331] px-4 py-2 text-sm font-black text-white">
+          <button type="button" onClick={() => fetchLigas(true)} className="rounded-xl bg-[#ffb331] px-4 py-2 text-sm font-black text-white">
             Filtrar
           </button>
         </div>
@@ -98,8 +99,8 @@ export default function AdminCampeonatosPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+          <div className="max-w-full">
+            <table data-stack className="w-full text-sm">
               <thead className="border-b border-white/10 bg-white/[0.03]">
                 <tr>
                   <th className="px-4 py-3 text-left font-black text-slate-300">Campeonato</th>
@@ -113,25 +114,25 @@ export default function AdminCampeonatosPage() {
               <tbody className="divide-y divide-white/10">
                 {ligas.map((liga: any) => (
                   <tr key={liga.id} className="transition hover:bg-white/[0.03]">
-                    <td className="px-4 py-4">
+                    <td data-label="Campeonato" className="px-4 py-4">
                       <p className="font-black text-white">{liga.nome}</p>
                       <p className="mt-1 max-w-sm truncate text-xs font-semibold text-slate-300">{liga.subtitulo || liga.descricao || '-'}</p>
                     </td>
-                    <td className="px-4 py-4">
+                    <td data-label="Status" className="px-4 py-4">
                       <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-slate-100">
                         {formatLigaStatus(liga.status)}
                       </span>
                     </td>
-                    <td className="px-4 py-4 font-semibold text-slate-200">{formatLigaFormato(liga.formato)}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-200">
+                    <td data-label="Formato" className="px-4 py-4 font-semibold text-slate-200">{formatLigaFormato(liga.formato)}</td>
+                    <td data-label="Equipes" className="px-4 py-4 font-semibold text-slate-200">
                       {liga.quantidadeEquipes ? `${liga.equipesAprovadas ?? 0}/${liga.quantidadeEquipes}` : '-'}
                     </td>
-                    <td className="px-4 py-4">
+                    <td data-label="Link público" className="px-4 py-4">
                       <Link href={`/campeonatos/${liga.slug}`} className="inline-flex items-center gap-2 text-xs font-black text-[#ffb331] hover:text-white">
                         Abrir <ExternalLink size={14} />
                       </Link>
                     </td>
-                    <td className="px-4 py-4">
+                    <td data-label="Ações" className="px-4 py-4">
                       <button
                         type="button"
                         onClick={() => handleDelete(liga)}

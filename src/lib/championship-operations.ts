@@ -73,6 +73,14 @@ export function isFinishedMatch(partida: any) {
 }
 
 export async function syncLeagueLifecycle(ligaId: number) {
+  const { data: ligaAtual, error: ligaAtualError } = await supabase
+    .from('Liga')
+    .select('status')
+    .eq('id', ligaId)
+    .maybeSingle()
+  if (ligaAtualError) throw ligaAtualError
+  if (String(ligaAtual?.status ?? '').toUpperCase() === 'FINALIZADO') return 'FINALIZADO'
+
   const { data: partidas, error: partidasError } = await supabase
     .from('Partida')
     .select('status')

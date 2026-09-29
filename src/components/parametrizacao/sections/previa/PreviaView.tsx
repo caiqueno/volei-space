@@ -6,6 +6,7 @@ import { useAbrirSecaoParametrizacao } from '../../PainelParametrizacaoContext'
 import { SetupSectionNav } from '../../wizard/SetupSectionNav'
 import { PricingBreakdown } from '../../pricing/PricingBreakdown'
 import { FormAlert } from '../../ui/FormAlert'
+import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
 import { formatDateBr } from '@/lib/date-brazil'
 import { formatEliminatoryPhase } from '@/lib/eliminatorias'
@@ -20,23 +21,22 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/organizador/ligas/${ligaId}/setup/previa`, { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error || 'Erro ao carregar a prévia.')
-        return payload.data as ChampionshipPreviaDTO
-      })
+    const controlador = new AbortController()
+    consultar<{ data: ChampionshipPreviaDTO }>(`/api/organizador/ligas/${ligaId}/setup/previa`, { signal: controlador.signal })
+      .then((payload) => payload.data)
       .then((loaded) => {
         if (!cancelled) setPrevia(loaded)
       })
       .catch((err) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Erro ao carregar a prévia.')
+        if (cancelled || err instanceof ConsultaCancelada) return
+        setLoadError(err instanceof Error ? err.message : 'Erro ao carregar a prévia.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
+      controlador.abort()
     }
   }, [ligaId])
 

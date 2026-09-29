@@ -12,6 +12,8 @@ import {
   readSetupIntent,
 } from '@/lib/championship-setup-access'
 import { setupInscricoesSchema } from '@/lib/schemas'
+import { categoryIdFromRequest, loadCategorySection, saveCategorySection } from '@/lib/category-setup-delegate'
+import { CategoryScopeError, getCategoryConfiguration } from '@/lib/category-scope'
 import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-defaults'
 import { validateQrPhotoNameDependency } from '@/lib/championship-validation'
 
@@ -39,6 +41,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const liga = await requireOwnedLigaForSetup(req, Number(id), COLUMNS)
   if (liga instanceof Response) return liga
+  const categoryView = await loadCategorySection(req, Number(id))
+  if (categoryView) return categoryView
   return success(liga)
 }
 
@@ -58,15 +62,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // estado EFETIVO (existente + patch mesclado), nunca só o payload isolado
   // — cobre tanto "liga já tem qrCodeEnabled=true e agora manda foto
   // opcional" quanto "liga já tem foto opcional e agora liga o QR".
-  const effectiveQrEnabled = parsed.data.qrCodeEnabled ?? (liga.qrCodeEnabled as boolean | null) ?? false
+  const categoryId = categoryIdFromRequest(req)
+  let formBase: unknown = liga.formularioInscricaoConfig
+  let qrBase = (liga.qrCodeEnabled as boolean | null) ?? false
+  if (categoryId) {
+    try {
+      const config = await getCategoryConfiguration(ligaId, categoryId)
+      formBase = config.formularioInscricaoConfig
+      qrBase = config.qrCodeEnabled === true
+    } catch (cause) {
+      if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
+      return error('Não foi possível carregar a categoria.', 500)
+    }
+  }
+
+  const effectiveQrEnabled = parsed.data.qrCodeEnabled ?? qrBase
 
   const payload: Record<string, unknown> = { ...parsed.data }
   let effectiveFormulario: FormularioConfig
 
   if (parsed.data.formularioInscricaoConfig !== undefined) {
-    effectiveFormulario = mergeFormularioConfig(liga.formularioInscricaoConfig, parsed.data.formularioInscricaoConfig)
+    effectiveFormulario = mergeFormularioConfig(formBase, parsed.data.formularioInscricaoConfig)
     payload.formularioInscricaoConfig = effectiveFormulario
-  } else if (!liga.formularioInscricaoConfig) {
+  } else if (!formBase) {
     // Primeira vez que a seção é tocada e nenhum formulário foi enviado:
     // semeia o default (já consistente com a dependência do QR) em vez de
     // rejeitar por falta de configuração que o organizador nem chegou a
@@ -74,7 +92,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     effectiveFormulario = getDefaultFormularioInscricaoConfig()
     payload.formularioInscricaoConfig = effectiveFormulario
   } else {
-    effectiveFormulario = liga.formularioInscricaoConfig as FormularioConfig
+    effectiveFormulario = formBase as FormularioConfig
   }
 
   const qrIssues = validateQrPhotoNameDependency(effectiveQrEnabled, effectiveFormulario.atleta)
@@ -83,6 +101,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const intent = readSetupIntent(req)
+  const categorySave = await saveCategorySection({
+    req, ligaId, organizadorId: String(liga.organizadorId), section: 'inscricoes', patch: payload, intent,
+  })
+  if (categorySave) return categorySave
   const applied = await applySectionPatch({
     ligaId,
     section: 'inscricoes',
@@ -95,6 +117,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (applied instanceof Response) return applied
 
   const finalized = await finalizeSectionPatch({ ligaId, section: 'inscricoes', intent, ligaAfterPatch: applied.data })
+  if (finalized instanceof Response) return finalized
 
   return success({ ...applied.data, setupStatus: finalized.setupStatus, issues: finalized.issues })
 }

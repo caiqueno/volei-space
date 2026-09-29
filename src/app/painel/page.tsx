@@ -17,6 +17,7 @@ import {
 import { CandidateEditForm, type CandidateEditSection } from '@/components/candidate/CandidateEditForm'
 import { PartidasAbertasArbitro } from '@/components/arbitro/PartidasAbertasArbitro'
 import { OrganizadorHome } from '@/components/painel/organizador/OrganizadorHome'
+import { encerrarSessaoPublica, lerSessaoPublica } from '@/lib/sessao-publica'
 
 type Session = {
   tipo: string
@@ -99,19 +100,17 @@ const contentByType: Record<'arbitro' | 'quadra' | 'organizador', {
 
 export default function PainelPage() {
   const [session, setSession] = useState<Session | null>(null)
+  const [sessaoPronta, setSessaoPronta] = useState(false)
   const [editSection, setEditSection] = useState<CandidateEditSection | null>(null)
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(window.localStorage.getItem('luva_session') ?? 'null') as Session | null
-      if ((stored?.tipo === 'organizador' || stored?.tipo === 'arbitro') && stored.trocarSenha) {
-        window.location.replace('/trocar-senha')
-        return
-      }
-      setSession(stored)
-    } catch {
-      setSession(null)
+    const stored = lerSessaoPublica() as Session | null
+    if ((stored?.tipo === 'organizador' || stored?.tipo === 'arbitro') && stored.trocarSenha) {
+      window.location.replace('/trocar-senha')
+      return
     }
+    setSession(stored)
+    setSessaoPronta(true)
   }, [])
 
   useEffect(() => {
@@ -155,8 +154,15 @@ export default function PainelPage() {
   }, [session])
 
   function logout() {
-    window.localStorage.removeItem('luva_session')
-    window.location.href = '/'
+    void encerrarSessaoPublica()
+  }
+
+  if (!sessaoPronta) {
+    return (
+      <main className="luva-shell public-dashboard min-h-screen px-4 py-12">
+        <p className="text-center text-sm font-semibold text-slate-300">Abrindo o painel...</p>
+      </main>
+    )
   }
 
   if (session?.tipo === 'publico') {
@@ -234,7 +240,7 @@ export default function PainelPage() {
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-200">
               {session.tipo === 'arbitro' && released
-                ? 'Este acesso foi criado pelo organizador. Aqui você acompanha as partidas em que pode atuar.'
+                ? 'Este acesso foi criado pelo organizador. Aqui ficam somente as partidas em que você foi designado.'
                 : content.description}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">

@@ -59,7 +59,11 @@ model Liga {
   logoUrl                       String?
   capaUrl                       String?
   corTematica                   String    @default("#0F2C52")
-  status                        String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA
+  status                        String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA | FINALIZADO
+  simulacao                     Boolean   @default(false)
+  simulacaoRelogio              Json      @default("{}")
+  finalizadoEm                  DateTime?
+  finalizadoPor                 String?
   organizadorId                 String?
   pagamentoConfirmadoEm         DateTime?
   dataInicio                    DateTime?
@@ -608,4 +612,59 @@ model ContaPublico {
   senhaHash String
   status    String   @default("ATIVA")
   criadoEm  DateTime @default(now())
+}
+
+model CategoriaCampeonato {
+  id                   String   @id @default(uuid()) @db.Uuid
+  ligaId               Int
+  codigo               String
+  nome                 String
+  slug                 String
+  ordem                Int      @default(0)
+  statusConfiguracao   String   @default("NAO_INICIADA")
+  versao               Int      @default(1)
+  revisaoOperacional   Int      @default(0)
+  removidaEm           DateTime?
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @default(now())
+
+  @@unique([ligaId, codigo])
+  @@unique([ligaId, slug])
+}
+
+model CategoriaConfiguracao {
+  categoriaCampeonatoId String   @id @db.Uuid
+  ligaId                Int
+  versao                Int      @default(1)
+  formato               String?
+  setsPorPartida        Int      @default(3)
+  pontosPorSet          Int      @default(25)
+  diferencaMinimaSet    Int      @default(2)
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @default(now())
+}
+
+model CategoriaSetupSecao {
+  categoriaCampeonatoId String   @db.Uuid
+  ligaId                Int
+  secao                 String
+  status                String   @default("not-started")
+  revisaoConfirmada     Int?
+  atualizadoEm          DateTime @default(now())
+  concluidoEm           DateTime?
+
+  @@id([categoriaCampeonatoId, secao])
+}
+
+model CategoriaReplicacaoAuditoria {
+  id                 String   @id @default(uuid()) @db.Uuid
+  operacaoId         String   @db.Uuid
+  ligaId             Int
+  origemCategoriaId  String   @db.Uuid
+  destinoCategoriaId String   @db.Uuid
+  secoes             Json
+  usuarioId          String
+  versaoAnterior     Int
+  versaoResultante   Int
+  criadoEm           DateTime @default(now())
 }

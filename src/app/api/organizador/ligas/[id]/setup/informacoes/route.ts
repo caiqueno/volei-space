@@ -50,6 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (applied instanceof Response) return applied
 
   const finalized = await finalizeSectionPatch({ ligaId, section: 'informacoes', intent, ligaAfterPatch: applied.data })
+  if (finalized instanceof Response) return finalized
 
   return success({ ...applied.data, setupStatus: finalized.setupStatus, issues: finalized.issues })
 }

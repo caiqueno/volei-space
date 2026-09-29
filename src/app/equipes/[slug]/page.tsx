@@ -94,7 +94,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
       .order('criadaEm', { ascending: false }),
     supabase
       .from('Partida')
-      .select('id,rodada,dataHora,status,setsPorA,setsPorB,vencedorId,liga:Liga(id,nome,slug),equipeA:Equipe!equipeAId(id,nome,slug),equipeB:Equipe!equipeBId(id,nome,slug)')
+      .select('id,rodada,dataHora,status,setsPorA,setsPorB,vencedorId,liga:Liga(id,nome,slug),equipeA:Equipe!Partida_equipeAId_fkey(id,nome,slug),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,slug)')
       .or(`equipeAId.eq.${equipe.id},equipeBId.eq.${equipe.id}`)
       .order('dataHora', { ascending: false })
       .limit(8),

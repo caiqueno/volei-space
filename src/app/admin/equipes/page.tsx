@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { consultar } from '@/lib/api-cliente'
 import { Badge } from '@/components/ui/Badge'
 import { ActionBar } from '@/components/ui/action-bar'
 
@@ -35,7 +36,7 @@ export default function AdminEquipesPage() {
 
   useEffect(() => {
     fetchEquipes()
-    fetch('/api/ligas').then(r => r.json()).then(j => {
+    consultar<{ data?: Array<{ id: number }> }>('/api/ligas').then((j) => {
       const items = j.data ?? []
       setLigas(items)
       if (items[0]) setLigaId(String(items[0].id))

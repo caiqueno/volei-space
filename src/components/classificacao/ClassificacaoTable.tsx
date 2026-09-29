@@ -131,8 +131,8 @@ export function ClassificacaoTable({
               )}
             </div>
           )}
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
+          <div className="max-w-full">
+            <table data-stack className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                   {[
@@ -156,12 +156,12 @@ export function ClassificacaoTable({
                   const posicao = groupedMode ? index + 1 : entrada.posicao
                   return (
                     <tr key={entrada.equipe.id} className="transition-colors hover:bg-amber-50/55">
-                      <td className="px-4 py-5 text-center">
+                      <td data-label="Posição" className="px-4 py-3 text-center">
                         <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-black ${classificado ? 'bg-luva-amber text-[#050914] shadow-lg shadow-amber-500/20' : 'bg-slate-100 text-slate-500'}`}>
                           {posicao}
                         </span>
                       </td>
-                      <td className="px-4 py-5">
+                      <td data-label="Equipe" className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <TeamIdentity nome={entrada.equipe.nome} cor={entrada.equipe.corHex} logoUrl={entrada.equipe.logoUrl} compact showName={false} />
                           <div className="min-w-0">
@@ -171,17 +171,17 @@ export function ClassificacaoTable({
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-5 text-center text-xl font-black text-slate-950">{entrada.pontos}</td>
-                      <td className="px-4 py-5 text-center font-bold text-slate-400">{entrada.jogos}</td>
-                      <td className="px-4 py-5 text-center font-black text-emerald-300">{entrada.vitorias}</td>
-                      <td className="px-4 py-5 text-center font-bold text-red-300">{entrada.derrotas}</td>
-                      <td className="px-4 py-5 text-center font-bold text-slate-400">{entrada.setsPro}</td>
-                      <td className="px-4 py-5 text-center font-bold text-slate-400">{entrada.setsContra}</td>
-                      <td className="px-4 py-5 text-center font-black text-slate-950">{saldoSets > 0 ? '+' : ''}{saldoSets}</td>
-                      <td className="px-4 py-5 text-center font-bold text-slate-400">{saldoPontos > 0 ? '+' : ''}{saldoPontos}</td>
-                      <td className="px-4 py-5 text-center font-bold text-slate-500">{entrada.punicoes || '-'}</td>
+                      <td data-label="Pontos" className="px-4 py-3 text-center text-xl font-black text-slate-950">{entrada.pontos}</td>
+                      <td data-label="Jogos" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.jogos}</td>
+                      <td data-label="Vitórias" className="px-4 py-3 text-center font-black text-emerald-300">{entrada.vitorias}</td>
+                      <td data-label="Derrotas" className="px-4 py-3 text-center font-bold text-red-300">{entrada.derrotas}</td>
+                      <td data-label="Sets pró" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.setsPro}</td>
+                      <td data-label="Sets contra" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.setsContra}</td>
+                      <td data-label="Saldo de sets" className="px-4 py-3 text-center font-black text-slate-950">{saldoSets > 0 ? '+' : ''}{saldoSets}</td>
+                      <td data-label="Saldo de pontos" className="px-4 py-3 text-center font-bold text-slate-400">{saldoPontos > 0 ? '+' : ''}{saldoPontos}</td>
+                      <td data-label="Punições" className="px-4 py-3 text-center font-bold text-slate-500">{entrada.punicoes || '-'}</td>
                       {organizerMode && (
-                        <td className="px-4 py-5 text-center">
+                        <td data-label="Ação" className="px-4 py-3 text-center">
                           {classificado ? (
                             <span className="text-xs font-black uppercase tracking-[0.14em] text-emerald-600">Classificado</span>
                           ) : canClassify ? (

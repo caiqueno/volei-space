@@ -8,11 +8,11 @@ summary: >-
   Confrontos entre equipes.
 status: misto
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-09-28
 ---
 # Partidas e calendário
 
-**Implementado:** modelos `Partida`/`SetPartida`, calendário e gestão em `src/app/api/organizador/ligas/[id]/calendario`, `src/app/api/partidas` e `src/app/api/organizador/partidas`; acompanhamento em `src/app/partidas/[id]/ao-vivo`. Em `/jogos`, o primeiro nível é a barra com o nome da tabela, como Copa Masculina. Dentro dela ficam as barras de cada rodada.
+**Implementado:** modelos `Partida`/`SetPartida`, calendário e gestão em `src/app/api/organizador/ligas/[id]/calendario`, `src/app/api/partidas` e `src/app/api/organizador/partidas`; acompanhamento em `src/app/partidas/[id]/ao-vivo`. A leitura pública e a ao vivo usam o vínculo composto da equipe (`Partida_equipeAId_fkey` e `Partida_equipeBId_fkey`). O vínculo simples antigo fazia o portal e a lista de jogos falharem e aparecerem vazios. O portal separa em andamento, próximos e encerrados e reconsulta a cada 8 segundos. Sem campeonato escolhido, a agenda pública reúne todos os campeonatos que não são simulação; o campeonato mais novo e ainda sem jogos não esconde os demais. Não há inscrição no Realtime. Em `/jogos`, o primeiro nível é a barra com o nome da tabela, como Copa Masculina. Dentro dela ficam as barras de cada rodada. No painel, a tabela de jogos tem a coluna «Árbitro responsável». O organizador designa, troca ou remove o primeiro árbitro enquanto a partida está agendada. A gravação fica em `EscalaArbitro`.
 
 As partidas pertencem a um campeonato e envolvem equipes compatíveis com sua estrutura. Resultado oficial alimenta classificação e rankings. O calendário e confrontos não devem surgir como efeito de **gerar convite** de inscrição; somente etapas operacionais adequadas depois do cadastro e da configuração.
 

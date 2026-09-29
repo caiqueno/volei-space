@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Plus, Save, Trophy } from 'lucide-react'
+import { consultar, invalidarConsultas } from '@/lib/api-cliente'
 import { ActionBar } from '@/components/ui/action-bar'
 
 type Liga = {
@@ -42,8 +43,7 @@ export default function ConfiguracoesPage() {
   }, [])
 
   async function fetchLigas() {
-    const res = await fetch('/api/ligas')
-    const json = await res.json()
+    const json = await consultar<{ data?: Liga[] }>('/api/ligas')
     const items = json.data ?? []
     setLigas(items)
     if (!selectedSlug && items[0]) selectLiga(items[0])
@@ -93,6 +93,7 @@ export default function ConfiguracoesPage() {
       return
     }
 
+    invalidarConsultas('/api/ligas')
     setMsg(selected ? 'Campeonato atualizado.' : 'Campeonato criado.')
     await fetchLigas()
     if (json.data) selectLiga(json.data)

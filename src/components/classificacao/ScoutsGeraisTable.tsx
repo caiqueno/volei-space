@@ -25,8 +25,8 @@ export function ScoutsGeraisTable({ dados, equipeInfoById }: Props) {
         <h3 className="font-display text-xl font-black text-slate-950">Scouts gerais</h3>
         <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-500">Pontos, ataques, bloqueios e aces acumulados no campeonato</p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+      <div className="max-w-full">
+        <table data-stack className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
               {['#', 'Atleta', 'Equipe', 'PTS', 'ATQ', 'BLQ', 'ACE'].map((h) => (
@@ -41,25 +41,25 @@ export function ScoutsGeraisTable({ dados, equipeInfoById }: Props) {
               const equipe = equipeInfoById.get(entrada.equipeId)
               return (
                 <tr key={entrada.jogadorId} className="transition-colors hover:bg-amber-50/55">
-                  <td className="px-4 py-5 text-center">
+                  <td data-label="Posição" className="px-4 py-3 text-center">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-500">
                       {index + 1}
                     </span>
                   </td>
-                  <td className="px-4 py-5">
+                  <td data-label="Atleta" className="px-4 py-3">
                     <p className="truncate font-black text-slate-950 text-[1.3em]">{entrada.nome}</p>
                     {entrada.numero && <p className="mt-0.5 text-xs font-bold text-slate-400">#{entrada.numero}</p>}
                   </td>
-                  <td className="px-4 py-5">
+                  <td data-label="Equipe" className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <TeamIdentity nome={equipe?.nome ?? 'Equipe'} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
                       <p className="truncate font-bold text-slate-700">{equipe?.nome ?? 'Equipe'}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-5 text-center text-xl font-black text-slate-950">{entrada.pontos}</td>
-                  <td className="px-4 py-5 text-center font-bold text-slate-400">{entrada.ataques}</td>
-                  <td className="px-4 py-5 text-center font-bold text-slate-400">{entrada.bloqueios}</td>
-                  <td className="px-4 py-5 text-center font-bold text-slate-400">{entrada.aces}</td>
+                  <td data-label="Pontos" className="px-4 py-3 text-center text-xl font-black text-slate-950">{entrada.pontos}</td>
+                  <td data-label="Ataques" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.ataques}</td>
+                  <td data-label="Bloqueios" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.bloqueios}</td>
+                  <td data-label="Aces" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.aces}</td>
                 </tr>
               )
             })}

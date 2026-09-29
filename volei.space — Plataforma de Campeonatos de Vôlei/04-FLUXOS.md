@@ -8,7 +8,7 @@ summary: >-
   Jornadas ponta a ponta.
 status: misto
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-09-28
 ---
 # Fluxos do produto
 
@@ -18,7 +18,7 @@ O administrador atribui usuário e senha em `/admin/acessos` e pode resetar essa
 
 ## Jornada do público
 
-O login de administrador, organizador e público fica em `/login`. O cadastro do perfil público fica em `/cadastro?modo=cadastro` e, ao concluir, volta para `/login?conta=criada` sem entrar automaticamente. A identificação confirma que a conta foi criada. Administrador abre `/admin`. Organizador abre `/painel`. Público abre `/portal` e vê campeonatos, jogos e tabela. No portal dessa conta não aparecem QR Code, súmula, os cartões de tabela e agenda, nem o fluxo da competição. Essa conta não abre o painel de gerenciamento.
+O login de administrador, organizador e público fica em `/login` e faz uma consulta só. A sessão já gravada abre a área do perfil sem a tela «Acesso restrito». Essa tela só aparece quando não há sessão. Sair volta para `/login`. O cadastro do perfil público fica em `/cadastro?modo=cadastro` e, ao concluir, volta para `/login?conta=criada` sem entrar automaticamente. A identificação confirma que a conta foi criada. Administrador abre `/admin`. Organizador abre `/painel`. Público abre `/portal` e vê campeonatos, jogos e tabela. No portal dessa conta não aparecem QR Code, súmula, os cartões de tabela e agenda, nem o fluxo da competição. Essa conta não abre o painel de gerenciamento.
 
 **Aprovado, pendente:** na primeira etapa, o organizador informa a quantidade de categorias e nomeia cada competição interna. As categorias persistidas serão a fonte de verdade; os fluxos seguintes operam dentro da categoria selecionada. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
 

@@ -14,6 +14,7 @@ import {
 } from '@/lib/championship-setup-status'
 import type { ValidationIssue } from '@/lib/championship-validation'
 import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
+import { isCampeonatoFinalizado, rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 // Extrai o padrão de autenticação/ownership hoje só existente (copiado) em
 // src/app/api/organizador/ligas/[id]/estrutura/route.ts::getOwnedLiga, para
@@ -87,7 +88,14 @@ export function mapDatabaseError(err: unknown, fallbackMessage: string) {
   if (code === '23514') {
     return error('Combinação de valores inválida para este campeonato. Revise as datas e os limites informados.', 422, err)
   }
-  return error(fallbackMessage, 500, err)
+  const message = String((err as { message?: string } | null)?.message ?? '')
+  if (code === 'P0001' || message.includes('somente consulta')) {
+    return error('Este campeonato está finalizado e disponível apenas para consulta.', 409, err)
+  }
+  if (code === '42501') {
+    return error('Não foi possível gravar esta seção. A conexão do servidor não tem permissão de escrita.', 500)
+  }
+  return error(fallbackMessage, 500)
 }
 
 // Upsert de status como efeito colateral de um PATCH bem-sucedido de seção.
@@ -143,7 +151,7 @@ const EDITABLE_AFTER_START: Partial<Record<SetupSection, string[]>> = {
 // o campeonato foi encerrado. Status ATIVA sozinho não trava: o organizador
 // ainda está na parametrização e precisa gravar formato e quantidade de equipes.
 export async function isLigaEmAndamento(ligaId: number, ligaStatus?: string | null): Promise<boolean> {
-  if (ligaStatus === 'ENCERRADA') return true
+  if (ligaStatus === 'ENCERRADA' || isCampeonatoFinalizado(ligaStatus)) return true
 
   const { count } = await supabase
     .from('Partida')
@@ -186,6 +194,9 @@ export async function applySectionPatch(params: {
   errorMessage: string
 }): Promise<{ data: Record<string, unknown> } | NextResponse> {
   const { ligaId, section, intent, liga, patch, columns, errorMessage } = params
+
+  const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+  if (bloqueio) return bloqueio
 
   if (intent === 'complete') {
     const merged = { ...liga, ...patch }
@@ -233,15 +244,19 @@ export async function finalizeSectionPatch(params: {
   section: SetupSection
   intent: SetupIntent
   ligaAfterPatch: Record<string, unknown>
-}): Promise<{ setupStatus: StoredSectionStatus; issues: ValidationIssue[] }> {
+}): Promise<{ setupStatus: StoredSectionStatus; issues: ValidationIssue[] } | Response> {
   const { ligaId, section, intent, ligaAfterPatch } = params
 
-  const setupStatus = await upsertSetupSectionStatus(ligaId, section, ligaAfterPatch, intent)
+  try {
+    const setupStatus = await upsertSetupSectionStatus(ligaId, section, ligaAfterPatch, intent)
 
-  if (intent !== 'complete') return { setupStatus, issues: [] }
+    if (intent !== 'complete') return { setupStatus, issues: [] }
 
-  const validation = await validateChampionshipSetup(ligaId)
-  return { setupStatus, issues: validation.perSecao[section] ?? [] }
+    const validation = await validateChampionshipSetup(ligaId)
+    return { setupStatus, issues: validation.perSecao[section] ?? [] }
+  } catch (err) {
+    return mapDatabaseError(err, 'Não foi possível atualizar o status desta seção.')
+  }
 }
 
 // Lê o status armazenado (LigaSetupSecao) de todas as 6 seções de uma liga.

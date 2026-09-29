@@ -3,15 +3,20 @@ import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
 import { requireAuth } from '@/lib/auth'
 import { partidaSchema } from '@/lib/schemas'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { data, error: err } = await supabase
     .from('Partida')
-    .select('*, equipeA:Equipe!equipeAId(*, jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)), equipeB:Equipe!equipeBId(*, jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)), sets:SetPartida(*), escala:EscalaArbitro(*, arbitro:Arbitro(*)), presencas:SumulaPresenca(*, jogador:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)), ocorrencias:OcorrenciaPartida(*), destaques:DestaquesPartida(*, jogador:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl))')
+    .select('id,rodada,fase,status,dataHora,localNome,setsPorA,setsPorB,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
     .eq('id', Number(id))
     .single()
-  if (err) return error('Partida não encontrada', 404)
+  if (err) {
+    if (err.code === 'PGRST116') return error('Partida não encontrada', 404)
+    console.error('[api/partidas/id] erro ao buscar partida', err)
+    return error('Não foi possível carregar a partida agora. Tente novamente em instantes.', 500)
+  }
   return success(data)
 }
 
@@ -23,6 +28,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json()
     const parsed = partidaSchema.partial().safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+
+    const { data: atual } = await supabase.from('Partida').select('ligaId').eq('id', Number(id)).maybeSingle()
+    if (atual?.ligaId) {
+      const bloqueio = await rejectIfCampeonatoFinalizado(Number(atual.ligaId))
+      if (bloqueio) return bloqueio
+    }
 
     const { data, error: err } = await supabase
       .from('Partida')

@@ -13,6 +13,7 @@ import { formatCategoriaLabel } from '@/lib/equipe-categoria'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { createPageMetadata } from '@/lib/seo'
 
@@ -61,7 +62,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
         if (equipeCapitao) {
           let query = supabaseAdmin
             .from('Partida')
-            .select('id,ligaId,categoria,serie,rodada,fase,status,dataHora,localNome,setsPorA,setsPorB,liga:Liga(id,nome),equipeA:Equipe!equipeAId(id,nome,corHex),equipeB:Equipe!equipeBId(id,nome,corHex),sets:SetPartida(numero,pontosA,pontosB)')
+            .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
             .or(`equipeAId.eq.${equipeCapitao.id},equipeBId.eq.${equipeCapitao.id}`)
             .order('rodada', { ascending: true })
             .order('dataHora', { ascending: true })
@@ -70,7 +71,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
 
           const { data, error } = await query
           if (error) throw error
-          partidas = normalizePartidas(data)
+          partidas = normalizePartidas(data).filter((partida) => partida.liga?.simulacao !== true)
         } else {
           partidas = []
         }
@@ -79,7 +80,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
       } else {
         let query = supabaseAdmin
           .from('Partida')
-          .select('id,ligaId,categoria,serie,rodada,fase,status,dataHora,localNome,setsPorA,setsPorB,liga:Liga(id,nome),equipeA:Equipe!equipeAId(id,nome,corHex),equipeB:Equipe!equipeBId(id,nome,corHex),sets:SetPartida(numero,pontosA,pontosB)')
+          .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
           .order('rodada', { ascending: true })
           .order('dataHora', { ascending: true })
 
@@ -87,7 +88,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
 
         const { data, error } = await query
         if (error) throw error
-        partidas = normalizePartidas(data)
+        partidas = normalizePartidas(data).filter((partida) => partida.liga?.simulacao !== true)
       }
     } catch (err) {
       console.error('[jogos] erro ao carregar partidas', err)
@@ -119,6 +120,15 @@ export default async function JogosPage({ searchParams }: PageProps) {
       <section className="mx-auto max-w-7xl px-4 pt-8">
         <PartidasAbertasArbitro />
       </section>
+
+      {partidas.some((partida) => partida.status === 'EM_ANDAMENTO') && (
+        <section className="mx-auto max-w-7xl px-4 pt-8">
+          <h2 className="font-display text-2xl font-black text-white">Em andamento</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {partidas.filter((partida) => partida.status === 'EM_ANDAMENTO').map((partida) => <PartidaCard key={`vivo-${partida.id}`} partida={partida} />)}
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 py-8">
         {scope.organizadorId && !scope.selectedLiga ? (

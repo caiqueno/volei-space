@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck } from 'lucide-react'
+import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck, X } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 
@@ -11,6 +11,8 @@ export default function OperacaoArbitroPage() {
   const { token } = useParams<{ token: string }>()
   const [partida, setPartida] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [falha, setFalha] = useState('')
+  const [savingId, setSavingId] = useState<number | null>(null)
   const [qr, setQr] = useState('')
   const [msg, setMsg] = useState('')
   const [validating, setValidating] = useState(false)
@@ -23,15 +25,27 @@ export default function OperacaoArbitroPage() {
   const rafRef = useRef<number | null>(null)
   const scanningRef = useRef(false)
 
-  async function fetchPartida() {
-    const res = await fetch(`/api/arbitro/partidas/${token}`)
-    const json = await res.json()
-    if (res.ok) setPartida(json.data)
-    setLoading(false)
+  async function fetchPartida(inicial = false) {
+    if (inicial) setLoading(true)
+    try {
+      const res = await fetch(`/api/arbitro/partidas/${token}`)
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setPartida(null)
+        setFalha(json.error ?? 'Não foi possível abrir a partida.')
+        return
+      }
+      setFalha('')
+      setPartida(json.data)
+    } catch {
+      setFalha('Falha de conexão. Tente novamente.')
+    } finally {
+      if (inicial) setLoading(false)
+    }
   }
 
   useEffect(() => {
-    fetchPartida()
+    fetchPartida(true)
   }, [token])
 
   useEffect(() => {
@@ -39,7 +53,6 @@ export default function OperacaoArbitroPage() {
   }, [])
 
   const presencas = useMemo(() => partida?.presencas ?? [], [partida])
-  const validatedIds = useMemo(() => new Set(presencas.map((p: any) => p.jogadorId)), [presencas])
   const jogadoresA = partida?.equipeA?.jogadores ?? []
   const jogadoresB = partida?.equipeB?.jogadores ?? []
   const totalAtletas = jogadoresA.length + jogadoresB.length
@@ -163,22 +176,62 @@ export default function OperacaoArbitroPage() {
     rafRef.current = requestAnimationFrame(tick)
   }
 
-  async function iniciarPartida() {
-    setStarting(true)
+  async function marcarPresenca(jogadorId: number, presente: boolean) {
+    if (savingId != null) return
+    setSavingId(jogadorId)
     setMsg('')
-    const res = await fetch(`/api/arbitro/partidas/${token}/iniciar`, { method: 'POST' })
-    const json = await res.json()
-    setStarting(false)
-    if (!res.ok) {
-      setMsg(json.error ?? 'Nao foi possivel iniciar a partida.')
-      return
+    try {
+      const res = await fetch(`/api/arbitro/partidas/${token}/presenca`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jogadorId, presente }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMsg(json.error ?? 'Não foi possível salvar a presença.')
+        await fetchPartida()
+        return
+      }
+      setPartida((current: any) => {
+        if (!current) return current
+        const demais = (current.presencas ?? []).filter((item: any) => item.jogadorId !== jogadorId)
+        return { ...current, presencas: [...demais, json.data] }
+      })
+    } catch {
+      setMsg('Falha de conexão. A presença não foi salva.')
+      await fetchPartida()
+    } finally {
+      setSavingId(null)
     }
-    setPartida((current: any) => ({ ...current, ...json.data }))
-    setMsg('Partida iniciada. A sumula ja pode ser preenchida.')
   }
 
-  if (loading) return <Status title="Carregando operacao" text="Buscando partida e equipes." />
-  if (!partida) return <Status title="Partida indisponivel" text="O link operacional nao foi encontrado." error />
+  async function iniciarPartida() {
+    if (starting) return
+    setStarting(true)
+    setMsg('')
+    try {
+      const res = await fetch(`/api/arbitro/partidas/${token}/iniciar`, { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMsg(json.error ?? 'Não foi possível iniciar a partida.')
+        return
+      }
+      const id = json.data?.id ?? partida?.id
+      if (!id) {
+        setMsg('A partida foi iniciada, mas a súmula não abriu. Use Abrir súmula.')
+        setPartida((current: any) => ({ ...current, ...json.data }))
+        return
+      }
+      window.location.assign(`/sumula/${id}`)
+    } catch {
+      setMsg('Falha de conexão. A partida não foi iniciada.')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  if (loading) return <Status title="Carregando operação" text="Buscando partida e equipes." />
+  if (!partida) return <Status title="Partida indisponível" text={falha || 'Não foi possível abrir esta partida.'} error onRetry={() => fetchPartida(true)} />
 
   const janela = partida.janelaValidacao
   const liberada = Boolean(janela?.liberada)
@@ -234,18 +287,18 @@ export default function OperacaoArbitroPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <TeamRoster team={partida.equipeA} jogadores={jogadoresA} validatedIds={validatedIds} presentes={presentesA} />
-          <TeamRoster team={partida.equipeB} jogadores={jogadoresB} validatedIds={validatedIds} presentes={presentesB} />
+          <TeamRoster team={partida.equipeA} jogadores={jogadoresA} presencas={presencas} presentes={presentesA} savingId={savingId} onPresenca={marcarPresenca} />
+          <TeamRoster team={partida.equipeB} jogadores={jogadoresB} presencas={presencas} presentes={presentesB} savingId={savingId} onPresenca={marcarPresenca} />
         </div>
 
         <div className="referee-card rounded-[2rem] border p-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <ActionBar onClick={iniciarPartida} loading={starting} loadingLabel="Iniciando" disabled={!liberada} className="referee-primary inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45">
+            <ActionBar onClick={iniciarPartida} loading={starting} loadingLabel="Iniciando" disabled={!liberada || ['ENCERRADA', 'WO', 'CANCELADA'].includes(String(partida.status || '').toUpperCase())} className="referee-primary inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-45">
               <ClipboardCheck size={18} />
               Iniciar partida
             </ActionBar>
-            <Link href={`/sumula/${token}`} className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
-              Abrir sumula
+            <Link href={`/sumula/${partida.id}`} className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
+              Abrir súmula
               <ArrowRight size={18} />
             </Link>
           </div>
@@ -318,7 +371,13 @@ function TeamBox({ team, align = 'left' }: { team: any; align?: 'left' | 'right'
   )
 }
 
-function TeamRoster({ team, jogadores, validatedIds, presentes }: { team: any; jogadores: any[]; validatedIds: Set<unknown>; presentes: number }) {
+function rotuloPresenca(presencas: any[], jogadorId: number) {
+  const registro = presencas.find((item) => item.jogadorId === jogadorId)
+  if (!registro) return 'Pendente'
+  return registro.presente ? 'Confirmado' : 'Ausente'
+}
+
+function TeamRoster({ team, jogadores, presencas, presentes, savingId, onPresenca }: { team: any; jogadores: any[]; presencas: any[]; presentes: number; savingId: number | null; onPresenca: (jogadorId: number, presente: boolean) => void }) {
   return (
     <div className="referee-card rounded-[2rem] border p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -330,9 +389,10 @@ function TeamRoster({ team, jogadores, validatedIds, presentes }: { team: any; j
           <p className="referee-empty rounded-2xl border p-4 text-sm font-bold">Nenhum atleta cadastrado.</p>
         ) : (
           jogadores.map((jogador) => {
-            const validado = validatedIds.has(jogador.id)
+            const status = rotuloPresenca(presencas, jogador.id)
+            const salvando = savingId === jogador.id
             return (
-              <div key={jogador.id} className={`referee-player flex items-center justify-between gap-3 rounded-2xl border p-4 ${validado ? 'is-validated' : ''}`}>
+              <div key={jogador.id} className={`referee-player flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${status === 'Confirmado' ? 'is-validated' : ''}`}>
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/8 text-sm font-black text-white ring-1 ring-white/12">
                     {jogador.numero ?? '--'}
@@ -342,10 +402,18 @@ function TeamRoster({ team, jogadores, validatedIds, presentes }: { team: any; j
                     <p className="mt-1 text-xs font-bold text-white/65">{jogador.posicao ?? 'Atleta'}</p>
                   </div>
                 </div>
-                <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide ${validado ? 'bg-emerald-400/16 text-emerald-100' : 'bg-white/8 text-white/70'}`}>
-                  {validado ? <CheckCircle2 size={14} /> : <UserCheck size={14} />}
-                  {validado ? 'Validado' : 'Pendente'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide ${status === 'Confirmado' ? 'bg-emerald-400/16 text-emerald-100' : status === 'Ausente' ? 'bg-red-400/16 text-red-100' : 'bg-white/8 text-white/70'}`}>
+                    {status === 'Confirmado' ? <CheckCircle2 size={14} /> : status === 'Ausente' ? <X size={14} /> : <UserCheck size={14} />}
+                    {salvando ? 'Salvando' : status}
+                  </span>
+                  <button type="button" aria-label={`Confirmar ${jogador.nome}`} disabled={salvando} onClick={() => onPresenca(jogador.id, true)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-slate-950 disabled:opacity-45">
+                    <CheckCircle2 size={18} />
+                  </button>
+                  <button type="button" aria-label={`Marcar ${jogador.nome} como ausente`} disabled={salvando} onClick={() => onPresenca(jogador.id, false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-500 text-white disabled:opacity-45">
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
             )
           })
@@ -355,7 +423,7 @@ function TeamRoster({ team, jogadores, validatedIds, presentes }: { team: any; j
   )
 }
 
-function Status({ title, text, error = false }: { title: string; text: string; error?: boolean }) {
+function Status({ title, text, error = false, onRetry }: { title: string; text: string; error?: boolean; onRetry?: () => void }) {
   return (
     <main className="referee-shell flex min-h-screen items-center justify-center px-4 text-white">
       <div className="referee-card max-w-md rounded-[2rem] border p-7 text-center">
@@ -364,6 +432,7 @@ function Status({ title, text, error = false }: { title: string; text: string; e
         </span>
         <h1 className="mt-5 text-2xl font-black">{title}</h1>
         <p className="mt-2 text-sm font-semibold leading-6 text-slate-200">{text}</p>
+        {onRetry ? <button type="button" onClick={onRetry} className="mt-5 rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950">Tentar novamente</button> : null}
       </div>
     </main>
   )

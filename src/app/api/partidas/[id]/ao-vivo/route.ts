@@ -23,8 +23,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         setsPorB,
         pontosPorA,
         pontosPorB,
-        equipeA:Equipe!equipeAId(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)),
-        equipeB:Equipe!equipeBId(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl))
+        sumulaAprovadaEm,
+        equipeA:Equipe!Partida_equipeAId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)),
+        equipeB:Equipe!Partida_equipeBId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl))
       `)
       .eq('id', partidaId)
       .single()
@@ -33,7 +34,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return noStore(success(makeDemoLivePartida()))
     }
 
-    if (partidaErr || !data) return error('Partida não encontrada', 404)
+    if (partidaErr) return error('Não foi possível abrir o acompanhamento ao vivo.', 500)
+    if (!data) return error('Partida não encontrada', 404)
+    data.equipeA = primeiro(data.equipeA)
+    data.equipeB = primeiro(data.equipeB)
 
     const [setsRes, presencasRes, ocorrenciasRes, destaquesRes] = await Promise.all([
       supabase.from('SetPartida').select('id,numero,pontosA,pontosB').eq('partidaId', partidaId),
@@ -57,6 +61,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       presencas: presencasRes.data ?? [],
       ocorrencias,
       destaques: destaquesRes.data ?? [],
+      oficial: Boolean(data.sumulaAprovadaEm),
       atualizadoEm: new Date().toISOString(),
     }))
   } catch (err) {
@@ -64,6 +69,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (partidaId === 9001) return noStore(success(makeDemoLivePartida()))
     return error('Erro ao carregar acompanhamento ao vivo', 500)
   }
+}
+
+function primeiro(valor: unknown) {
+  return Array.isArray(valor) ? valor[0] ?? null : valor
 }
 
 function noStore(response: Response) {

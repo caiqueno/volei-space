@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { getBracketRounds, getClassifiedTeamIds, getMatchLoserId, getMatchWinnerId, THIRD_PLACE_FASE } from '@/lib/mata-mata'
 import { FASES_ELIMINATORIAS } from '@/lib/eliminatorias'
 
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .maybeSingle()
     if (ligaErr || !liga) return error('Campeonato não encontrado.', 404)
     if (liga.organizadorId !== auth.userId) return error('Você não pode alterar o chaveamento deste campeonato.', 403)
+    const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+    if (bloqueio) return bloqueio
 
     const rounds = getBracketRounds(liga.faseEliminatoria)
     const roundIndex = isThirdPlace ? -1 : rounds.findIndex((round) => round.fase === fase)

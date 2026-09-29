@@ -155,6 +155,7 @@ async function validateChampionshipRegistration(ligaId: number) {
     .single()
 
   if (ligaErr || !liga) return error('Campeonato não encontrado.', 404)
+  if (liga.status === 'FINALIZADO') return error('Este campeonato está finalizado e não aceita novas inscrições.', 409)
   if (!['EM_BREVE', 'ATIVA'].includes(liga.status)) return error('Campeonato não está aberto para inscrição.', 400)
   if (liga.inscricoesAbertas === false) return error('As inscrições deste campeonato estão fechadas.', 400)
 

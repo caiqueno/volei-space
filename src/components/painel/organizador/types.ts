@@ -7,6 +7,7 @@ export interface LigaCarouselItem {
   dataInicio: string | null
   dataFim: string | null
   status: string
+  simulacao?: boolean
   localPrincipal: { nome: string; endereco: string | null; quadra: string | null } | null
   categoriasReais: { categoria: string; serie: string | null }[]
 }

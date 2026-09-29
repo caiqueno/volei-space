@@ -155,8 +155,8 @@ export default function AdminJogadoresPage() {
 
       {loading ? <p className="text-slate-300">Carregando...</p> : (
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+          <div className="max-w-full">
+            <table data-stack className="w-full text-sm">
               <thead className="border-b border-white/10 bg-white/[0.03]">
                 <tr>
                   <th className="px-4 py-3 text-left font-black text-slate-300">Nome</th>
@@ -170,16 +170,16 @@ export default function AdminJogadoresPage() {
               <tbody className="divide-y divide-white/10">
                 {jogadores.map((j: any) => (
                   <tr key={j.id} className="transition hover:bg-white/[0.03]">
-                    <td className="px-4 py-3 font-black text-white">{j.nome}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-300">{j.equipe?.nome ?? '-'}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-300">{j.numero ?? '-'}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-300">{j.posicao ?? '-'}</td>
-                    <td className="px-4 py-3">
+                    <td data-label="Nome" className="px-4 py-3 font-black text-white">{j.nome}</td>
+                    <td data-label="Equipe" className="px-4 py-3 font-semibold text-slate-300">{j.equipe?.nome ?? '-'}</td>
+                    <td data-label="Número" className="px-4 py-3 font-semibold text-slate-300">{j.numero ?? '-'}</td>
+                    <td data-label="Posição" className="px-4 py-3 font-semibold text-slate-300">{j.posicao ?? '-'}</td>
+                    <td data-label="Status" className="px-4 py-3">
                       <span className={`rounded-full px-3 py-1 text-xs font-black ${j.banido ? 'bg-red-500/15 text-red-200 ring-1 ring-red-400/30' : 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/30'}`}>
                         {j.banido ? 'Bloqueado' : 'Ativo'}
                       </span>
                     </td>
-                    <td className="flex flex-wrap gap-3 px-4 py-3">
+                    <td data-label="Ações" className="flex flex-wrap gap-3 px-4 py-3">
                       <button onClick={() => toggleBan(j)} className="text-xs font-black text-[#ffb331] hover:text-white">
                         {j.banido ? 'Desbloquear' : 'Bloquear'}
                       </button>

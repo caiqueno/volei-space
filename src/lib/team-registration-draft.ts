@@ -7,7 +7,15 @@ import {
 import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
 import { slugify } from '@/utils/slug'
 
-export type RegistrationDraftStatus = 'RASCUNHO' | 'ENVIADA'
+export type RegistrationDraftStatus = 'NAO_INICIADO' | 'EM_PREENCHIMENTO' | 'CONCLUIDO' | 'RASCUNHO' | 'ENVIADA'
+
+function inscricaoConcluida(status: string) {
+  return status === 'CONCLUIDO' || status === 'ENVIADA'
+}
+
+function inscricaoAberta(status: string) {
+  return status === 'NAO_INICIADO' || status === 'EM_PREENCHIMENTO' || status === 'RASCUNHO'
+}
 
 export type RegistrationLeague = {
   id: number
@@ -78,6 +86,7 @@ const LEAGUE_COLUMNS = [
 ].join(',')
 
 export function registrationWindowDecision(liga: Pick<RegistrationLeague, 'status' | 'inscricoesAbertas' | 'inscricoesAberturaEm' | 'inscricoesEncerramentoEm'>, now = new Date()): RuleDecision {
+  if (liga.status === 'FINALIZADO') return { allowed: false, reason: 'Este campeonato está finalizado e não aceita novas inscrições.' }
   if (!['EM_BREVE', 'ATIVA'].includes(liga.status)) return { allowed: false, reason: 'Campeonato não está aberto para inscrição.' }
   if (liga.inscricoesAbertas === false) return { allowed: false, reason: 'As inscrições deste campeonato estão fechadas.' }
   if (liga.inscricoesAberturaEm && now < new Date(liga.inscricoesAberturaEm)) return { allowed: false, reason: 'As inscrições ainda não foram abertas.' }
@@ -93,7 +102,7 @@ function withinDays(date: string | null, days: number | null, now: Date): boolea
 }
 
 export function canEditRegistration(draft: RegistrationDraft, liga: RegistrationLeague, now = new Date()): RuleDecision {
-  if (draft.status === 'RASCUNHO') return registrationWindowDecision(liga, now)
+  if (inscricaoAberta(draft.status)) return registrationWindowDecision(liga, now)
   if (!liga.inscricaoPermiteEdicaoAposEnvio) return { allowed: false, reason: 'O organizador não permite editar a inscrição após o envio.' }
   if (!withinDays(draft.enviadaEm, liga.inscricaoPrazoEdicaoDias, now)) return { allowed: false, reason: 'O prazo para editar esta inscrição terminou.' }
   return { allowed: true, reason: null }
@@ -102,13 +111,13 @@ export function canEditRegistration(draft: RegistrationDraft, liga: Registration
 export function canEditRoster(draft: RegistrationDraft, liga: RegistrationLeague, registrationStatus: string | null, now = new Date()): RuleDecision {
   const registration = canEditRegistration(draft, liga, now)
   if (!registration.allowed) return registration
-  if (draft.status === 'RASCUNHO' && liga.elencoCadastroDuranteInscricao === false) {
+  if (inscricaoAberta(draft.status) && liga.elencoCadastroDuranteInscricao === false) {
     return { allowed: false, reason: 'O cadastro de atletas durante a inscrição está desabilitado.' }
   }
-  if (draft.status === 'ENVIADA' && registrationStatus === 'APROVADA' && liga.elencoCadastroAposAprovacao === false) {
+  if (inscricaoConcluida(draft.status) && registrationStatus === 'APROVADA' && liga.elencoCadastroAposAprovacao === false) {
     return { allowed: false, reason: 'O elenco não pode ser alterado após a aprovação.' }
   }
-  if (draft.status === 'ENVIADA' && !withinDays(draft.enviadaEm, liga.prazoAlteracaoElencoDias, now)) {
+  if (inscricaoConcluida(draft.status) && !withinDays(draft.enviadaEm, liga.prazoAlteracaoElencoDias, now)) {
     return { allowed: false, reason: 'O prazo para alterar o elenco terminou.' }
   }
   return { allowed: true, reason: null }
@@ -150,12 +159,23 @@ export async function createRegistrationDraft(input: { ligaId: number; nomeEquip
 
   const fixed = resolveInscricaoCategoria(liga).categoriaFixa
   const categoria = fixed ? fixed.categoria : input.categoria || null
-  const serie = fixed ? fixed.serie : input.serie || null
+  if (!categoria) throw new RegistrationDraftError('Selecione a categoria do campeonato.', 422)
+  const { data: categoriaRow, error: categoriaErr } = await supabase
+    .from('CategoriaCampeonato')
+    .select('id')
+    .eq('ligaId', input.ligaId)
+    .eq('codigo', categoria)
+    .is('removidaEm', null)
+    .maybeSingle()
+  if (categoriaErr) throw categoriaErr
+  if (!categoriaRow) throw new RegistrationDraftError('Esta categoria não está disponível no campeonato.', 422)
   const { data, error } = await supabase.from('InscricaoEquipeRascunho').insert({
     ligaId: input.ligaId,
     nomeEquipe: input.nomeEquipe,
     categoria,
-    serie,
+    serie: null,
+    categoriaCampeonatoId: categoriaRow.id,
+    status: 'NAO_INICIADO',
   }).select('*').single()
   if (error) throw error
   return data as unknown as RegistrationDraft
@@ -170,7 +190,7 @@ export async function getRegistrationDraftByToken(token: string) {
 
   let team = draft
   let players: RegistrationPlayer[] = []
-  if (draft.status === 'ENVIADA' && draft.equipeId) {
+  if (inscricaoConcluida(draft.status) && draft.equipeId) {
     const [{ data: equipe, error: equipeError }, { data: jogadores, error: jogadoresError }] = await Promise.all([
       supabase.from('Equipe').select('nome,logoUrl,lider,tecnico,categoria,serie').eq('id', draft.equipeId).single(),
       supabase.from('Jogador').select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero').eq('equipeId', draft.equipeId).eq('banido', false).order('criadoEm'),
@@ -213,18 +233,18 @@ export async function updateRegistrationDraft(token: string, patch: Record<strin
     }
   }
 
-  if (context.draft.status === 'ENVIADA' && context.draft.equipeId) {
+  if (inscricaoConcluida(context.draft.status) && context.draft.equipeId) {
     const map: Record<string, unknown> = {}
     const config = resolveFormularioRapidaConfig(context.liga.formularioInscricaoConfig)
     if ('nomeEquipe' in patch) map.nome = patch.nomeEquipe
     if ('logoUrl' in patch && config.equipe.logo !== 'disabled') map.logoUrl = patch.logoUrl
     if ('lider' in patch && config.lider.nomeCompleto !== 'disabled') map.lider = patch.lider
-    for (const key of ['tecnico', 'categoria', 'serie']) if (key in patch) map[key] = patch[key]
+    if ('tecnico' in patch) map.tecnico = patch.tecnico
     const { error } = await supabase.from('Equipe').update(map).eq('id', context.draft.equipeId)
     if (error?.code === '23505') throw new RegistrationDraftError('Já existe uma equipe cadastrada com esse nome nesta categoria/série.', 409)
     if (error) throw error
   } else {
-    const { error } = await supabase.from('InscricaoEquipeRascunho').update(patch).eq('id', context.draft.id).eq('status', 'RASCUNHO')
+    const { error } = await supabase.from('InscricaoEquipeRascunho').update(patch).eq('id', context.draft.id).in('status', ['NAO_INICIADO', 'EM_PREENCHIMENTO', 'RASCUNHO'])
     if (error) throw error
   }
   return getRegistrationDraftByToken(token)
@@ -288,8 +308,8 @@ export async function createRegistrationPlayer(token: string, input: Record<stri
   assertRosterPlayer(input, context)
   const maximum = context.liga.elencoQuantidadeMaxima
   if (maximum != null && context.players.length >= maximum) throw new RegistrationDraftError(`O elenco permite no máximo ${maximum} jogadores.`, 422)
-  const target = context.draft.status === 'ENVIADA' ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
-  const extra = context.draft.status === 'ENVIADA'
+  const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
+  const extra = inscricaoConcluida(context.draft.status)
     ? { equipeId: context.draft.equipeId, autoRegistrado: true }
     : { inscricaoRascunhoId: context.draft.id }
   const { data, error } = await supabase.from(target).insert({ ...configuredPlayerPayload(input, context.liga), ...extra }).select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero').single()
@@ -301,9 +321,9 @@ export async function createRegistrationPlayer(token: string, input: Record<stri
 export async function updateRegistrationPlayer(token: string, playerId: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context, playerId)
-  const target = context.draft.status === 'ENVIADA' ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
+  const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
   let query = supabase.from(target).update(configuredPlayerPayload(input, context.liga)).eq('id', playerId)
-  query = context.draft.status === 'ENVIADA'
+  query = inscricaoConcluida(context.draft.status)
     ? query.eq('equipeId', context.draft.equipeId as number)
     : query.eq('inscricaoRascunhoId', context.draft.id)
   const { data, error } = await query.select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero').maybeSingle()
@@ -316,12 +336,12 @@ export async function updateRegistrationPlayer(token: string, playerId: string, 
 export async function deleteRegistrationPlayer(token: string, playerId: string) {
   const context = await editableRosterContext(token)
   const minimum = context.liga.elencoQuantidadeMinima
-  if (context.draft.status === 'ENVIADA' && minimum != null && context.players.length <= minimum) {
+  if (inscricaoConcluida(context.draft.status) && minimum != null && context.players.length <= minimum) {
     throw new RegistrationDraftError(`O elenco precisa manter ao menos ${minimum} jogadores.`, 422)
   }
-  const target = context.draft.status === 'ENVIADA' ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
+  const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
   let query = supabase.from(target).delete().eq('id', playerId)
-  query = context.draft.status === 'ENVIADA'
+  query = inscricaoConcluida(context.draft.status)
     ? query.eq('equipeId', context.draft.equipeId as number)
     : query.eq('inscricaoRascunhoId', context.draft.id)
   const { data, error } = await query.select('id').maybeSingle()
@@ -367,7 +387,7 @@ async function uniqueTeamSlug(name: string) {
 
 export async function finalizeRegistration(token: string) {
   const context = await getRegistrationDraftByToken(token)
-  if (context.draft.status === 'ENVIADA') {
+  if (inscricaoConcluida(context.draft.status)) {
     if (context.registrationStatus === 'APROVADA' && context.draft.inscricaoCampeonatoId) {
       await ensureApprovedRegistrationOperations(context.draft.inscricaoCampeonatoId)
     }

@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/su
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 type ManualSetInput = {
   numero: number
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('Partida')
-    .select('*, liga:Liga(id,nome,slug,setsPorPartida,pontosPorSet), equipeA:Equipe!equipeAId(id,nome,slug), equipeB:Equipe!equipeBId(id,nome,slug), sets:SetPartida(*)')
+    .select('*, liga:Liga(id,nome,slug,setsPorPartida,pontosPorSet), equipeA:Equipe!Partida_equipeAId_fkey(id,nome,slug), equipeB:Equipe!Partida_equipeBId_fkey(id,nome,slug), sets:SetPartida(*)')
     .in('ligaId', filteredLigaIds)
     .order('dataHora', { ascending: false })
     .limit(80)
@@ -83,6 +84,8 @@ export async function PATCH(req: NextRequest) {
     if (liga?.organizadorId !== auth.userId) {
       return error('Você não pode lançar resultado nesta partida.', 403)
     }
+    const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
+    if (bloqueio) return bloqueio
 
     const setsPorPartida = Math.max(1, Number(liga?.setsPorPartida ?? 3))
     const setsParaVencer = Math.floor(setsPorPartida / 2) + 1
@@ -147,7 +150,7 @@ export async function PATCH(req: NextRequest) {
         sumulaAprovadaEm: new Date().toISOString(),
       })
       .eq('id', partidaId)
-      .select('*, liga:Liga(id,nome,slug,setsPorPartida,pontosPorSet), equipeA:Equipe!equipeAId(id,nome,slug), equipeB:Equipe!equipeBId(id,nome,slug), sets:SetPartida(*)')
+      .select('*, liga:Liga(id,nome,slug,setsPorPartida,pontosPorSet), equipeA:Equipe!Partida_equipeAId_fkey(id,nome,slug), equipeB:Equipe!Partida_equipeBId_fkey(id,nome,slug), sets:SetPartida(*)')
       .single()
 
     if (updateErr) throw updateErr

@@ -33,20 +33,23 @@ export async function requireArbitroPartidaAccess(
     return error('Cadastro de arbitro ainda nao liberado para operar partidas.', 403)
   }
 
-  const { data: partida, error: partidaErr } = await supabase
+  const numerico = /^\d+$/.test(token)
+  let consulta = supabase
     .from('Partida')
-    .select('*, liga:Liga(*), equipeA:Equipe!equipeAId(*, jogadores:Jogador(*)), equipeB:Equipe!equipeBId(*, jogadores:Jogador(*)), presencas:SumulaPresenca(*, jogador:Jogador(*)), escala:EscalaArbitro(*, arbitro:Arbitro(*))')
-    .eq('sumulaToken', token)
-    .single()
+    .select('*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(*)), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(*)), presencas:SumulaPresenca(*, jogador:Jogador(*)), escala:EscalaArbitro(*, arbitro:Arbitro(*))')
+  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
+  const { data: partida, error: partidaErr } = await consulta.maybeSingle()
 
-  if (partidaErr || !partida) return error('Partida nao encontrada.', 404)
+  if (partidaErr) return error('Não foi possível abrir a partida.', 500)
+  if (!partida) return error('Partida não encontrada.', 404)
+  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
+  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
+  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
 
   const escala = Array.isArray(partida.escala) ? partida.escala : []
-  if (escala.length > 0) {
-    const arbitroId = Number(candidatura.arbitroId)
-    const escalado = escala.some((item: any) => Number(item.arbitroId) === arbitroId)
-    if (!arbitroId || !escalado) return error('Voce nao esta escalado para operar esta partida.', 403)
-  }
+  const arbitroId = Number(candidatura.arbitroId)
+  const escalado = escala.some((item: any) => Number(item.arbitroId) === arbitroId)
+  if (!arbitroId || !escalado) return error('Voce nao esta escalado para operar esta partida.', 403)
 
   return { auth, candidatura, partida }
 }

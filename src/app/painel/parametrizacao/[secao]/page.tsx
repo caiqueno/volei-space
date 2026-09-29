@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { SECTION_WIZARD_REGISTRY, isValidSetupSectionSlug } from '@/components/parametrizacao/sections/registry'
 import { ToastProvider } from '@/components/parametrizacao/ui/Toast'
+import { CategoryNavigation } from '@/components/parametrizacao/CategoryControls'
 
 function Content() {
   const params = useParams<{ secao: string }>()
@@ -36,7 +37,12 @@ function Content() {
   }
 
   const { component: SectionWizard } = SECTION_WIZARD_REGISTRY[secao]
-  return <SectionWizard key={ligaId} ligaId={ligaId} />
+  return (
+    <>
+      {secao !== 'categorias' && secao !== 'informacoes' && <CategoryNavigation ligaId={ligaId} />}
+      <SectionWizard key={`${ligaId}:${searchParams.get('categoriaCampeonatoId') ?? ''}`} ligaId={ligaId} />
+    </>
+  )
 }
 
 export default function SetupSectionPage() {

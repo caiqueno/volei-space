@@ -3,6 +3,7 @@ export function formatLigaStatus(status?: string | null) {
     EM_BREVE: 'Em breve',
     ATIVA: 'Ativo',
     ENCERRADA: 'Encerrado',
+    FINALIZADO: 'Finalizado',
   }
   return status ? map[status] ?? status : 'Em breve'
 }

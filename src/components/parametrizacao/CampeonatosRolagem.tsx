@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { consultar } from '@/lib/api-cliente'
 import { useRouter } from 'next/navigation'
 
 type CampeonatoAba = { id: number; nome: string }
@@ -47,8 +48,8 @@ export function CampeonatosRolagemDaSecao({ ligaId, secao }: { ligaId: number; s
     const organizadorId = stored?.candidaturaId
     if (!organizadorId) return
     let cancelled = false
-    fetch(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { cache: 'no-store' })
-      .then((response) => response.json())
+    const controlador = new AbortController()
+    consultar<{ data?: Array<{ id: number; nome: string }> }>(`/api/ligas?organizadorId=${encodeURIComponent(organizadorId)}`, { signal: controlador.signal })
       .then((payload) => {
         if (cancelled) return
         const rows = Array.isArray(payload.data) ? payload.data : []
@@ -57,6 +58,7 @@ export function CampeonatosRolagemDaSecao({ ligaId, secao }: { ligaId: number; s
       .catch(() => {})
     return () => {
       cancelled = true
+      controlador.abort()
     }
   }, [])
 

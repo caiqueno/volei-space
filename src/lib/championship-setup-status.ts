@@ -5,7 +5,7 @@ export type ChampionshipSetupStatus = 'not-started' | 'in-progress' | 'completed
 
 export type SetupSection = 'informacoes' | 'estrutura' | 'classificacao' | 'eliminatorias' | 'calendario' | 'inscricoes'
 
-export type SetupCardKey = SetupSection | 'previa' | 'pagamento'
+export type SetupCardKey = SetupSection | 'previa' | 'pagamento' | 'categorias'
 
 // Ordem fixa das 7 sessões — nunca reordenar por status. Também funciona
 // como ordem topológica válida do grafo de dependências abaixo (cada seção
@@ -185,4 +185,5 @@ export const CARD_TITLES: Record<SetupCardKey, string> = {
   ...SECTION_TITLES,
   previa: 'Prévia',
   pagamento: 'Pagamento',
+  categorias: 'Categorias',
 }

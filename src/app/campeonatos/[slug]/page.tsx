@@ -7,6 +7,7 @@ import { ArrowRight, CalendarDays, Trophy, UsersRound } from 'lucide-react'
 import { CampeonatoActions } from '@/components/campeonatos/CampeonatoActions'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
+import { isCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { createPageMetadata } from '@/lib/seo'
 
@@ -27,11 +28,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { data: liga } = await supabase
     .from('Liga')
-    .select('nome,descricao,subtitulo')
+    .select('nome,descricao,subtitulo,simulacao')
     .eq('slug', slug)
     .maybeSingle()
 
-  if (!liga) return { ...fallback, robots: { index: false, follow: false } }
+  if (!liga || liga.simulacao === true) return { ...fallback, robots: { index: false, follow: false } }
 
   return createPageMetadata({
     title: liga.nome,
@@ -58,7 +59,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
     .eq('slug', slug)
     .maybeSingle()
 
-  if (!liga) {
+  if (!liga || liga.simulacao === true) {
     return (
       <main className="luva-shell min-h-screen px-4 py-12">
         <EstadoVazio titulo="Campeonato não encontrado" descricao="Verifique o link público do campeonato e tente novamente." />
@@ -78,20 +79,27 @@ export default async function CampeonatoPage({ params }: PageProps) {
   ])
   const vagasLimite = liga.quantidadeEquipes ?? null
   const vagasDisponiveis = vagasLimite ? Math.max(vagasLimite - (equipesCount ?? 0), 0) : null
-  const inscricoesAbertas = liga.inscricoesAbertas !== false && (vagasDisponiveis === null || vagasDisponiveis > 0)
+  const finalizado = isCampeonatoFinalizado(liga.status)
+  const inscricoesAbertas = !finalizado && liga.inscricoesAbertas !== false && (vagasDisponiveis === null || vagasDisponiveis > 0)
 
   return (
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <section className="orange-wave">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 lg:grid-cols-[1fr_380px] lg:items-end">
           <div>
-            <p className="luva-kicker flex items-center gap-2"><Trophy size={16} /> {formatLigaStatus(liga.status)}</p>
+            <p className="luva-kicker flex flex-wrap items-center gap-2">
+              <Trophy size={16} /> {formatLigaStatus(liga.status)}
+              {finalizado && <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-black text-white">Finalizado</span>}
+            </p>
+            {finalizado && (
+              <p className="mt-4 max-w-2xl text-sm font-bold text-slate-100">Este campeonato está finalizado e disponível apenas para consulta.</p>
+            )}
             <h1 className="type-page-title mt-3 max-w-4xl">{liga.nome}</h1>
             <p className="type-lead mt-4 max-w-2xl">
               {liga.descricao || liga.subtitulo || 'Acompanhe informações, inscrições, agenda, classificação e cobertura deste campeonato.'}
             </p>
           </div>
-          <CampeonatoActions ligaId={liga.id} inscricoesAbertas={inscricoesAbertas} vagasDisponiveis={vagasDisponiveis} />
+          <CampeonatoActions ligaId={liga.id} inscricoesAbertas={inscricoesAbertas} vagasDisponiveis={vagasDisponiveis} finalizado={finalizado} />
         </div>
       </section>
 

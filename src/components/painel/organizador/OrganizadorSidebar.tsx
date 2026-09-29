@@ -38,8 +38,7 @@ export function OrganizadorSidebar({ view, onSelectView, organizacaoNome, organi
           </span>
         </Link>
 
-        <div className={`min-h-0 flex-1 overflow-y-auto transition-all duration-500 ${obfuscated ? 'pointer-events-none opacity-40 saturate-50 brightness-90' : 'opacity-100'}`} aria-hidden={obfuscated}>
-          <nav className="profile-sidebar-nav" style={{ marginTop: obfuscated ? 24 : undefined }}>
+        <nav className={`profile-sidebar-nav ${obfuscated ? 'pointer-events-none opacity-40 saturate-50 brightness-90' : ''}`} style={{ marginTop: obfuscated ? 24 : undefined }} aria-hidden={obfuscated}>
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon
               const active = view === item.key
@@ -59,8 +58,7 @@ export function OrganizadorSidebar({ view, onSelectView, organizacaoNome, organi
                 </button>
               )
             })}
-          </nav>
-        </div>
+        </nav>
         {obfuscated && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">Finalize o cadastro da organização para liberar a navegação.</p>}
 
         <div className="profile-sidebar-session">

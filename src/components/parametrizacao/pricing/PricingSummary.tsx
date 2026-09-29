@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { consultar } from '@/lib/api-cliente'
 import { formatCents } from '@/lib/pricing'
 import type { ChampionshipPricing, MatchEstimate } from '@/lib/pricing'
 
@@ -30,12 +31,8 @@ export function PricingSummary({ ligaId, refreshKey }: { ligaId: number; refresh
   useEffect(() => {
     let cancelled = false
     if (!hasLoadedOnce.current) setLoading(true)
-    fetch(`/api/organizador/ligas/${ligaId}/setup/previa`, { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error || 'Erro ao calcular o investimento.')
-        return payload.data as { pricing: ChampionshipPricing; estimativaPartidas: MatchEstimate }
-      })
+    consultar<{ data: { pricing: ChampionshipPricing; estimativaPartidas: MatchEstimate } }>(`/api/organizador/ligas/${ligaId}/setup/previa`, { forcar: hasLoadedOnce.current })
+      .then((payload) => payload.data)
       .then((loaded) => {
         if (cancelled) return
         setPricing(loaded.pricing)

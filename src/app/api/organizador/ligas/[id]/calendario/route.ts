@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -42,6 +43,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
   if (ligaErr || !liga) return error('Campeonato não encontrado.', 404, ligaErr)
   if (liga.organizadorId !== auth.userId) return error('Acesso negado para este campeonato.', 403)
+  const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+  if (bloqueio) return bloqueio
 
   const ids = parsed.data.partidas.map((partida) => partida.id)
   const { data: currentMatches, error: matchesErr } = await supabase

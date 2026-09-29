@@ -10,6 +10,7 @@ import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import { CreatorEmptyState } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 
 type PortalData = {
   scope: { organizadorId: string | null; ligas: Array<{ id: number; nome: string; slug: string; status?: string }>; selectedLiga: { id: number; nome: string; slug: string; status?: string } | null }
@@ -25,7 +26,7 @@ type PortalData = {
 
 const SLIDE_MS = 7000
 
-export function InicioPortal({ organizadorId }: { organizadorId: string }) {
+export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: string; ativo?: boolean }) {
   const [slides, setSlides] = useState<PortalData[]>([])
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -35,39 +36,15 @@ export function InicioPortal({ organizadorId }: { organizadorId: string }) {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const firstResponse = await fetch('/api/portal-home', { cache: 'no-store' })
-      const firstPayload = await firstResponse.json().catch(() => ({}))
+      const payload = await consultar<{ data?: { slides?: PortalData[] } }>('/api/portal-home?visao=painel')
       if (cancelled) return
-      const first = firstPayload.data as PortalData | undefined
-      if (!first) {
-        setSlides([])
-        setLoading(false)
-        return
-      }
-      const ids = first.scope.ligas.map((liga) => liga.id)
-      const currentId = first.scope.selectedLiga?.id
-      const others = await Promise.all(ids.filter((id) => id !== currentId).map(async (id) => {
-        const response = await fetch(`/api/portal-home?ligaId=${id}`, { cache: 'no-store' })
-        const payload = await response.json().catch(() => ({}))
-        return payload.data as PortalData | undefined
-      }))
-      if (cancelled) return
-      const byId = new Map<number, PortalData>()
-      if (currentId) byId.set(currentId, first)
-      others.forEach((item) => {
-        const id = item?.scope.selectedLiga?.id
-        if (item && id) byId.set(id, item)
-      })
-      const ordered = ids.map((id) => byId.get(id)).filter((item): item is PortalData => Boolean(item))
-      setSlides(ordered.length ? ordered : [first])
-      setIndex(0)
+      setSlides(Array.isArray(payload.data?.slides) ? payload.data.slides : [])
       setLoading(false)
     }
-    load().catch(() => {
-      if (!cancelled) {
-        setSlides([])
-        setLoading(false)
-      }
+    load().catch((erro) => {
+      if (cancelled || erro instanceof ConsultaCancelada) return
+      setSlides([])
+      setLoading(false)
     })
     return () => {
       cancelled = true
@@ -75,12 +52,12 @@ export function InicioPortal({ organizadorId }: { organizadorId: string }) {
   }, [organizadorId])
 
   useEffect(() => {
-    if (slides.length < 2 || paused) return
+    if (!ativo || slides.length < 2 || paused) return
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % slides.length)
     }, SLIDE_MS)
     return () => window.clearInterval(timer)
-  }, [slides.length, paused])
+  }, [ativo, slides.length, paused])
 
   if (loading && slides.length === 0) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
   if (slides.length === 0) return <p className="px-4 py-10 text-sm font-bold text-red-300">Não foi possível abrir o início.</p>

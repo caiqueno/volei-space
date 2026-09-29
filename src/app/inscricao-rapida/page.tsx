@@ -23,11 +23,11 @@ export default async function InscricaoRapidaPage({ searchParams }: PageProps) {
 
   const { data: liga } = await supabase
     .from('Liga')
-    .select('id,nome,nomeCurto,status,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm,formularioInscricaoConfig,categoriasConfig')
+    .select('id,nome,nomeCurto,status,simulacao,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm,formularioInscricaoConfig,categoriasConfig')
     .eq('id', ligaId)
     .maybeSingle()
 
-  if (!liga || !['EM_BREVE', 'ATIVA'].includes(liga.status)) {
+  if (!liga || liga.simulacao === true || !['EM_BREVE', 'ATIVA'].includes(liga.status)) {
     return (
       <main className="luva-shell min-h-screen px-4 py-12">
         <EstadoVazio titulo="Campeonato não encontrado" descricao="Peça ao organizador o link de cadastro correto para o seu campeonato." />

@@ -69,7 +69,7 @@ export interface InformacoesSectionDTO extends SectionPatchMeta {
   logoUrl: string | null
   capaUrl: string | null
   corTematica: string
-  status: 'EM_BREVE' | 'ATIVA' | 'ENCERRADA'
+  status: 'EM_BREVE' | 'ATIVA' | 'ENCERRADA' | 'FINALIZADO'
   regulamento: string | null
   premiacao: string | null
 }

@@ -20,6 +20,7 @@ type LiveMatch = {
   presencas?: Array<{ id: number; presente: boolean; equipeId: number; jogadorId: number; jogador?: LivePlayer | null }>
   ocorrencias?: Array<{ id: number; tipo: string; descricao: string; set?: number | null; createdAt?: string | null; jogadorId?: number | null }>
   destaques?: Array<{ id: number; tipo: string; jogador?: LivePlayer | null }>
+  oficial?: boolean
 }
 
 type LivePlayer = {
@@ -50,7 +51,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
       try {
         const res = await fetch(`/api/partidas/${partidaId}/ao-vivo?t=${Date.now()}`, { cache: 'no-store' })
         const json = await res.json()
-        if (!res.ok) throw new Error(json?.message || 'Erro ao carregar partida')
+        if (!res.ok) throw new Error(json?.error || json?.message || 'Erro ao carregar partida')
         if (alive) {
           setMatch(readStoredDemoMatch(partidaId) ?? json.data)
           setError('')
@@ -104,12 +105,13 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
       <section className="live-match-hero">
         <div>
           <div className="live-match-hero-top">
-            <span><Radio size={15} /> Placar em tempo real</span>
+            <span><Radio size={15} /> {finished && match.oficial ? 'Súmula oficial' : 'Placar em tempo real'}</span>
             <em>{formatStatus(match.status)}</em>
           </div>
           <h1>{match.equipeA.nome} <small>vs</small> {match.equipeB.nome}</h1>
           <p><CalendarDays size={16} /> Rodada {match.rodada} · {match.dataHora ? new Date(match.dataHora).toLocaleString('pt-BR') : 'Data a definir'}</p>
           <p><Clock size={16} /> {match.localNome || 'Local a definir'}</p>
+          {finished && match.oficial ? <p>Resultado oficial, visível sem login.</p> : null}
         </div>
         <div className="live-match-scoreboard">
           <div><strong>{match.equipeA.nome}</strong><b>{scoreA}</b></div>

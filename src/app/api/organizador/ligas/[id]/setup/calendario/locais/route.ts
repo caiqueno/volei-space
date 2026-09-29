@@ -3,6 +3,7 @@ import { success, error } from '@/lib/api-response'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { requireOwnedLigaForSetup, upsertSetupSectionStatus, readJsonBody } from '@/lib/championship-setup-access'
 import { ligaLocalSchema } from '@/lib/schemas'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { describeSchemaError } from '@/lib/setup-field-errors'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ligaId = Number(id)
   const liga = await requireOwnedLigaForSetup(req, ligaId, 'id,organizadorId,dataInicio,dataFim')
   if (liga instanceof Response) return liga
+  const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+  if (bloqueio) return bloqueio
 
   const body = await readJsonBody(req)
   if (!body) return error('Corpo da requisição inválido.', 400)

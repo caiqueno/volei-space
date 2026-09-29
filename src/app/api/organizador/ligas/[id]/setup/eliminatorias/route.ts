@@ -10,6 +10,7 @@ import {
   readSetupIntent,
 } from '@/lib/championship-setup-access'
 import { setupEliminatoriasSchema } from '@/lib/schemas'
+import { loadCategorySection, saveCategorySection } from '@/lib/category-setup-delegate'
 
 // formato/quantidadeEquipes/quantidadeGrupos/classificadosPorGrupo/
 // melhoresClassificadosGerais são só leitura aqui (pertencem a
@@ -22,6 +23,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const liga = await requireOwnedLigaForSetup(req, Number(id), COLUMNS)
   if (liga instanceof Response) return liga
+  const categoryView = await loadCategorySection(req, Number(id))
+  if (categoryView) return categoryView
   return success(liga)
 }
 
@@ -47,6 +50,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const intent = readSetupIntent(req)
+  const categorySave = await saveCategorySection({
+    req, ligaId, organizadorId: String(liga.organizadorId), section: 'eliminatorias', patch: parsed.data, intent,
+  })
+  if (categorySave) return categorySave
   const applied = await applySectionPatch({
     ligaId,
     section: 'eliminatorias',
@@ -59,6 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (applied instanceof Response) return applied
 
   const finalized = await finalizeSectionPatch({ ligaId, section: 'eliminatorias', intent, ligaAfterPatch: applied.data })
+  if (finalized instanceof Response) return finalized
 
   return success({ ...applied.data, setupStatus: finalized.setupStatus, issues: finalized.issues })
 }

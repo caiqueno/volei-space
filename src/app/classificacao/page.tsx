@@ -66,7 +66,7 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
       // direto por ligaId já isola corretamente times que jogam em mais de uma liga.
       let query = supabase
         .from('ClassificacaoEntrada')
-        .select('*, equipe:Equipe(id,nome,corHex,logoUrl,ligaId,categoria,serie)')
+        .select('*, categoriaCampeonato:CategoriaCampeonato(id,nome), equipe:Equipe(id,nome,corHex,logoUrl,ligaId,categoria,categoriaCampeonatoId)')
         .order('posicao', { ascending: true })
 
       if (scope.selectedLiga) query = query.eq('ligaId', scope.selectedLiga.id)
@@ -312,12 +312,13 @@ type ChampionshipTable = {
 
 const REGRA_VIGENTE = 'Vitória por 2 sets a 0 vale 3 pontos. Vitória por 2 sets a 1 vale 2 pontos para o vencedor e 1 para o perdedor.'
 
-const CLASSIFICATION_SELECT = '*, equipe:Equipe(id,nome,corHex,logoUrl,ligaId,categoria,serie)'
+const CLASSIFICATION_SELECT = '*, categoriaCampeonato:CategoriaCampeonato(id,nome), equipe:Equipe(id,nome,corHex,logoUrl,ligaId,categoria,categoriaCampeonatoId)'
 
 async function loadChampionshipTables(): Promise<ChampionshipTable[]> {
   const { data: ligas, error } = await supabase
     .from('Liga')
     .select('id,nome,criteriosClassificacao')
+    .eq('simulacao', false)
     .in('status', ['ATIVA', 'EM_BREVE', 'ENCERRADA'])
     .order('nome', { ascending: true })
 
@@ -372,9 +373,8 @@ function parseCriterios(raw: string | null | undefined) {
 function categoryGroups(dados: any[], criterios: string[]): ClassificacaoGroup[] {
   const buckets = new Map<string, any[]>()
   for (const row of dados) {
-    const categoria = String(row.categoria || row.equipe?.categoria || 'GERAL')
-    const serie = String(row.serie || row.equipe?.serie || 'UNICA')
-    const key = `${categoria}:${serie}`
+    const categoriaId = String(row.categoriaCampeonatoId || row.equipe?.categoriaCampeonatoId || row.categoria || 'GERAL')
+    const key = categoriaId
     const list = buckets.get(key) ?? []
     list.push(row)
     buckets.set(key, list)
@@ -383,10 +383,10 @@ function categoryGroups(dados: any[], criterios: string[]): ClassificacaoGroup[]
   if (buckets.size <= 1) return []
 
   return Array.from(buckets.entries()).map(([key, rows]) => {
-    const [categoria, serie] = key.split(':')
+    const nome = rows[0]?.categoriaCampeonato?.nome || formatCategoriaLabel(String(rows[0]?.categoria || rows[0]?.equipe?.categoria || 'Categoria'), null)
     return {
       id: key,
-      nome: formatCategoriaLabel(categoria, serie === 'UNICA' ? null : serie),
+      nome,
       dados: [...rows].sort((a, b) => compareClassificacao(a, b, criterios)),
       automaticLimit: 0,
     }

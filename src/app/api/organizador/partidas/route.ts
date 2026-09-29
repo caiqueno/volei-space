@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error: partidasErr } = await supabase
     .from('Partida')
-    .select('id,rodada,status,dataHora,localNome,setsPorA,setsPorB,sumulaToken,equipeA:Equipe!equipeAId(id,nome,corHex),equipeB:Equipe!equipeBId(id,nome,corHex),sets:SetPartida(numero,pontosA,pontosB)')
+    .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
     .in('ligaId', ligaIds)
     .order('dataHora', { ascending: true })
 

@@ -5,17 +5,17 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Snapshot: auditoria de prontidão. App sobe; falta .env para uso real.
+  No perfil do organizador, Início, tabela e galeria leem os campeonatos numa consulta. A guia já visitada fica montada.
 status: implementado
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-09-29
 ---
 
 # Hot
 
 ## Foco atual
 
-Lint do que foi implantado. Fonte única: [[synthesis/PRONTIDAO-E-APIS]]. Schema: [[AGENTS]].
+No perfil do organizador, Início, tabela e galeria leem os campeonatos numa consulta. A guia já visitada fica montada. Fonte: [[09-UI-UX]].
 
 ## Key Takeaways
 
