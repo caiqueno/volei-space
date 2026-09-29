@@ -15,8 +15,9 @@ export function adminEmailAllowed(email: string) {
   return email.trim().toLowerCase() === configured
 }
 
-export function isAdminSession(payload: AdminSession) {
-  if (payload.scope === 'public-user') return false
-  if (payload.adminId == null || payload.adminId === '') return false
-  return adminEmailAllowed(String(payload.email ?? ''))
+export function isAdminSession(payload: object) {
+  const session = payload as AdminSession
+  if (session.scope === 'public-user') return false
+  if (session.adminId == null || session.adminId === '') return false
+  return adminEmailAllowed(String(session.email ?? ''))
 }
