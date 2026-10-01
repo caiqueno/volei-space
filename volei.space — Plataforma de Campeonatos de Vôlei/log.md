@@ -8,10 +8,50 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-09-29
+updated: 2026-10-01
 ---
 
 # Log
+
+## [2026-10-01] ops | publicação do link do árbitro
+
+- pages_updated=`log`
+- As telas e as rotas do link do árbitro seguem para a `main`. A separação de ambiente que recusa o banco quando falta `NEXT_PUBLIC_SUPABASE_ALVO` continua só local, para o site publicado não parar se essa variável ainda não estiver na Vercel.
+
+## [2026-10-01] add | link do árbitro e massa de 400 jogos
+
+- pages_updated=`06-BANCO-DE-DADOS`, `modulos/PARTIDAS`, `log`, `hot`
+- O organizador gera o link do jogo e define o código. O código fica só como hash e fora da URL. A migration `acesso_arbitro_jogo` está nos dois projetos. A massa `TOURNAMENT-SEED-2026` tem 10 campeonatos e 400 partidas em desenvolvimento e em produção, sem apagar as 8 ligas que já existiam em produção. Executar o script de novo não duplica `seedKey`.
+
+## [2026-09-30] add | massa de demonstração no desenvolvimento
+
+- pages_updated=`06-BANCO-DE-DADOS`, `log`, `hot`
+- `npm run seed:test` cria 10 campeonatos e 30 partidas só fora da `main` e fora do banco de produção. A massa usa o árbitro já cadastrado `joao@teste.com.br`, sem alterar a conta. O portal público enxerga essas partidas porque elas não estão marcadas como simulação. A limpeza é `npm run seed:test:clean`.
+
+## [2026-09-30] add | administrador de produção
+
+- pages_updated=`log`
+- Foi criada a conta `administrador@voleispace.com` na tabela `Admin` de `volei-space-producao`. O login em `www.volei.space` respondeu 200 com destino `/admin`. A senha não fica nesta nota.
+
+## [2026-09-30] fix | login de produção recusado pela chave
+
+- pages_updated=`log`, `hot`
+- `POST` de login em produção devolve “Não foi possível consultar o usuário administrador.” A tabela `Admin` de `volei-space-producao` tem uma conta com senha e a RLS está desligada. O log da API mostra `401 Invalid API key` em `GET /rest/v1/Admin` com papel `service_role`, e o mesmo erro na chave `anon`. As chaves da Vercel ainda são as do projeto antigo.
+
+## [2026-09-30] ops | deploy da separação de ambientes
+
+- pages_updated=`08-INTEGRACOES`, `log`, `hot`
+- O commit `0a1af60` foi publicado: `main` em Production e `teste-integrado` em Preview, ambos Ready. `GET https://www.volei.space/api/ping` passou de 200 no banco antigo para 500. A URL de produção foi separada; `NEXT_PUBLIC_SUPABASE_ANON_KEY` continua uma só, de 15/09, em Production e Preview. O preview da Vercel exige login, então o ping desse endereço não foi lido de fora.
+
+## [2026-09-30] add | separação dos bancos por branch
+
+- pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `08-INTEGRACOES`, `log`, `hot`
+- O cliente Supabase passa a exigir as variáveis do ambiente e recusa mistura entre produção e desenvolvimento. O painel avisa quando não está em produção. A Vercel ainda precisa receber as variáveis de cada ambiente; o site publicado não muda até o próximo deploy da `main`.
+
+## [2026-09-29] add | base de produção no Supabase
+
+- pages_updated=`06-BANCO-DE-DADOS`, `log`, `hot`
+- Foi criado o projeto `volei-space-producao` para uso no `main`. O banco local permanece o de desenvolvimento. A cópia já tem as tabelas, as contas, os oito campeonatos, as categorias e os buckets de arquivo. Equipes, atletas, partidas e o apontamento da Vercel ainda não foram concluídos.
 
 ## [2026-09-29] fix | login quando falta a coluna de troca de senha
 

@@ -7,6 +7,7 @@ import { Image as ImageIcon, PlaySquare } from 'lucide-react'
 import { ChampionshipTableSection } from '@/components/classificacao/ChampionshipTableSection'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
+import { AcessoArbitroJogo } from './AcessoArbitroJogo'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
@@ -299,6 +300,7 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Placar</th>
                   <th className="px-3 py-2">Árbitro responsável</th>
+                  <th className="px-3 py-2">Acesso do árbitro</th>
                 </tr>
               </thead>
               <tbody>
@@ -341,6 +343,9 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                         ) : (
                           <span>{opcoes.find((conta) => conta.arbitroId === atual)?.nome || partida.escala?.find((item) => item.arbitroId === atual)?.arbitro?.nome || 'Não designado'}</span>
                         )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <AcessoArbitroJogo partidaId={partida.id} jogo={`${partida.equipeA?.nome ?? 'Equipe A'} × ${partida.equipeB?.nome ?? 'Equipe B'}`} />
                       </td>
                     </tr>
                   )

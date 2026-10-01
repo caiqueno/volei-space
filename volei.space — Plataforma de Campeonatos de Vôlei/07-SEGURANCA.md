@@ -8,7 +8,7 @@ summary: >-
   Acesso e dados pessoais.
 status: implementado
 created: 2026-09-20
-updated: 2026-09-29
+updated: 2026-10-01
 ---
 # Segurança e permissões
 
@@ -16,7 +16,8 @@ updated: 2026-09-29
 
 ## Regras para alterações
 
-- O administrador é a linha da tabela `Admin` no Supabase do ambiente. Se `ADMIN_EMAIL` estiver definido, só esse e-mail entra como administrador. Sem essa variável, vale a conta que existir na tabela. O e-mail legado `admin@luv.com.br` não é mais o padrão.
+- O deploy da `main` usa só o Supabase de produção. As outras branches e o ambiente local usam só o de desenvolvimento. A chave `service_role` não entra no navegador nem substitui a chave pública quando está ausente. Credenciais reais ficam fora do Git.
+- O árbitro entra no jogo pelo link exclusivo que o organizador gera na guia Jogos. O código fica fora da URL e é gravado só como hash. O servidor confere o código, limita tentativas e registra geração, troca, regeneração, revogação, entrada e código incorreto. Um identificador numérico de outra partida não substitui esse link.
 - O login de organizador e de árbitro pede a coluna `trocarSenha`. Se o banco do ambiente ainda não tem essa coluna, a consulta repete sem ela e a troca obrigatória de senha não se aplica nesse banco. Uma tabela de perfil ausente não interrompe a busca nas outras.
 - Organizador deve operar apenas campeonatos de sua posse. O usuário e a senha desse perfil são atribuídos pelo administrador. A senha recebida, inclusive depois de um reset, só entra uma vez: o organizador substitui por uma senha nova antes de usar o painel. O perfil `publico` cria a própria conta e autentica, mas as rotas de gerenciamento continuam restritas a `organizador`.
 - Convite de equipe deve limitar leitura e escrita ao campeonato, categoria e equipe vinculados; link público de divulgação não autoriza edição.
