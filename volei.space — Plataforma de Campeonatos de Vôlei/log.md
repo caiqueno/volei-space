@@ -16,7 +16,7 @@ updated: 2026-10-01
 ## [2026-10-01] ops | publicação do link do árbitro
 
 - pages_updated=`log`
-- As telas e as rotas do link do árbitro seguem para a `main`. A separação de ambiente que recusa o banco quando falta `NEXT_PUBLIC_SUPABASE_ALVO` continua só local, para o site publicado não parar se essa variável ainda não estiver na Vercel.
+- As telas e as rotas do link do árbitro foram para a `main` no commit `cfdc056`. Em produção, as chaves de partida, equipe e súmula foram criadas para o árbitro ver os nomes dos times. A separação de ambiente que recusa o banco quando falta `NEXT_PUBLIC_SUPABASE_ALVO` continua só local.
 
 ## [2026-10-01] add | link do árbitro e massa de 400 jogos
 
