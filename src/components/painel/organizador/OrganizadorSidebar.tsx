@@ -2,9 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { BadgeCheck, CalendarDays, Home, Images, LogOut, Settings, SlidersHorizontal, Table2, Trophy, type LucideIcon } from 'lucide-react'
+import { CalendarDays, Home, Images, LogOut, Settings, SlidersHorizontal, Table2, Trophy, type LucideIcon } from 'lucide-react'
 
-export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'galeria' | 'arbitros' | 'settings'
+export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'galeria' | 'settings'
 
 interface OrganizadorSidebarProps {
   view: PainelView
@@ -24,7 +24,6 @@ const NAV_ITEMS: Array<{ key: PainelView; label: string; short: string; icon: Lu
   { key: 'tabela', label: 'Tabela', short: 'Tabela', icon: Table2 },
   { key: 'jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
   { key: 'galeria', label: 'Galeria', short: 'Galeria', icon: Images },
-  { key: 'arbitros', label: 'Árbitros', short: 'Árbitros', icon: BadgeCheck },
   { key: 'settings', label: 'Configurações', short: 'Ajustes', icon: Settings },
 ]
 

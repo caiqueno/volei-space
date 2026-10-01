@@ -151,11 +151,12 @@ const nullableTrimmedString = z.string().trim().optional().nullable()
 const nullableUrl = z.string().url().optional().nullable().or(z.literal(''))
 
 export const criarInscricaoEquipeRascunhoSchema = z.object({
-  ligaId: z.number().int().positive(),
+  ligaId: z.number().int().positive().optional(),
+  linkToken: z.string().trim().min(16).max(64).optional().nullable(),
   nomeEquipe: z.string().trim().min(2).max(160),
   categoria: nullableTrimmedString,
   serie: nullableTrimmedString,
-})
+}).refine((valor) => Boolean(valor.ligaId || valor.linkToken), 'Informe o campeonato.')
 
 export const atualizarInscricaoEquipeRascunhoSchema = z.object({
   nomeEquipe: z.string().trim().min(2).max(160).optional(),

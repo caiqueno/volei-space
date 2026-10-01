@@ -8,6 +8,7 @@ import { ChampionshipTableSection } from '@/components/classificacao/Championshi
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { AcessoArbitroJogo } from './AcessoArbitroJogo'
+import { LinkInscricaoCampeonato } from './LinkInscricaoCampeonato'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
@@ -102,9 +103,11 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
               <span data-label="Equipes">{liga.quantidadeEquipes ?? 'A definir'}</span>
               <span data-label="Formato">{formatLigaFormato(liga.formato)}</span>
               <span data-label="Inscrições">{liga.inscricoesAbertas === false ? 'Fechadas' : 'Abertas'}</span>
-              <Link href={`/campeonatos/${liga.slug}`} className="championship-list-link">
-                Ver campeonato
-              </Link>
+              <span className="flex flex-col items-start gap-2">
+                <Link href={`/painel/parametrizacao/previa?ligaId=${liga.id}`} className="championship-list-link">Prévia</Link>
+                <LinkInscricaoCampeonato ligaId={liga.id} nome={liga.nome} compacto />
+                <Link href={`/campeonatos/${liga.slug}`} className="championship-list-link">Ver campeonato</Link>
+              </span>
             </article>
           ))}
         </div>
@@ -177,7 +180,6 @@ export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem
   )
 }
 
-type ArbitroConta = { id: string; nome: string; email: string; status: string; arbitroId?: number | null }
 type PartidaOrganizacao = {
   id: number
   ligaId: number
@@ -201,33 +203,21 @@ const STATUS_JOGO: Record<string, string> = {
   CANCELADA: 'Cancelada',
   WO: 'W.O.',
 }
-const STATUS_EDITA_ARBITRO = new Set(['AGENDADA', 'PENDENTE', 'PENDENTE_APROVACAO'])
 
 function ligaDaPartida(partida: PartidaOrganizacao) {
   return Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
 }
 
-function arbitroResponsavel(partida: PartidaOrganizacao) {
-  const escala = (partida.escala ?? []).find((item) => item.cargo === 'PRIMEIRO_ARBITRO') ?? partida.escala?.[0]
-  return escala?.arbitroId ? Number(escala.arbitroId) : null
-}
-
 export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]; ativo?: boolean }) {
   const [partidas, setPartidas] = useState<PartidaOrganizacao[]>([])
-  const [arbitros, setArbitros] = useState<ArbitroConta[]>([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [salvando, setSalvando] = useState<number | null>(null)
 
   async function carregar(silencioso = false) {
     if (!silencioso) setLoading(true)
     try {
-      const [jogos, contas] = await Promise.all([
-        consultar<{ data?: PartidaOrganizacao[] }>('/api/organizador/partidas', { forcar: silencioso }),
-        consultar<{ data?: ArbitroConta[] }>('/api/organizador/arbitros', { forcar: silencioso }),
-      ])
+      const jogos = await consultar<{ data?: PartidaOrganizacao[] }>('/api/organizador/partidas', { forcar: silencioso })
       setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
-      setArbitros(Array.isArray(contas.data) ? contas.data : [])
       setErro(null)
     } catch (falha) {
       if (falha instanceof ConsultaCancelada) return
@@ -243,25 +233,6 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
     const timer = window.setInterval(() => carregar(true), 8000)
     return () => window.clearInterval(timer)
   }, [ativo])
-
-  async function designar(partidaId: number, arbitroId: string) {
-    setSalvando(partidaId)
-    setErro(null)
-    try {
-      const resposta = await fetch(`/api/organizador/partidas/${partidaId}/arbitro`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ arbitroId: arbitroId ? Number(arbitroId) : null }),
-      })
-      const json = await resposta.json().catch(() => ({}))
-      if (!resposta.ok) throw new Error(json.error || 'Não foi possível designar o árbitro.')
-      await carregar(true)
-    } catch (falha) {
-      setErro(falha instanceof Error ? falha.message : 'Não foi possível designar o árbitro.')
-    } finally {
-      setSalvando(null)
-    }
-  }
 
   if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
 
@@ -306,16 +277,9 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
               <tbody>
                 {grupo.partidas.map((partida) => {
                   const status = String(partida.status || 'AGENDADA').toUpperCase()
-                  const editavel = STATUS_EDITA_ARBITRO.has(status)
-                  const atual = arbitroResponsavel(partida)
-                  const opcoes = arbitros.filter((conta) => {
-                    if (!conta.arbitroId) return false
-                    if (!['ATIVA', 'APROVADA', 'ATIVO', 'APROVADO'].includes(String(conta.status).toUpperCase())) return false
-                    const teste = conta.email.endsWith('@example.invalid')
-                    return grupo.simulacao ? teste : !teste
-                  })
                   const quando = partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'A definir'
                   const emJogo = status === 'EM_ANDAMENTO'
+                  const nomeArbitro = partida.escala?.find((item) => item.cargo === 'PRIMEIRO_ARBITRO')?.arbitro?.nome || partida.escala?.[0]?.arbitro?.nome || 'Não registrado'
                   return (
                     <tr key={partida.id} className="border-t border-white/10">
                       <td className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
@@ -326,24 +290,7 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                         {partida.setsPorA ?? 0} × {partida.setsPorB ?? 0}
                         {emJogo ? <span className="mt-1 block text-xs font-semibold text-white/70">{partida.pontosPorA ?? 0} a {partida.pontosPorB ?? 0}</span> : null}
                       </td>
-                      <td className="px-3 py-3">
-                        {editavel ? (
-                          <select
-                            aria-label={`Árbitro responsável da partida ${partida.id}`}
-                            value={atual ?? ''}
-                            disabled={salvando === partida.id}
-                            onChange={(evento) => designar(partida.id, evento.target.value)}
-                            className="w-full rounded-xl border border-white/15 bg-[#07111f] px-3 py-2 text-sm font-semibold text-white"
-                          >
-                            <option value="">Não designado</option>
-                            {opcoes.map((conta) => (
-                              <option key={conta.id} value={conta.arbitroId || ''}>{conta.nome}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span>{opcoes.find((conta) => conta.arbitroId === atual)?.nome || partida.escala?.find((item) => item.arbitroId === atual)?.arbitro?.nome || 'Não designado'}</span>
-                        )}
-                      </td>
+                      <td className="px-3 py-3">{nomeArbitro}</td>
                       <td className="px-3 py-3">
                         <AcessoArbitroJogo partidaId={partida.id} jogo={`${partida.equipeA?.nome ?? 'Equipe A'} × ${partida.equipeB?.nome ?? 'Equipe B'}`} />
                       </td>

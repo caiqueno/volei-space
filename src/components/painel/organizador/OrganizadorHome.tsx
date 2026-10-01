@@ -9,11 +9,10 @@ import { ParametrizacaoNoPainel } from './PainelSecoes'
 import { PainelCampeonatos, PainelGaleria, PainelJogos, PainelTabela } from './PainelConteudos'
 import { InicioPortal } from './InicioPortal'
 import { OrganizacaoForm, type OrganizacaoFormValues } from './OrganizacaoForm'
-import { ArbitrosPanel } from './ArbitrosPanel'
 import { consultar, invalidarConsultas, lerJson } from '@/lib/api-cliente'
 import type { LigaCarouselItem } from './types'
 
-const SECOES = new Set<string>(['parametrizacao', 'campeonatos', 'tabela', 'jogos', 'galeria', 'arbitros', 'settings'])
+const SECOES = new Set<string>(['parametrizacao', 'campeonatos', 'tabela', 'jogos', 'galeria', 'settings'])
 
 interface Session {
   tipo: string
@@ -173,7 +172,6 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
                   </div>
                 </div>
               )}
-              {abertas.includes('arbitros') && <div hidden={view !== 'arbitros'}><ArbitrosPanel /></div>}
               {abertas.includes('parametrizacao') && (
                 <div hidden={view !== 'parametrizacao'}>
                   <ParametrizacaoNoPainel ligas={ligas} campeonatoId={activeChampionshipId} onSelect={setActiveChampionshipId} />

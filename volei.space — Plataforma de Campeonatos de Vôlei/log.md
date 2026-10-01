@@ -13,6 +13,16 @@ updated: 2026-10-01
 
 # Log
 
+## [2026-10-01] ops | publicação do link de inscrição
+
+- pages_updated=`log`, `hot`, `modulos/INSCRICOES`
+- As telas do link de inscrição e a retirada do menu Árbitros foram para a `main`. A separação de ambiente que recusa o banco quando falta `NEXT_PUBLIC_SUPABASE_ALVO` continua só local.
+
+## [2026-10-01] add | link de inscrição e massa LINK-FLOW-2026
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/PARTIDAS`, `06-BANCO-DE-DADOS`, `07-SEGURANCA`, `hot`, `log`
+- O organizador passa a gerar um token por campeonato em `/inscricao/campeonato/{token}`. O menu Árbitros saiu do painel. A massa `LINK-FLOW-2026` foi inserida em desenvolvimento e em produção: 10 campeonatos, 100 equipes, 1.200 jogadores e 400 partidas (100 encerradas, 200 em andamento, 100 agendadas). A massa anterior e as 8 ligas reais de produção permaneceram.
+
 ## [2026-10-01] ops | publicação do link do árbitro
 
 - pages_updated=`log`

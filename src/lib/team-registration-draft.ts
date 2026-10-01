@@ -5,6 +5,7 @@ import {
   resolveInscricaoCategoria,
 } from '@/lib/inscricao-rapida'
 import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
+import { registrarEventoInscricao } from '@/lib/link-inscricao-campeonato'
 import { slugify } from '@/utils/slug'
 
 export type RegistrationDraftStatus = 'NAO_INICIADO' | 'EM_PREENCHIMENTO' | 'CONCLUIDO' | 'RASCUNHO' | 'ENVIADA'
@@ -147,8 +148,17 @@ async function getRegistrationStatus(id: string | null): Promise<string | null> 
   return data?.status ?? null
 }
 
-export async function createRegistrationDraft(input: { ligaId: number; nomeEquipe: string; categoria?: string | null; serie?: string | null }) {
-  const liga = await getLeague(input.ligaId)
+export async function createRegistrationDraft(input: { ligaId?: number; linkToken?: string | null; nomeEquipe: string; categoria?: string | null; serie?: string | null }) {
+  let ligaId = input.ligaId
+  if (input.linkToken) {
+    const { data: link, error: linkErr } = await supabase.from('LinkInscricaoCampeonato').select('id,ligaId,ativo,revogadoEm').eq('token', input.linkToken).maybeSingle()
+    if (linkErr || !link || !link.ativo || link.revogadoEm) throw new RegistrationDraftError('As inscrições para este campeonato estão encerradas ou temporariamente indisponíveis.', 403)
+    ligaId = link.ligaId
+  }
+  if (!ligaId) throw new RegistrationDraftError('Informe o campeonato.', 422)
+  const liga = await getLeague(ligaId)
+  const { data: mesmaEquipe } = await supabase.from('Equipe').select('id').eq('ligaId', liga.id).ilike('nome', input.nomeEquipe.trim()).limit(1)
+  if (mesmaEquipe && mesmaEquipe.length > 0) throw new RegistrationDraftError('Esta equipe já está inscrita neste campeonato.', 409)
   const window = registrationWindowDecision(liga)
   if (!window.allowed) throw new RegistrationDraftError(window.reason || 'Inscrições indisponíveis.', 403)
   if (liga.quantidadeEquipes != null) {
@@ -163,14 +173,14 @@ export async function createRegistrationDraft(input: { ligaId: number; nomeEquip
   const { data: categoriaRow, error: categoriaErr } = await supabase
     .from('CategoriaCampeonato')
     .select('id')
-    .eq('ligaId', input.ligaId)
+    .eq('ligaId', ligaId)
     .eq('codigo', categoria)
     .is('removidaEm', null)
     .maybeSingle()
   if (categoriaErr) throw categoriaErr
   if (!categoriaRow) throw new RegistrationDraftError('Esta categoria não está disponível no campeonato.', 422)
   const { data, error } = await supabase.from('InscricaoEquipeRascunho').insert({
-    ligaId: input.ligaId,
+    ligaId,
     nomeEquipe: input.nomeEquipe,
     categoria,
     serie: null,
@@ -395,6 +405,8 @@ export async function finalizeRegistration(token: string) {
   }
   const window = registrationWindowDecision(context.liga)
   if (!window.allowed) throw new RegistrationDraftError(window.reason || 'Inscrições indisponíveis.', 403)
+  const { data: linkAtual } = await supabase.from('LinkInscricaoCampeonato').select('id,ativo,revogadoEm').eq('ligaId', context.liga.id).maybeSingle()
+  if (linkAtual && (!linkAtual.ativo || linkAtual.revogadoEm)) throw new RegistrationDraftError('As inscrições para este campeonato estão encerradas ou temporariamente indisponíveis.', 403)
   validateFinalData(context)
 
   const slug = await uniqueTeamSlug(context.draft.nomeEquipe)
@@ -407,6 +419,10 @@ export async function finalizeRegistration(token: string) {
   const result = data as { equipeId: number; inscricaoCampeonatoId: string; status: string; idempotent: boolean }
   if (result.status === 'APROVADA') {
     await ensureApprovedRegistrationOperations(result.inscricaoCampeonatoId)
+  }
+  if (!result.idempotent) {
+    const { data: link } = await supabase.from('LinkInscricaoCampeonato').select('id').eq('ligaId', context.liga.id).maybeSingle()
+    if (link) await registrarEventoInscricao({ ligaId: context.liga.id, linkId: link.id, tipo: 'INSCRICAO_EQUIPE_REALIZADA', resultado: 'ok' })
   }
   return result
 }

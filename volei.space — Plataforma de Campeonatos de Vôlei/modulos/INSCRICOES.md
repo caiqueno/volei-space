@@ -5,14 +5,16 @@ category: modulo
 tags: [inscricoes]
 sources: [repo:athrios/volei-space/docs/requisitos/INSCRICOES-POR-EQUIPE.md]
 summary: >-
-  Inscrição por convite de equipe.
-status: aprovado-pendente
+  O organizador gera um link por campeonato. O convite por equipe continua pendente.
+status: misto
 created: 2026-09-20
-updated: 2026-09-27
+updated: 2026-10-01
 ---
 # Inscrições por equipe
 
-**Estado:** requisito aprovado, implementação final pendente. Há rascunhos e tokens em `src/lib/team-registration-draft.ts`, rotas `src/app/api/inscricao-rapida` e migration `supabase/migrations/supabase-inscricao-equipe-rascunho.sql`. Isso não equivale automaticamente ao fluxo aprovado. Desde 26/09/2026 o rascunho recusa, ao salvar o atleta, número de camisa repetido e ausência de foto, nascimento ou documento quando o formulário do campeonato exige esses campos.
+**Regra em vigor:** o organizador gera um link por campeonato na prévia e em Campeonatos → Ações. O endereço é `/inscricao/campeonato/{token}`. O token tem 32 caracteres hexadecimais e não é o id da liga. Um campeonato tem um registro em `LinkInscricaoCampeonato`. Gerar de novo devolve o mesmo token. Regenerar troca o token e o anterior deixa de abrir a página. Desativar mostra inscrições indisponíveis. O período (`inscricoesAberturaEm`, `inscricoesEncerramentoEm`, `inscricoesAbertas` e o status do campeonato) é conferido no servidor. A equipe usa o formulário já existente de inscrição rápida. Nome repetido na mesma liga responde que a equipe já está inscrita. A finalização continua no rascunho atual e não cria uma segunda fila de aprovação. O convite exclusivo por equipe, antes de `Equipe` existir, permanece a regra aprovada e pendente de `docs/requisitos/INSCRICOES-POR-EQUIPE.md`.
+
+**Estado anterior:** requisito aprovado, implementação final pendente. Há rascunhos e tokens em `src/lib/team-registration-draft.ts`, rotas `src/app/api/inscricao-rapida` e migration `supabase/migrations/supabase-inscricao-equipe-rascunho.sql`. Isso não equivale automaticamente ao fluxo aprovado. Desde 26/09/2026 o rascunho recusa, ao salvar o atleta, número de camisa repetido e ausência de foto, nascimento ou documento quando o formulário do campeonato exige esses campos.
 
 **Implementado em 27/09/2026:** ao criar o campeonato, o painel e a central de parametrização mostram o link `/inscricao-rapida?ligaId={id}`. Cada equipe que abre esse link preenche os próprios dados e jogadores segundo `formularioInscricaoConfig` daquele campeonato. No formulário o campo se chama Nome do torneio. Quando a categoria do campeonato é única, esse campo fica preenchido com o nome real da `Liga` e travado; a categoria continua gravada no servidor para a inscrição. O nome da equipe permanece editável: o rótulo acompanha o texto digitado e o navegador não reescreve o campo. O convite exclusivo por categoria, antes de existir `Equipe`, continua pendente.
 

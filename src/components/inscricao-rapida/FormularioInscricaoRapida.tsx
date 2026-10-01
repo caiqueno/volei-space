@@ -130,8 +130,9 @@ function jogadorPayload(player: JogadorDraft) {
   }
 }
 
-export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null }: {
+export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null }: {
   ligaId: number
+  linkToken?: string | null
   nomeCampeonato: string
   config: ResolvedFormularioRapidaConfig
   categoriaFixa: CategoriaSerieOption | null
@@ -216,7 +217,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
     setErrorMsg('')
     try {
       const response = await fetch('/api/inscricao-rapida', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ligaId, nomeEquipe, categoria, serie }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ligaId, nomeEquipe, categoria, serie, linkToken }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Não foi possível iniciar a inscrição.')

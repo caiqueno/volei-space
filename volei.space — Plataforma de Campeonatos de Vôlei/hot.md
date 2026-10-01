@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O acesso do árbitro é por link e código. A massa TOURNAMENT-SEED-2026 tem 400 jogos nos dois bancos.
+  O organizador gera o link de inscrição do campeonato e o link do jogo. A massa LINK-FLOW-2026 está nos dois bancos.
 status: implementado
 created: 2026-09-25
 updated: 2026-10-01
@@ -15,7 +15,7 @@ updated: 2026-10-01
 
 ## Foco atual
 
-O organizador gera, na guia Jogos, um link exclusivo por partida e define o código. O árbitro abre `/arbitro/jogo/{token}`, informa o código e cai na tela daquele jogo. A massa `TOURNAMENT-SEED-2026` está nos dois bancos: 10 campeonatos e 400 partidas, identificadas por `seedKey`. Os 8 campeonatos que já existiam em produção foram mantidos. Fonte: [[06-BANCO-DE-DADOS]] e [[modulos/PARTIDAS]].
+O organizador gera, na prévia e em Campeonatos → Ações, um link `/inscricao/campeonato/{token}`. A equipe abre esse endereço e o campeonato já vem identificado. O menu Árbitros saiu do perfil do organizador: o acesso do árbitro continua só pelo link do jogo e pelo código, na guia Jogos. A massa `LINK-FLOW-2026` está nos dois bancos, além da `TOURNAMENT-SEED-2026`. Fonte: [[modulos/INSCRICOES]] e [[modulos/PARTIDAS]].
 
 ## Key Takeaways
 
