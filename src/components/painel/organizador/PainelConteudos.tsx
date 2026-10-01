@@ -230,7 +230,7 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
   useEffect(() => {
     if (!ativo) return
     carregar()
-    const timer = window.setInterval(() => carregar(true), 8000)
+    const timer = window.setInterval(() => carregar(true), 30000)
     return () => window.clearInterval(timer)
   }, [ativo])
 

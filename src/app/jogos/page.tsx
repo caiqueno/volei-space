@@ -4,7 +4,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { CalendarDays, RotateCcw } from 'lucide-react'
 import { PageHero } from '@/components/layout/PageHero'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
-import { PartidasAbertasArbitro } from '@/components/arbitro/PartidasAbertasArbitro'
+import { buscarPartidasPublicas } from '@/lib/agenda-publica'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
@@ -77,18 +77,15 @@ export default async function JogosPage({ searchParams }: PageProps) {
         }
       } else if (scope.organizadorId && !scope.selectedLiga) {
         partidas = []
+      } else if (scope.selectedLiga) {
+        const busca = await buscarPartidasPublicas([scope.selectedLiga.id], true)
+        if (busca.erro) throw new Error('agenda')
+        partidas = busca.partidas
       } else {
-        let query = supabaseAdmin
-          .from('Partida')
-          .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
-          .order('rodada', { ascending: true })
-          .order('dataHora', { ascending: true })
-
-        if (scope.selectedLiga) query = query.eq('ligaId', scope.selectedLiga.id)
-
-        const { data, error } = await query
-        if (error) throw error
-        partidas = normalizePartidas(data).filter((partida) => partida.liga?.simulacao !== true)
+        const { data: ligas } = await supabaseAdmin.from('Liga').select('id').eq('simulacao', false)
+        const busca = await buscarPartidasPublicas((ligas ?? []).map((liga) => liga.id), false)
+        if (busca.erro) throw new Error('agenda')
+        partidas = busca.partidas
       }
     } catch (err) {
       console.error('[jogos] erro ao carregar partidas', err)
@@ -116,10 +113,6 @@ export default async function JogosPage({ searchParams }: PageProps) {
       />
 
       {!equipeCapitao && <LeagueScopeBar ligas={scope.ligas} selected={scope.selectedLiga} organizadorId={scope.organizadorId} basePath="/jogos" />}
-
-      <section className="mx-auto max-w-7xl px-4 pt-8">
-        <PartidasAbertasArbitro />
-      </section>
 
       {partidas.some((partida) => partida.status === 'EM_ANDAMENTO') && (
         <section className="mx-auto max-w-7xl px-4 pt-8">

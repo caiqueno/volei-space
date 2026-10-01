@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
@@ -20,6 +20,8 @@ export function PortalAgenda({ ligaId, global = false, inicial, falhaInicial }: 
   const [falha, setFalha] = useState(falhaInicial)
   const [atualizando, setAtualizando] = useState(false)
   const [tentativa, setTentativa] = useState(0)
+  const aoVivoNaTela = useRef(inicial.aoVivo.length > 0)
+  aoVivoNaTela.current = grupos.aoVivo.length > 0
 
   useEffect(() => {
     setGrupos(inicial)
@@ -58,8 +60,17 @@ export function PortalAgenda({ ligaId, global = false, inicial, falhaInicial }: 
       }
     }
 
-    void carregar()
-    const timer = window.setInterval(carregar, INTERVALO_MS)
+    if (tentativa > 0) void carregar()
+    let timer = 0
+    const agendar = () => {
+      const espera = aoVivoNaTela.current ? INTERVALO_MS : 60000
+      timer = window.setTimeout(() => {
+        void carregar().finally(() => {
+          if (vivo) agendar()
+        })
+      }, espera)
+    }
+    agendar()
     const aoVoltar = () => {
       if (document.visibilityState === 'visible') void carregar()
     }
@@ -67,7 +78,7 @@ export function PortalAgenda({ ligaId, global = false, inicial, falhaInicial }: 
     return () => {
       vivo = false
       controle.abort()
-      window.clearInterval(timer)
+      window.clearTimeout(timer)
       document.removeEventListener('visibilitychange', aoVoltar)
     }
   }, [ligaId, global, tentativa])

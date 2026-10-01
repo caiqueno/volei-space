@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
-import { LinkInscricaoRapida } from '@/components/painel/LinkInscricaoRapida'
+import { LinkInscricaoCampeonato } from '@/components/painel/organizador/LinkInscricaoCampeonato'
 
 type Equipe = {
   id: number
@@ -360,7 +360,11 @@ function EstruturaContent() {
         </div>
       </section>
 
-      {ligaId && <LinkInscricaoRapida ligaId={Number(ligaId)} />}
+      {ligaId && liga?.nome && (
+        <div className="mx-auto mt-6 max-w-7xl px-4">
+          <LinkInscricaoCampeonato ligaId={Number(ligaId)} nome={liga.nome} />
+        </div>
+      )}
 
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-8 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
         <aside className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6">

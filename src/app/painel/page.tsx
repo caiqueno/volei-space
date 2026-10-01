@@ -15,7 +15,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { CandidateEditForm, type CandidateEditSection } from '@/components/candidate/CandidateEditForm'
-import { PartidasAbertasArbitro } from '@/components/arbitro/PartidasAbertasArbitro'
 import { OrganizadorHome } from '@/components/painel/organizador/OrganizadorHome'
 import { encerrarSessaoPublica, lerSessaoPublica } from '@/lib/sessao-publica'
 
@@ -240,7 +239,7 @@ export default function PainelPage() {
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-200">
               {session.tipo === 'arbitro' && released
-                ? 'Este acesso foi criado pelo organizador. Aqui ficam somente as partidas em que você foi designado.'
+                ? 'O organizador envia o link do jogo. Abra esse endereço, informe o código e a partida abre direto.'
                 : content.description}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -275,12 +274,6 @@ export default function PainelPage() {
           />
         ))}
       </section>}
-
-      {session.tipo === 'arbitro' && (
-        <section className="mx-auto max-w-7xl px-4 pb-12">
-          <PartidasAbertasArbitro compact />
-        </section>
-      )}
 
       {!released && (
         <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-12 lg:grid-cols-[0.9fr_1.1fr]">

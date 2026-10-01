@@ -13,6 +13,11 @@ updated: 2026-10-01
 
 # Log
 
+## [2026-10-01] perf | agenda pública e caminho antigo do árbitro
+
+- pages_updated=`log`, `hot`, `modulos/PARTIDAS`
+- A agenda geral deixa de trazer todos os jogos de todos os campeonatos. Sem campeonato escolhido, a consulta traz os jogos em andamento, até 40 próximos e os 20 encerrados mais recentes. Com campeonato escolhido, a agenda desse campeonato continua completa. O portal não repete a consulta no primeiro instante e só atualiza a cada 8 segundos enquanto houver jogo ao vivo; fora isso, a cada 60 segundos. A lista para o árbitro procurar partida saiu de `/jogos` e do painel. O acesso continua pelo link do jogo.
+
 ## [2026-10-01] ops | publicação do link de inscrição
 
 - pages_updated=`log`, `hot`, `modulos/INSCRICOES`

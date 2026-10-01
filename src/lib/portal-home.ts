@@ -1,6 +1,7 @@
 ﻿import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podium'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
-import { agruparPartidasPublicas, normalizarPartidaPublica, PARTIDA_PUBLICA_COLUNAS, type GruposPartidaPublica, type PartidaPublica } from '@/lib/partida-publica'
+import { buscarPartidasPublicas } from '@/lib/agenda-publica'
+import { agruparPartidasPublicas, type GruposPartidaPublica, type PartidaPublica } from '@/lib/partida-publica'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
@@ -86,22 +87,10 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
   const ligasPublicas = ligasResultado.data
 
   const idsPublicos = (ligasPublicas ?? []).map((item: { id: number }) => item.id)
-  const partidasResultado = idsPublicos.length
-    ? await supabaseAdmin
-      .from('Partida')
-      .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
-      .in('ligaId', idsPublicos)
-      .order('dataHora', { ascending: true })
-    : { data: [], error: null }
-
-  const partidasFalha = Boolean(partidasResultado.error)
-  if (partidasFalha) console.error('[portal] erro ao buscar partidas', partidasResultado.error)
-  const partidasNormais = partidasFalha
-    ? []
-    : (partidasResultado.data ?? [])
-      .map(normalizarPartidaPublica)
-      .filter((partida): partida is NonNullable<typeof partida> => Boolean(partida))
-      .filter((partida) => partida.liga?.simulacao !== true)
+  const partidasBusca = await buscarPartidasPublicas(idsPublicos, !agendaGlobal)
+  const partidasFalha = partidasBusca.erro
+  if (partidasFalha) console.error('[portal] erro ao buscar partidas')
+  const partidasNormais = partidasBusca.partidas
   const grupos = agruparPartidasPublicas(partidasNormais)
   const partidas = [...grupos.aoVivo, ...grupos.proximos, ...grupos.encerradas, ...grupos.analise]
   const partidaDestaque = grupos.aoVivo[0] ?? grupos.proximos[0] ?? grupos.encerradas[0] ?? null
@@ -168,12 +157,8 @@ export async function getPainelInicio(organizadorId: string) {
     console.error('[portal] erro ao reconciliar equipes do campeonato', err)
   }
 
-  const [partidasResultado, inscricoesResultado, mensagensResultado, premiacoesResultado, podios] = await Promise.all([
-    supabaseAdmin
-      .from('Partida')
-      .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
-      .in('ligaId', ids)
-      .order('dataHora', { ascending: true }),
+  const [partidasBusca, inscricoesResultado, mensagensResultado, premiacoesResultado, podios] = await Promise.all([
+    buscarPartidasPublicas(ids, false),
     supabaseAdmin
       .from('InscricaoCampeonato')
       .select('ligaId, equipe:Equipe(id,nome,corHex,logoUrl,jogadores:Jogador(id,banido))')
@@ -184,13 +169,11 @@ export async function getPainelInicio(organizadorId: string) {
     Promise.all(ids.map((id: number) => getChampionshipPodium(id).catch(() => [] as PodiumTeam[]))),
   ])
 
-  const partidasFalha = Boolean(partidasResultado.error)
-  if (partidasFalha) console.error('[portal] erro ao buscar partidas', partidasResultado.error)
+  const partidasFalha = partidasBusca.erro
+  if (partidasFalha) console.error('[portal] erro ao buscar partidas')
   const partidasPorLiga = new Map<number, PartidaPublica[]>()
   if (!partidasFalha) {
-    for (const linha of partidasResultado.data ?? []) {
-      const partida = normalizarPartidaPublica(linha)
-      if (!partida || partida.liga?.simulacao === true) continue
+    for (const partida of partidasBusca.partidas) {
       const lista = partidasPorLiga.get(partida.ligaId) ?? []
       lista.push(partida)
       partidasPorLiga.set(partida.ligaId, lista)

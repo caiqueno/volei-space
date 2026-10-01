@@ -15,7 +15,7 @@ updated: 2026-10-01
 
 ## Foco atual
 
-O organizador gera, na prévia e em Campeonatos → Ações, um link `/inscricao/campeonato/{token}`. A equipe abre esse endereço e o campeonato já vem identificado. O menu Árbitros saiu do perfil do organizador: o acesso do árbitro continua só pelo link do jogo e pelo código, na guia Jogos. A massa `LINK-FLOW-2026` está nos dois bancos, além da `TOURNAMENT-SEED-2026`. Fonte: [[modulos/INSCRICOES]] e [[modulos/PARTIDAS]].
+O organizador gera, na prévia e em Campeonatos → Ações, um link `/inscricao/campeonato/{token}`. A equipe abre esse endereço e o campeonato já vem identificado. O menu Árbitros e a lista para procurar partida saíram. O acesso do árbitro continua só pelo link do jogo e pelo código, na guia Jogos. A agenda geral não carrega mais todos os jogos de uma vez. A massa `LINK-FLOW-2026` está nos dois bancos, além da `TOURNAMENT-SEED-2026`. Fonte: [[modulos/INSCRICOES]] e [[modulos/PARTIDAS]].
 
 ## Key Takeaways
 
