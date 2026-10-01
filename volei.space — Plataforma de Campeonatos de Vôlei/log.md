@@ -13,6 +13,11 @@ updated: 2026-10-01
 
 # Log
 
+## [2026-10-01] fix | súmula em produção
+
+- pages_updated=`log`, `modulos/PARTIDAS`
+- A súmula em produção respondia 500 porque faltavam as chaves de ocorrência e destaque. Elas foram criadas. O árbitro que entrou pelo link do jogo passa a abrir e gravar a súmula daquela partida sem uma segunda conta.
+
 ## [2026-10-01] ui | versão mobile do navegador
 
 - pages_updated=`09-UI-UX`, `log`

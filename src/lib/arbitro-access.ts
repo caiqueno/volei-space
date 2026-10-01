@@ -24,6 +24,8 @@ export async function requireArbitroPartidaAccess(
 ): Promise<ArbitroPartidaAccess | NextResponse> {
   const peloLink = await acessoPeloLink(req, token)
   if (peloLink) return peloLink
+  const pelaSessao = await acessoPelaSessaoNaPartida(req, token)
+  if (pelaSessao) return pelaSessao
 
   const auth = await requirePublicRole(req, ['arbitro'], { releasedOnly: true })
   if (auth instanceof Response) return auth
@@ -56,6 +58,31 @@ export async function requireArbitroPartidaAccess(
   if (!arbitroId || !escalado) return error('Voce nao esta escalado para operar esta partida.', 403)
 
   return { auth, candidatura, partida }
+}
+
+async function acessoPelaSessaoNaPartida(req: NextRequest, token: string): Promise<ArbitroPartidaAccess | null> {
+  const sessao = await lerSessaoAcesso(req)
+  if (!sessao) return null
+  const { data: acesso } = await supabase
+    .from('AcessoArbitroJogo')
+    .select('id,partidaId,token,ativo,revogadoEm')
+    .eq('id', sessao.acessoId)
+    .maybeSingle()
+  if (!acesso || !acesso.ativo || acesso.revogadoEm || acesso.token !== sessao.token || Number(acesso.partidaId) !== Number(sessao.partidaId)) return null
+
+  const numerico = /^\d+$/.test(token)
+  let consulta = supabase.from('Partida').select(PARTIDA_OPERACAO)
+  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
+  const { data: partida } = await consulta.maybeSingle()
+  if (!partida || Number(partida.id) !== Number(acesso.partidaId)) return null
+  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
+  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
+  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
+  return {
+    auth: { userId: acesso.id, email: '', nome: 'Árbitro do jogo', tipo: 'arbitro', status: 'ATIVA' },
+    candidatura: { id: acesso.id, nome: 'Árbitro do jogo', email: '', status: 'ATIVA', arbitroId: null },
+    partida,
+  }
 }
 
 async function acessoPeloLink(req: NextRequest, token: string): Promise<ArbitroPartidaAccess | NextResponse | null> {

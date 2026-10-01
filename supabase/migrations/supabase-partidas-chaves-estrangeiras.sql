@@ -33,4 +33,18 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'EscalaArbitro_arbitroId_fkey') then
     alter table "EscalaArbitro" add constraint "EscalaArbitro_arbitroId_fkey" foreign key ("arbitroId") references "Arbitro"(id) on update cascade on delete restrict;
   end if;
+  if not exists (select 1 from pg_constraint where conname = 'OcorrenciaPartida_partidaId_fkey') then
+    alter table "OcorrenciaPartida" add constraint "OcorrenciaPartida_partidaId_fkey" foreign key ("partidaId") references "Partida"(id) on update cascade on delete cascade;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'OcorrenciaPartida_jogadorId_fkey') then
+    alter table "OcorrenciaPartida" add constraint "OcorrenciaPartida_jogadorId_fkey" foreign key ("jogadorId") references "Jogador"(id) on update cascade on delete restrict;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'DestaquesPartida_partidaId_fkey') then
+    alter table "DestaquesPartida" add constraint "DestaquesPartida_partidaId_fkey" foreign key ("partidaId") references "Partida"(id) on update cascade on delete cascade;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'DestaquesPartida_jogadorId_fkey') then
+    alter table "DestaquesPartida" add constraint "DestaquesPartida_jogadorId_fkey" foreign key ("jogadorId") references "Jogador"(id) on update cascade on delete restrict;
+  end if;
 end $$;
+
+notify pgrst, 'reload schema';

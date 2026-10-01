@@ -2,6 +2,7 @@ import type { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { error } from '@/lib/api-response'
 import { verifyPublicToken } from '@/lib/auth'
+import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
 
 export type SumulaTokenAccess = {
   partida: any
@@ -31,6 +32,16 @@ function primeiro(valor: unknown) {
 }
 
 export async function requireSumulaLeitura(req: NextRequest, partida: any): Promise<NextResponse | null> {
+  const acesso = await lerSessaoAcesso(req)
+  if (acesso && Number(acesso.partidaId) === Number(partida.id)) {
+    const { data: link } = await supabase
+      .from('AcessoArbitroJogo')
+      .select('id,token,ativo,revogadoEm')
+      .eq('id', acesso.acessoId)
+      .maybeSingle()
+    if (link && link.ativo && !link.revogadoEm && link.token === acesso.token) return null
+  }
+
   const sessao = await verifyPublicToken(req)
   if (!sessao) return error('Entre para abrir a súmula.', 401)
 
