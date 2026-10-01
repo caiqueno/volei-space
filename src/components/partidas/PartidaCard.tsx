@@ -49,7 +49,7 @@ export function PartidaCard({ partida, showSumulaLink = false, roundLabel }: { p
         <span className="shrink-0"><Badge variant={badge.variant}>{badge.label}</Badge></span>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_86px_minmax(0,1fr)] items-start gap-3">
+      <div className="match-board">
         <TeamBlock equipe={partida.equipeA} align="right" />
 
         <div className="flex min-w-0 flex-col items-center pt-3 text-center">
@@ -134,7 +134,7 @@ function formatMatchDate(value: Date | string | null) {
 function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 'left' | 'right' }) {
   const nome = equipe?.nome || 'Equipe'
   return (
-    <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
+    <div className={`match-team min-w-0 ${align === 'right' ? 'is-away text-right' : ''}`}>
       <div className={`flex ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
         <TeamIdentity nome={nome} cor={equipe?.corHex} compact showName={false} />
       </div>

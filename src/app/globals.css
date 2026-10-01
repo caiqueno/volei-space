@@ -18538,3 +18538,62 @@ html body .official-score-layout.is-facing .official-team-score-group {
   min-height: 0 !important;
 }
 
+.match-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.public-mobile-nav {
+  bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.public-mobile-nav a {
+  min-height: 44px;
+  font-size: 12px !important;
+}
+
+html body header.sticky {
+  padding-top: env(safe-area-inset-top);
+}
+
+@media (max-width: 720px) {
+  .match-board {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .match-team,
+  .match-team.is-away,
+  .match-team p {
+    text-align: center;
+  }
+
+  .match-team .flex,
+  .match-team.is-away .flex {
+    justify-content: center;
+  }
+
+  html body main.luva-shell {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  html body .mobile-sheet button,
+  html body .mobile-sheet a {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  html body .official-compact-icon-action,
+  html body .official-compact-team-control > i {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  html body .official-compact-point-action,
+  html body .official-compact-timeout-action {
+    min-height: 44px !important;
+  }
+}
+

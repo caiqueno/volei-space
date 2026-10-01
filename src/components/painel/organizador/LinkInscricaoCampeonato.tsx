@@ -97,8 +97,8 @@ export function LinkInscricaoCampeonato({ ligaId, nome, compacto = false }: { li
         {compacto ? 'Link de inscrição' : 'Gerar link de inscrição'}
       </button>
       {aberto ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <section className="w-full max-w-lg rounded-[1.75rem] border border-white/10 bg-[#07111f] p-6 text-white">
+        <div className="mobile-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-3 sm:items-center sm:px-4">
+          <section className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] border border-white/10 bg-[#07111f] p-6 text-white sm:rounded-[1.75rem]">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-luva-amber">Link de inscrição</p>
             <h2 className="mt-2 font-display text-3xl font-black">{nome}</h2>
             <p className="mt-3 text-sm font-semibold leading-6 text-white/75">Envie este link para as equipes realizarem a inscrição no campeonato.</p>
@@ -114,7 +114,7 @@ export function LinkInscricaoCampeonato({ ligaId, nome, compacto = false }: { li
               <div className="mt-5 rounded-2xl border border-white/10 p-4">
                 <p className="font-black">Regenerar link?</p>
                 <p className="mt-2 text-sm font-semibold text-white/75">O link atual deixará de funcionar. As inscrições já realizadas não serão afetadas.</p>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <button type="button" onClick={() => setConfirmar(false)} className="rounded-full border border-white/20 px-4 py-2 text-sm font-black">Cancelar</button>
                   <button type="button" disabled={ocupado} onClick={() => enviar('regenerar')} className="rounded-full bg-[#ffb331] px-4 py-2 text-sm font-black text-[#050914]">Regenerar link</button>
                 </div>

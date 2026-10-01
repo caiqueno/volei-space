@@ -13,6 +13,11 @@ updated: 2026-10-01
 
 # Log
 
+## [2026-10-01] ui | versão mobile do navegador
+
+- pages_updated=`09-UI-UX`, `log`
+- Jogos e portal empilham o card e não despejam centenas de partidas de uma vez. A tabela de jogos do organizador usa a lista `data-stack`. O menu público e o modal do link consideram a área segura e o toque. Conferido em 390px e 320px sem rolagem horizontal em `/jogos`, `/portal` e na inscrição da Copa Nacional.
+
 ## [2026-10-01] perf | agenda pública e caminho antigo do árbitro
 
 - pages_updated=`log`, `hot`, `modulos/PARTIDAS`

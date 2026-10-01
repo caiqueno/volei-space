@@ -114,15 +114,6 @@ export default async function JogosPage({ searchParams }: PageProps) {
 
       {!equipeCapitao && <LeagueScopeBar ligas={scope.ligas} selected={scope.selectedLiga} organizadorId={scope.organizadorId} basePath="/jogos" />}
 
-      {partidas.some((partida) => partida.status === 'EM_ANDAMENTO') && (
-        <section className="mx-auto max-w-7xl px-4 pt-8">
-          <h2 className="font-display text-2xl font-black text-white">Em andamento</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {partidas.filter((partida) => partida.status === 'EM_ANDAMENTO').map((partida) => <PartidaCard key={`vivo-${partida.id}`} partida={partida} />)}
-          </div>
-        </section>
-      )}
-
       <section className="mx-auto max-w-7xl px-4 py-8">
         {scope.organizadorId && !scope.selectedLiga ? (
           <CreatorEmptyState organizadorId={scope.organizadorId} title="Nenhum campeonato com agenda." description="Crie um campeonato no painel do criador. Os jogos ficarão vazios até você montar as rodadas." />
@@ -139,6 +130,12 @@ export default async function JogosPage({ searchParams }: PageProps) {
           />
         ) : partidas.length === 0 ? (
           <EstadoVazio titulo={equipeCapitao ? 'Nenhum jogo para sua equipe' : 'Nenhum jogo cadastrado'} descricao={equipeCapitao ? 'As partidas do seu time aparecerão aqui quando o campeonato montar o calendário.' : 'As partidas aparecerão aqui quando a organização montar o calendário.'} />
+        ) : !scope.selectedLiga && !equipeCapitao ? (
+          <div className="grid gap-8">
+            <GradeJogos titulo="Em andamento" partidas={partidas.filter((partida) => partida.status === 'EM_ANDAMENTO')} />
+            <GradeJogos titulo="Próximos jogos" partidas={partidas.filter((partida) => partida.status === 'AGENDADA' || partida.status === 'PENDENTE')} />
+            <GradeJogos titulo="Resultados" partidas={partidas.filter((partida) => partida.status === 'ENCERRADA' || partida.status === 'WO')} />
+          </div>
         ) : (
           <>
             {tabelas.map((tabela) => (
@@ -167,6 +164,28 @@ export default async function JogosPage({ searchParams }: PageProps) {
         )}
       </section>
     </main>
+  )
+}
+
+function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
+  if (partidas.length === 0) return null
+  const primeiros = partidas.slice(0, 8)
+  const resto = partidas.slice(8)
+  return (
+    <section>
+      <h2 className="font-display text-2xl font-black text-white">{titulo}</h2>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {primeiros.map((partida) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} />)}
+      </div>
+      {resto.length > 0 && (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm font-black text-[#ffb331]">Ver mais {resto.length} jogos</summary>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {resto.map((partida) => <PartidaCard key={`${titulo}-mais-${partida.id}`} partida={partida} />)}
+          </div>
+        </details>
+      )}
+    </section>
   )
 }
 

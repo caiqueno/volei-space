@@ -118,12 +118,22 @@ export function PortalAgenda({ ligaId, global = false, inicial, falhaInicial }: 
 
 function Faixa({ titulo, partidas }: { titulo: string; partidas: PartidaPublica[] }) {
   if (partidas.length === 0) return null
+  const primeiros = partidas.slice(0, 8)
+  const resto = partidas.slice(8)
   return (
     <section>
       <h3 className="font-display text-2xl font-black text-white">{titulo}</h3>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {partidas.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
+        {primeiros.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
       </div>
+      {resto.length > 0 && (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm font-black text-[#ffb331]">Ver mais {resto.length} jogos</summary>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {resto.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
+          </div>
+        </details>
+      )}
     </section>
   )
 }

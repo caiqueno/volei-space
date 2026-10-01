@@ -275,7 +275,7 @@ export function Header() {
 
       {!pathname.startsWith('/partidas') && (
         <nav
-          className="fixed inset-x-3 bottom-3 z-50 grid rounded-2xl border border-white/10 bg-[#061426]/94 p-1.5 shadow-2xl shadow-slate-950/40 backdrop-blur-2xl lg:hidden"
+          className="public-mobile-nav fixed inset-x-3 z-50 grid rounded-2xl border border-white/10 bg-[#061426]/94 p-1.5 shadow-2xl shadow-slate-950/40 backdrop-blur-2xl lg:hidden"
           style={{ gridTemplateColumns: `repeat(${mobileLinks.length}, minmax(0, 1fr))` }}
         >
           {mobileLinks.map(({ href, short }) => {

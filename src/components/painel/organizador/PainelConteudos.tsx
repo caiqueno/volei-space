@@ -261,8 +261,8 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
       {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
       {Array.from(grupos.entries()).map(([ligaId, grupo]) => (
         <CollapseBar key={ligaId} title={grupo.simulacao ? `${grupo.nome} · simulação` : grupo.nome}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm text-white">
+          <div>
+            <table data-stack className="w-full text-left text-sm text-white">
               <thead className="text-xs font-black uppercase tracking-wide text-white/60">
                 <tr>
                   <th className="px-3 py-2">Rodada</th>
@@ -282,16 +282,16 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                   const nomeArbitro = partida.escala?.find((item) => item.cargo === 'PRIMEIRO_ARBITRO')?.arbitro?.nome || partida.escala?.[0]?.arbitro?.nome || 'Não registrado'
                   return (
                     <tr key={partida.id} className="border-t border-white/10">
-                      <td className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
-                      <td className="px-3 py-3 font-black">{partida.equipeA?.nome ?? 'Equipe A'} × {partida.equipeB?.nome ?? 'Equipe B'}</td>
-                      <td className="px-3 py-3">{quando}</td>
-                      <td className="px-3 py-3">{STATUS_JOGO[status] ?? status}</td>
-                      <td className="px-3 py-3 font-bold">
+                      <td data-label="Rodada" className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
+                      <td data-label="Jogo" className="px-3 py-3 font-black">{partida.equipeA?.nome ?? 'Equipe A'} × {partida.equipeB?.nome ?? 'Equipe B'}</td>
+                      <td data-label="Horário" className="px-3 py-3">{quando}</td>
+                      <td data-label="Status" className="px-3 py-3">{STATUS_JOGO[status] ?? status}</td>
+                      <td data-label="Placar" className="px-3 py-3 font-bold">
                         {partida.setsPorA ?? 0} × {partida.setsPorB ?? 0}
                         {emJogo ? <span className="mt-1 block text-xs font-semibold text-white/70">{partida.pontosPorA ?? 0} a {partida.pontosPorB ?? 0}</span> : null}
                       </td>
-                      <td className="px-3 py-3">{nomeArbitro}</td>
-                      <td className="px-3 py-3">
+                      <td data-label="Árbitro" className="px-3 py-3">{nomeArbitro}</td>
+                      <td data-label="Acesso" className="px-3 py-3">
                         <AcessoArbitroJogo partidaId={partida.id} jogo={`${partida.equipeA?.nome ?? 'Equipe A'} × ${partida.equipeB?.nome ?? 'Equipe B'}`} />
                       </td>
                     </tr>
