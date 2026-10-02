@@ -86,16 +86,6 @@ export function ChampionshipSetupDashboard({ ligaId }: { ligaId: number }) {
       </div>
 
       <div className="mt-8">
-        <Link
-          href={`/painel/parametrizacao/categorias?ligaId=${ligaId}`}
-          className="mb-4 flex items-center justify-between rounded-2xl border border-amber-400/40 bg-amber-400/10 px-5 py-4 text-white"
-        >
-          <div>
-            <strong className="block font-display text-lg">Categorias</strong>
-            <p className="text-sm text-slate-300">Cada categoria é uma competição, com tabela, jogos e preço próprios.</p>
-          </div>
-          <span className="text-sm font-bold text-amber-200">Abrir</span>
-        </Link>
         <ChampionshipSetupCardList cards={cards} />
       </div>
     </div>

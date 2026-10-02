@@ -8,10 +8,30 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Log
+
+## [2026-10-02] teste | fluxo de cadastro nos dois ambientes
+
+- pages_updated=`log`
+- A massa `FLUXO-CADASTRO-2026` gravou os mesmos campeonatos, equipes, jogadores, partidas e resultados no desenvolvimento e na produção. Mata-mata ficou sem tabela de classificação. O campeonato com grupos mostra a Equipe Teste Alfa com 3 pontos.
+
+## [2026-10-02] fix | digitação do login no celular
+
+- pages_updated=`09-UI-UX`, `log`
+- E-mail e senha deixam de nascer somente leitura. No celular, o primeiro toque já recebe o que é digitado, sem precisar sair do campo e voltar.
+
+## [2026-10-02] fluxo | cadastro do campeonato
+
+- pages_updated=`modulos/PARAMETRIZACAO`, `04-FLUXOS`, `log`, `hot`
+- Categorias passou a ser a 5ª etapa de Informações do campeonato. Salvar com sucesso avança; erro mantém a etapa. Mata-mata não abre Classificação nem conta essa sessão no progresso.
+
+## [2026-10-02] ops | APK Android com o site de produção
+
+- pages_updated=`log`
+- O instalador `aplicativo-android/volei-space-producao.apk` abre `https://www.volei.space`. Campeonatos, jogos e súmula vêm do banco de produção. É um APK de depuração, assinado para instalação direta, sem conta na Play Store.
 
 ## [2026-10-01] fix | súmula em produção
 

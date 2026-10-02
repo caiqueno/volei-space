@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAbrirSecaoParametrizacao } from '../../PainelParametrizacaoContext'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { X, Plus } from 'lucide-react'
-import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { FormAlert } from '../../ui/FormAlert'
 import PageLoading from '@/components/ui/page-loading'
 
@@ -31,8 +31,11 @@ function payloadDoItem(item: Item): Record<string, string> {
   return { nome: item.nome }
 }
 
-export function CategoriasWizard({ ligaId }: { ligaId: number }) {
-  const router = useRouter()
+export type SelecaoCategoriasHandle = {
+  salvar: () => Promise<{ ok: boolean; message: string | null }>
+}
+
+export const SelecaoCategorias = forwardRef<SelecaoCategoriasHandle, { ligaId: number }>(function SelecaoCategorias({ ligaId }, ref) {
   const shouldReduceMotion = useReducedMotion()
 
   const [loading, setLoading] = useState(true)
@@ -115,45 +118,36 @@ export function CategoriasWizard({ ligaId }: { ligaId: number }) {
     setSaveError(null)
   }
 
-  async function avancar() {
-    if (selecionadas.length === 0 || saving) return
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const response = await fetch(`/api/organizador/ligas/${ligaId}/categorias`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categorias: selecionadas.map(payloadDoItem) }),
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar as categorias.')
-      const primeira = (payload.data as Array<{ id: string }>)[0]
-      router.push(`/painel/parametrizacao?ligaId=${ligaId}${primeira ? `&categoriaCampeonatoId=${primeira.id}` : ''}`)
-    } catch (err) {
-      // Erro: preserva a seleção atual na tela, não perde nada do que o
-      // organizador já tinha montado.
-      setSaveError(err instanceof Error ? err.message : 'Não foi possível salvar as categorias.')
-      setSaving(false)
-    }
-  }
+  useImperativeHandle(ref, () => ({
+    salvar: async () => {
+      if (loading) return { ok: false, message: 'Aguarde o carregamento das categorias.' }
+      if (selecionadas.length === 0 || saving) return { ok: false, message: 'Selecione ao menos uma categoria.' }
+      setSaving(true)
+      setSaveError(null)
+      try {
+        const response = await fetch(`/api/organizador/ligas/${ligaId}/categorias`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categorias: selecionadas.map(payloadDoItem) }),
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar as categorias.')
+        setSaving(false)
+        return { ok: true, message: null }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Não foi possível salvar as categorias.'
+        setSaveError(message)
+        setSaving(false)
+        return { ok: false, message }
+      }
+    },
+  }), [ligaId, loading, saving, selecionadas])
 
   if (loading) return <PageLoading label="Carregando categorias..." />
-  if (loadError) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-16">
-        <FormAlert variant="error">{loadError}</FormAlert>
-      </div>
-    )
-  }
+  if (loadError) return <FormAlert variant="error">{loadError}</FormAlert>
 
   return (
-    <SectionWizardLayout
-      ligaId={ligaId}
-      section="categorias"
-      title="Quais categorias terá seu campeonato?"
-      subtitle="Selecione as categorias ou adicione uma que não esteja na lista."
-      autosaveStatus="idle"
-    >
+    <div>
       <div>
         <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Selecionadas</p>
         <div className="mt-2 flex min-h-[3.5rem] gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-3">
@@ -248,14 +242,21 @@ export function CategoriasWizard({ ligaId }: { ligaId: number }) {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={avancar}
-        disabled={selecionadas.length === 0 || saving}
-        className="public-primary-action mt-6 w-full rounded-full py-3.5 text-sm font-black disabled:opacity-40"
-      >
-        {saving ? 'Salvando...' : 'Avançar'}
-      </button>
-    </SectionWizardLayout>
+    </div>
   )
+})
+
+export function CategoriasWizard({ ligaId }: { ligaId: number }) {
+  const router = useRouter()
+  const abrir = useAbrirSecaoParametrizacao()
+
+  useEffect(() => {
+    if (abrir) {
+      abrir('informacoes', 4)
+      return
+    }
+    router.replace(`/painel/parametrizacao/informacoes?ligaId=${ligaId}&etapa=categorias`)
+  }, [abrir, ligaId, router])
+
+  return <PageLoading label="Abrindo categorias..." />
 }

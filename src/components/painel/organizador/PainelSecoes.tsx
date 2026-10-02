@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { CARD_ORDER, CARD_TITLES, type SetupCardKey } from '@/lib/championship-setup-status'
+import { CARD_TITLES, cartoesVisiveis, formatoPulaClassificacao, type SetupCardKey } from '@/lib/championship-setup-status'
 import { consultar, invalidarConsultas } from '@/lib/api-cliente'
 import { isCampeonatoFinalizado, MENSAGEM_CAMPEONATO_FINALIZADO } from '@/lib/championship-finalization'
 import { SECTION_WIZARD_REGISTRY } from '@/components/parametrizacao/sections/registry'
@@ -20,6 +20,8 @@ export function ParametrizacaoNoPainel({
   onSelect: (id: number) => void
 }) {
   const [guia, setGuia] = useState<SetupCardKey>('informacoes')
+  const [etapaInformacoes, setEtapaInformacoes] = useState(0)
+  const [formato, setFormato] = useState<string | null>(null)
   const [escolhido, setEscolhido] = useState<number | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [confirmar, setConfirmar] = useState(false)
@@ -40,12 +42,21 @@ export function ParametrizacaoNoPainel({
   useEffect(() => {
     if (!selecionado) {
       setStatus(null)
+      setFormato(null)
       return
     }
     let cancelado = false
     const controlador = new AbortController()
     setStatus(null)
     setAviso(null)
+    consultar<{ data?: { status?: string; formato?: string | null } }>(`/api/organizador/ligas/${selecionado}/setup`, { signal: controlador.signal })
+      .then((payload) => {
+        if (cancelado) return
+        setFormato(payload.data?.formato ?? null)
+      })
+      .catch(() => {
+        if (!cancelado) setFormato(null)
+      })
     consultar<{ data?: { status?: string } }>(`/api/organizador/ligas/${selecionado}/setup/informacoes`, { signal: controlador.signal })
       .then((payload) => {
         if (!cancelado) setStatus(String(payload.data?.status ?? ''))
@@ -80,6 +91,16 @@ export function ParametrizacaoNoPainel({
   if (ligas.length === 0) {
     return <p className="text-sm font-semibold text-slate-300">Crie um campeonato em Início para escolher o que parametrizar.</p>
   }
+  useEffect(() => {
+    if (formatoPulaClassificacao(formato) && guia === 'classificacao') setGuia('eliminatorias')
+  }, [formato, guia])
+
+  function abrirSecao(section: string, etapa?: number) {
+    if (section === 'informacoes') setEtapaInformacoes(etapa ?? 0)
+    setGuia(section as SetupCardKey)
+  }
+
+  const guias = cartoesVisiveis(formato)
   const Secao = selecionado ? SECTION_WIZARD_REGISTRY[guia].component : null
 
   return (
@@ -93,6 +114,7 @@ export function ParametrizacaoNoPainel({
             if (!Number.isInteger(id) || id <= 0) return
             onSelect(id)
             setEscolhido(id)
+            setEtapaInformacoes(0)
             setGuia('informacoes')
           }}
           className="mt-3 w-full rounded-2xl border border-white/15 bg-[#061426] px-4 py-3 text-sm font-black text-white outline-none focus:border-luva-amber"
@@ -127,7 +149,7 @@ export function ParametrizacaoNoPainel({
             </button>
           )}
           <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Guias do campeonato">
-            {CARD_ORDER.map((key) => {
+            {guias.map((key) => {
               const ativa = key === guia
               return (
                 <button
@@ -135,7 +157,7 @@ export function ParametrizacaoNoPainel({
                   type="button"
                   role="tab"
                   aria-selected={ativa}
-                  onClick={() => setGuia(key)}
+                  onClick={() => abrirSecao(key)}
                   className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${ativa ? 'bg-luva-amber text-[#050914]' : 'border border-white/15 text-white hover:border-luva-amber/60'}`}
                 >
                   {CARD_TITLES[key]}
@@ -145,8 +167,8 @@ export function ParametrizacaoNoPainel({
           </div>
           <fieldset disabled={finalizado} className="mt-6 min-w-0 border-0 p-0 disabled:opacity-80">
             <ToastProvider>
-              <ParametrizacaoNoPainelProvider openSection={(section) => setGuia(section as SetupCardKey)}>
-                <Secao key={`${selecionado}-${guia}`} ligaId={selecionado} />
+              <ParametrizacaoNoPainelProvider openSection={abrirSecao} definirFormato={setFormato}>
+                <Secao key={`${selecionado}-${guia}-${etapaInformacoes}`} ligaId={selecionado} etapaInicial={guia === 'informacoes' ? etapaInformacoes : 0} />
               </ParametrizacaoNoPainelProvider>
             </ToastProvider>
           </fieldset>

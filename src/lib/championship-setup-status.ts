@@ -34,6 +34,35 @@ export const SECTION_DEPENDENCIES: Record<SetupSection, SetupSection[]> = {
   inscricoes: ['estrutura'],
 }
 
+export function formatoPulaClassificacao(formato?: string | null) {
+  return formato === 'MATA_MATA' || formato === 'COPA_CURTA'
+}
+
+export function decidirAvanco(salvou: boolean): 'avancar' | 'permanecer' {
+  return salvou ? 'avancar' : 'permanecer'
+}
+
+export function dependenciasEfetivas(section: SetupSection, formato?: string | null): SetupSection[] {
+  const dependencias = SECTION_DEPENDENCIES[section]
+  if (formatoPulaClassificacao(formato)) return dependencias.filter((dependencia) => dependencia !== 'classificacao')
+  return dependencias
+}
+
+export function secoesContadas(formato?: string | null): SetupSection[] {
+  return SECTION_ORDER.filter((section) => !(section === 'classificacao' && formatoPulaClassificacao(formato)))
+}
+
+export function cartoesVisiveis(formato?: string | null): SetupCardKey[] {
+  return CARD_ORDER.filter((key) => !(key === 'classificacao' && formatoPulaClassificacao(formato)))
+}
+
+export function proximaSecao(atual: SetupCardKey, formato?: string | null): SetupCardKey | null {
+  const lista = cartoesVisiveis(formato)
+  const index = lista.indexOf(atual)
+  if (index < 0) return null
+  return lista[index + 1] ?? null
+}
+
 // Status armazenado em LigaSetupSecao — reflete só a intenção do
 // organizador. 'attention-required' e 'blocked' nunca são armazenados, são
 // sempre sobrepostos em tempo de leitura (ver computeEffectiveSectionStatus).
@@ -44,9 +73,10 @@ export function computeEffectiveSectionStatus(params: {
   storedStatus: StoredSectionStatus
   effectiveStatusBySection: Partial<Record<SetupSection, ChampionshipSetupStatus>>
   hasValidationErrors: boolean
+  formato?: string | null
 }): ChampionshipSetupStatus {
-  const { section, storedStatus, effectiveStatusBySection, hasValidationErrors } = params
-  const dependencies = SECTION_DEPENDENCIES[section]
+  const { section, storedStatus, effectiveStatusBySection, hasValidationErrors, formato } = params
+  const dependencies = dependenciasEfetivas(section, formato)
   const blocked = dependencies.some((dep) => effectiveStatusBySection[dep] !== 'completed')
   if (blocked) return 'blocked'
   if ((storedStatus === 'in-progress' || storedStatus === 'completed') && hasValidationErrors) return 'attention-required'
@@ -58,6 +88,7 @@ export function computeEffectiveSectionStatus(params: {
 export function computeAllEffectiveStatuses(
   storedBySection: Record<SetupSection, StoredSectionStatus>,
   hasErrorsBySection: Record<SetupSection, boolean>,
+  formato?: string | null,
 ): Record<SetupSection, ChampionshipSetupStatus> {
   const effective = {} as Record<SetupSection, ChampionshipSetupStatus>
   for (const section of SECTION_ORDER) {
@@ -66,14 +97,16 @@ export function computeAllEffectiveStatuses(
       storedStatus: storedBySection[section] ?? 'not-started',
       effectiveStatusBySection: effective,
       hasValidationErrors: Boolean(hasErrorsBySection[section]),
+      formato,
     })
   }
   return effective
 }
 
-export function computeSetupProgress(effective: Record<SetupSection, ChampionshipSetupStatus>) {
-  const completedSections = SECTION_ORDER.filter((section) => effective[section] === 'completed').length
-  const totalSections = SECTION_ORDER.length
+export function computeSetupProgress(effective: Record<SetupSection, ChampionshipSetupStatus>, formato?: string | null) {
+  const sections = secoesContadas(formato)
+  const completedSections = sections.filter((section) => effective[section] === 'completed').length
+  const totalSections = sections.length
   const percent = totalSections === 0 ? 0 : Math.round((completedSections / totalSections) * 100)
   return { completedSections, totalSections, percent }
 }

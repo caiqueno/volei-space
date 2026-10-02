@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict'
 import {
+  cartoesVisiveis,
   computeAllEffectiveStatuses,
   computeEffectiveSectionStatus,
+  computeSetupProgress,
+  decidirAvanco,
+  formatoPulaClassificacao,
   getMissingSectionFields,
+  proximaSecao,
   resolveStoredSectionStatus,
   SECTION_ORDER,
   type SetupSection,
@@ -214,4 +219,48 @@ const idaVoltaEmpate = getAggregateTwoLegWinnerId(
 )
 assert.equal(idaVoltaEmpate, null, 'agregado empatado (4x4) deve retornar null (indefinido, decisão manual)')
 
-console.log('Central de Parametrização validada: status por sessão, validação cruzada, QR, calendário, elenco e ida-e-volta.')
+const mataMataPronto: Record<SetupSection, StoredSectionStatus> = {
+  ...storedNothingYet,
+  informacoes: 'completed',
+  estrutura: 'completed',
+}
+const efetivoMataMata = computeAllEffectiveStatuses(mataMataPronto, noErrors, 'MATA_MATA')
+assert.equal(efetivoMataMata.eliminatorias, 'not-started', 'mata-mata não bloqueia eliminatórias por falta de classificação')
+assert.equal(formatoPulaClassificacao('MATA_MATA'), true)
+assert.equal(formatoPulaClassificacao('GRUPOS_MATA_MATA'), false)
+assert.equal(cartoesVisiveis('MATA_MATA').includes('classificacao'), false, 'mata-mata não exibe a etapa de classificação')
+assert.equal(cartoesVisiveis('PONTOS_CORRIDOS').includes('classificacao'), true, 'formato com classificação devolve a etapa')
+assert.equal(proximaSecao('estrutura', 'MATA_MATA'), 'eliminatorias', 'depois da estrutura, mata-mata segue para eliminatórias')
+assert.equal(proximaSecao('estrutura', 'GRUPOS_MATA_MATA'), 'classificacao')
+assert.equal(proximaSecao('informacoes', 'MATA_MATA'), 'estrutura')
+assert.equal(decidirAvanco(true), 'avancar')
+assert.equal(decidirAvanco(false), 'permanecer')
+const progressoMataMata = computeSetupProgress(efetivoMataMata, 'MATA_MATA')
+assert.equal(progressoMataMata.totalSections, 5, 'mata-mata não conta classificação no progresso')
+
+void (async () => {
+  const { salvarEAvancarEtapa } = await import('../src/components/parametrizacao/wizard/salvar-etapa')
+  let destino = -1
+  let avisos: string[] = []
+  const avancou = await salvarEAvancarEtapa({
+    persist: async () => ({ ok: true, message: null }),
+    goTo: (indice) => { destino = indice },
+    proximoIndice: 4,
+    setCompletionIssues: (mensagens) => { avisos = mensagens },
+  })
+  assert.equal(avancou, true)
+  assert.equal(destino, 4, 'salvar com sucesso avança para a etapa seguinte')
+  assert.deepEqual(avisos, [])
+
+  destino = 1
+  const ficou = await salvarEAvancarEtapa({
+    persist: async () => ({ ok: false, message: 'Nome curto demais para o limite.' }),
+    goTo: (indice) => { destino = indice },
+    proximoIndice: 2,
+    setCompletionIssues: (mensagens) => { avisos = mensagens },
+  })
+  assert.equal(ficou, false)
+  assert.equal(destino, 1, 'falha de salvamento não troca a etapa')
+  assert.equal(avisos[0], 'Nome curto demais para o limite.')
+  console.log('Central de Parametrização validada: status por sessão, validação cruzada, QR, calendário, elenco, ida-e-volta e salto do mata-mata.')
+})()

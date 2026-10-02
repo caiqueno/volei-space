@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ClipboardList, Repeat2, ScanLine, ShieldOff } from 'lucide-react'
-import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { useAbrirSecaoParametrizacao, useDefinirFormatoCampeonato, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -31,7 +32,9 @@ const STEPS: WizardStepDef[] = [
 export function EstruturaWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
   const noPainel = useParametrizacaoNoPainel()
-  const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, complete } =
+  const abrir = useAbrirSecaoParametrizacao()
+  const definirFormato = useDefinirFormatoCampeonato()
+  const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, persist, complete } =
     useSectionWizard<EstruturaSectionDTO>('estrutura', `/api/organizador/ligas/${ligaId}/setup/estrutura`)
 
   const [stepIndex, setStepIndex] = useState(0)
@@ -51,14 +54,16 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
   async function handleNext() {
     setCompletionIssues([])
     if (stepIndex < STEPS.length - 1) {
-      goTo(stepIndex + 1)
+      setSaving(true)
+      await salvarEAvancarEtapa({ persist, goTo, proximoIndice: stepIndex + 1, setCompletionIssues })
+      setSaving(false)
       return
     }
     setSaving(true)
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      abrirProximaSecao({ atual: 'estrutura', formato: data?.formato, ligaId, noPainel, abrir, router })
       return
     }
     const fields = result.fields ?? []
@@ -69,6 +74,10 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
       setVisited((current) => new Set(current).add(0))
     }
   }
+
+  useEffect(() => {
+    if (data?.formato) definirFormato?.(data.formato)
+  }, [data?.formato, definirFormato])
 
   useEffect(() => {
     if (!invalidKeys.length || stepIndex !== 0) return
@@ -107,6 +116,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
                   value={data.formato as CompetitionFormat | null}
                   onChange={(value) => {
                     setInvalidKeys((current) => current.filter((key) => key !== 'formato'))
+                    definirFormato?.(value)
                     updateNow({ formato: value })
                   }}
                   options={COMPETITION_FORMATS.map((f) => ({ value: f.value, label: f.label }))}

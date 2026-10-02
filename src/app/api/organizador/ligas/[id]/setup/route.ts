@@ -10,6 +10,7 @@ import {
   CARD_TITLES,
   computeAllEffectiveStatuses,
   computeSetupProgress,
+  secoesContadas,
   type SetupCardKey,
   type SetupSection,
 } from '@/lib/championship-setup-status'
@@ -38,8 +39,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     SECTION_ORDER.map((section) => [section, (validation.perSecao[section] ?? []).some((issue) => issue.severity === 'error')]),
   ) as Record<SetupSection, boolean>
 
-  const effective = computeAllEffectiveStatuses(stored, hasErrorsBySection)
-  const progress = computeSetupProgress(effective)
+  const formato = (liga.formato as string | null) ?? null
+  const effective = computeAllEffectiveStatuses(stored, hasErrorsBySection, formato)
+  const progress = computeSetupProgress(effective, formato)
 
   const summaryBySection: Record<SetupSection, string | undefined> = {
     informacoes: effective.informacoes === 'not-started' ? undefined : (liga.subtitulo as string) || 'Dados principais configurados',
@@ -65,7 +67,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const cards: Array<{ key: SetupCardKey; title: string; status: string; summary?: string; href: string }> = [
-    ...SECTION_ORDER.map((section) => ({
+    ...secoesContadas(formato).map((section) => ({
       key: section as SetupCardKey,
       title: CARD_TITLES[section],
       status: effective[section],
@@ -88,6 +90,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // regra que antes só existia no modal de /painel e que a Central precisa
     // reproduzir (a API também barra, ver rejectLockedFields).
     ligaEmAndamento,
+    formato,
     recursos: {
       sumulaScoutsEnabled: Boolean(liga.sumulaScoutsEnabled),
       qrCodeEnabled: Boolean(liga.qrCodeEnabled),

@@ -7665,6 +7665,12 @@ html body .admin-login-input {
   border: 1px solid rgba(224, 235, 248, 0.18) !important;
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
+  font-size: 16px !important;
+}
+
+html body .auth-page input,
+html body .auth-page textarea {
+  font-size: 16px !important;
 }
 
 html body .admin-shell main input::placeholder,

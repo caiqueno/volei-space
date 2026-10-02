@@ -8,8 +8,6 @@ import { ActionBar } from '@/components/ui/action-bar'
 export default function TrocarSenhaPage() {
   const [senha, setSenha] = useState('')
   const [confirmarSenha, setConfirmarSenha] = useState('')
-  const [senhaAberta, setSenhaAberta] = useState(false)
-  const [confirmacaoAberta, setConfirmacaoAberta] = useState(false)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -78,11 +76,9 @@ export default function TrocarSenhaPage() {
               minLength={8}
               disabled={loading}
               autoComplete="new-password"
-              readOnly={!senhaAberta}
-              onFocus={() => setSenhaAberta(true)}
               value={senha}
               onChange={(event) => setSenha(event.target.value)}
-              className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+              className="admin-login-input rounded-2xl px-4 py-4 text-base font-semibold outline-none transition"
               placeholder="Digite a senha nova aqui"
             />
           </label>
@@ -95,11 +91,9 @@ export default function TrocarSenhaPage() {
               minLength={8}
               disabled={loading}
               autoComplete="new-password"
-              readOnly={!confirmacaoAberta}
-              onFocus={() => setConfirmacaoAberta(true)}
               value={confirmarSenha}
               onChange={(event) => setConfirmarSenha(event.target.value)}
-              className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+              className="admin-login-input rounded-2xl px-4 py-4 text-base font-semibold outline-none transition"
               placeholder="Repita a senha nova"
             />
           </label>

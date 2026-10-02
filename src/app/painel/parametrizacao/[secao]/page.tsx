@@ -40,7 +40,7 @@ function Content() {
   return (
     <>
       {secao !== 'categorias' && secao !== 'informacoes' && <CategoryNavigation ligaId={ligaId} />}
-      <SectionWizard key={`${ligaId}:${searchParams.get('categoriaCampeonatoId') ?? ''}`} ligaId={ligaId} />
+      <SectionWizard key={`${ligaId}:${searchParams.get('categoriaCampeonatoId') ?? ''}`} ligaId={ligaId} etapaInicial={secao === 'informacoes' && searchParams.get('etapa') === 'categorias' ? 4 : 0} />
     </>
   )
 }

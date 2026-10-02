@@ -97,6 +97,7 @@ export interface ClassificacaoSectionDTO extends SectionPatchMeta {
   id: number
   organizadorId: string
   status: string
+  formato?: string | null
   criteriosClassificacao: string | null
   pontuacaoResultado: Array<{ setsVencedor: number; setsPerdedor: number; pontosVencedor: number; pontosPerdedor: number }> | null
   classificadosPorGrupo: number | null

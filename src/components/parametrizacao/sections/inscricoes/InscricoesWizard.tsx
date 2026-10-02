@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { QrCode, ShieldOff } from 'lucide-react'
-import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -100,8 +101,9 @@ function FieldRequirementRow({
 
 export function InscricoesWizard({ ligaId }: { ligaId: number }) {
   const noPainel = useParametrizacaoNoPainel()
+  const abrir = useAbrirSecaoParametrizacao()
   const router = useRouter()
-  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
+  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, persist, complete } =
     useSectionWizard<InscricoesSectionDTO>('inscricoes', `/api/organizador/ligas/${ligaId}/setup/inscricoes`)
 
   const [stepIndex, setStepIndex] = useState(0)
@@ -121,14 +123,16 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
   async function handleNext() {
     setCompletionIssues([])
     if (stepIndex < STEPS.length - 1) {
-      goTo(stepIndex + 1)
+      setSaving(true)
+      await salvarEAvancarEtapa({ persist, goTo, proximoIndice: stepIndex + 1, setCompletionIssues })
+      setSaving(false)
       return
     }
     setSaving(true)
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      abrirProximaSecao({ atual: 'inscricoes', ligaId, noPainel, abrir, router })
       return
     }
     const fields = result.fields ?? []

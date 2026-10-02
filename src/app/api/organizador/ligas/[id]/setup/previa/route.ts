@@ -27,8 +27,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const hasErrorsBySection = Object.fromEntries(
     SECTION_ORDER.map((section) => [section, (validation.perSecao[section] ?? []).some((issue) => issue.severity === 'error')]),
   ) as Record<SetupSection, boolean>
-  const effective = computeAllEffectiveStatuses(stored, hasErrorsBySection)
-  const progress = computeSetupProgress(effective)
+  const formato = liga.formato as string | null
+  const effective = computeAllEffectiveStatuses(stored, hasErrorsBySection, formato)
+  const progress = computeSetupProgress(effective, formato)
 
   // Valor autoritativo: o wizard calcula ao vivo com o mesmo módulo puro,
   // mas quem vale é este cálculo do servidor.

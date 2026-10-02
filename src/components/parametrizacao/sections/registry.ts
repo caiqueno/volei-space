@@ -15,7 +15,7 @@ import { SECTION_TITLES, CARD_TITLES, type SetupCardKey } from '@/lib/championsh
 // como 8º card na Central nem na trilha do SetupSectionNav. Ainda assim
 // precisa estar aqui para a rota dinâmica /painel/parametrizacao/[secao]
 // conseguir resolvê-la.
-export const SECTION_WIZARD_REGISTRY: Record<SetupCardKey, { component: ComponentType<{ ligaId: number }>; title: string }> = {
+export const SECTION_WIZARD_REGISTRY: Record<SetupCardKey, { component: ComponentType<{ ligaId: number; etapaInicial?: number }>; title: string }> = {
   informacoes: { component: InformacoesWizard, title: SECTION_TITLES.informacoes },
   estrutura: { component: EstruturaWizard, title: SECTION_TITLES.estrutura },
   classificacao: { component: ClassificacaoWizard, title: SECTION_TITLES.classificacao },

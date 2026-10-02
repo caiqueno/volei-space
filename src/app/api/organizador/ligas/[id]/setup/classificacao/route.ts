@@ -16,7 +16,7 @@ import { loadCategorySection, saveCategorySection } from '@/lib/category-setup-d
 // pré-preencher a tabela de pontuação com o exemplo certo (melhor-de-3 vs
 // melhor-de-5); nunca faz parte de setupClassificacaoSchema, então esta
 // seção nunca escreve nele.
-const COLUMNS = 'id,organizadorId,status,criteriosClassificacao,pontuacaoResultado,classificadosPorGrupo,melhoresClassificadosGerais,setsPorPartida'
+const COLUMNS = 'id,organizadorId,status,formato,criteriosClassificacao,pontuacaoResultado,classificadosPorGrupo,melhoresClassificadosGerais,setsPorPartida'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

@@ -30,6 +30,8 @@ interface UseSectionWizardResult<T extends object> {
   updateNow: (patch: Partial<T>) => void
   /** Força o envio do que estiver pendente agora (blur, troca de subetapa). */
   flush: () => void
+  /** Grava a etapa atual e só devolve ok quando o servidor aceita. */
+  persist: () => Promise<{ ok: boolean; message: string | null }>
   /** "Salvar e concluir": envia o que está na tela + intent=complete. */
   complete: () => Promise<{ ok: boolean; issues: ValidationIssueLike[]; fields: string[] }>
 }
@@ -222,6 +224,61 @@ export function useSectionWizard<T extends object>(
   const update = useCallback((patch: Partial<T>) => enqueue(patch, false), [enqueue])
   const updateNow = useCallback((patch: Partial<T>) => enqueue(patch, true), [enqueue])
 
+  const persist = useCallback(async (): Promise<{ ok: boolean; message: string | null }> => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (maxWaitRef.current) clearTimeout(maxWaitRef.current)
+    debounceRef.current = null
+    maxWaitRef.current = null
+    if (inFlightRef.current) await inFlightRef.current.catch(() => {})
+
+    const body = sectionPayload(dataRef.current, pendingRef.current)
+    pendingRef.current = null
+    if (Object.keys(body).length === 0) {
+      return { ok: salvoRef.current, message: salvoRef.current ? null : 'Não foi possível salvar. Os dados desta etapa continuam na tela.' }
+    }
+
+    setAutosaveStatus('saving')
+    setAutosaveError(null)
+    try {
+      const response = await fetch(scopedEndpoint, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const payload = await lerJson<{ error?: string; data?: T & { setupStatus?: ChampionshipSetupStatus }; details?: { fields?: unknown; messages?: unknown } }>(response)
+      if (!response.ok) {
+        const failure = rememberFieldFailure(payload, setFieldMessages, setAutosaveError)
+        setAutosaveStatus('error')
+        salvoRef.current = false
+        return { ok: false, message: failure.issues[0]?.message ?? 'Não foi possível salvar. Os dados desta etapa continuam na tela.' }
+      }
+
+      salvoRef.current = true
+      setFieldMessages({})
+      const returned = payload.data as T & { setupStatus?: ChampionshipSetupStatus }
+      setData((current) => {
+        if (!current) return current
+        const next = { ...current }
+        for (const key of Object.keys(body)) {
+          if (key in returned) next[key as keyof T] = returned[key as keyof T]
+        }
+        dataRef.current = next
+        return next
+      })
+      if (returned.setupStatus) setSetupStatus(returned.setupStatus)
+      const base = scopedEndpoint.includes('/setup/') ? `${scopedEndpoint.split('/setup/')[0]}/setup` : scopedEndpoint
+      invalidarConsultas(base)
+      setAutosaveStatus('saved')
+      return { ok: true, message: null }
+    } catch (err) {
+      salvoRef.current = false
+      setAutosaveStatus('error')
+      const message = err instanceof Error ? err.message : 'Não foi possível salvar. Os dados desta etapa continuam na tela.'
+      setAutosaveError(message)
+      return { ok: false, message }
+    }
+  }, [scopedEndpoint])
+
   const complete = useCallback(async (): Promise<{ ok: boolean; issues: ValidationIssueLike[]; fields: string[] }> => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (maxWaitRef.current) clearTimeout(maxWaitRef.current)
@@ -274,7 +331,7 @@ export function useSectionWizard<T extends object>(
   // ainda estava no debounce.
   useEffect(() => () => flush(), [flush])
 
-  return { data, loading, loadError, autosaveStatus, autosaveError, fieldMessages, clearFieldMessage, setupStatus, issues, update, updateNow, flush, complete }
+  return { data, loading, loadError, autosaveStatus, autosaveError, fieldMessages, clearFieldMessage, setupStatus, issues, update, updateNow, flush, persist, complete }
 }
 
 function rememberFieldFailure(
@@ -305,7 +362,7 @@ function sectionPayload<T extends object>(current: T | null, pending: Partial<T>
   const source = { ...(current ?? {}), ...(pending ?? {}) } as Record<string, unknown>
   const body: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(source)) {
-    if (key === 'id' || key === 'organizadorId' || key === 'setupStatus' || key === 'issues' || key === 'locais') continue
+    if (key === 'id' || key === 'organizadorId' || key === 'setupStatus' || key === 'issues' || key === 'locais' || key === 'formato') continue
     if (value == null || value === '') continue
     body[key] = value
   }

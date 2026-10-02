@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Medal, ShieldOff, Sparkles, Swords } from 'lucide-react'
-import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -38,7 +39,8 @@ const CHAVEAMENTO_OPTIONS = [
 export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
   const noPainel = useParametrizacaoNoPainel()
-  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
+  const abrir = useAbrirSecaoParametrizacao()
+  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, persist, complete } =
     useSectionWizard<EliminatoriasSectionDTO>('eliminatorias', `/api/organizador/ligas/${ligaId}/setup/eliminatorias`)
 
   const [stepIndex, setStepIndex] = useState(0)
@@ -58,14 +60,16 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
   async function handleNext() {
     setCompletionIssues([])
     if (stepIndex < STEPS.length - 1) {
-      goTo(stepIndex + 1)
+      setSaving(true)
+      await salvarEAvancarEtapa({ persist, goTo, proximoIndice: stepIndex + 1, setCompletionIssues })
+      setSaving(false)
       return
     }
     setSaving(true)
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      abrirProximaSecao({ atual: 'eliminatorias', formato: data?.formato, ligaId, noPainel, abrir, router })
       return
     }
     const fields = result.fields ?? []

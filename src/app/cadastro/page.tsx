@@ -484,7 +484,6 @@ function PublicoCadastroScreen({
   onSubmit: (event: React.FormEvent) => void
 }) {
   const [mostrarSenha, setMostrarSenha] = useState(false)
-  const [aberto, setAberto] = useState({ email: false, senha: false, confirmar: false })
   const [emailSaiu, setEmailSaiu] = useState(false)
   const [tentou, setTentou] = useState(false)
 
@@ -552,9 +551,8 @@ function PublicoCadastroScreen({
                   type="email"
                   required
                   disabled={loading}
-                  autoComplete="off"
-                  readOnly={!aberto.email}
-                  onFocus={() => setAberto((current) => ({ ...current, email: true }))}
+                  autoComplete="email"
+                  inputMode="email"
                   onBlur={() => setEmailSaiu(true)}
                   value={publico.email}
                   onChange={(event) => setPublico((current) => ({ ...current, email: event.target.value }))}
@@ -574,8 +572,6 @@ function PublicoCadastroScreen({
                     disabled={loading}
                     minLength={8}
                     autoComplete="new-password"
-                    readOnly={!aberto.senha}
-                    onFocus={() => setAberto((current) => ({ ...current, senha: true }))}
                     value={publico.senha}
                     onChange={(event) => setPublico((current) => ({ ...current, senha: event.target.value }))}
                     className="admin-login-input w-full rounded-2xl px-4 py-4 pr-12 text-sm font-semibold outline-none transition"
@@ -603,8 +599,6 @@ function PublicoCadastroScreen({
                   disabled={loading}
                   minLength={8}
                   autoComplete="new-password"
-                  readOnly={!aberto.confirmar}
-                  onFocus={() => setAberto((current) => ({ ...current, confirmar: true }))}
                   value={publico.confirmarSenha}
                   onChange={(event) => setPublico((current) => ({ ...current, confirmarSenha: event.target.value }))}
                   className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
@@ -655,9 +649,6 @@ function LoginPanel({
   onForgotPassword: () => void
   recuperando: boolean
 }) {
-  const [emailAberto, setEmailAberto] = useState(false)
-  const [senhaAberta, setSenhaAberta] = useState(false)
-
   return (
     <form autoComplete="off" onSubmit={onSubmit}>
       <div className="space-y-5">
@@ -669,9 +660,8 @@ function LoginPanel({
               disabled={loading}
               type="email"
               name="acesso-email"
-              autoComplete="off"
-              readOnly={!emailAberto}
-              onFocus={() => setEmailAberto(true)}
+              autoComplete="username"
+              inputMode="email"
               value={login.email}
               onChange={(event) => setLogin((current) => ({ ...current, email: event.target.value }))}
               className={`${inputBase} [padding-left:3rem]`}
@@ -688,9 +678,7 @@ function LoginPanel({
               disabled={loading}
               type={showPassword ? 'text' : 'password'}
               name="acesso-senha"
-              autoComplete="new-password"
-              readOnly={!senhaAberta}
-              onFocus={() => setSenhaAberta(true)}
+              autoComplete="current-password"
               value={login.senha}
               onChange={(event) => setLogin((current) => ({ ...current, senha: event.target.value }))}
               className={`${inputBase} [padding-left:3rem] [padding-right:3rem]`}

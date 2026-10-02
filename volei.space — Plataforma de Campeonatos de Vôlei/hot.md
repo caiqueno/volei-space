@@ -8,14 +8,14 @@ summary: >-
   O organizador gera o link de inscrição do campeonato e o link do jogo. A massa LINK-FLOW-2026 está nos dois bancos.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Hot
 
 ## Foco atual
 
-O organizador gera, na prévia e em Campeonatos → Ações, um link `/inscricao/campeonato/{token}`. A equipe abre esse endereço e o campeonato já vem identificado. O menu Árbitros e a lista para procurar partida saíram. O acesso do árbitro continua só pelo link do jogo e pelo código, na guia Jogos. A agenda geral não carrega mais todos os jogos de uma vez. A massa `LINK-FLOW-2026` está nos dois bancos, além da `TOURNAMENT-SEED-2026`. Fonte: [[modulos/INSCRICOES]] e [[modulos/PARTIDAS]].
+O cadastro do campeonato trata Categorias como a 5ª etapa de Informações. Cada salvamento bem-sucedido abre a etapa seguinte. Mata-mata não passa por Classificação. Fonte: [[modulos/PARAMETRIZACAO]].
 
 ## Key Takeaways
 

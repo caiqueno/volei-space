@@ -8,7 +8,7 @@ summary: >-
   Configuração do campeonato.
 status: misto
 created: 2026-09-20
-updated: 2026-09-27
+updated: 2026-10-02
 ---
 # Parametrização do campeonato
 
@@ -18,6 +18,6 @@ O nome que vale nas listas é o campo Nome do campeonato. Se ele ainda estiver n
 
 **Aprovado, pendente:** configuração de alvo livre dos sets regulares, alvo distinto do último set, terceiro set obrigatório em melhor de 3 e pontos de vencedor/perdedor por margem. Inscrição deve admitir convites por categoria antes da criação de equipes, sem aprovação manual. Conferir campos e dependências antes de concluir uma seção.
 
-**Categorias — aprovado, pendente:** na primeira etapa, informar quantidade e nomes das categorias. Cada registro persistido de `CategoriaCampeonato` pertencerá à `Liga`; os registros, não um contador textual, serão a fonte de verdade. Regras esportivas podem ser comuns ao campeonato; configurações diferentes por categoria dependem de nova decisão. Modelo atual por strings requer migração. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
+**Categorias — implementado nesta sessão:** a seleção fica na 5ª etapa de Informações do campeonato (Dados, Identidade, Regulamento, Revisão, Categorias). Não há mais um card separado. Salvar uma etapa com sucesso abre a seguinte; se o salvamento falha, a etapa atual permanece com os dados na tela. Mata-mata não mostra Classificação e segue para Eliminatórias. Se o formato voltar a ter fase de grupos ou pontos corridos, Classificação reaparece. A arquitetura em que cada `CategoriaCampeonato` é a fonte de verdade das competições internas continua como em [[references/CATEGORIAS-COMO-COMPETICOES]].
 
 **Dependências:** [[modulos/INSCRICOES]], [[modulos/SUMULA-DIGITAL]], [[modulos/CLASSIFICACAO]], [[modulos/PAGAMENTOS]]. A parametrização define regras; não deve inventar equipe, partida ou pagamento somente por salvar uma seção.

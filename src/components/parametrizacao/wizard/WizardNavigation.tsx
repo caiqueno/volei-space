@@ -37,7 +37,7 @@ export function WizardNavigation({
         className="public-primary-action inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isLastStep ? <Send size={16} /> : <ArrowRight size={16} />}
-        {isLastStep ? 'Salvar e concluir' : 'Continuar'}
+        {isLastStep ? 'Salvar e concluir' : 'Salvar'}
       </ActionBar>
     </div>
   )

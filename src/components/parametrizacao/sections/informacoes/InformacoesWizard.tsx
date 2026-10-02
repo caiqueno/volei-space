@@ -1,10 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { revealMissingFields } from '../../wizard/missing-fields'
 import { ImagePlus } from 'lucide-react'
-import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
+import { SelecaoCategorias, type SelecaoCategoriasHandle } from '../categorias/CategoriasWizard'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -26,6 +28,7 @@ const STEPS: WizardStepDef[] = [
   { key: 'identidade', title: 'Identidade' },
   { key: 'regulamento', title: 'Regulamento e premiação' },
   { key: 'revisao', title: 'Revisão' },
+  { key: 'categorias', title: 'Categorias' },
 ]
 
 const STATUS_OPTIONS = [
@@ -34,14 +37,17 @@ const STATUS_OPTIONS = [
   { value: 'ENCERRADA' as const, label: 'Encerrada' },
 ]
 
-export function InformacoesWizard({ ligaId, embedded = false }: { ligaId: number; embedded?: boolean }) {
+export function InformacoesWizard({ ligaId, embedded = false, etapaInicial = 0 }: { ligaId: number; embedded?: boolean; etapaInicial?: number }) {
   const noPainel = useParametrizacaoNoPainel()
+  const abrir = useAbrirSecaoParametrizacao()
   const router = useRouter()
-  const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, complete } =
+  const categoriasRef = useRef<SelecaoCategoriasHandle>(null)
+  const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, persist, complete } =
     useSectionWizard<InformacoesSectionDTO>('informacoes', `/api/organizador/ligas/${ligaId}/setup/informacoes`)
 
-  const [stepIndex, setStepIndex] = useState(0)
-  const [visited, setVisited] = useState<Set<number>>(new Set([0]))
+  const etapaInicialValida = etapaInicial >= 0 && etapaInicial < STEPS.length ? etapaInicial : 0
+  const [stepIndex, setStepIndex] = useState(etapaInicialValida)
+  const [visited, setVisited] = useState<Set<number>>(new Set([etapaInicialValida]))
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
   const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -89,15 +95,23 @@ export function InformacoesWizard({ ligaId, embedded = false }: { ligaId: number
   async function handleNext() {
     setCompletionIssues([])
     if (stepIndex < STEPS.length - 1) {
-      goTo(stepIndex + 1)
+      setSaving(true)
+      await salvarEAvancarEtapa({ persist, goTo, proximoIndice: stepIndex + 1, setCompletionIssues })
+      setSaving(false)
       return
     }
 
     setSaving(true)
+    const categorias = await categoriasRef.current?.salvar()
+    if (!categorias?.ok) {
+      setSaving(false)
+      setCompletionIssues([categorias?.message || 'Não foi possível salvar as categorias. A seleção continua na tela.'])
+      return
+    }
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      if (!embedded && !noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      if (!embedded) abrirProximaSecao({ atual: 'informacoes', ligaId, noPainel, abrir, router })
       return
     }
     const fields = result.fields ?? []
@@ -211,6 +225,8 @@ export function InformacoesWizard({ ligaId, embedded = false }: { ligaId: number
             <ReviewRow label="Premiação" value={data.premiacao ? 'Preenchido' : null} />
           </div>
         )}
+
+        {stepIndex === 4 && <SelecaoCategorias ref={categoriasRef} ligaId={ligaId} />}
 
         {completionIssues.length > 0 && (
           <FormAlert variant="error">

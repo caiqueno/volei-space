@@ -18,6 +18,7 @@ import { getMataMataBracket } from '@/lib/mata-mata'
 import { getLeaguePlayerScouts, type PlayerScoutRow } from '@/lib/player-scouts'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { formatCategoriaLabel } from '@/lib/equipe-categoria'
+import { formatoPulaClassificacao } from '@/lib/championship-setup-status'
 import { createPageMetadata } from '@/lib/seo'
 
 export const metadata = createPageMetadata({
@@ -160,13 +161,15 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
         podium = await getChampionshipPodium(scope.selectedLiga.id)
       }
 
-      championshipTables = [{
-        id: scope.selectedLiga.id,
-        nome: scope.selectedLiga.nome,
-        dados,
-        groups: groups.length ? groups : categoryGroups(dados, parseCriterios(scope.selectedLiga.criteriosClassificacao)),
-        regra: REGRA_VIGENTE,
-      }]
+      if (!formatoPulaClassificacao(scope.selectedLiga.formato)) {
+        championshipTables = [{
+          id: scope.selectedLiga.id,
+          nome: scope.selectedLiga.nome,
+          dados,
+          groups: groups.length ? groups : categoryGroups(dados, parseCriterios(scope.selectedLiga.criteriosClassificacao)),
+          regra: REGRA_VIGENTE,
+        }]
+      }
     }
   }
 
@@ -181,7 +184,8 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
     }
   }
 
-  const lider = dados[0]
+  const semTabela = formatoPulaClassificacao(scope.selectedLiga?.formato)
+  const lider = semTabela ? undefined : dados[0]
   const requiredClassified = getRequiredEliminatoryTeams(scope.selectedLiga?.faseEliminatoria)
   const automaticLimit = Math.min(
     requiredClassified || 4,
@@ -198,6 +202,8 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
             ? 'Cada campeonato fica na própria tabela, só com as equipes e os jogos daquela competição.'
             : categoriaFiltro
             ? `Categoria ${formatCategoriaLabel(categoriaFiltro, serieFiltro)} de ${scope.selectedLiga?.nome ?? 'campeonato'}.`
+            : semTabela
+              ? 'Este campeonato é mata-mata. A campanha fica na chave, sem tabela de pontos.'
             : scope.organizadorId
               ? 'Filtre a classificação pelo campeonato da sua conta.'
               : 'Pontos, vitórias, saldo de sets e campanha das equipes.'
@@ -317,7 +323,7 @@ const CLASSIFICATION_SELECT = '*, categoriaCampeonato:CategoriaCampeonato(id,nom
 async function loadChampionshipTables(): Promise<ChampionshipTable[]> {
   const { data: ligas, error } = await supabase
     .from('Liga')
-    .select('id,nome,criteriosClassificacao')
+    .select('id,nome,formato,criteriosClassificacao')
     .eq('simulacao', false)
     .in('status', ['ATIVA', 'EM_BREVE', 'ENCERRADA'])
     .order('nome', { ascending: true })
@@ -349,7 +355,7 @@ async function loadChampionshipTables(): Promise<ChampionshipTable[]> {
 
   return ligas.flatMap((liga) => {
     const rows = byLiga.get(liga.id) ?? []
-    if (!rows.length) return []
+    if (!rows.length || formatoPulaClassificacao(liga.formato)) return []
     return [{
       id: liga.id,
       nome: liga.nome,

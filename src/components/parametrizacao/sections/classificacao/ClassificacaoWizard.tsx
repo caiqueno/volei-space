@@ -1,9 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { revealMissingFields } from '../../wizard/missing-fields'
-import { useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
+import { formatoPulaClassificacao } from '@/lib/championship-setup-status'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
@@ -38,7 +40,8 @@ function parseCriterios(raw: string | null): string[] {
 export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
   const router = useRouter()
   const noPainel = useParametrizacaoNoPainel()
-  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, complete } =
+  const abrir = useAbrirSecaoParametrizacao()
+  const { data, loading, loadError, autosaveStatus, autosaveError, updateNow, flush, persist, complete } =
     useSectionWizard<ClassificacaoSectionDTO>('classificacao', `/api/organizador/ligas/${ligaId}/setup/classificacao`)
 
   const [stepIndex, setStepIndex] = useState(0)
@@ -58,14 +61,16 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
   async function handleNext() {
     setCompletionIssues([])
     if (stepIndex < STEPS.length - 1) {
-      goTo(stepIndex + 1)
+      setSaving(true)
+      await salvarEAvancarEtapa({ persist, goTo, proximoIndice: stepIndex + 1, setCompletionIssues })
+      setSaving(false)
       return
     }
     setSaving(true)
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      if (!noPainel) router.push(`/painel/parametrizacao?ligaId=${ligaId}`)
+      abrirProximaSecao({ atual: 'classificacao', formato: data?.formato, ligaId, noPainel, abrir, router })
       return
     }
     const fields = result.fields ?? []
@@ -74,7 +79,14 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
     revealMissingFields(fields, { criteriosClassificacao: 1 }, setStepIndex, setVisited)
   }
 
-  if (loading) return <PageLoading label="Carregando classificação..." />
+  const pular = formatoPulaClassificacao(data?.formato)
+  useEffect(() => {
+    if (!pular) return
+    if (abrir) abrir('eliminatorias')
+    else router.replace(`/painel/parametrizacao/eliminatorias?ligaId=${ligaId}`)
+  }, [pular, abrir, ligaId, router])
+
+  if (loading || pular) return <PageLoading label={pular ? 'Seguindo para a próxima etapa...' : 'Carregando classificação...'} />
   if (loadError || !data) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16">

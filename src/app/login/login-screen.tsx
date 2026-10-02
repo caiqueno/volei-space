@@ -12,21 +12,16 @@ import { lerSessaoPublica } from '@/lib/sessao-publica'
 export function LoginScreen() {
   const searchParams = useSearchParams()
   const contaCriada = searchParams.get('conta') === 'criada'
-  const [lendoSessao, setLendoSessao] = useState(true)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [emailAberto, setEmailAberto] = useState(false)
-  const [senhaAberta, setSenhaAberta] = useState(false)
 
   useEffect(() => {
     const sessao = lerSessaoPublica()
     if (sessao?.tipo) {
       window.location.replace(loginDestination(sessao.tipo, Boolean(sessao.trocarSenha)))
-      return
     }
-    setLendoSessao(false)
   }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -101,9 +96,6 @@ export function LoginScreen() {
               )}
             </div>
 
-            {lendoSessao ? (
-              <p className="text-center text-sm font-semibold text-slate-300">Abrindo sua área...</p>
-            ) : (
             <form autoComplete="off" onSubmit={handleSubmit} className="grid gap-4">
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">E-mail</span>
@@ -112,12 +104,11 @@ export function LoginScreen() {
                   type="email"
                   required
                   disabled={loading}
-                  autoComplete="off"
-                  readOnly={!emailAberto}
-                  onFocus={() => setEmailAberto(true)}
+                  autoComplete="username"
+                  inputMode="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+                  className="admin-login-input rounded-2xl px-4 py-4 text-base font-semibold outline-none transition"
                   placeholder="Coloque seu usuário aqui"
                 />
               </label>
@@ -128,12 +119,10 @@ export function LoginScreen() {
                   type="password"
                   required
                   disabled={loading}
-                  autoComplete="new-password"
-                  readOnly={!senhaAberta}
-                  onFocus={() => setSenhaAberta(true)}
+                  autoComplete="current-password"
                   value={senha}
                   onChange={(event) => setSenha(event.target.value)}
-                  className="admin-login-input rounded-2xl px-4 py-4 text-sm font-semibold outline-none transition"
+                  className="admin-login-input rounded-2xl px-4 py-4 text-base font-semibold outline-none transition"
                   placeholder="Coloque sua senha aqui"
                 />
               </label>
@@ -155,7 +144,6 @@ export function LoginScreen() {
                 Entrar
               </ActionBar>
             </form>
-            )}
           </div>
         </section>
       </div>
