@@ -13,6 +13,16 @@ updated: 2026-10-02
 
 # Log
 
+## [2026-10-02] fix | carregamento das categorias
+
+- pages_updated=`log`, `modulos/PARAMETRIZACAO`
+- A lista de categorias pedia configuração e seções no mesmo select. Em produção o banco recusa esse aninhamento e a 5ª etapa mostra “Não foi possível carregar as categorias.” A leitura passa a trazer só os campos da categoria.
+
+## [2026-10-02] ops | publicação do fluxo de cadastro
+
+- pages_updated=`log`
+- O commit `5416441` foi para a `main`. A Vercel publica a produção a partir dessa branch. As alterações locais ainda não commitadas (separação de ambiente, scripts soltos e o app Android) ficaram de fora.
+
 ## [2026-10-02] teste | fluxo de cadastro nos dois ambientes
 
 - pages_updated=`log`
