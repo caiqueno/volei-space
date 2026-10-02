@@ -5,10 +5,10 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Entidades e relações.
+  TOURNAMENT-SEED em produção tem 960 jogadores e presença na súmula.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 # Modelo de dados
 
@@ -20,7 +20,7 @@ O projeto `volei-space-producao` é a base de produção e só pode ser usado no
 
 A massa `LINK-FLOW-2026` está nos dois bancos, sem reutilizar `SEED-CHAMP` nem `SEED-GAME`: 10 campeonatos `LINK-FLOW-CHAMP-01` a `10`, 100 equipes, 1.200 jogadores `TESTE-LINK-2026-CH##-EQ##-J###` e 400 partidas `LINK-FLOW-GAME-##-###` (100 encerradas, 200 em andamento, 100 agendadas). O campeonato 03 tem o link desativado, o 04 registra regeneração, o 05 abre as inscrições daqui a 10 dias e o 06 já encerrou o período. O campeonato 02 também tem 10 equipes, porque a massa de jogadores pede elenco em todos. O script `scripts/seed-link-flow-2026.sql` só insere `seedKey` ausente. Em produção continuam 8 ligas sem `seedKey` e a massa `TOURNAMENT-SEED-2026`.
 
-A massa `VOLEI_SPACE_TEST_SEED_2026` fica só no banco de desenvolvimento. O comando `npm run seed:test` recusa a branch `main` e qualquer URL de produção. Os campeonatos dessa massa usam a descrição `VOLEI_SPACE_TEST_SEED_2026` e o slug `seed-2026-`. A massa `TOURNAMENT-SEED-2026` está nos dois bancos: 10 campeonatos `SEED-CHAMP-01` a `SEED-CHAMP-10` e 400 partidas `SEED-GAME-01-001` a `SEED-GAME-10-040`, com 100 encerradas, 200 em andamento e 100 agendadas. O script `scripts/seed-torneio-2026.sql` só insere o que ainda não tem `seedKey` e não apaga campeonatos reais. As duas massas deixam `simulacao` desligado, porque o portal público esconde campeonato simulado. `npm run seed:test:clean` apaga só a massa antiga e mantém `joao@teste.com.br`. O placar ao vivo do portal é relido por consulta periódica; `Partida` e `SetPartida` não estão na publicação Realtime.
+A massa `VOLEI_SPACE_TEST_SEED_2026` fica só no banco de desenvolvimento. O comando `npm run seed:test` recusa a branch `main` e qualquer URL de produção. Os campeonatos dessa massa usam a descrição `VOLEI_SPACE_TEST_SEED_2026` e o slug `seed-2026-`. A massa `TOURNAMENT-SEED-2026` está nos dois bancos: 10 campeonatos `SEED-CHAMP-01` a `SEED-CHAMP-10`, 80 equipes com `seedKey` `SEED-CHAMP-##-EQ##`, 960 jogadores `TESTE-SEED-2026-CH##-EQ##-J###` e 400 partidas `SEED-GAME-01-001` a `SEED-GAME-10-040`, com 100 encerradas, 200 em andamento e 100 agendadas. O script `scripts/seed-torneio-2026.sql` só insere o que ainda não tem `seedKey` e não apaga campeonatos reais. O elenco e a presença da súmula vêm de `scripts/seed-torneio-jogadores-2026.sql`, também idempotente. Em produção, essa carga de jogadores e presenças já foi aplicada. As duas massas deixam `simulacao` desligado, porque o portal público esconde campeonato simulado. `npm run seed:test:clean` apaga só a massa antiga e mantém `joao@teste.com.br`. O placar ao vivo do portal é relido por consulta periódica; `Partida` e `SetPartida` não estão na publicação Realtime.
 
 ## Relações centrais
 

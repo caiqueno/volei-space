@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O organizador gera o link de inscrição do campeonato e o link do jogo. A massa LINK-FLOW-2026 está nos dois bancos.
+  TOURNAMENT-SEED em produção ganhou 960 jogadores e presença na súmula.
 status: implementado
 created: 2026-09-25
 updated: 2026-10-02
@@ -15,7 +15,7 @@ updated: 2026-10-02
 
 ## Foco atual
 
-O cadastro do campeonato trata Categorias como a 5ª etapa de Informações. Cada salvamento bem-sucedido abre a etapa seguinte. Mata-mata não passa por Classificação. Fonte: [[modulos/PARAMETRIZACAO]].
+Em produção, a massa `TOURNAMENT-SEED-2026` passou a ter 12 jogadores por equipe e presença na súmula. O script é `scripts/seed-torneio-jogadores-2026.sql`. Fonte: [[06-BANCO-DE-DADOS]].
 
 ## Key Takeaways
 

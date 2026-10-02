@@ -13,6 +13,11 @@ updated: 2026-10-02
 
 # Log
 
+## [2026-10-02] ops | jogadores da massa TOURNAMENT-SEED em produção
+
+- pages_updated=`06-BANCO-DE-DADOS`, `hot`, `log`
+- As 80 equipes `SEED-CHAMP` estavam sem elenco. Foram cadastrados 960 jogadores `TESTE-SEED-2026-CH##-EQ##-J###` (12 por equipe) e 9.600 presenças nas 400 partidas `SEED-GAME`. As equipes receberam `seedKey` `SEED-CHAMP-##-EQ##`. O script idempotente é `scripts/seed-torneio-jogadores-2026.sql`. LINK-FLOW e FLUXO-CADASTRO permaneceram.
+
 ## [2026-10-02] teste | fluxo de cadastro nos dois ambientes
 
 - pages_updated=`log`
