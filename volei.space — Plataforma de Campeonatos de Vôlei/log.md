@@ -13,6 +13,11 @@ updated: 2026-10-04
 
 # Log
 
+## [2026-10-04] ops | separação de ambiente do Supabase
+
+- pages_updated=`08-INTEGRACOES`, `log`
+- Com `NEXT_PUBLIC_SUPABASE_ALVO` cadastrado na Vercel, a separação de ambiente entra na `main`. Production usa `producao`. Preview e local usam `desenvolvimento`.
+
 ## [2026-10-04] ops | publicação do organizador e do ao vivo
 
 - pages_updated=`07-SEGURANCA`, `modulos/SUMULA-DIGITAL`, `log`, `hot`

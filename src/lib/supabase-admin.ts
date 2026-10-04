@@ -1,18 +1,20 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { clienteSupabaseIndisponivel, lerChaveServicoSupabase, lerConfiguracaoSupabase } from '@/lib/supabase-env'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co'
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+const config = lerConfiguracaoSupabase()
+const serviceRoleKey = config.ok ? lerChaveServicoSupabase() : null
 
 export const isSupabaseServiceConfigured = Boolean(serviceRoleKey)
 
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  serviceRoleKey || anonKey,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  },
-)
+export const supabaseAdmin: SupabaseClient = serviceRoleKey && config.ok
+  ? createClient(config.url, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+  : clienteSupabaseIndisponivel(
+      config.ok
+        ? 'SUPABASE_SERVICE_ROLE_KEY não está configurada neste ambiente.'
+        : config.erro,
+    )

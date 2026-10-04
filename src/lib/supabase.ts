@@ -1,12 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { clienteSupabaseIndisponivel, lerConfiguracaoSupabase } from '@/lib/supabase-env'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+const config = lerConfiguracaoSupabase()
 
-export const isSupabaseConfigured =
-  Boolean(supabaseUrl)
-  && Boolean(supabaseAnonKey)
-  && !supabaseUrl.includes('example.supabase.co')
-  && !supabaseAnonKey.includes('placeholder')
+export const supabaseConfigError = config.ok ? null : config.erro
+export const isSupabaseConfigured = config.ok
+export const alvoSupabase = config.ok ? config.alvo : null
+export const ambienteProducao = config.ok && config.producao
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase: SupabaseClient = config.ok
+  ? createClient(config.url, config.anonKey)
+  : clienteSupabaseIndisponivel(config.erro)
