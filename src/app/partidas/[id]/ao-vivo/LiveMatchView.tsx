@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, CalendarDays, Clock, LogIn, LogOut, Radio, ShieldCheck, Trophy } from 'lucide-react'
+import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 
 type LiveMatch = {
   id: number
@@ -165,7 +166,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
                 <h3>{team.teamName}</h3>
                 {team.players.length ? (
                   <div className="live-match-scout-table">
-                    <div><span>Atleta</span><span>Pts</span><span>Ataq.</span><span>Bloq.</span><span>Aces</span></div>
+                    <div><span>Atleta</span><span>Pts</span><span>Ataque</span><span>Bloqueio</span><span>Saque</span></div>
                     {team.players.map((player) => (
                       <div key={`${team.teamId}-${player.number}-${player.name}`}>
                         <strong>#{player.number} {player.name}</strong>
@@ -236,6 +237,8 @@ function parseEventDescription(description: string) {
 }
 
 function liveEventTypeLabel(tipo: string, text: string) {
+  const rotulo = lerRotuloPonto(text)
+  if (rotulo) return rotulo
   const normalized = normalizeStatus(tipo)
   const lowerText = text.toLowerCase()
   if (normalized.includes('substitution') || normalized.includes('substituicao') || lowerText.includes('substitui')) return 'Substituição'
@@ -320,7 +323,7 @@ function buildIndividualScout(match: LiveMatch) {
 
     const parsed = parseEventDescription(event.descricao || '')
     const text = parsed.text || event.descricao || ''
-    const pointMatch = text.match(/^(ACE|Ataque|Bloqueio)\s+para\s+(.+?):\s*#([^\s]+)\s+(.+?)(?:\.|$)/i)
+    const pointMatch = text.match(/(ACE|Ataque|Bloqueio)\s+para\s+(.+?):\s*#([^\s]+)\s+(.+?)(?:\.|$)/i)
 
     // O jogadorId persistido é a fonte confiável de quem pontuou: o número no texto
     // pode ter sido sobrescrito para a partida e não bater mais com o número de elenco.
@@ -391,9 +394,11 @@ function parseSubstitutionText(text: string, teamNames: string[]) {
 function LiveEvent({ event, teamNames }: { event: NonNullable<LiveMatch['ocorrencias']>[number]; teamNames: string[] }) {
   const parsed = parseEventDescription(event.descricao)
   const label = liveEventTypeLabel(event.tipo, parsed.text)
+  const rotuloDePonto = lerRotuloPonto(parsed.text)
+  const jogadorDoPonto = lerJogadorPonto(parsed.text)
   const isSubstitution = event.tipo === 'substitution' || parsed.text.toLowerCase().includes('substitui')
   const substitution = isSubstitution ? parseSubstitutionText(parsed.text, teamNames) : null
-  const badgeText = isSubstitution ? label : parsed.score || label
+  const badgeText = isSubstitution ? label : rotuloDePonto || parsed.score || label
   const cleanText = cleanLiveText(parsed.text, teamNames, { removeScore: true })
   return (
     <>
@@ -410,6 +415,8 @@ function LiveEvent({ event, teamNames }: { event: NonNullable<LiveMatch['ocorren
           <span><LogOut size={16} /> Sai <strong>{substitution.outPlayer}</strong></span>
           <span><LogIn size={16} /> Entra <strong>{substitution.inPlayer}</strong></span>
         </div>
+      ) : rotuloDePonto ? (
+        <p>{jogadorDoPonto ?? cleanText}</p>
       ) : (
         <p>{cleanText}</p>
       )}

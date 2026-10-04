@@ -35,9 +35,11 @@ type HeaderLink = {
 }
 
 const publicLinks: HeaderLink[] = [
+  { href: '/campeonatos', label: 'Campeonatos', short: 'Ligas' },
+  { href: '/jogos', label: 'Jogos', short: 'Jogos' },
+  { href: '/ao-vivo', label: 'Ao vivo', short: 'Ao vivo' },
   { href: '/portal', label: 'Portal', short: 'Portal' },
   { href: '/classificacao', label: 'Classificação', short: 'Tabela' },
-  { href: '/jogos', label: 'Jogos', short: 'Jogos' },
   { href: '/rankings', label: 'Rankings', short: 'Top' },
   { href: '/galeria', label: 'Galeria', short: 'Mídia' },
 ]
@@ -263,10 +265,10 @@ export function Header() {
                 Entrar
               </Link>
               <Link
-                href="/cadastro?modo=cadastro"
+                href="/seja-membro"
                 className="signup-header-link rounded-full bg-luva-amber px-4 py-2 text-sm font-black text-white transition hover:bg-luva-amber"
               >
-                Cadastrar
+                Seja membro
               </Link>
             </div>
           </nav>
@@ -366,7 +368,7 @@ function getMobileLinks(scopedLinks: HeaderLink[], panelHref: string | null): He
   return [
     ...scopedLinks,
     { href: '/login', label: 'Entrar', short: 'Entrar', icon: ShieldCheck },
-    { href: '/cadastro?modo=cadastro', label: 'Cadastro', short: 'Cadastro', icon: ClipboardCheck },
+    { href: '/seja-membro', label: 'Seja membro', short: 'Membro', icon: ClipboardCheck },
   ]
 }
 

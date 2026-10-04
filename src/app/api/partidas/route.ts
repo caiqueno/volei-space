@@ -1,7 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { requireAuth } from '@/lib/auth'
+import { exigirOrganizadorDaLiga } from '@/lib/organizador-isolamento'
 import { partidaSchema } from '@/lib/schemas'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { PARTIDA_PUBLICA_COLUNAS, normalizarPartidaPublica } from '@/lib/partida-publica'
@@ -42,12 +42,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authErr = await requireAuth(req)
-  if (authErr) return authErr
   try {
     const body = await req.json()
     const parsed = partidaSchema.safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+    const acesso = await exigirOrganizadorDaLiga(req, Number(parsed.data.ligaId))
+    if (acesso instanceof NextResponse) return acesso
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(parsed.data.ligaId))
     if (bloqueio) return bloqueio
 

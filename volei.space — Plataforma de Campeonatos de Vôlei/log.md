@@ -8,10 +8,35 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-02
+updated: 2026-10-04
 ---
 
 # Log
+
+## [2026-10-04] ops | publicação do organizador e do ao vivo
+
+- pages_updated=`07-SEGURANCA`, `modulos/SUMULA-DIGITAL`, `log`, `hot`
+- Entrar, Seja membro, a liberação do organizador, o isolamento de escrita e `/ao-vivo` foram para a `main`. A separação de ambiente do Supabase ficou de fora deste deploy. A massa Marcos/Antonio continua só no banco de desenvolvimento.
+
+## [2026-10-04] ops | APK 1.1.1
+
+- pages_updated=`log`
+- A `main` e a produção estão no commit `d23b5e1`. Entrar com Membro/Seja membro, `/seja-membro` e `/ao-vivo` existem só no ambiente local, ainda sem commit. O instalador `aplicativo-android/volei-space-producao.apk` é a versão 1.1.1 e continua abrindo `https://www.volei.space`.
+
+## [2026-10-04] ops | APK 1.1.0
+
+- pages_updated=`log`
+- O instalador `aplicativo-android/volei-space-producao.apk` passou para `versionCode` 2 e `versionName` 1.1.0. Continua abrindo `https://www.volei.space` e é assinado para instalação direta.
+
+## [2026-10-04] fluxo | organizador, isolamento e ao vivo
+
+- pages_updated=`07-SEGURANCA`, `log`, `hot`
+- Entrar oferece Membro e Seja membro. O interesse pede só nome, e-mail e telefone e fica pendente até o administrador liberar, com senha temporária. Escrita de equipe, jogador e partida confere o organizador do campeonato. O portal ganhou `/ao-vivo`. A massa de dois organizadores roda só no banco de desenvolvimento. Esta etapa não foi para a `main`.
+
+## [2026-10-04] fluxo | origem do ponto na súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `log`, `hot`
+- O +1 pede saque, bloqueio ou ataque e o atleta. O placar, o histórico e o ao vivo mostram `+1 Ponto de [tipo]`. A ocorrência guarda `ace`, `attack` ou `block` com o `jogadorId`.
 
 ## [2026-10-02] fix | carregamento das categorias
 

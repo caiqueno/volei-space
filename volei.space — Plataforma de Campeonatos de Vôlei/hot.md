@@ -5,17 +5,17 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O organizador gera o link de inscrição do campeonato e o link do jogo. A massa LINK-FLOW-2026 está nos dois bancos.
+  O interessado pede acesso de organizador. O administrador libera. Cada organizador só altera os próprios dados. O portal tem Ao vivo.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-02
+updated: 2026-10-04
 ---
 
 # Hot
 
 ## Foco atual
 
-O cadastro do campeonato trata Categorias como a 5ª etapa de Informações. Cada salvamento bem-sucedido abre a etapa seguinte. Mata-mata não passa por Classificação. Fonte: [[modulos/PARAMETRIZACAO]].
+O acesso de organizador começa em Entrar: Membro ou Seja membro. O interessado informa nome, e-mail e telefone. O administrador libera a conta. Cada organizador só altera os próprios campeonatos, equipes, jogadores e partidas. O portal tem a página Ao vivo. A massa Marcos/Antonio fica só no banco de desenvolvimento. Fonte: [[07-SEGURANCA]].
 
 ## Key Takeaways
 

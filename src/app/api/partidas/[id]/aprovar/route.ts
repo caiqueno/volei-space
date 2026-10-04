@@ -1,14 +1,14 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
-import { requireAuth } from '@/lib/auth'
+import { exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const authErr = await requireAuth(req)
-  if (authErr) return authErr
   const { id } = await params
+  const acesso = await exigirOrganizadorDaPartida(req, Number(id))
+  if (acesso instanceof NextResponse) return acesso
 
   try {
     const { data: partida, error: fetchErr } = await supabase

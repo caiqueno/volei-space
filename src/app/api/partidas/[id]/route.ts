@@ -1,7 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
-import { requireAuth } from '@/lib/auth'
+import { exigirOrganizadorDaLiga, exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
 import { partidaSchema } from '@/lib/schemas'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
@@ -21,13 +21,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const authErr = await requireAuth(req)
-  if (authErr) return authErr
   const { id } = await params
+  const acesso = await exigirOrganizadorDaPartida(req, Number(id))
+  if (acesso instanceof NextResponse) return acesso
   try {
     const body = await req.json()
     const parsed = partidaSchema.partial().safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+    if (parsed.data.ligaId) {
+      const destino = await exigirOrganizadorDaLiga(req, Number(parsed.data.ligaId))
+      if (destino instanceof NextResponse) return destino
+    }
 
     const { data: atual } = await supabase.from('Partida').select('ligaId').eq('id', Number(id)).maybeSingle()
     if (atual?.ligaId) {

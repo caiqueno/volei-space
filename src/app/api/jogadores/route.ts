@@ -1,8 +1,8 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
-import { requireAuth } from '@/lib/auth'
 import { jogadorSchema } from '@/lib/schemas'
+import { exigirOrganizadorDaEquipe } from '@/lib/organizador-isolamento'
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,12 +23,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authErr = await requireAuth(req)
-  if (authErr) return authErr
   try {
     const body = await req.json()
     const parsed = jogadorSchema.safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+    const acesso = await exigirOrganizadorDaEquipe(req, parsed.data.equipeId)
+    if (acesso instanceof NextResponse) return acesso
 
     const { data, error: err } = await supabase
       .from('Jogador')

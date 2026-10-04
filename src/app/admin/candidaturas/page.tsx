@@ -10,7 +10,7 @@ type Status = 'PENDENTE' | 'APROVADA' | 'REJEITADA' | 'ATIVA' | 'TODAS'
 const tipos: Array<{ value: Tipo; label: string }> = [
   { value: 'arbitro', label: 'Árbitros' },
   { value: 'quadra', label: 'Quadras' },
-  { value: 'organizador', label: 'Organizadores' },
+  { value: 'organizador', label: 'Solicitações de organizadores' },
 ]
 
 const statusList: Status[] = ['PENDENTE', 'APROVADA', 'ATIVA', 'REJEITADA', 'TODAS']
@@ -46,12 +46,17 @@ export default function CandidaturasPage() {
     const json = await res.json()
     setActionId(null)
     setActionKind(null)
-    setMsg(res.ok ? json.data?.mensagem ?? 'Cadastro aprovado.' : json.error ?? 'Erro ao aprovar.')
+    const senha = res.ok ? json.data?.senhaTemporaria : ''
+    setMsg(res.ok
+      ? senha
+        ? `${json.data?.mensagem ?? 'Organizador liberado.'} Senha temporária: ${senha}`
+        : json.data?.mensagem ?? 'Cadastro aprovado.'
+      : json.error ?? 'Erro ao aprovar.')
     if (res.ok) {
       setSelected(null)
       fetchCandidaturas()
     }
-    setTimeout(() => setMsg(''), 4500)
+    setTimeout(() => setMsg(''), senha ? 60000 : 4500)
   }
 
   async function handleRejeitar(id: string) {
@@ -86,7 +91,7 @@ export default function CandidaturasPage() {
       <header className="flex flex-col gap-4 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-luva-amber">Administração</p>
-          <h2 className="mt-2 font-display text-3xl font-black text-white">Candidaturas</h2>
+          <h2 className="mt-2 font-display text-3xl font-black text-white">{tipo === 'organizador' ? 'Solicitações de organizadores' : 'Candidaturas'}</h2>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-200">
             Analise cadastros, confira documentos, fotos e aprove ou rejeite cada solicitação.
           </p>

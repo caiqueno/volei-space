@@ -16280,6 +16280,63 @@ html body .official-compact-team-control > small {
   text-transform: uppercase !important;
 }
 
+html body .official-last-point {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  color: #0f172a !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+html body .official-last-point strong {
+  color: #b45309 !important;
+}
+
+html body .official-point-history {
+  margin-top: 16px !important;
+}
+
+html body .official-point-history h3 {
+  margin: 0 0 8px !important;
+  font-size: 14px !important;
+}
+
+html body .official-point-history ol {
+  display: grid !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+html body .official-point-history li {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  align-items: baseline !important;
+}
+
+html body .official-point-history strong {
+  color: #b45309 !important;
+}
+
+html body .official-point-origin fieldset {
+  display: grid !important;
+  gap: 8px !important;
+  margin: 12px 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+html body .official-point-origin label {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
 html body .official-compact-point-action {
   min-height: 40px !important;
   border: 0 !important;
