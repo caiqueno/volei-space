@@ -160,6 +160,7 @@ export function Header() {
             <a href="#funcionalidades">Funcionalidades</a>
             <a href="#portal-preview">Prévia</a>
             <a href="#etapas">Etapas</a>
+            <Link href="/portal">Portal</Link>
           </nav>
 
           <div className="landing-header-actions">

@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-04
+updated: 2026-10-05
 ---
 
 # Log
+
+## [2026-10-05] update | portal no menu da home
+
+- pages_updated=`src/components/layout/Header.tsx`, `log`
+- O menu da página inicial ganhou Portal ao lado de Etapas. O link abre `/portal`.
 
 ## [2026-10-04] update | triagem aplicada no código
 
