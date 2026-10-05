@@ -13,6 +13,31 @@ updated: 2026-10-05
 
 # Log
 
+## [2026-10-05] update | publicação da parametrização por categoria
+
+- pages_updated=`hot`, `log`
+- Portal, galeria e parametrização por categoria seguem para a `main`. A conclusão de mata-mata sem classificação já está na função de produção.
+
+## [2026-10-05] update | parametrização por categoria
+
+- pages_updated=`modulos/PARAMETRIZACAO`, `log`
+- Depois das categorias, a parametrização abre com uma categoria ativa. Estrutura, classificação, eliminatórias, calendário e inscrições gravam nessa categoria. A comparação da replicação mostra origem e destino antes da cópia. Ainda local, sem publicação.
+
+## [2026-10-05] update | publicação do portal e da galeria
+
+- pages_updated=`hot`, `log`
+- O portal por campeonato, a galeria com miniatura e a parametrização sem o botão Finalizar no cadastro seguem para a `main`. A coluna `Midia.thumbUrl` entra no banco de produção antes do deploy.
+
+## [2026-10-05] update | categorias, imagem e finalizar
+
+- pages_updated=`modulos/PARAMETRIZACAO`, `09-UI-UX`, `log`
+- Em produção faltavam a função `selecionar_categorias_campeonato` e as políticas de upload. Por isso a etapa de categorias falhava e a imagem da identidade não gravava. O botão Finalizar campeonato passa a aparecer só com o campeonato ativo.
+
+## [2026-10-05] update | portal por campeonato e galeria
+
+- pages_updated=`modulos/PARTIDAS`, `modulos/PAGAMENTOS`, `hot`, `log`
+- O portal escolhe um campeonato antes de carregar jogos. Ao vivo, próximos e últimos vêm em páginas de 8. A galeria tem capa, miniatura, upload e exclusão isolados por organizador. O pagamento simulado não bloqueia a estrutura. Ainda local, sem publicação na `main`.
+
 ## [2026-10-05] update | portal no menu da home
 
 - pages_updated=`src/components/layout/Header.tsx`, `log`

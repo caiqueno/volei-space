@@ -26,24 +26,30 @@ type PortalData = {
 
 const SLIDE_MS = 7000
 
+type ResumoCampeonato = { id: number; nome: string; slug: string; capaUrl: string | null; subtitulo: string | null }
+
 export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: string; ativo?: boolean }) {
-  const [slides, setSlides] = useState<PortalData[]>([])
+  const [resumos, setResumos] = useState<ResumoCampeonato[]>([])
+  const [data, setData] = useState<PortalData | null>(null)
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [paused, setPaused] = useState(false)
+  const [falha, setFalha] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const payload = await consultar<{ data?: { slides?: PortalData[] } }>('/api/portal-home?visao=painel')
+      const payload = await consultar<{ data?: { slides?: ResumoCampeonato[] } }>('/api/portal-home?visao=painel')
       if (cancelled) return
-      setSlides(Array.isArray(payload.data?.slides) ? payload.data.slides : [])
+      setResumos(Array.isArray(payload.data?.slides) ? payload.data.slides : [])
+      setFalha(false)
       setLoading(false)
     }
     load().catch((erro) => {
       if (cancelled || erro instanceof ConsultaCancelada) return
-      setSlides([])
+      setResumos([])
+      setFalha(true)
       setLoading(false)
     })
     return () => {
@@ -52,17 +58,37 @@ export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: s
   }, [organizadorId])
 
   useEffect(() => {
-    if (!ativo || slides.length < 2 || paused) return
+    const resumo = resumos[index]
+    if (!resumo) {
+      setData(null)
+      return
+    }
+    let cancelled = false
+    consultar<{ data?: PortalData }>(`/api/portal-home?ligaId=${resumo.id}`, { forcar: true })
+      .then((payload) => {
+        if (!cancelled && payload.data) setData(payload.data)
+      })
+      .catch((erro) => {
+        if (cancelled || erro instanceof ConsultaCancelada) return
+        setFalha(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [resumos, index])
+
+  useEffect(() => {
+    if (!ativo || resumos.length < 2 || paused) return
     const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % slides.length)
+      setIndex((current) => (current + 1) % resumos.length)
     }, SLIDE_MS)
     return () => window.clearInterval(timer)
-  }, [ativo, slides.length, paused])
+  }, [ativo, resumos.length, paused])
 
-  if (loading && slides.length === 0) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
-  if (slides.length === 0) return <p className="px-4 py-10 text-sm font-bold text-red-300">Não foi possível abrir o início.</p>
-
-  const data = slides[index] ?? slides[0]
+  if (loading && resumos.length === 0) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
+  if (falha && !data) return <p className="px-4 py-10 text-sm font-bold text-red-300">Não foi possível abrir o início.</p>
+  if (resumos.length === 0) return <p className="px-4 py-10 text-sm font-semibold text-slate-200">Crie o primeiro campeonato para ver a agenda aqui.</p>
+  if (!data) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando campeonato...</p>
   const { scope, equipes, partidas, mensagens, premiacoes } = data
 
   return (

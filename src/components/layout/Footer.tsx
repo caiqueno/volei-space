@@ -25,7 +25,7 @@ export function Footer() {
           <nav>
             <a href="#temporada">Campeonato</a>
             <a href="#funcionalidades">Funcionalidades</a>
-            <a href="#portal-preview">Portal</a>
+            <Link href="/portal">Portal</Link>
             <Link href="/termos-de-uso">Termos</Link>
             <Link href="/politica-de-privacidade">Privacidade</Link>
             <Link href="/politica-de-cookies">Cookies</Link>

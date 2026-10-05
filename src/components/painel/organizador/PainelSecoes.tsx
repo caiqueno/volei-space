@@ -7,6 +7,9 @@ import { isCampeonatoFinalizado, MENSAGEM_CAMPEONATO_FINALIZADO } from '@/lib/ch
 import { SECTION_WIZARD_REGISTRY } from '@/components/parametrizacao/sections/registry'
 import { ParametrizacaoNoPainelProvider } from '@/components/parametrizacao/PainelParametrizacaoContext'
 import { ToastProvider } from '@/components/parametrizacao/ui/Toast'
+import { CategoryNavigation } from '@/components/parametrizacao/CategoryControls'
+import { flushWizardChanges } from '@/components/parametrizacao/wizard/useSectionWizard'
+import { categoriaParaAbrir, chaveCategoriaAtiva, secaoExigeCategoria } from '@/lib/categoria-ativa'
 
 type CampeonatoAba = { id: number; nome: string }
 
@@ -28,7 +31,9 @@ export function ParametrizacaoNoPainel({
   const [enviando, setEnviando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [erroFinalizacao, setErroFinalizacao] = useState<string | null>(null)
+  const [categoriaAtivaId, setCategoriaAtivaId] = useState<string | null>(null)
   const idsAnteriores = useRef<number[]>([])
+  const geracaoCategoria = useRef(0)
   const selecionado = ligas.some((liga) => liga.id === escolhido) ? escolhido : null
   const finalizado = isCampeonatoFinalizado(status)
 
@@ -43,19 +48,25 @@ export function ParametrizacaoNoPainel({
     if (!selecionado) {
       setStatus(null)
       setFormato(null)
+      setCategoriaAtivaId(null)
       return
     }
     let cancelado = false
+    const geracaoNoInicio = geracaoCategoria.current
     const controlador = new AbortController()
     setStatus(null)
     setAviso(null)
-    consultar<{ data?: { status?: string; formato?: string | null } }>(`/api/organizador/ligas/${selecionado}/setup`, { signal: controlador.signal })
+    consultar<{ data?: Array<{ id: string; statusConfiguracao: string }> }>(`/api/organizador/ligas/${selecionado}/categorias`, { signal: controlador.signal })
       .then((payload) => {
-        if (cancelado) return
-        setFormato(payload.data?.formato ?? null)
+        if (cancelado || geracaoCategoria.current !== geracaoNoInicio) return
+        const lista = payload.data ?? []
+        const ultima = window.sessionStorage.getItem(chaveCategoriaAtiva(selecionado))
+        const escolhida = categoriaParaAbrir(lista, ultima)
+        setCategoriaAtivaId(escolhida)
+        if (escolhida) window.sessionStorage.setItem(chaveCategoriaAtiva(selecionado), escolhida)
       })
       .catch(() => {
-        if (!cancelado) setFormato(null)
+        if (!cancelado) setCategoriaAtivaId(null)
       })
     consultar<{ data?: { status?: string } }>(`/api/organizador/ligas/${selecionado}/setup/informacoes`, { signal: controlador.signal })
       .then((payload) => {
@@ -69,6 +80,36 @@ export function ParametrizacaoNoPainel({
       controlador.abort()
     }
   }, [selecionado])
+
+  useEffect(() => {
+    if (!selecionado || !categoriaAtivaId) return
+    let cancelado = false
+    const controlador = new AbortController()
+    consultar<{ data?: { formato?: string | null } }>(`/api/organizador/ligas/${selecionado}/setup/estrutura?categoriaCampeonatoId=${encodeURIComponent(categoriaAtivaId)}`, { signal: controlador.signal })
+      .then((payload) => {
+        if (!cancelado) setFormato(payload.data?.formato ?? null)
+      })
+      .catch(() => {
+        if (!cancelado) setFormato(null)
+      })
+    return () => {
+      cancelado = true
+      controlador.abort()
+    }
+  }, [selecionado, categoriaAtivaId])
+
+  function definirCategoriaAtiva(id: string) {
+    geracaoCategoria.current += 1
+    setCategoriaAtivaId(id)
+    if (selecionado) window.sessionStorage.setItem(chaveCategoriaAtiva(selecionado), id)
+  }
+
+  async function trocarCategoria(id: string) {
+    if (id === categoriaAtivaId) return
+    const salvo = await flushWizardChanges()
+    if (!salvo) return
+    definirCategoriaAtiva(id)
+  }
 
   async function confirmarFinalizacao() {
     if (!selecionado || enviando) return
@@ -136,7 +177,7 @@ export function ParametrizacaoNoPainel({
               {MENSAGEM_CAMPEONATO_FINALIZADO}
             </p>
           )}
-          {status && !finalizado && (
+          {status === 'ATIVA' && !finalizado && (
             <button
               type="button"
               onClick={() => {
@@ -165,10 +206,22 @@ export function ParametrizacaoNoPainel({
               )
             })}
           </div>
+          <div className="mt-4">
+            <CategoryNavigation ligaId={selecionado} ativaId={categoriaAtivaId} onSelect={trocarCategoria} aoSemCategoria={() => abrirSecao('informacoes', 4)} />
+          </div>
           <fieldset disabled={finalizado} className="mt-6 min-w-0 border-0 p-0 disabled:opacity-80">
             <ToastProvider>
-              <ParametrizacaoNoPainelProvider openSection={abrirSecao} definirFormato={setFormato}>
-                <Secao key={`${selecionado}-${guia}-${etapaInformacoes}`} ligaId={selecionado} etapaInicial={guia === 'informacoes' ? etapaInformacoes : 0} />
+              <ParametrizacaoNoPainelProvider openSection={abrirSecao} definirFormato={setFormato} categoriaAtivaId={categoriaAtivaId} definirCategoriaAtiva={definirCategoriaAtiva}>
+                {secaoExigeCategoria(guia) && !categoriaAtivaId ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <p className="text-sm font-bold text-white">Esta etapa precisa de uma categoria.</p>
+                    <button type="button" onClick={() => abrirSecao('informacoes', 4)} className="mt-3 text-sm font-black text-amber-200 underline">
+                      Selecione as categorias do campeonato
+                    </button>
+                  </div>
+                ) : (
+                  <Secao key={`${selecionado}-${guia}-${etapaInformacoes}-${categoriaAtivaId ?? ''}`} ligaId={selecionado} etapaInicial={guia === 'informacoes' ? etapaInformacoes : 0} />
+                )}
               </ParametrizacaoNoPainelProvider>
             </ToastProvider>
           </fieldset>

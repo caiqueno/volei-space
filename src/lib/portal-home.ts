@@ -1,7 +1,7 @@
 ﻿import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podium'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
-import { buscarPartidasPublicas } from '@/lib/agenda-publica'
-import { agruparPartidasPublicas, type GruposPartidaPublica, type PartidaPublica } from '@/lib/partida-publica'
+import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
+import { agruparPartidasPublicas, type GruposPartidaPublica } from '@/lib/partida-publica'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
@@ -34,6 +34,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
       partidas: demoPartidas,
       grupos: agruparPartidasPublicas(demoPartidas as any),
       partidasFalha: false,
+      temMais: { aoVivo: false, proximos: false, encerradas: false },
       agendaGlobal: false,
       partidaDestaque: demoPartidas[0] ?? null,
       emAndamento: false,
@@ -77,31 +78,26 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
   }
 
   const agendaGlobal = !scope.selectedLiga
-  const ligasResultado = agendaGlobal
-    ? await supabaseAdmin.from('Liga').select('*').eq('simulacao', false).order('criadoEm', { ascending: false })
-    : { data: scope.selectedLiga ? [scope.selectedLiga] : [], error: null }
-  if (ligasResultado.error) {
-    console.error('[portal] erro ao buscar campeonatos', ligasResultado.error)
-    return { ...vazioPortal(scope), partidasFalha: true, agendaGlobal }
-  }
-  const ligasPublicas = ligasResultado.data
+  if (agendaGlobal) return { ...vazioPortal(scope), agendaGlobal: true }
 
-  const idsPublicos = (ligasPublicas ?? []).map((item: { id: number }) => item.id)
-  const partidasBusca = await buscarPartidasPublicas(idsPublicos, !agendaGlobal)
-  const partidasFalha = partidasBusca.erro
-  if (partidasFalha) console.error('[portal] erro ao buscar partidas')
-  const partidasNormais = partidasBusca.partidas
-  const grupos = agruparPartidasPublicas(partidasNormais)
-  const partidas = [...grupos.aoVivo, ...grupos.proximos, ...grupos.encerradas, ...grupos.analise]
+  const liga = scope.selectedLiga
+  const ligaId = liga?.id as number
+  const agenda = await buscarAgendaCampeonato(ligaId)
+  if (agenda.erro) console.error('[portal] erro ao buscar partidas')
+  const grupos = {
+    aoVivo: agenda.aoVivo.partidas,
+    proximos: agenda.proximos.partidas,
+    encerradas: agenda.encerradas.partidas,
+    analise: [],
+    outras: [],
+  }
+  const temMais = { aoVivo: agenda.aoVivo.temMais, proximos: agenda.proximos.temMais, encerradas: agenda.encerradas.temMais }
+  const partidas = [...grupos.aoVivo, ...grupos.proximos, ...grupos.encerradas]
   const partidaDestaque = grupos.aoVivo[0] ?? grupos.proximos[0] ?? grupos.encerradas[0] ?? null
   const emAndamento = grupos.aoVivo.length > 0
-  let liga = scope.selectedLiga ?? ligasPublicas?.[0] ?? null
-  if (agendaGlobal && partidas.length > 0) {
-    const ligaDestaque = (ligasPublicas ?? []).find((item: { id: number }) => item.id === partidaDestaque?.ligaId)
-    if (ligaDestaque) liga = ligaDestaque
-  }
-  const ligaId = liga?.id
-  if (ligaId) {
+  const partidasFalha = agenda.erro
+  const enxuto = !params.organizador
+  if (!enxuto) {
     try {
       await reconcileAcceptedInvitations([ligaId])
     } catch (err) {
@@ -109,24 +105,24 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
     }
   }
 
-  const equipesQuery = ligaId
-    ? supabaseAdmin
+  const equipesQuery = enxuto
+    ? Promise.resolve({ data: [] })
+    : supabaseAdmin
       .from('InscricaoCampeonato')
       .select('equipe:Equipe(*, jogadores:Jogador(id,banido))')
       .eq('ligaId', ligaId)
       .eq('status', 'APROVADA')
       .order('criadaEm', { ascending: true })
-    : Promise.resolve({ data: [] })
 
-  const mensagensQuery = ligaId
-    ? supabase.from('Mensagem').select('*').eq('ligaId', ligaId).eq('aprovada', true).order('criadoEm', { ascending: false }).limit(5)
-    : supabase.from('Mensagem').select('*').eq('aprovada', true).order('criadoEm', { ascending: false }).limit(5)
+  const mensagensQuery = enxuto
+    ? Promise.resolve({ data: [] })
+    : supabase.from('Mensagem').select('*').eq('ligaId', ligaId).eq('aprovada', true).order('criadoEm', { ascending: false }).limit(5)
 
-  const premiacoesQuery = ligaId
-    ? supabase.from('Premiacao').select('*').eq('ligaId', ligaId).order('colocacao', { ascending: true })
-    : Promise.resolve({ data: [] })
+  const premiacoesQuery = enxuto
+    ? Promise.resolve({ data: [] })
+    : supabase.from('Premiacao').select('*').eq('ligaId', ligaId).order('colocacao', { ascending: true })
 
-  const podiumQuery = ligaId ? getChampionshipPodium(ligaId) : Promise.resolve([] as PodiumTeam[])
+  const podiumQuery = enxuto ? Promise.resolve([] as PodiumTeam[]) : getChampionshipPodium(ligaId)
 
   const [{ data: inscricoesAprovadas }, { data: mensagens }, { data: premiacoes }, podium] = await Promise.all([
     equipesQuery,
@@ -141,7 +137,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
     .map(normalizePortalTeam)
     .sort((a: any, b: any) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
 
-  return { scope, liga, equipes: equipesBase, partidas, grupos, partidasFalha, agendaGlobal, partidaDestaque, emAndamento, podium, mensagens: mensagens ?? [], premiacoes: premiacoes ?? [] }
+  return { scope, liga, equipes: equipesBase, partidas, grupos, partidasFalha, temMais, agendaGlobal, partidaDestaque, emAndamento, podium, mensagens: mensagens ?? [], premiacoes: premiacoes ?? [] }
 }
 
 export async function getPainelInicio(organizadorId: string) {
@@ -150,70 +146,18 @@ export async function getPainelInicio(organizadorId: string) {
     : { organizadorId, ligas: [] as any[], selectedLiga: null }
   if (!scope.ligas.length) return []
 
-  const ids = scope.ligas.map((liga: { id: number }) => liga.id)
-  try {
-    await reconcileAcceptedInvitations(ids)
-  } catch (err) {
-    console.error('[portal] erro ao reconciliar equipes do campeonato', err)
-  }
-
-  const [partidasBusca, inscricoesResultado, mensagensResultado, premiacoesResultado, podios] = await Promise.all([
-    buscarPartidasPublicas(ids, false),
-    supabaseAdmin
-      .from('InscricaoCampeonato')
-      .select('ligaId, equipe:Equipe(id,nome,corHex,logoUrl,jogadores:Jogador(id,banido))')
-      .in('ligaId', ids)
-      .eq('status', 'APROVADA'),
-    supabase.from('Mensagem').select('*').in('ligaId', ids).eq('aprovada', true).order('criadoEm', { ascending: false }),
-    supabase.from('Premiacao').select('*').in('ligaId', ids).order('colocacao', { ascending: true }),
-    Promise.all(ids.map((id: number) => getChampionshipPodium(id).catch(() => [] as PodiumTeam[]))),
-  ])
-
-  const partidasFalha = partidasBusca.erro
-  if (partidasFalha) console.error('[portal] erro ao buscar partidas')
-  const partidasPorLiga = new Map<number, PartidaPublica[]>()
-  if (!partidasFalha) {
-    for (const partida of partidasBusca.partidas) {
-      const lista = partidasPorLiga.get(partida.ligaId) ?? []
-      lista.push(partida)
-      partidasPorLiga.set(partida.ligaId, lista)
-    }
-  }
-
-  const equipesPorLiga = new Map<number, any[]>()
-  for (const inscricao of inscricoesResultado.data ?? []) {
-    const equipe = Array.isArray(inscricao.equipe) ? inscricao.equipe[0] : inscricao.equipe
-    if (!equipe) continue
-    const lista = equipesPorLiga.get(inscricao.ligaId) ?? []
-    lista.push(normalizePortalTeam(equipe))
-    equipesPorLiga.set(inscricao.ligaId, lista)
-  }
-
-  return scope.ligas.map((liga: any, indice: number) => {
-    const partidasDaLiga = partidasPorLiga.get(liga.id) ?? []
-    const grupos = agruparPartidasPublicas(partidasDaLiga)
-    const partidas = [...grupos.aoVivo, ...grupos.proximos, ...grupos.encerradas, ...grupos.analise]
-    const equipes = (equipesPorLiga.get(liga.id) ?? []).sort((a: any, b: any) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
-    return {
-      scope: { organizadorId: scope.organizadorId, ligas: scope.ligas, selectedLiga: liga },
-      liga,
-      equipes,
-      partidas,
-      grupos,
-      partidasFalha,
-      agendaGlobal: false,
-      partidaDestaque: grupos.aoVivo[0] ?? grupos.proximos[0] ?? grupos.encerradas[0] ?? null,
-      emAndamento: grupos.aoVivo.length > 0,
-      podium: podios[indice] ?? [],
-      mensagens: (mensagensResultado.data ?? []).filter((mensagem: { ligaId?: number }) => mensagem.ligaId === liga.id).slice(0, 5),
-      premiacoes: (premiacoesResultado.data ?? []).filter((premio: { ligaId?: number }) => premio.ligaId === liga.id),
-    }
-  })
+  return scope.ligas.map((liga: { id: number; nome: string; slug: string; capaUrl?: string | null; subtitulo?: string | null }) => ({
+    id: liga.id,
+    nome: liga.nome,
+    slug: liga.slug,
+    capaUrl: liga.capaUrl ?? null,
+    subtitulo: liga.subtitulo ?? null,
+  }))
 }
 
 function vazioPortal(scope: { organizadorId: string | null; ligas: any[]; selectedLiga: any | null }) {
   const grupos: GruposPartidaPublica = { aoVivo: [], proximos: [], encerradas: [], analise: [], outras: [] }
-  return { scope, liga: null, equipes: [], partidas: [], grupos, partidasFalha: false, agendaGlobal: false, partidaDestaque: null, emAndamento: false, podium: [] as PodiumTeam[], mensagens: [], premiacoes: [] }
+  return { scope, liga: null, equipes: [], partidas: [], grupos, partidasFalha: false, temMais: { aoVivo: false, proximos: false, encerradas: false }, agendaGlobal: false, partidaDestaque: null, emAndamento: false, podium: [] as PodiumTeam[], mensagens: [], premiacoes: [] }
 }
 
 function normalizePortalTeam(equipe: any) {

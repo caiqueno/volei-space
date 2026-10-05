@@ -31,10 +31,10 @@ export default async function GaleriaPage({ searchParams }: PageProps) {
   if (isSupabaseConfigured) {
     if (scope.organizadorId && !scope.selectedLiga) {
       midias = []
+    } else if (!scope.selectedLiga) {
+      midias = []
     } else {
-      let query = supabase.from('Midia').select('*').order('criadoEm', { ascending: false })
-      if (scope.selectedLiga) query = query.eq('ligaId', scope.selectedLiga.id)
-      const { data } = await query
+      const { data } = await supabase.from('Midia').select('id,ligaId,tipo,url,thumbUrl,titulo,tag,criadoEm').eq('ligaId', scope.selectedLiga.id).order('criadoEm', { ascending: false }).limit(24)
       midias = data ?? []
     }
   }
@@ -62,6 +62,8 @@ export default async function GaleriaPage({ searchParams }: PageProps) {
       <section className="mx-auto max-w-7xl px-4 py-8">
         {scope.organizadorId && !scope.selectedLiga ? (
           <CreatorEmptyState organizadorId={scope.organizadorId} title="Nenhuma galeria disponível." description="Crie um campeonato no painel do criador. As mídias poderão ser organizadas por competição." />
+        ) : !scope.selectedLiga ? (
+          <EstadoVazio titulo="Escolha um campeonato" descricao="A galeria abre dentro do campeonato." acao={<a href="/portal" className="inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950">Ir ao portal</a>} />
         ) : midias.length === 0 ? (
           <EstadoVazio titulo="Nenhuma mídia disponível ainda" descricao="As fotos e vídeos da temporada aparecerão aqui quando forem publicados." />
         ) : (
@@ -76,7 +78,9 @@ export default async function GaleriaPage({ searchParams }: PageProps) {
                   {fotos.map((foto: any, index: number) => (
                     <figure key={foto.id} className={`gallery-card overflow-hidden rounded-2xl border ${index === 0 ? 'sm:col-span-2 sm:row-span-2' : ''}`}>
                       <div className={`${index === 0 ? 'aspect-[16/10]' : 'aspect-square'} bg-slate-950/60`}>
-                        <img src={foto.url} alt={foto.titulo ?? 'Foto da liga'} className="h-full w-full object-cover" />
+                        <a href={foto.url} target="_blank" rel="noreferrer">
+                          <img src={foto.thumbUrl || foto.url} alt={foto.titulo ?? 'Foto do campeonato'} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                        </a>
                       </div>
                       <figcaption className="p-4">
                         <p className="font-black text-white">{foto.titulo ?? 'Registro da temporada'}</p>

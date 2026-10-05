@@ -60,8 +60,7 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
     if (scope.organizadorId && !scope.selectedLiga) {
       dados = []
     } else if (!scope.selectedLiga) {
-      championshipTables = await loadChampionshipTables()
-      dados = championshipTables.flatMap((table) => table.dados)
+      dados = []
     } else {
       // ClassificacaoEntrada tem uma linha por (ligaId, equipeId), então filtrar
       // direto por ligaId já isola corretamente times que jogam em mais de uma liga.
@@ -222,6 +221,8 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
       <section className="mx-auto max-w-7xl px-4 py-8">
         {scope.organizadorId && !scope.selectedLiga ? (
           <CreatorEmptyState organizadorId={scope.organizadorId} title="Nenhum campeonato para classificar." description="Crie um campeonato no painel do criador. A tabela ficará vazia até equipes, jogos e resultados serem registrados." />
+        ) : !scope.selectedLiga ? (
+          <EstadoVazio titulo="Escolha um campeonato" descricao="A classificação abre dentro do campeonato." acao={<a href="/portal" className="inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950">Ir ao portal</a>} />
         ) : dados.length === 0 ? (
           <EstadoVazio titulo="Nenhuma partida registrada" descricao="A classificação aparecerá aqui após o primeiro resultado aprovado." />
         ) : (

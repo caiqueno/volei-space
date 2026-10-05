@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { Manrope } from 'next/font/google'
 import './globals.css'
@@ -93,7 +94,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={manrope.className}>
         <script dangerouslySetInnerHTML={{ __html: "try{if(window.self!==window.top)document.documentElement.classList.add('painel-embed')}catch(e){}" }} />
         <IndicadorDemora />
-        <Header />
+        <Suspense fallback={null}>
+          <Header />
+        </Suspense>
         <div className="min-w-0">{children}</div>
         <Footer />
       </body>

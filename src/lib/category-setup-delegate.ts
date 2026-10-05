@@ -19,7 +19,7 @@ export function categoryIdFromRequest(req: NextRequest) {
 
 export async function loadCategorySection(req: NextRequest, ligaId: number) {
   const categoryId = categoryIdFromRequest(req)
-  if (!categoryId) return null
+  if (!categoryId) return error('Selecione a categoria antes de configurar esta etapa.', 422)
   try {
     return success(await getCategoryConfiguration(ligaId, categoryId))
   } catch (cause) {
@@ -37,7 +37,7 @@ export async function saveCategorySection(args: {
   intent: SetupIntent
 }) {
   const categoryId = categoryIdFromRequest(args.req)
-  if (!categoryId) return null
+  if (!categoryId) return error('Selecione a categoria antes de configurar esta etapa.', 422)
   try {
     const config = await getCategoryConfiguration(args.ligaId, categoryId)
     const allowed = new Set(ALLOWED[args.section])

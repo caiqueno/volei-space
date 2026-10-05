@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
@@ -8,90 +8,104 @@ import type { GruposPartidaPublica, PartidaPublica } from '@/lib/partida-publica
 
 const INTERVALO_MS = 8000
 
+type TemMais = { aoVivo: boolean; proximos: boolean; encerradas: boolean }
+type Parte = 'aoVivo' | 'proximos' | 'encerradas'
+
 type Props = {
-  ligaId: number | null
-  global?: boolean
+  ligaId: number
   inicial: GruposPartidaPublica
+  temMaisInicial?: TemMais
   falhaInicial: boolean
 }
 
-export function PortalAgenda({ ligaId, global = false, inicial, falhaInicial }: Props) {
+const consultaParte: Record<Parte, string> = {
+  aoVivo: 'ao-vivo',
+  proximos: 'proximos',
+  encerradas: 'encerradas',
+}
+
+export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: Props) {
   const [grupos, setGrupos] = useState(inicial)
+  const [temMais, setTemMais] = useState<TemMais>(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
   const [falha, setFalha] = useState(falhaInicial)
   const [atualizando, setAtualizando] = useState(false)
+  const [carregando, setCarregando] = useState<Parte | null>(null)
   const [tentativa, setTentativa] = useState(0)
-  const aoVivoNaTela = useRef(inicial.aoVivo.length > 0)
-  aoVivoNaTela.current = grupos.aoVivo.length > 0
 
   useEffect(() => {
     setGrupos(inicial)
+    setTemMais(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
     setFalha(falhaInicial)
-  }, [inicial, falhaInicial])
+  }, [inicial, temMaisInicial, falhaInicial, ligaId])
 
   useEffect(() => {
-    if (!ligaId && !global) return
     let vivo = true
-    let sequencia = 0
     const controle = new AbortController()
 
-    async function carregar() {
+    async function atualizarAoVivo() {
       if (document.visibilityState === 'hidden') return
-      const atual = ++sequencia
       setAtualizando(true)
       try {
-        const consulta = ligaId ? `/api/portal/jogos?ligaId=${ligaId}&t=${Date.now()}` : `/api/portal/jogos?t=${Date.now()}`
-        const resposta = await fetch(consulta, { cache: 'no-store', signal: controle.signal })
+        const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}&parte=ao-vivo&limite=8&t=${Date.now()}`, { cache: 'no-store', signal: controle.signal })
         const json = await resposta.json()
         if (!resposta.ok) throw new Error(json?.error || 'Erro ao carregar jogos')
-        if (!vivo || atual !== sequencia) return
-        setGrupos({
-          aoVivo: json.data?.aoVivo ?? [],
-          proximos: json.data?.proximos ?? [],
-          encerradas: json.data?.encerradas ?? [],
-          analise: json.data?.analise ?? [],
-          outras: json.data?.outras ?? [],
-        })
+        if (!vivo) return
+        setGrupos((atual) => ({ ...atual, aoVivo: json.data?.aoVivo ?? [] }))
+        setTemMais((atual) => ({ ...atual, aoVivo: Boolean(json.data?.temMais?.aoVivo) }))
         setFalha(false)
       } catch (erro) {
-        if (!vivo || atual !== sequencia || (erro instanceof DOMException && erro.name === 'AbortError')) return
+        if (!vivo || (erro instanceof DOMException && erro.name === 'AbortError')) return
         setFalha(true)
       } finally {
-        if (vivo && atual === sequencia) setAtualizando(false)
+        if (vivo) setAtualizando(false)
       }
     }
 
-    if (tentativa > 0) void carregar()
-    let timer = 0
-    const agendar = () => {
-      const espera = aoVivoNaTela.current ? INTERVALO_MS : 60000
-      timer = window.setTimeout(() => {
-        void carregar().finally(() => {
-          if (vivo) agendar()
-        })
-      }, espera)
-    }
-    agendar()
+    if (tentativa > 0) void atualizarAoVivo()
+    const timer = window.setInterval(() => void atualizarAoVivo(), INTERVALO_MS)
     const aoVoltar = () => {
-      if (document.visibilityState === 'visible') void carregar()
+      if (document.visibilityState === 'visible') void atualizarAoVivo()
     }
     document.addEventListener('visibilitychange', aoVoltar)
     return () => {
       vivo = false
       controle.abort()
-      window.clearTimeout(timer)
+      window.clearInterval(timer)
       document.removeEventListener('visibilitychange', aoVoltar)
     }
-  }, [ligaId, global, tentativa])
+  }, [ligaId, tentativa])
 
-  const vazio = grupos.aoVivo.length + grupos.proximos.length + grupos.encerradas.length + grupos.analise.length === 0
+  async function carregarMais(parte: Parte) {
+    if (carregando) return
+    setCarregando(parte)
+    try {
+      const offset = grupos[parte].length
+      const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}&parte=${consultaParte[parte]}&offset=${offset}&limite=8`, { cache: 'no-store' })
+      const json = await resposta.json()
+      if (!resposta.ok) throw new Error(json?.error || 'Erro ao carregar jogos')
+      const novas = (json.data?.[parte] ?? []) as PartidaPublica[]
+      setGrupos((atual) => {
+        const ids = new Set(atual[parte].map((partida) => partida.id))
+        return { ...atual, [parte]: [...atual[parte], ...novas.filter((partida) => !ids.has(partida.id))] }
+      })
+      setTemMais((atual) => ({ ...atual, [parte]: Boolean(json.data?.temMais?.[parte]) }))
+      setFalha(false)
+    } catch {
+      setFalha(true)
+    } finally {
+      setCarregando(null)
+    }
+  }
+
+  const vazio = grupos.aoVivo.length + grupos.proximos.length + grupos.encerradas.length === 0
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-xs font-bold text-slate-400" aria-live="polite">
-          {falha && vazio ? 'Não foi possível atualizar os jogos.' : falha ? 'A atualização falhou. Os últimos jogos válidos continuam na tela.' : atualizando ? 'Atualizando jogos…' : 'Jogos do campeonato'}
+          {falha && vazio ? 'Não foi possível atualizar os jogos.' : falha ? 'A atualização falhou. Os jogos já exibidos continuam na tela.' : atualizando ? 'Atualizando o ao vivo…' : 'Jogos deste campeonato'}
         </p>
-        {falha && (ligaId || global) && (
+        {falha && (
           <button type="button" className="inline-flex items-center gap-2 rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black text-slate-950" onClick={() => setTentativa((valor) => valor + 1)}>
             <RotateCcw size={14} />
             Tentar novamente
@@ -105,34 +119,27 @@ export function PortalAgenda({ ligaId, global = false, inicial, falhaInicial }: 
         <EstadoVazio titulo="Nenhum jogo neste campeonato" descricao="As partidas aparecem aqui quando a organização montar o calendário." />
       ) : (
         <div className="grid gap-8">
-          <Faixa titulo="Em andamento" partidas={grupos.aoVivo} />
-          <Faixa titulo="Próximos jogos" partidas={grupos.proximos} />
-          <Faixa titulo="Resultados" partidas={grupos.encerradas} />
-          <Faixa titulo="Em análise" partidas={grupos.analise} />
-          <Faixa titulo="Outros" partidas={grupos.outras} />
+          <Faixa titulo="Ao vivo" parte="aoVivo" partidas={grupos.aoVivo} temMais={temMais.aoVivo} carregando={carregando === 'aoVivo'} onMore={() => carregarMais('aoVivo')} />
+          <Faixa titulo="Próximos jogos" parte="proximos" partidas={grupos.proximos} temMais={temMais.proximos} carregando={carregando === 'proximos'} onMore={() => carregarMais('proximos')} />
+          <Faixa titulo="Últimos jogos" parte="encerradas" partidas={grupos.encerradas} temMais={temMais.encerradas} carregando={carregando === 'encerradas'} onMore={() => carregarMais('encerradas')} />
         </div>
       )}
     </div>
   )
 }
 
-function Faixa({ titulo, partidas }: { titulo: string; partidas: PartidaPublica[] }) {
-  if (partidas.length === 0) return null
-  const primeiros = partidas.slice(0, 8)
-  const resto = partidas.slice(8)
+function Faixa({ titulo, partidas, temMais, carregando, onMore }: { titulo: string; parte: Parte; partidas: PartidaPublica[]; temMais: boolean; carregando: boolean; onMore: () => void }) {
+  if (partidas.length === 0 && !temMais) return null
   return (
     <section>
       <h3 className="font-display text-2xl font-black text-white">{titulo}</h3>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {primeiros.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
+        {partidas.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
       </div>
-      {resto.length > 0 && (
-        <details className="mt-4">
-          <summary className="cursor-pointer text-sm font-black text-[#ffb331]">Ver mais {resto.length} jogos</summary>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {resto.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
-          </div>
-        </details>
+      {temMais && (
+        <button type="button" className="mt-4 rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60" onClick={onMore} disabled={carregando}>
+          {carregando ? 'Carregando…' : 'Ver mais'}
+        </button>
       )}
     </section>
   )

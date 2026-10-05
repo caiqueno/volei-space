@@ -96,14 +96,16 @@ async function main() {
     const nomes = (categoriasLidas.data as Array<{ nome: string; removidaEm?: string | null }>).filter((item) => !item.removidaEm).map((item) => item.nome)
     assert.deepEqual(nomes, ['Masculino'], 'categoria persistida na 5ª etapa')
 
-    const mata = await chamar(`/api/organizador/ligas/${ligaId}/setup/estrutura`, 'PATCH', { formato: 'MATA_MATA', quantidadeEquipes: 8 })
+    const categoriaId = (categorias.data as Array<{ id: string }>)[0]?.id
+    assert.ok(categoriaId, 'categoria criada para a parametrização')
+    const mata = await chamar(`/api/organizador/ligas/${ligaId}/setup/estrutura?categoriaCampeonatoId=${categoriaId}`, 'PATCH', { formato: 'MATA_MATA', quantidadeEquipes: 8 })
     assert.equal(mata.error, undefined, mata.error)
-    const setupMata = await chamar(`/api/organizador/ligas/${ligaId}/setup`, 'GET')
+    const setupMata = await chamar(`/api/organizador/ligas/${ligaId}/setup?categoriaCampeonatoId=${categoriaId}`, 'GET')
     const chavesMata = (setupMata.data.cards as Array<{ key: string }>).map((card) => card.key)
     assert.equal(chavesMata.includes('classificacao'), false, 'mata-mata não oferece a etapa de classificação')
     assert.equal(setupMata.data.progress.totalSections, 5)
 
-    const grupos = await chamar(`/api/organizador/ligas/${ligaId}/setup/estrutura`, 'PATCH', {
+    const grupos = await chamar(`/api/organizador/ligas/${ligaId}/setup/estrutura?categoriaCampeonatoId=${categoriaId}`, 'PATCH', {
       formato: 'GRUPOS_MATA_MATA',
       quantidadeEquipes: 8,
       quantidadeGrupos: 2,

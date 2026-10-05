@@ -7,22 +7,28 @@ export async function GET(req: NextRequest) {
   const auth = await requirePublicRole(req, ['organizador'], { releasedOnly: true })
   if (auth instanceof Response) return auth
 
-  const { data: ligas, error: ligasErr } = await supabase
+  const ligaId = Number(new URL(req.url).searchParams.get('ligaId'))
+  if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
+  const limite = Math.min(30, Math.max(1, Number(new URL(req.url).searchParams.get('limite') ?? 20) || 20))
+  const offset = Math.max(0, Number(new URL(req.url).searchParams.get('offset') ?? 0) || 0)
+
+  const { data: liga, error: ligaErr } = await supabase
     .from('Liga')
     .select('id')
+    .eq('id', ligaId)
     .eq('organizadorId', auth.userId)
-
-  if (ligasErr) return error('Erro ao carregar campeonatos', 500, ligasErr.message)
-
-  const ligaIds = (ligas ?? []).map((liga: any) => liga.id)
-  if (ligaIds.length === 0) return success([])
+    .maybeSingle()
+  if (ligaErr) return error('Erro ao carregar o campeonato', 500, ligaErr.message)
+  if (!liga) return error('Campeonato não encontrado.', 404)
 
   const { data, error: partidasErr } = await supabase
     .from('Partida')
     .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
-    .in('ligaId', ligaIds)
+    .eq('ligaId', ligaId)
     .order('dataHora', { ascending: true })
+    .range(offset, offset + limite)
 
   if (partidasErr) return error('Erro ao carregar partidas', 500, partidasErr.message)
-  return success(data ?? [])
+  const linhas = data ?? []
+  return success({ partidas: linhas.slice(0, limite), temMais: linhas.length > limite })
 }

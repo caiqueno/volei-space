@@ -52,6 +52,9 @@ export default async function RankingsPage({ searchParams }: PageProps) {
     if (scope.organizadorId && !scope.selectedLiga) {
       rankingMVP = []
       votos = []
+    } else if (!scope.selectedLiga) {
+      rankingMVP = []
+      votos = []
     } else {
       let destaquesQuery = supabase
         .from('DestaquesPartida')
@@ -62,7 +65,7 @@ export default async function RankingsPage({ searchParams }: PageProps) {
         .select('jogadorId, jogador:Jogador!inner(*, equipe:Equipe(*))')
 
       if (scope.selectedLiga) {
-        destaquesQuery = destaquesQuery.eq('partida.ligaId', scope.selectedLiga.id).eq('partida.status', 'ENCERRADA')
+        destaquesQuery = destaquesQuery.eq('partida.ligaId', scope.selectedLiga.id).eq('partida.status', 'ENCERRADA').limit(80)
         // Equipe.ligaId reflete só a última liga em que o time foi aprovado, não serve
         // para filtrar "times desta liga" quando um time joga em mais de um campeonato.
         const approved = await getApprovedTeams(scope.selectedLiga.id)
@@ -105,6 +108,10 @@ export default async function RankingsPage({ searchParams }: PageProps) {
 
       {scope.organizadorId && !scope.selectedLiga ? (
         <CreatorEmptyState organizadorId={scope.organizadorId} title="Nenhum ranking disponível." description="Crie um campeonato e aprove súmulas para gerar MVPs, votos e destaques da temporada." />
+      ) : !scope.selectedLiga ? (
+        <div className="mx-auto max-w-7xl px-4 py-8">
+          <EstadoVazio titulo="Escolha um campeonato" descricao="Os rankings abrem dentro do campeonato." acao={<a href="/portal" className="inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950">Ir ao portal</a>} />
+        </div>
       ) : (
         <section className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-2">
           <RankingPanel icon={<Star size={20} />} title="Top MVP por partida" count={`${rankingMVP.length} atletas`}>

@@ -44,10 +44,16 @@ export async function requireCategoryScope(ligaId: number, categoryId: unknown) 
  */
 export async function getCategoryConfiguration(ligaId: number, categoryId: string) {
   await requireCategoryScope(ligaId, categoryId)
-  const { data, error } = await db.from('CategoriaConfiguracao').select('*')
-    .eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoryId).single()
-  if (error || !data) throw new CategoryScopeError('Configuração da categoria indisponível.', 409)
-  return data as Record<string, any>
+  const lida = await db.from('CategoriaConfiguracao').select('*')
+    .eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoryId).maybeSingle()
+  if (lida.error) throw new CategoryScopeError('Configuração da categoria indisponível.', 409)
+  if (lida.data) return lida.data as Record<string, any>
+  const criada = await db.from('CategoriaConfiguracao').insert({ categoriaCampeonatoId: categoryId, ligaId }).select('*').maybeSingle()
+  if (criada.data) return criada.data as Record<string, any>
+  const deNovo = await db.from('CategoriaConfiguracao').select('*')
+    .eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoryId).maybeSingle()
+  if (deNovo.error || !deNovo.data) throw new CategoryScopeError('Configuração da categoria indisponível.', 409)
+  return deNovo.data as Record<string, any>
 }
 
 /**

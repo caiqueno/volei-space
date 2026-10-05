@@ -4,7 +4,8 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { CalendarDays, RotateCcw } from 'lucide-react'
 import { PageHero } from '@/components/layout/PageHero'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
-import { buscarPartidasPublicas } from '@/lib/agenda-publica'
+import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
+import { PortalAgenda } from '@/components/portal/PortalAgenda'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
@@ -51,8 +52,11 @@ export default async function JogosPage({ searchParams }: PageProps) {
 
   let scope = { organizadorId: null as string | null, ligas: [] as any[], selectedLiga: null as any | null }
   let partidas = isSupabaseConfigured ? [] as any[] : demoPartidas as any[]
+  let agenda: { aoVivo: any[]; proximos: any[]; encerradas: any[]; analise: any[]; outras: any[] } | null = null
+  let temMais = { aoVivo: false, proximos: false, encerradas: false }
   let equipeCapitao: any | null = null
   let loadError = false
+  let escolherCampeonato = false
 
   if (isSupabaseConfigured) {
     try {
@@ -68,6 +72,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
             .order('dataHora', { ascending: true })
 
           if (params.ligaId) query = query.eq('ligaId', Number(params.ligaId))
+          query = query.limit(24)
 
           const { data, error } = await query
           if (error) throw error
@@ -78,14 +83,14 @@ export default async function JogosPage({ searchParams }: PageProps) {
       } else if (scope.organizadorId && !scope.selectedLiga) {
         partidas = []
       } else if (scope.selectedLiga) {
-        const busca = await buscarPartidasPublicas([scope.selectedLiga.id], true)
+        const busca = await buscarAgendaCampeonato(scope.selectedLiga.id)
         if (busca.erro) throw new Error('agenda')
-        partidas = busca.partidas
+        agenda = { aoVivo: busca.aoVivo.partidas, proximos: busca.proximos.partidas, encerradas: busca.encerradas.partidas, analise: [], outras: [] }
+        temMais = { aoVivo: busca.aoVivo.temMais, proximos: busca.proximos.temMais, encerradas: busca.encerradas.temMais }
+        partidas = [...agenda.aoVivo, ...agenda.proximos, ...agenda.encerradas]
       } else {
-        const { data: ligas } = await supabaseAdmin.from('Liga').select('id').eq('simulacao', false)
-        const busca = await buscarPartidasPublicas((ligas ?? []).map((liga) => liga.id), false)
-        if (busca.erro) throw new Error('agenda')
-        partidas = busca.partidas
+        escolherCampeonato = true
+        partidas = []
       }
     } catch (err) {
       console.error('[jogos] erro ao carregar partidas', err)
@@ -128,6 +133,10 @@ export default async function JogosPage({ searchParams }: PageProps) {
               </a>
             }
           />
+        ) : escolherCampeonato ? (
+          <EstadoVazio titulo="Escolha um campeonato" descricao="A agenda abre dentro do campeonato, sem carregar os jogos de todas as competições." acao={<a href="/portal" className="inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950">Ir ao portal</a>} />
+        ) : agenda && scope.selectedLiga ? (
+          <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} />
         ) : partidas.length === 0 ? (
           <EstadoVazio titulo={equipeCapitao ? 'Nenhum jogo para sua equipe' : 'Nenhum jogo cadastrado'} descricao={equipeCapitao ? 'As partidas do seu time aparecerão aqui quando o campeonato montar o calendário.' : 'As partidas aparecerão aqui quando a organização montar o calendário.'} />
         ) : !scope.selectedLiga && !equipeCapitao ? (

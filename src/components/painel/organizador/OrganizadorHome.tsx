@@ -35,6 +35,10 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
   const [activeChampionshipId, setActiveChampionshipId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [passo, setPasso] = useState<0 | 1 | 2 | 3>(0)
+  const [nomeCampeonato, setNomeCampeonato] = useState('')
+  const [nomeCategoria, setNomeCategoria] = useState('')
+  const [linkCategoria, setLinkCategoria] = useState('')
 
   useEffect(() => {
     const secao = new URLSearchParams(window.location.search).get('secao')
@@ -104,10 +108,15 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
 
   async function criarCampeonato() {
     if (!organizadorId || creating) return
+    const nome = nomeCampeonato.trim()
+    const categoria = nomeCategoria.trim()
+    if (nome.length < 2 || categoria.length < 2) {
+      setFeedback('Informe o nome do campeonato e da categoria.')
+      return
+    }
     setCreating(true)
     setFeedback(null)
     try {
-      const nome = 'Novo campeonato'
       const slug = `${slugify(nome)}-c${Date.now().toString(36)}`
       const response = await fetch('/api/ligas', {
         method: 'POST',
@@ -116,6 +125,13 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
       })
       const json = await lerJson<{ error?: string; data?: { id: number; slug?: string; nome?: string; status?: string } }>(response)
       if (!response.ok || !json.data) throw new Error(json.error ?? 'Erro ao criar campeonato')
+      const categoriaResposta = await fetch(`/api/organizador/ligas/${json.data.id}/categoria-inicial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: categoria }),
+      })
+      const categoriaJson = await lerJson<{ error?: string; data?: { caminho?: string } }>(categoriaResposta)
+      if (!categoriaResposta.ok || !categoriaJson.data?.caminho) throw new Error(categoriaJson.error ?? 'Campeonato criado, mas o link da categoria falhou.')
       invalidarConsultas('/api/ligas')
       const criado: LigaCarouselItem = {
         id: json.data.id,
@@ -131,7 +147,8 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
       }
       setLigas((current) => [criado, ...current.filter((liga) => liga.id !== criado.id)])
       setActiveChampionshipId(criado.id)
-      selectView('parametrizacao')
+      setLinkCategoria(`${window.location.origin}${categoriaJson.data.caminho}`)
+      setPasso(3)
       setCreating(false)
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Erro ao criar campeonato')
@@ -182,8 +199,7 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
                   <div className="mb-6 flex justify-end">
                     <ActionBar
                       type="button"
-                      onClick={criarCampeonato}
-                      loading={creating}
+                      onClick={() => { setPasso(1); setFeedback(null) }}
                       loadingLabel="Criando"
                       className="inline-flex items-center gap-2 rounded-full bg-luva-amber px-4 py-2.5 text-sm font-black text-[#050914] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -191,6 +207,33 @@ export function OrganizadorHome({ session, logout }: { session: Session; logout:
                       Novo Campeonato
                     </ActionBar>
                   </div>
+                  {passo > 0 && (
+                    <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffb331]">Passo {Math.min(passo, 3)} de 3</p>
+                      {passo === 1 && (
+                        <label className="mt-4 block">
+                          <span className="text-sm font-black text-white">Nome do campeonato</span>
+                          <input value={nomeCampeonato} onChange={(evento) => setNomeCampeonato(evento.target.value)} className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-semibold text-white" />
+                          <button type="button" className="mt-4 rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950" onClick={() => nomeCampeonato.trim().length >= 2 ? setPasso(2) : setFeedback('Informe o nome do campeonato.')}>Continuar</button>
+                        </label>
+                      )}
+                      {passo === 2 && (
+                        <label className="mt-4 block">
+                          <span className="text-sm font-black text-white">Categoria</span>
+                          <input value={nomeCategoria} onChange={(evento) => setNomeCategoria(evento.target.value)} className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-semibold text-white" placeholder="Ex.: Masculino" />
+                          <button type="button" className="mt-4 rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60" disabled={creating} onClick={() => void criarCampeonato()}>{creating ? 'Criando…' : 'Criar e gerar link'}</button>
+                        </label>
+                      )}
+                      {passo === 3 && (
+                        <div className="mt-4">
+                          <p className="text-sm font-black text-white">Link da categoria</p>
+                          <p className="mt-2 break-all rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-100">{linkCategoria}</p>
+                          <button type="button" className="mt-4 rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950" onClick={() => void navigator.clipboard.writeText(linkCategoria)}>Copiar link</button>
+                          <p className="mt-3 text-sm font-semibold text-slate-300">O campeonato já existe. Grupos e o restante da configuração ficam para depois que as equipes entrarem.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {feedback && <p className="mb-4 text-sm font-bold text-red-300">{feedback}</p>}
                   <InicioPortal organizadorId={organizadorId} ativo={view === 'home'} />
                 </div>

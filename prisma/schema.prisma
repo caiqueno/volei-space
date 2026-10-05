@@ -452,6 +452,7 @@ model Midia {
   liga     Liga     @relation(fields: [ligaId], references: [id])
   tipo     String // FOTO | VIDEO
   url      String
+  thumbUrl String?
   titulo   String?
   tag      String? // DESTAQUE | RODADA | PREMIACAO
   criadoEm DateTime @default(now())

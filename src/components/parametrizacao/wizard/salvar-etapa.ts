@@ -22,6 +22,7 @@ export function abrirProximaSecao(options: {
   noPainel: boolean
   abrir: ((section: string) => void) | null
   router: { push: (href: string) => void }
+  categoriaId?: string | null
 }) {
   const proxima = proximaSecao(options.atual, options.formato)
   if (!proxima) {
@@ -32,5 +33,8 @@ export function abrirProximaSecao(options: {
     options.abrir(proxima)
     return
   }
-  options.router.push(`/painel/parametrizacao/${proxima}?ligaId=${options.ligaId}`)
+  const categoria = options.categoriaId && proxima !== 'informacoes'
+    ? `&categoriaCampeonatoId=${encodeURIComponent(options.categoriaId)}`
+    : ''
+  options.router.push(`/painel/parametrizacao/${proxima}?ligaId=${options.ligaId}${categoria}`)
 }

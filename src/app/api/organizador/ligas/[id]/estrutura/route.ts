@@ -74,8 +74,6 @@ export async function GET(req: NextRequest, context: RouteContext) {
   const ligaResult = await getOwnedLiga(ligaId, auth.userId)
   if (ligaResult instanceof Response) return ligaResult
   const liga = ligaResult
-  if (!liga.pagamentoConfirmadoEm) return error('Pagamento pendente para este campeonato.', 403, { code: 'PAGAMENTO_PENDENTE' })
-
   const [equipesResult, gruposResult, vinculosResult, partidasResult] = await Promise.all([
     getApprovedTeams(ligaId),
     supabase
@@ -130,7 +128,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const liga = ligaResult
     const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
     if (bloqueio) return bloqueio
-    if (!liga.pagamentoConfirmadoEm) return error('Pagamento pendente para este campeonato.', 403, { code: 'PAGAMENTO_PENDENTE' })
 
     const body = await req.json()
     const quantidadeGrupos = Math.max(1, Number(body.quantidadeGrupos ?? liga.quantidadeGrupos ?? 1))

@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
@@ -12,7 +12,6 @@ import {
   LogOut,
   MapPin,
   ShieldCheck,
-  SlidersHorizontal,
   Table2,
   Trophy,
   UsersRound,
@@ -35,17 +34,25 @@ type HeaderLink = {
 }
 
 const publicLinks: HeaderLink[] = [
-  { href: '/campeonatos', label: 'Campeonatos', short: 'Ligas' },
-  { href: '/jogos', label: 'Jogos', short: 'Jogos' },
-  { href: '/ao-vivo', label: 'Ao vivo', short: 'Ao vivo' },
   { href: '/portal', label: 'Portal', short: 'Portal' },
-  { href: '/classificacao', label: 'Classificação', short: 'Tabela' },
-  { href: '/rankings', label: 'Rankings', short: 'Top' },
-  { href: '/galeria', label: 'Galeria', short: 'Mídia' },
+  { href: '/ao-vivo', label: 'Ao vivo', short: 'Ao vivo' },
 ]
+
+function linksDoCampeonato(ligaId: string): HeaderLink[] {
+  const consulta = `?ligaId=${encodeURIComponent(ligaId)}`
+  return [
+    { href: `/portal${consulta}`, label: 'Portal', short: 'Portal', icon: ClipboardCheck },
+    { href: `/jogos${consulta}`, label: 'Jogos', short: 'Jogos', icon: CalendarDays },
+    { href: `/ao-vivo${consulta}`, label: 'Ao vivo', short: 'Ao vivo', icon: Trophy },
+    { href: `/classificacao${consulta}`, label: 'Classificação', short: 'Tabela', icon: Table2 },
+    { href: `/rankings${consulta}`, label: 'Rankings', short: 'Top', icon: Trophy },
+    { href: `/galeria${consulta}`, label: 'Galeria', short: 'Galeria', icon: Images },
+  ]
+}
 
 export function Header() {
   const pathname = usePathname()
+  const ligaId = useSearchParams().get('ligaId')
   const [hydrated, setHydrated] = useState(false)
   const [session, setSession] = useState<HeaderSession | null>(null)
   const panelHref = session?.tipo === 'equipe'
@@ -59,8 +66,12 @@ export function Header() {
           : null
   const isLegalPage = ['/termos-de-uso', '/politica-de-privacidade', '/politica-de-cookies'].includes(pathname)
   const scopedLinks = useMemo(
-    () => (isLegalPage && !session ? [] : getHeaderLinks(session)),
-    [isLegalPage, session],
+    () => {
+      if (isLegalPage && !session) return []
+      if ((!session || session.tipo === 'publico') && ligaId) return linksDoCampeonato(ligaId)
+      return getHeaderLinks(session)
+    },
+    [isLegalPage, session, ligaId],
   )
   const desktopLinks = useMemo(() => {
     if (!panelHref) return scopedLinks
@@ -265,12 +276,6 @@ export function Header() {
               >
                 Entrar
               </Link>
-              <Link
-                href="/seja-membro"
-                className="signup-header-link rounded-full bg-luva-amber px-4 py-2 text-sm font-black text-white transition hover:bg-luva-amber"
-              >
-                Seja membro
-              </Link>
             </div>
           </nav>
         </div>
@@ -332,12 +337,13 @@ function getHeaderLinks(session: HeaderSession | null): HeaderLink[] {
 
   if (session.tipo === 'organizador') {
     return [
-      { href: '/painel', label: 'Painel', short: 'Painel', icon: Home },
       { href: '/painel?secao=campeonatos', label: 'Campeonatos', short: 'Ligas', icon: Trophy },
-      { href: '/painel?secao=parametrizacao', label: 'Parametrização', short: 'Param.', icon: SlidersHorizontal },
-      { href: '/painel?secao=tabela', label: 'Tabela', short: 'Tabela', icon: Table2 },
       { href: '/painel?secao=jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
-      { href: '/painel?secao=galeria', label: 'Galeria', short: 'Mídia', icon: Images },
+      { href: '/ao-vivo', label: 'Ao vivo', short: 'Ao vivo', icon: Trophy },
+      { href: '/portal', label: 'Portal', short: 'Portal', icon: ClipboardCheck },
+      { href: '/painel?secao=tabela', label: 'Classificação', short: 'Tabela', icon: Table2 },
+      { href: '/rankings', label: 'Rankings', short: 'Top', icon: Trophy },
+      { href: '/painel?secao=galeria', label: 'Galeria', short: 'Galeria', icon: Images },
     ]
   }
 
@@ -369,7 +375,6 @@ function getMobileLinks(scopedLinks: HeaderLink[], panelHref: string | null): He
   return [
     ...scopedLinks,
     { href: '/login', label: 'Entrar', short: 'Entrar', icon: ShieldCheck },
-    { href: '/seja-membro', label: 'Seja membro', short: 'Membro', icon: ClipboardCheck },
   ]
 }
 

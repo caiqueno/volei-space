@@ -348,6 +348,7 @@ export const midiaSchema = z.object({
   ligaId: z.number().int().positive(),
   tipo: z.enum(['FOTO', 'VIDEO']),
   url: z.string().url(),
+  thumbUrl: z.string().url().optional(),
   titulo: z.string().optional(),
   tag: z.enum(['DESTAQUE', 'RODADA', 'PREMIACAO']).optional(),
 })

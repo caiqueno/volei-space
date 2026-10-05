@@ -4,13 +4,14 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { revealMissingFields } from '../../wizard/missing-fields'
 import { ImagePlus } from 'lucide-react'
-import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
+import { useAbrirSecaoParametrizacao, useDefinirCategoriaAtiva, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
 import { SelecaoCategorias, type SelecaoCategoriasHandle } from '../categorias/CategoriasWizard'
 import { SectionWizardLayout } from '../../wizard/SectionWizardLayout'
 import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
 import { useSectionWizard } from '../../wizard/useSectionWizard'
+import { invalidarConsultas } from '@/lib/api-cliente'
 import { Field } from '../../ui/Field'
 import { TextInput } from '../../ui/TextInput'
 import { FloatingLabelInput } from '@/components/ui/floating-label'
@@ -40,6 +41,7 @@ const STATUS_OPTIONS = [
 export function InformacoesWizard({ ligaId, embedded = false, etapaInicial = 0 }: { ligaId: number; embedded?: boolean; etapaInicial?: number }) {
   const noPainel = useParametrizacaoNoPainel()
   const abrir = useAbrirSecaoParametrizacao()
+  const definirCategoriaAtiva = useDefinirCategoriaAtiva()
   const router = useRouter()
   const categoriasRef = useRef<SelecaoCategoriasHandle>(null)
   const { data, loading, loadError, autosaveStatus, autosaveError, update, updateNow, flush, persist, complete } =
@@ -76,7 +78,7 @@ export function InformacoesWizard({ ligaId, embedded = false, etapaInicial = 0 }
         cacheControl: '3600',
       })
       if (uploadError) {
-        setImageError('Não foi possível enviar a imagem. Tente novamente.')
+        setImageError(uploadError.message || 'Não foi possível enviar a imagem. Tente novamente.')
         return
       }
       const { data: uploaded } = supabase.storage.from('galeria-campeonato').getPublicUrl(fileName)
@@ -111,7 +113,13 @@ export function InformacoesWizard({ ligaId, embedded = false, etapaInicial = 0 }
     const result = await complete()
     setSaving(false)
     if (result.ok) {
-      if (!embedded) abrirProximaSecao({ atual: 'informacoes', ligaId, noPainel, abrir, router })
+      const primeira = categorias.categorias?.[0]?.id ?? null
+      if (primeira) {
+        definirCategoriaAtiva?.(primeira)
+        invalidarConsultas(`/api/organizador/ligas/${ligaId}/categorias`)
+        window.dispatchEvent(new Event('categories-updated'))
+      }
+      if (!embedded) abrirProximaSecao({ atual: 'informacoes', ligaId, noPainel, abrir, router, categoriaId: primeira })
       return
     }
     const fields = result.fields ?? []

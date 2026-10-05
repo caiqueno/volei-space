@@ -8,24 +8,15 @@ export async function GET(req: NextRequest) {
     if (searchParams.has('serie')) return error('A série não separa mais a categoria. Use a categoria do campeonato.', 422)
     const categoria = searchParams.get('categoria')
     const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
-    const ligaId = searchParams.get('ligaId')
-    const ligaIds = (searchParams.get('ligaIds') ?? '')
-      .split(',')
-      .map((valor) => Number(valor))
-      .filter((valor) => Number.isInteger(valor) && valor > 0)
-      .slice(0, 40)
-
-    const { data: simuladas } = await supabase.from('Liga').select('id').eq('simulacao', true)
-    const simulacaoIds = (simuladas ?? []).map((liga) => liga.id)
+    const ligaId = Number(searchParams.get('ligaId'))
+    if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
 
     let q = supabase
       .from('ClassificacaoEntrada')
       .select('*, equipe:Equipe(*)')
+      .eq('ligaId', ligaId)
       .order('posicao', { ascending: true })
-
-    if (ligaIds.length) q = q.in('ligaId', ligaIds)
-    else if (ligaId) q = q.eq('ligaId', Number(ligaId))
-    if (simulacaoIds.length) q = q.not('ligaId', 'in', `(${simulacaoIds.join(',')})`)
+      .limit(80)
     if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
     if (categoria) q = q.eq('categoria', categoria)
 

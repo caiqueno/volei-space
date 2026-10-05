@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { CalendarDays, Home, Images, LogOut, Settings, SlidersHorizontal, Table2, Trophy, type LucideIcon } from 'lucide-react'
+import { CalendarDays, ClipboardCheck, Home, Images, LogOut, Radio, Settings, SlidersHorizontal, Table2, Trophy, type LucideIcon } from 'lucide-react'
 
 export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'galeria' | 'settings'
 
@@ -21,7 +21,7 @@ const NAV_ITEMS: Array<{ key: PainelView; label: string; short: string; icon: Lu
   { key: 'home', label: 'Início', short: 'Início', icon: Home },
   { key: 'parametrizacao', label: 'Parametrização', short: 'Param.', icon: SlidersHorizontal },
   { key: 'campeonatos', label: 'Campeonatos', short: 'Campeonatos', icon: Trophy },
-  { key: 'tabela', label: 'Tabela', short: 'Tabela', icon: Table2 },
+  { key: 'tabela', label: 'Classificação', short: 'Tabela', icon: Table2 },
   { key: 'jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
   { key: 'galeria', label: 'Galeria', short: 'Galeria', icon: Images },
   { key: 'settings', label: 'Configurações', short: 'Ajustes', icon: Settings },
@@ -57,6 +57,9 @@ export function OrganizadorSidebar({ view, onSelectView, organizacaoNome, organi
                 </button>
               )
             })}
+            <Link href="/ao-vivo" className="profile-sidebar-link"><Radio size={18} /><span>Ao vivo</span></Link>
+            <Link href="/portal" className="profile-sidebar-link"><ClipboardCheck size={18} /><span>Portal</span></Link>
+            <Link href="/rankings" className="profile-sidebar-link"><Trophy size={18} /><span>Rankings</span></Link>
         </nav>
         {obfuscated && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">Finalize o cadastro da organização para liberar a navegação.</p>}
 
