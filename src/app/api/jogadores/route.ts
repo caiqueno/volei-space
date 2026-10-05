@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
 import { jogadorSchema } from '@/lib/schemas'
-import { exigirOrganizadorDaEquipe } from '@/lib/organizador-isolamento'
+import { exigirOrganizadorDaEquipe, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const equipeId = searchParams.get('equipeId')
     const busca = searchParams.get('q')?.trim()
+    const ligasDoOrganizador = await ligasVisiveisAoOrganizador(req)
 
-    let q = supabase.from('Jogador').select('*, equipe:Equipe(id, nome)').order('nome', { ascending: true })
+    let q = supabase.from('Jogador').select('*, equipe:Equipe(id, nome, ligaId, categoriaCampeonatoId)').order('nome', { ascending: true })
+    if (ligasDoOrganizador) {
+      const { data: equipes } = await supabase.from('Equipe').select('id').in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
+      const ids = (equipes ?? []).map((equipe) => equipe.id)
+      if (equipeId && !ids.includes(Number(equipeId))) return success([])
+      q = q.in('equipeId', ids.length ? ids : [-1])
+    }
     if (equipeId) q = q.eq('equipeId', Number(equipeId))
     if (busca) q = q.ilike('nome', `%${busca.replace(/[%_]/g, '')}%`)
 

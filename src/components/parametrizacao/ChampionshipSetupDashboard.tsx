@@ -7,7 +7,7 @@ import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ChampionshipSetupCardList } from './ChampionshipSetupCardList'
-import { LinkDoTime } from '@/components/painel/organizador/LinkDoTime'
+import { LinksCategoria } from '@/components/painel/organizador/LinksCategoria'
 import type { ChampionshipSetupOverviewDTO } from '@/types/championship-setup'
 
 export function ChampionshipSetupDashboard({ ligaId }: { ligaId: number }) {
@@ -69,7 +69,7 @@ export function ChampionshipSetupDashboard({ ligaId }: { ligaId: number }) {
       <p className="luva-kicker mt-6">Parametrização do campeonato</p>
       <h1 className="mt-3 font-display text-3xl font-black text-white md:text-4xl">Central de Parametrização</h1>
       <div className="mt-6">
-        <LinkDoTime ligaId={ligaId} nome={overview.nome} />
+        <LinksCategoria ligaId={ligaId} nome={overview.nome ?? 'Campeonato'} />
       </div>
 
       {/* <p>/<strong>, não <span>: dentro de main.luva-shell, cor de texto em

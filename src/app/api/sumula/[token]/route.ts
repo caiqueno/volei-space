@@ -56,6 +56,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: !campeonatoDeSimulacao(partida) })
     if (validationError) return error(validationError, 422)
     if (sets.length === 0) return error('A súmula só pode ser enviada com pelo menos um set registrado.', 422)
+    const mvp = (destaques ?? []).find((item) => item.tipo === 'MVP' && item.jogadorId)
+    if (!mvp?.jogadorId) return error('Escolha o MVP antes de oficializar a súmula.', 422)
+    const setsA = sets.filter((set) => set.pontosA > set.pontosB).length
+    const setsB = sets.filter((set) => set.pontosB > set.pontosA).length
+    if (setsA === setsB) return error('A partida precisa de uma equipe vencedora antes do MVP.', 422)
+    const equipeVencedoraId = setsA > setsB ? Number(partida.equipeAId) : Number(partida.equipeBId)
+    const { data: atletaMvp } = await supabase.from('Jogador').select('equipeId').eq('id', mvp.jogadorId).maybeSingle()
+    if (!atletaMvp || Number(atletaMvp.equipeId) !== equipeVencedoraId) {
+      return error('O MVP precisa ser um atleta da equipe vencedora.', 422)
+    }
     const regra = regrasDaPartida(partida.liga)
     const placarInvalido = validateCategoryResult(sets, regra)
     if (placarInvalido) return error(placarInvalido, 422)

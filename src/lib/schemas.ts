@@ -60,7 +60,7 @@ export const partidaSchema = z.object({
   equipeAId: z.number().int().positive(),
   equipeBId: z.number().int().positive(),
   categoria: z.enum(categorias),
-  serie: z.enum(series),
+  serie: z.enum(series).optional().nullable(),
   rodada: z.number().int().positive(),
   dataHora: z.string().datetime().optional(),
   localNome: z.string().optional(),
@@ -153,10 +153,11 @@ const nullableUrl = z.string().url().optional().nullable().or(z.literal(''))
 export const criarInscricaoEquipeRascunhoSchema = z.object({
   ligaId: z.number().int().positive().optional(),
   linkToken: z.string().trim().min(16).max(64).optional().nullable(),
+  tokenCategoria: z.string().trim().min(16).max(64).optional().nullable(),
   nomeEquipe: z.string().trim().min(2).max(160),
   categoria: nullableTrimmedString,
   serie: nullableTrimmedString,
-}).refine((valor) => Boolean(valor.ligaId || valor.linkToken), 'Informe o campeonato.')
+}).refine((valor) => Boolean(valor.ligaId || valor.linkToken || valor.tokenCategoria), 'Informe o campeonato.')
 
 export const atualizarInscricaoEquipeRascunhoSchema = z.object({
   nomeEquipe: z.string().trim().min(2).max(160).optional(),

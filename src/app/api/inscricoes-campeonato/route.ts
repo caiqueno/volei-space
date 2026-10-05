@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
       .upsert({
         ligaId: parsed.data.ligaId,
         equipeId: equipe.id,
-        status: 'SOLICITADA',
+        status: 'APROVADA',
       }, { onConflict: 'ligaId,equipeId' })
       .select()
       .single()

@@ -235,7 +235,10 @@ export default function SumulaPage() {
         const restoredTimeouts = countSavedTimeouts(savedOccurrences, teamA, teamB, restored.currentSet)
         setTimeoutsUsedA(restoredTimeouts.teamA)
         setTimeoutsUsedB(restoredTimeouts.teamB)
-        setSubstitutionsUsed({ [restored.currentSet]: countSavedSubstitutions(savedOccurrences, teamA, teamB, restored.currentSet) })
+        setSubstitutionsUsed(countSavedSubstitutions(savedOccurrences, teamA, teamB))
+        setSubstitutionLocks(restoreSubstitutionLocks(savedOccurrences, teamA, teamB))
+        const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
+        if (destaqueMvp?.jogadorId) setMvpId(String(destaqueMvp.jogadorId))
         setSidesInverted(countSavedSideInversions(savedOccurrences) % 2 === 1)
 
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
@@ -270,7 +273,11 @@ export default function SumulaPage() {
 
   const teamA = useMemo(() => partida ? makeTeam('teamA', partida.equipeA) : null, [partida])
   const teamB = useMemo(() => partida ? makeTeam('teamB', partida.equipeB) : null, [partida])
-  const allPlayers = useMemo(() => teamA && teamB ? [...teamA.players, ...teamA.reserves, ...teamB.players, ...teamB.reserves] : [], [teamA, teamB])
+  const jogadoresVencedores = useMemo(() => {
+    if (!teamA || !teamB || setsWon.teamA === setsWon.teamB) return []
+    const vencedora = setsWon.teamA > setsWon.teamB ? teamA : teamB
+    return [...vencedora.players, ...vencedora.reserves]
+  }, [teamA, teamB, setsWon])
   const matchRules = useMemo(() => getMatchRules(partida?.liga), [partida?.liga])
 
   function getMatchNumber(teamId: TeamId, number: string) {
@@ -743,8 +750,8 @@ export default function SumulaPage() {
       return
     }
     const usedSubstitutions = substitutionsUsed[currentSet]?.[subModal.teamId] ?? 0
-    if (!isLiberoExchange && usedSubstitutions >= 6) {
-      addToast('Limite de 6 substituições por set atingido para esta equipe.')
+    if (!isLiberoExchange && usedSubstitutions >= 8) {
+      addToast('Limite de 8 substituições por set atingido para esta equipe.')
       return
     }
 
@@ -959,7 +966,7 @@ export default function SumulaPage() {
   }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao])
 
   useEffect(() => {
-    if (matchStatus !== 'finished' || submitted || submitting || finalSubmitRef.current || partida?.sumulaAprovadaEm) return
+    if (matchStatus !== 'finished' || !mvpId || submitted || submitting || finalSubmitRef.current || partida?.sumulaAprovadaEm) return
     finalSubmitRef.current = true
     let cancelado = false
     const maxTentativas = 3
@@ -977,12 +984,17 @@ export default function SumulaPage() {
 
     tentarEnvioAutomatico(1)
     return () => { cancelado = true }
-  }, [matchStatus, submitted, submitting])
+  }, [matchStatus, mvpId, submitted, submitting])
 
   async function submitSumula(automatic = false) {
     if (!teamA || !teamB) return false
     if (matchStatus !== 'finished') {
       addToast('A súmula só pode ser enviada depois que a partida for encerrada.')
+      return false
+    }
+    if (!mvpId || !jogadoresVencedores.some((player) => String(player.id) === String(mvpId))) {
+      setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      if (!automatic) addToast('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
       return false
     }
     if (submitting) return false
@@ -1313,7 +1325,7 @@ export default function SumulaPage() {
         )}
 
         {activeTab === 'anotacoes' && (
-          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={allPlayers} />
+          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={jogadoresVencedores} />
         )}
       </section>
 
@@ -2486,7 +2498,7 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
             <option>Não se aplica</option>
             {playerTargets.map((player) => <option key={player.value} value={player.value}>{player.label}</option>)}
           </select>
-          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da partida</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{player.number} - {player.name}</option>)}</select>
+          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da equipe vencedora</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{player.number} - {player.name}</option>)}</select>
           <textarea value={descricao} onChange={(event) => setDescricao(event.target.value)} placeholder="Digite o registro oficial..." />
           <button className="official-primary" onClick={() => { if (descricao.trim()) { saveNote({ tipo, equipeRelacionada: resolvedEquipe, pessoaRelacionada: resolvedPessoa, descricao }); setDescricao('') } }}>Salvar anotação na súmula</button>
         </div>
@@ -3389,16 +3401,38 @@ function countSavedTimeouts(savedOccurrences: any[], teamA: Team, teamB: Team, c
   return result
 }
 
-function countSavedSubstitutions(savedOccurrences: any[], teamA: Team, teamB: Team, currentSet: number) {
-  const result: Record<TeamId, number> = { teamA: 0, teamB: 0 }
+function countSavedSubstitutions(savedOccurrences: any[], teamA: Team, teamB: Team) {
+  const result: Record<number, { teamA: number; teamB: number }> = {}
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
-    if (Number(occurrence.set ?? currentSet) !== currentSet) continue
+    const setNumber = Number(occurrence.set ?? 1)
+    if (!result[setNumber]) result[setNumber] = { teamA: 0, teamB: 0 }
     const text = normalizeName(String(occurrence.descricao ?? ''))
-    if (text.includes(normalizeName(teamA.name))) result.teamA += 1
-    if (text.includes(normalizeName(teamB.name))) result.teamB += 1
+    if (text.includes(normalizeName(teamA.name))) result[setNumber].teamA += 1
+    if (text.includes(normalizeName(teamB.name))) result[setNumber].teamB += 1
   }
   return result
+}
+
+function restoreSubstitutionLocks(savedOccurrences: any[], teamA: Team, teamB: Team) {
+  const locks: Record<number, Record<TeamId, Record<string, string>>> = {}
+  for (const occurrence of savedOccurrences) {
+    if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
+    const text = String(occurrence.descricao ?? '')
+    const troca = text.match(/sai #([^\s,]+).+entra #([^\s,]+)/i)
+    if (!troca) continue
+    const setNumber = Number(occurrence.set ?? 1)
+    const normalized = normalizeName(text)
+    const teamId: TeamId | null = normalized.includes(normalizeName(teamA.name))
+      ? 'teamA'
+      : normalized.includes(normalizeName(teamB.name))
+        ? 'teamB'
+        : null
+    if (!teamId) continue
+    locks[setNumber] = locks[setNumber] ?? { teamA: {}, teamB: {} }
+    locks[setNumber][teamId][troca[1]] = troca[2]
+  }
+  return locks
 }
 
 function countSavedSideInversions(savedOccurrences: any[]) {

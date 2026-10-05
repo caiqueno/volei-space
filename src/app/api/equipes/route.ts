@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { success, error } from '@/lib/api-response'
 import { equipeSchema } from '@/lib/schemas'
-import { exigirOrganizadorDaLiga } from '@/lib/organizador-isolamento'
+import { exigirOrganizadorDaLiga, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
+    if (searchParams.has('serie')) return error('A série não separa mais a categoria. Use a categoria do campeonato.', 422)
     const ligaId = searchParams.get('ligaId')
     const categoria = searchParams.get('categoria')
-    const serie = searchParams.get('serie')
+    const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
     const busca = searchParams.get('q')?.trim()
+    const ligasDoOrganizador = await ligasVisiveisAoOrganizador(req)
+    if (ligasDoOrganizador && ligaId && !ligasDoOrganizador.includes(Number(ligaId))) return success([])
 
     if (ligaId) {
       const { data: inscricoes, error: inscricoesError } = await supabase
@@ -24,8 +27,8 @@ export async function GET(req: NextRequest) {
       const equipes = (inscricoes ?? [])
         .map((inscricao: any) => inscricao.equipe)
         .filter(Boolean)
-        .filter((equipe: any) => !categoria || equipe.categoria === categoria)
-        .filter((equipe: any) => !serie || equipe.serie === serie)
+        .filter((equipe: any) => !categoriaCampeonatoId || equipe.categoriaCampeonatoId === categoriaCampeonatoId)
+        .filter((equipe: any) => Boolean(categoriaCampeonatoId) || !categoria || equipe.categoria === categoria)
         .filter((equipe: any) => !busca || equipe.nome?.toLowerCase().includes(busca.toLowerCase()))
         .sort((a: any, b: any) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
@@ -37,8 +40,9 @@ export async function GET(req: NextRequest) {
       .select('*, liga:Liga(*), jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)')
       .order('nome', { ascending: true })
 
-    if (categoria) q = q.eq('categoria', categoria)
-    if (serie) q = q.eq('serie', serie)
+    if (ligasDoOrganizador) q = q.in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
+    if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    else if (categoria) q = q.eq('categoria', categoria)
     if (busca) q = q.ilike('nome', `%${busca.replace(/[%_]/g, '')}%`)
 
     const { data, error: err } = await q

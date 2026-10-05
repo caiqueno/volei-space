@@ -11,7 +11,7 @@ export default function NovaPartidaPage() {
   const [ligas, setLigas] = useState<any[]>([])
   const [form, setForm] = useState({
     equipeAId: '', equipeBId: '', ligaId: '', categoria: 'MASCULINO',
-    serie: 'OURO', rodada: '1', dataHora: '', localNome: '', localEndereco: '',
+    rodada: '1', dataHora: '', localNome: '', localEndereco: '',
   })
   const [saving, setSaving] = useState(false)
   const [erro, setErro] = useState('')
@@ -98,14 +98,6 @@ export default function NovaPartidaPage() {
             <select className="w-full border border-luva-border rounded-lg px-3 py-2 text-sm"
               value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}>
               {categorias.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Série</label>
-            <select className="w-full border border-luva-border rounded-lg px-3 py-2 text-sm"
-              value={form.serie} onChange={e => setForm(f => ({ ...f, serie: e.target.value }))}>
-              <option value="OURO">Ouro</option>
-              <option value="PRATA">Prata</option>
             </select>
           </div>
           <div>

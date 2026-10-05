@@ -37,7 +37,7 @@ export default function AoVivoPage() {
       }
     }
     carregar()
-    const timer = window.setInterval(carregar, 8000)
+    const timer = window.setInterval(carregar, 2000)
     return () => {
       ativo = false
       window.clearInterval(timer)

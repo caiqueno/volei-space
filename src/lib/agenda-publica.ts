@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { normalizarPartidaPublica, PARTIDA_PUBLICA_COLUNAS, type PartidaPublica } from '@/lib/partida-publica'
 
 const COLUNAS = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`
@@ -10,7 +11,17 @@ function normalizar(linhas: unknown[] | null) {
     .filter((partida) => partida.liga?.simulacao !== true)
 }
 
+async function idsSemCampeonatoDeTeste(ligaIds: number[]) {
+  const { data, error } = await supabaseAdmin.from('Liga').select('id,nome,slug,descricao,simulacao').in('id', ligaIds)
+  if (error) return { ids: [] as number[], erro: true }
+  return { ids: (data ?? []).filter((liga) => !campeonatoDeTeste(liga)).map((liga) => liga.id), erro: false }
+}
+
 export async function buscarPartidasPublicas(ligaIds: number[], completo: boolean) {
+  if (ligaIds.length === 0) return { partidas: [] as PartidaPublica[], erro: false }
+  const publico = await idsSemCampeonatoDeTeste(ligaIds)
+  if (publico.erro) return { partidas: [] as PartidaPublica[], erro: true }
+  ligaIds = publico.ids
   if (ligaIds.length === 0) return { partidas: [] as PartidaPublica[], erro: false }
   if (completo) {
     const { data, error } = await supabaseAdmin

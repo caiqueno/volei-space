@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -15,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .from('Partida')
       .select(`
         id,
+        ligaId,
         rodada,
         dataHora,
         localNome,
@@ -36,6 +38,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     if (partidaErr) return error('Não foi possível abrir o acompanhamento ao vivo.', 500)
     if (!data) return error('Partida não encontrada', 404)
+    const { data: liga } = await supabase.from('Liga').select('nome,slug,descricao,simulacao').eq('id', data.ligaId).maybeSingle()
+    if (campeonatoDeTeste(liga)) return error('Partida não encontrada', 404)
     data.equipeA = primeiro(data.equipeA)
     data.equipeB = primeiro(data.equipeB)
 

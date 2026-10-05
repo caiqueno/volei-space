@@ -1,4 +1,5 @@
 import { success, error } from '@/lib/api-response'
+import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 const COLUMNS = 'id,slug,nome,subtitulo,descricao,capaUrl,logoUrl,formato,dataInicio,dataFim,inscricoesAbertas,status,corTematica'
@@ -15,7 +16,7 @@ export async function GET() {
 
   if (ligasErr) return error('Não foi possível carregar os campeonatos ativos.', 500)
 
-  const ligas = data ?? []
+  const ligas = (data ?? []).filter((liga) => !campeonatoDeTeste(liga))
   const ids = ligas.map((liga) => liga.id)
   const localPorLiga = new Map<number, string>()
 

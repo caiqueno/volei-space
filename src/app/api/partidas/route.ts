@@ -51,10 +51,19 @@ export async function POST(req: NextRequest) {
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(parsed.data.ligaId))
     if (bloqueio) return bloqueio
 
+    const { data: categoria } = await supabase
+      .from('CategoriaCampeonato')
+      .select('id')
+      .eq('ligaId', parsed.data.ligaId)
+      .eq('codigo', parsed.data.categoria)
+      .is('removidaEm', null)
+      .maybeSingle()
+    if (!categoria) return error('Esta categoria não está disponível no campeonato.', 422)
+
     const token = uuidv4()
     const { data, error: err } = await supabase
       .from('Partida')
-      .insert({ ...parsed.data, sumulaToken: token, sumulaTokenExpira: null })
+      .insert({ ...parsed.data, serie: null, categoriaCampeonatoId: categoria.id, sumulaToken: token, sumulaTokenExpira: null })
       .select()
       .single()
     if (err) throw err

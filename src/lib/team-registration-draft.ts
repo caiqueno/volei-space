@@ -61,6 +61,7 @@ export type RegistrationDraft = {
   tecnico: string | null
   categoria: string | null
   serie: string | null
+  categoriaCampeonatoId?: string | null
   status: RegistrationDraftStatus
   equipeId: number | null
   inscricaoCampeonatoId: string | null
@@ -148,9 +149,20 @@ async function getRegistrationStatus(id: string | null): Promise<string | null> 
   return data?.status ?? null
 }
 
-export async function createRegistrationDraft(input: { ligaId?: number; linkToken?: string | null; nomeEquipe: string; categoria?: string | null; serie?: string | null }) {
+export async function createRegistrationDraft(input: { ligaId?: number; linkToken?: string | null; tokenCategoria?: string | null; nomeEquipe: string; categoria?: string | null; serie?: string | null }) {
   let ligaId = input.ligaId
-  if (input.linkToken) {
+  let categoriaForcada: { id: string; codigo: string } | null = null
+  if (input.tokenCategoria) {
+    const { data: categoriaDoLink, error: categoriaDoLinkErr } = await supabase
+      .from('CategoriaCampeonato')
+      .select('id,ligaId,codigo')
+      .eq('tokenInscricao', input.tokenCategoria)
+      .is('removidaEm', null)
+      .maybeSingle()
+    if (categoriaDoLinkErr || !categoriaDoLink) throw new RegistrationDraftError('Este link de categoria não está disponível.', 404)
+    ligaId = categoriaDoLink.ligaId
+    categoriaForcada = { id: categoriaDoLink.id, codigo: categoriaDoLink.codigo }
+  } else if (input.linkToken) {
     const { data: link, error: linkErr } = await supabase.from('LinkInscricaoCampeonato').select('id,ligaId,ativo,revogadoEm').eq('token', input.linkToken).maybeSingle()
     if (linkErr || !link || !link.ativo || link.revogadoEm) throw new RegistrationDraftError('As inscrições para este campeonato estão encerradas ou temporariamente indisponíveis.', 403)
     ligaId = link.ligaId
@@ -168,16 +180,20 @@ export async function createRegistrationDraft(input: { ligaId?: number; linkToke
   }
 
   const fixed = resolveInscricaoCategoria(liga).categoriaFixa
-  const categoria = fixed ? fixed.categoria : input.categoria || null
+  const categoria = categoriaForcada ? categoriaForcada.codigo : fixed ? fixed.categoria : input.categoria || null
   if (!categoria) throw new RegistrationDraftError('Selecione a categoria do campeonato.', 422)
-  const { data: categoriaRow, error: categoriaErr } = await supabase
-    .from('CategoriaCampeonato')
-    .select('id')
-    .eq('ligaId', ligaId)
-    .eq('codigo', categoria)
-    .is('removidaEm', null)
-    .maybeSingle()
-  if (categoriaErr) throw categoriaErr
+  let categoriaRow = categoriaForcada
+  if (!categoriaRow) {
+    const { data, error: categoriaErr } = await supabase
+      .from('CategoriaCampeonato')
+      .select('id,codigo')
+      .eq('ligaId', ligaId)
+      .eq('codigo', categoria)
+      .is('removidaEm', null)
+      .maybeSingle()
+    if (categoriaErr) throw categoriaErr
+    categoriaRow = data
+  }
   if (!categoriaRow) throw new RegistrationDraftError('Esta categoria não está disponível no campeonato.', 422)
   const { data, error } = await supabase.from('InscricaoEquipeRascunho').insert({
     ligaId,
@@ -233,6 +249,10 @@ export async function getRegistrationDraftByToken(token: string) {
 export async function updateRegistrationDraft(token: string, patch: Record<string, unknown>) {
   const context = await getRegistrationDraftByToken(token)
   if (!context.canEdit) throw new RegistrationDraftError(context.readOnlyReason || 'Edição não permitida.', 403)
+  if (context.draft.categoriaCampeonatoId) {
+    delete patch.categoria
+    delete patch.serie
+  }
   if ('categoria' in patch || 'serie' in patch) {
     const categoria = String(patch.categoria ?? context.draft.categoria ?? '')
     const serie = String(patch.serie ?? context.draft.serie ?? '')
@@ -417,6 +437,10 @@ export async function finalizeRegistration(token: string) {
     throw error
   }
   const result = data as { equipeId: number; inscricaoCampeonatoId: string; status: string; idempotent: boolean }
+  if (result.inscricaoCampeonatoId && result.status !== 'APROVADA') {
+    await supabase.from('InscricaoCampeonato').update({ status: 'APROVADA' }).eq('id', result.inscricaoCampeonatoId)
+    result.status = 'APROVADA'
+  }
   if (result.status === 'APROVADA') {
     await ensureApprovedRegistrationOperations(result.inscricaoCampeonatoId)
   }

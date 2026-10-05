@@ -8,7 +8,7 @@ import { ChampionshipTableSection } from '@/components/classificacao/Championshi
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { AcessoArbitroJogo } from './AcessoArbitroJogo'
-import { LinkInscricaoCampeonato } from './LinkInscricaoCampeonato'
+import { LinksCategoria } from './LinksCategoria'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
@@ -105,7 +105,7 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
               <span data-label="Inscrições">{liga.inscricoesAbertas === false ? 'Fechadas' : 'Abertas'}</span>
               <span className="flex flex-col items-start gap-2">
                 <Link href={`/painel/parametrizacao/previa?ligaId=${liga.id}`} className="championship-list-link">Prévia</Link>
-                <LinkInscricaoCampeonato ligaId={liga.id} nome={liga.nome} compacto />
+                <LinksCategoria ligaId={liga.id} nome={liga.nome} compacto />
                 <Link href={`/campeonatos/${liga.slug}`} className="championship-list-link">Ver campeonato</Link>
               </span>
             </article>

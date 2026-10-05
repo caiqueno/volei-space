@@ -13,6 +13,16 @@ updated: 2026-10-04
 
 # Log
 
+## [2026-10-04] update | triagem aplicada no código
+
+- pages_updated=`13-TRIAGEM-PRODUTO`, `modulos/INSCRICOES`, `modulos/SUMULA-DIGITAL`, `hot`, `log`
+- Uma porta de organizador, reenvio de senha, elenco do dono, ativação sem Pix simulado, substituição 8 com MVP, placar público sem massa de teste e link por categoria. Publicado na `main`.
+
+## [2026-10-04] nota | triagem do produto
+
+- pages_updated=`13-TRIAGEM-PRODUTO`, `00-INICIO`, `log`
+- A triagem separa correção, próximo update e o que sai do fluxo. Súmula, classificação, mata-mata, isolamento e Ao vivo permanecem.
+
 ## [2026-10-04] ops | separação de ambiente do Supabase
 
 - pages_updated=`08-INTEGRACOES`, `log`

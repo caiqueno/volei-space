@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requirePublicRole } from '@/lib/auth'
+import { requirePublicRole, verifyPublicToken } from '@/lib/auth'
 import { error } from '@/lib/api-response'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -38,6 +38,13 @@ export async function exigirOrganizadorDoJogador(req: NextRequest, jogadorId: nu
     .maybeSingle()
   if (leitura || !data) return error('Jogador não encontrado.', 404)
   return exigirOrganizadorDaEquipe(req, Number(data.equipeId))
+}
+
+export async function ligasVisiveisAoOrganizador(req: NextRequest) {
+  const auth = await verifyPublicToken(req)
+  if (!auth || auth.tipo !== 'organizador') return null
+  const { data } = await supabaseAdmin.from('Liga').select('id').eq('organizadorId', auth.userId)
+  return (data ?? []).map((item) => Number(item.id))
 }
 
 export async function exigirOrganizadorDaPartida(req: NextRequest, partidaId: number) {

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useAbrirSecaoParametrizacao } from '../../PainelParametrizacaoContext'
 import { SetupSectionNav } from '../../wizard/SetupSectionNav'
 import { PricingBreakdown } from '../../pricing/PricingBreakdown'
-import { LinkInscricaoCampeonato } from '@/components/painel/organizador/LinkInscricaoCampeonato'
+import { LinksCategoria } from '@/components/painel/organizador/LinksCategoria'
 import { FormAlert } from '../../ui/FormAlert'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
@@ -143,7 +143,7 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
               alreadyPaid={previa.pagamentoConfirmadoEm != null}
             />
             <div className="mt-6 flex flex-wrap gap-3">
-              <LinkInscricaoCampeonato ligaId={ligaId} nome={previa.championship.nome} />
+              <LinksCategoria ligaId={ligaId} nome={previa.championship.nome} />
             </div>
           </div>
         </div>

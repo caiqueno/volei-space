@@ -16,7 +16,6 @@ import { LandingFlowCard } from '@/components/landing/LandingFlowCard'
 import { LandingExperience } from '@/components/landing/LandingExperience'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
 import { LandingMotion } from '@/components/landing/LandingMotion'
-import { LandingInteressadosForm } from '@/components/landing/LandingInteressadosForm'
 import { createPageMetadata } from '@/lib/seo'
 
 export const metadata = createPageMetadata({
@@ -175,12 +174,14 @@ export default function LandingPage() {
 
       <section id="cadastro-previo" className="landing-section landing-animate">
         <div className="landing-section-head compact landing-animate">
-          <h2>Quero me cadastrar</h2>
+          <h2>Quero organizar um campeonato</h2>
         </div>
         <p className="landing-form-intro landing-animate">
-          Deixe seus dados e seja avisado assim que as inscrições do seu campeonato abrirem.
+          Informe nome, e-mail e telefone. O administrador libera o acesso e entrega uma senha temporária.
         </p>
-        <LandingInteressadosForm />
+        <Link href="/seja-membro" className="landing-primary inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black">
+          Seja membro <ArrowRight size={16} />
+        </Link>
       </section>
     </main>
   )

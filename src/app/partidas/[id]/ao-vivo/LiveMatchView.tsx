@@ -70,7 +70,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
       if (event.key === demoStorageKey) syncStoredDemo()
     }
     window.addEventListener('storage', handleStorage)
-    const timer = window.setInterval(load, 4000)
+    const timer = window.setInterval(load, 2000)
     return () => {
       alive = false
       window.removeEventListener('storage', handleStorage)
