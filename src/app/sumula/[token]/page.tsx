@@ -218,9 +218,9 @@ function liberosPorSet(registro: Registro) {
       porSet.set(set, mapa)
     }
   }
-  return [...porSet.entries()]
+  return Array.from(porSet.entries())
     .sort((a, b) => a[0] - b[0])
-    .map(([set, mapa]) => ({ set, nomes: [...mapa.entries()].map(([equipe, nome]) => `${equipe}: ${nome}`).join(' · ') }))
+    .map(([set, mapa]) => ({ set, nomes: Array.from(mapa.entries()).map(([equipe, nome]) => `${equipe}: ${nome}`).join(' · ') }))
 }
 
 function equipePeloNome(registro: Registro, nome: string) {

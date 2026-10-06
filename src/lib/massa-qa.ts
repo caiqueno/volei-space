@@ -212,7 +212,7 @@ export async function gravarClassificacao(ligaId: number) {
       linha.pontos += lado.venceu ? (lado.setsContra === 0 ? 4 : 3) : (lado.setsPro === 0 ? 0 : 1)
     }
   }
-  const ranque = [...tabela.values()].sort((a, b) => (
+  const ranque = Array.from(tabela.values()).sort((a, b) => (
     b.pontos - a.pontos || b.vitorias - a.vitorias || (b.setsPro - b.setsContra) - (a.setsPro - a.setsContra) || (b.pontosPro - b.pontosContra) - (a.pontosPro - a.pontosContra)
   ))
   for (let indice = 0; indice < ranque.length; indice += 1) {
@@ -424,7 +424,7 @@ export async function criarCopaMassa() {
 
     const presencas = [equipeA, equipeB].flatMap((equipe) => {
       const mapa = porTime.get(equipe.id) ?? new Map()
-      return [...mapa.entries()].sort((a, b) => a[0] - b[0]).slice(0, 12).map(([numero, atleta]) => ({
+      return Array.from(mapa.entries()).sort((a, b) => a[0] - b[0]).slice(0, 12).map(([numero, atleta]) => ({
         partidaId: partida.id,
         jogadorId: atleta.id,
         equipeId: equipe.id,
