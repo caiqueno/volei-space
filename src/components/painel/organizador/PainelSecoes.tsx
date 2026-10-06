@@ -7,7 +7,7 @@ import { isCampeonatoFinalizado, MENSAGEM_CAMPEONATO_FINALIZADO } from '@/lib/ch
 import { SECTION_WIZARD_REGISTRY } from '@/components/parametrizacao/sections/registry'
 import { ParametrizacaoNoPainelProvider } from '@/components/parametrizacao/PainelParametrizacaoContext'
 import { ToastProvider } from '@/components/parametrizacao/ui/Toast'
-import { CategoryNavigation } from '@/components/parametrizacao/CategoryControls'
+import { CategoryNavigation, type SetupCategory } from '@/components/parametrizacao/CategoryControls'
 import { flushWizardChanges } from '@/components/parametrizacao/wizard/useSectionWizard'
 import { categoriaParaAbrir, chaveCategoriaAtiva, secaoExigeCategoria } from '@/lib/categoria-ativa'
 
@@ -32,6 +32,8 @@ export function ParametrizacaoNoPainel({
   const [aviso, setAviso] = useState<string | null>(null)
   const [erroFinalizacao, setErroFinalizacao] = useState<string | null>(null)
   const [categoriaAtivaId, setCategoriaAtivaId] = useState<string | null>(null)
+  const [categorias, setCategorias] = useState<SetupCategory[]>([])
+  const [revisaoCategorias, setRevisaoCategorias] = useState(0)
   const idsAnteriores = useRef<number[]>([])
   const geracaoCategoria = useRef(0)
   const selecionado = ligas.some((liga) => liga.id === escolhido) ? escolhido : null
@@ -45,29 +47,23 @@ export function ParametrizacaoNoPainel({
   }, [ligas, campeonatoId])
 
   useEffect(() => {
+    const atualizar = () => setRevisaoCategorias((valor) => valor + 1)
+    window.addEventListener('categories-updated', atualizar)
+    return () => window.removeEventListener('categories-updated', atualizar)
+  }, [])
+
+  useEffect(() => {
     if (!selecionado) {
       setStatus(null)
       setFormato(null)
       setCategoriaAtivaId(null)
+      setCategorias([])
       return
     }
     let cancelado = false
-    const geracaoNoInicio = geracaoCategoria.current
     const controlador = new AbortController()
     setStatus(null)
     setAviso(null)
-    consultar<{ data?: Array<{ id: string; statusConfiguracao: string }> }>(`/api/organizador/ligas/${selecionado}/categorias`, { signal: controlador.signal })
-      .then((payload) => {
-        if (cancelado || geracaoCategoria.current !== geracaoNoInicio) return
-        const lista = payload.data ?? []
-        const ultima = window.sessionStorage.getItem(chaveCategoriaAtiva(selecionado))
-        const escolhida = categoriaParaAbrir(lista, ultima)
-        setCategoriaAtivaId(escolhida)
-        if (escolhida) window.sessionStorage.setItem(chaveCategoriaAtiva(selecionado), escolhida)
-      })
-      .catch(() => {
-        if (!cancelado) setCategoriaAtivaId(null)
-      })
     consultar<{ data?: { status?: string } }>(`/api/organizador/ligas/${selecionado}/setup/informacoes`, { signal: controlador.signal })
       .then((payload) => {
         if (!cancelado) setStatus(String(payload.data?.status ?? ''))
@@ -80,6 +76,33 @@ export function ParametrizacaoNoPainel({
       controlador.abort()
     }
   }, [selecionado])
+
+  useEffect(() => {
+    if (!selecionado) return
+    let cancelado = false
+    const geracaoNoInicio = geracaoCategoria.current
+    const controlador = new AbortController()
+    consultar<{ data?: SetupCategory[] }>(`/api/organizador/ligas/${selecionado}/categorias`, { signal: controlador.signal })
+      .then((payload) => {
+        if (cancelado || geracaoCategoria.current !== geracaoNoInicio) return
+        const lista = payload.data ?? []
+        setCategorias(lista)
+        const ultima = window.sessionStorage.getItem(chaveCategoriaAtiva(selecionado))
+        const escolhida = categoriaParaAbrir(lista, ultima)
+        setCategoriaAtivaId(escolhida)
+        if (escolhida) window.sessionStorage.setItem(chaveCategoriaAtiva(selecionado), escolhida)
+      })
+      .catch(() => {
+        if (!cancelado && geracaoCategoria.current === geracaoNoInicio) {
+          setCategorias([])
+          setCategoriaAtivaId(null)
+        }
+      })
+    return () => {
+      cancelado = true
+      controlador.abort()
+    }
+  }, [selecionado, revisaoCategorias])
 
   useEffect(() => {
     if (!selecionado || !categoriaAtivaId) return
@@ -207,7 +230,7 @@ export function ParametrizacaoNoPainel({
             })}
           </div>
           <div className="mt-4">
-            <CategoryNavigation ligaId={selecionado} ativaId={categoriaAtivaId} onSelect={trocarCategoria} aoSemCategoria={() => abrirSecao('informacoes', 4)} />
+            <CategoryNavigation ligaId={selecionado} categorias={categorias} ativaId={categoriaAtivaId} onSelect={trocarCategoria} aoSemCategoria={() => abrirSecao('informacoes', 4)} />
           </div>
           <fieldset disabled={finalizado} className="mt-6 min-w-0 border-0 p-0 disabled:opacity-80">
             <ToastProvider>

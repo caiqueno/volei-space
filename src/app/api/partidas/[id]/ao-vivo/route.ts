@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+import { verifyPublicToken } from '@/lib/auth'
+import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 
 export const dynamic = 'force-dynamic'
@@ -39,7 +41,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (partidaErr) return error('Não foi possível abrir o acompanhamento ao vivo.', 500)
     if (!data) return error('Partida não encontrada', 404)
     const { data: liga } = await supabase.from('Liga').select('nome,slug,descricao,simulacao').eq('id', data.ligaId).maybeSingle()
-    if (campeonatoDeTeste(liga)) return error('Partida não encontrada', 404)
+    if (campeonatoDeTeste(liga) && !(await operadorDestaPartida(_req, partidaId, data.ligaId))) {
+      return error('Partida não encontrada', 404)
+    }
     data.equipeA = primeiro(data.equipeA)
     data.equipeB = primeiro(data.equipeB)
 
@@ -73,6 +77,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (partidaId === 9001) return noStore(success(makeDemoLivePartida()))
     return error('Erro ao carregar acompanhamento ao vivo', 500)
   }
+}
+
+async function operadorDestaPartida(req: NextRequest, partidaId: number, ligaId: number) {
+  const acesso = await lerSessaoAcesso(req)
+  if (acesso && Number(acesso.partidaId) === partidaId) return true
+
+  const sessao = await verifyPublicToken(req)
+  if (!sessao) return false
+  if (sessao.tipo === 'organizador') {
+    const { data } = await supabase.from('Liga').select('id').eq('id', ligaId).eq('organizadorId', sessao.userId).maybeSingle()
+    return Boolean(data)
+  }
+  if (sessao.tipo === 'arbitro') {
+    const { data: conta } = await supabase.from('CandidaturaArbitro').select('arbitroId').eq('id', sessao.userId).maybeSingle()
+    if (!conta?.arbitroId) return false
+    const { data: escala } = await supabase.from('EscalaArbitro').select('id').eq('partidaId', partidaId).eq('arbitroId', conta.arbitroId).maybeSingle()
+    return Boolean(escala)
+  }
+  return false
 }
 
 function primeiro(valor: unknown) {

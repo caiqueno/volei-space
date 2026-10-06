@@ -12,6 +12,9 @@ export const supabaseAdmin: SupabaseClient = serviceRoleKey && config.ok
         persistSession: false,
         autoRefreshToken: false,
       },
+      global: {
+        fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
+      },
     })
   : clienteSupabaseIndisponivel(
       config.ok

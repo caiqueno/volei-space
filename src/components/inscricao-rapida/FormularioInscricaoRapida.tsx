@@ -194,6 +194,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
     const timer = window.setTimeout(async () => {
       const [categoria, serie] = categoriaFixa ? [categoriaFixa.categoria, categoriaFixa.serie] : categoriaSerie.split(':')
       if (!nomeEquipe.trim() || !categoria || !serie) return
+      if (liderRequired && !lider.trim()) return
       setSaveState('saving')
       try {
         const response = await fetch(`/api/inscricao-rapida/${token}`, {
@@ -209,7 +210,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
       }
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [token, canEdit, nomeEquipe, logoUrl, lider, tecnico, categoriaSerie, categoriaFixa])
+  }, [token, canEdit, nomeEquipe, logoUrl, lider, tecnico, categoriaSerie, categoriaFixa, liderRequired])
 
   async function iniciarCadastro() {
     const [categoria, serie] = categoriaFixa ? [categoriaFixa.categoria, categoriaFixa.serie] : categoriaSerie.split(':')

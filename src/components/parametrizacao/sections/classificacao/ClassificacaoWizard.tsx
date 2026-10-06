@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { revealMissingFields } from '../../wizard/missing-fields'
+import { lerCampoPedido, limparCampoPedido, revealMissingFields } from '../../wizard/missing-fields'
 import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
 import { formatoPulaClassificacao } from '@/lib/championship-setup-status'
@@ -78,6 +78,21 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
     setCompletionIssues(Array.isArray(result.issues) ? result.issues.map((issue) => issue.message) : [])
     revealMissingFields(fields, { criteriosClassificacao: 1 }, setStepIndex, setVisited)
   }
+
+  useEffect(() => {
+    if (lerCampoPedido('classificacao') !== 'classificadosPorGrupo') return
+    setStepIndex(2)
+    setVisited((current) => new Set(current).add(2))
+    setInvalidKeys((current) => current.includes('classificadosPorGrupo') ? current : [...current, 'classificadosPorGrupo'])
+  }, [])
+
+  useEffect(() => {
+    if (loading || stepIndex !== 2 || !invalidKeys.includes('classificadosPorGrupo')) return
+    const alvo = document.getElementById('classificados-por-grupo')
+    alvo?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    alvo?.querySelector('input')?.focus()
+    limparCampoPedido('classificacao')
+  }, [loading, stepIndex, invalidKeys])
 
   const pular = formatoPulaClassificacao(data?.formato)
   useEffect(() => {
@@ -162,14 +177,14 @@ export function ClassificacaoWizard({ ligaId }: { ligaId: number }) {
         )}
 
         {stepIndex === 2 && (
-          <>
+          <div id="classificados-por-grupo" className="grid gap-4">
             <Field label="Classificados por grupo" hint="Quantidade de equipes de cada grupo que avançam para a fase eliminatória.">
               <NumberInput value={data.classificadosPorGrupo} min={0} max={64} onChange={(v) => updateNow({ classificadosPorGrupo: v })} />
             </Field>
             <Field label="Melhores classificados gerais" hint="Vagas extras por ranking geral entre grupos (ex.: melhores terceiros). Deixe 0 se não usar.">
               <NumberInput value={data.melhoresClassificadosGerais} min={0} max={64} onChange={(v) => updateNow({ melhoresClassificadosGerais: v ?? 0 })} />
             </Field>
-          </>
+          </div>
         )}
 
         {stepIndex === 3 && (

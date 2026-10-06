@@ -386,9 +386,11 @@ function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDra
   if (!draft.nomeEquipe.trim()) issues.push('Nome da equipe é obrigatório.')
   if (isFieldRequired(config.equipe.logo) && !draft.logoUrl) issues.push('Logo da equipe é obrigatório.')
   if (isFieldRequired(config.lider.nomeCompleto) && !draft.lider) issues.push('Nome do líder é obrigatório.')
-  const resolved = resolveInscricaoCategoria(liga)
-  const allowed = resolved.categoriaFixa ? [resolved.categoriaFixa] : resolved.categoriaOptions
-  if (!allowed.some((option) => option.categoria === draft.categoria && option.serie === draft.serie)) issues.push('Selecione uma categoria válida para este campeonato.')
+  if (!draft.categoriaCampeonatoId) {
+    const resolved = resolveInscricaoCategoria(liga)
+    const allowed = resolved.categoriaFixa ? [resolved.categoriaFixa] : resolved.categoriaOptions
+    if (!allowed.some((option) => option.categoria === draft.categoria && option.serie === draft.serie)) issues.push('Selecione uma categoria válida para este campeonato.')
+  }
   if (players.length === 0) issues.push('Cadastre ao menos um jogador.')
   if (liga.elencoQuantidadeMinima != null && players.length < liga.elencoQuantidadeMinima) issues.push(`Cadastre ao menos ${liga.elencoQuantidadeMinima} jogadores.`)
   if (liga.elencoQuantidadeMaxima != null && players.length > liga.elencoQuantidadeMaxima) issues.push(`O elenco permite no máximo ${liga.elencoQuantidadeMaxima} jogadores.`)

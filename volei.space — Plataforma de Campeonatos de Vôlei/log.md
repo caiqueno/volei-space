@@ -8,10 +8,85 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Log
+
+## [2026-10-06] update | publicação local e produção
+
+- pages_updated=`log`
+- A navegação do organizador, o portal por campeonato, a súmula somente leitura e a inscrição pela categoria seguem para a `main`. O ambiente local continua no banco de desenvolvimento. A produção lê o banco de produção a partir dessa branch.
+
+## [2026-10-06] fix | inscrição pelo clique
+
+- pages_updated=`modulos/INSCRICOES`, `log`
+- O rascunho da inscrição relê atletas já salvos ao abrir de novo. Concluir pelo link da categoria não exige mais a série antiga. A classificação da equipe nova grava a categoria e deixa a série vazia. A logo da equipe ainda falha no desenvolvimento porque o bucket `equipe-emblemas` não existe.
+
+## [2026-10-06] update | massa de validação
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `log`
+- A Copa Massa QA, no desenvolvimento, tem oito equipes, jogos equilibrados, súmula, classificação e MVP calculados dos eventos. O recálculo da classificação passa a gravar pela categoria quando a função SQL não consegue. O líbero da súmula ignora o ponto final do número.
+
+## [2026-10-06] update | guia fixa do organizador
+
+- pages_updated=`09-UI-UX`, `log`
+- O perfil do organizador mantém a mesma guia em todas as telas: Início, Parametrização, Campeonatos, Classificação, Jogos, Ao vivo, Galeria, Configurações, Portal, Rankings e o quadro da organização.
+
+## [2026-10-06] update | súmula só leitura e novo campeonato
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `log`
+- `/sumula/{token}` mostra o registro da partida, sem edição, 2D, 3D, inverter ou acompanhar ao vivo. O árbitro segue lançando em `/sumula/{token}/lancar`. Novo Campeonato saiu do Início e ficou em Parametrização e Campeonatos.
+
+## [2026-10-06] fix | corrigir quantidade no mata-mata
+
+- pages_updated=`modulos/PARAMETRIZACAO`, `log`
+- O botão corrigir da eliminatória com quantidade inválida vai ao campo Quantidade de equipes. A lista de campeonatos deixa de quebrar em várias linhas por causa da regra global de `tablist`.
+
+## [2026-10-06] update | doca ao vivo do operador
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/PARTIDAS`, `09-UI-UX`, `hot`, `log`
+- O operador abre o acompanhamento na própria tela: doca na súmula e seção Ao vivo do painel. Os campos são os do placar público. O filtro `/ao-vivo` do portal permanece para quem assiste.
+
+## [2026-10-06] update | vaga, jogos do campeonato e súmula
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `log`
+- A rota de jogos do painel e `/jogos?ligaId=` usam o campeonato da URL. Cada vaga parametrizada tem um link em `ConviteVagaEquipe`, e o rascunho continua depois do refresh. A cópia de parametrização em `replace-sections` grava só a configuração do destino. A súmula do jogo abre pelo token ou pelo id da partida.
+
+## [2026-10-06] update | um MVP do campeonato
+
+- pages_updated=`09-UI-UX`, `modulos/PARTIDAS`, `log`
+- O ranking concluído mostra só o MVP do campeonato, somando os pontos de saque, ataque e bloqueio das ocorrências. Empate segue ataque, bloqueio, saque e nome.
+
+## [2026-10-06] update | filtros de jogos e ranking concluído
+
+- pages_updated=`09-UI-UX`, `modulos/PARTIDAS`, `modulos/CLASSIFICACAO`, `log`
+- O símbolo volta para `/`. O menu público perde Ao Vivo. Em `/jogos`, Ao vivo, Não iniciado e Encerrados filtram o banco. A classificação pública lê a tabela calculada. MVP só aparece com o campeonato `FINALIZADO` ou `ENCERRADA`.
+
+## [2026-10-06] update | ao vivo pagina os jogos públicos
+
+- pages_updated=`modulos/PARTIDAS`, `log`
+- A lista `/ao-vivo` tira os campeonatos de teste antes de paginar, para as partidas `EM_ANDAMENTO` dos demais campeonatos aparecerem. `/jogos` faz o mesmo recorte.
+
+## [2026-10-06] update | módulos públicos sem filtro de organizador
+
+- pages_updated=`09-UI-UX`, `modulos/PARTIDAS`, `log`
+- O menu público fica só no cabeçalho: Portal, Jogos, Ao Vivo, Classificação, Rankings e Galeria. Portal abre sempre `/portal`. Jogos e ao vivo leem o banco inteiro. Classificação, rankings e galeria expandem o campeonato na própria tela.
+
+## [2026-10-06] update | menu do portal
+
+- pages_updated=`09-UI-UX`, `log`
+- O menu das telas do portal passa a ser Portal, Jogos, Ao vivo, Classificação, Rankings, Galeria e Entrar, inclusive em `/portal` sem campeonato escolhido.
+
+## [2026-10-06] update | capas padrão do portal
+
+- pages_updated=`modulos/PARTIDAS`, `log`
+- Campeonato sem foto própria no portal usa uma de quatro imagens de quadra, escolhida pelo id. A capa enviada pelo organizador segue valendo.
+
+## [2026-10-06] update | consultas que rodavam sem a tela precisar
+
+- pages_updated=`09-UI-UX`, `modulos/PARTIDAS`, `hot`, `log`
+- A agenda do portal volta a consultar o ao vivo a cada 8 segundos só com partida em andamento, e a cada 60 segundos sem nenhuma. `/ao-vivo` espera 30 segundos quando a lista está vazia. O início do painel deixa de trocar de campeonato sozinho. As seções do painel desmontam ao sair, e a navegação de categoria reutiliza a lista já carregada.
 
 ## [2026-10-05] update | publicação da parametrização por categoria
 

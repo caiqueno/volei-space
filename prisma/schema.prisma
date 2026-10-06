@@ -82,6 +82,7 @@ model Liga {
   inscricoes                 InscricaoCampeonato[]
   convitesEquipe             ConviteEquipe[]
   inscricoesRascunho         InscricaoEquipeRascunho[]
+  convitesVaga               ConviteVagaEquipe[]
 
   @@index([organizadorId])
 }
@@ -117,6 +118,7 @@ model Equipe {
   candidatura                CandidaturaEquipe?
   inscricoes                 InscricaoCampeonato[]
   inscricoesRascunho         InscricaoEquipeRascunho[]
+  convitesVaga               ConviteVagaEquipe[]
 
   @@unique([nome, ligaId, categoria, serie])
 }
@@ -159,6 +161,7 @@ model InscricaoEquipeRascunho {
   equipe              Equipe?                          @relation(fields: [equipeId], references: [id], onDelete: SetNull)
   inscricaoCampeonato InscricaoCampeonato?             @relation(fields: [inscricaoCampeonatoId], references: [id], onDelete: SetNull)
   jogadores           InscricaoEquipeJogadorRascunho[]
+  conviteVaga         ConviteVagaEquipe?
 
   @@index([ligaId, status])
 }
@@ -629,8 +632,33 @@ model CategoriaCampeonato {
   criadoEm             DateTime @default(now())
   atualizadoEm         DateTime @default(now())
 
+  convitesVaga ConviteVagaEquipe[]
+
   @@unique([ligaId, codigo])
   @@unique([ligaId, slug])
+}
+
+model ConviteVagaEquipe {
+  id                    String   @id @default(uuid()) @db.Uuid
+  ligaId                Int
+  categoriaCampeonatoId String   @db.Uuid
+  vaga                  Int
+  token                 String   @unique
+  equipeId              Int?
+  inscricaoRascunhoId   String?  @unique @db.Uuid
+  status                String   @default("DISPONIVEL")
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+
+  liga        Liga                    @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  categoria   CategoriaCampeonato     @relation(fields: [categoriaCampeonatoId], references: [id], onDelete: Cascade)
+  equipe      Equipe?                 @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+  rascunho    InscricaoEquipeRascunho? @relation(fields: [inscricaoRascunhoId], references: [id], onDelete: SetNull)
+
+  @@unique([ligaId, categoriaCampeonatoId, vaga])
+  @@index([ligaId])
+  @@index([categoriaCampeonatoId])
+  @@index([status])
 }
 
 model CategoriaConfiguracao {

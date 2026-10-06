@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { capaDoCampeonato } from '@/lib/capa-publica'
 
 type Campeonato = {
   id: number
@@ -66,7 +67,7 @@ export function EscolhaCampeonato() {
     <section className="mx-auto max-w-7xl px-4 py-10">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ffb331]">Portal</p>
       <h1 className="mt-2 font-display text-4xl font-black text-white">Escolha seu campeonato</h1>
-      <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">Os jogos, a classificação e a galeria abrem depois que você escolhe uma competição.</p>
+      <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">Toque em um campeonato para abrir a agenda, a tabela e as fotos dele.</p>
       <label className="mt-6 block max-w-md">
         <span className="sr-only">Pesquisar campeonato</span>
         <input
@@ -83,11 +84,7 @@ export function EscolhaCampeonato() {
         {campeonatos.map((campeonato) => (
           <Link key={campeonato.id} href={`/portal?ligaId=${campeonato.id}`} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
             <div className="aspect-video bg-slate-950">
-              {campeonato.capaUrl ? (
-                <img src={campeonato.capaUrl} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm font-black text-slate-400">Sem foto</div>
-              )}
+              <img src={capaDoCampeonato(campeonato.id, campeonato.capaUrl, campeonato.logoUrl)} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
             </div>
             <div className="p-4">
               <p className="font-black text-white">{campeonato.nome}</p>

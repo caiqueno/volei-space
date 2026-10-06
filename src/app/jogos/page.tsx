@@ -5,6 +5,7 @@ import { CalendarDays, RotateCcw } from 'lucide-react'
 import { PageHero } from '@/components/layout/PageHero'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
+import { JogosPublicos } from '@/components/portal/JogosPublicos'
 import { PortalAgenda } from '@/components/portal/PortalAgenda'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { CollapseBar } from '@/components/ui/collapse-bar'
@@ -38,12 +39,13 @@ const demoPartidas = [
 ]
 
 type PageProps = {
-  searchParams?: Promise<{ organizador?: string; ligaId?: string; candidaturaId?: string }>
+  searchParams?: Promise<{ organizador?: string; ligaId?: string; candidaturaId?: string; filtro?: string; pagina?: string }>
 }
 
 export default async function JogosPage({ searchParams }: PageProps) {
   noStore()
   const params = searchParams ? await searchParams : {}
+  if (!params.candidaturaId && !params.ligaId) return <JogosPublicos filtro={params.filtro} pagina={params.pagina} />
   const retryParams = new URLSearchParams()
   if (params.organizador) retryParams.set('organizador', params.organizador)
   if (params.ligaId) retryParams.set('ligaId', params.ligaId)
@@ -52,6 +54,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
 
   let scope = { organizadorId: null as string | null, ligas: [] as any[], selectedLiga: null as any | null }
   let partidas = isSupabaseConfigured ? [] as any[] : demoPartidas as any[]
+  let totalPartidas = 0
   let agenda: { aoVivo: any[]; proximos: any[]; encerradas: any[]; analise: any[]; outras: any[] } | null = null
   let temMais = { aoVivo: false, proximos: false, encerradas: false }
   let equipeCapitao: any | null = null
@@ -83,8 +86,10 @@ export default async function JogosPage({ searchParams }: PageProps) {
       } else if (scope.organizadorId && !scope.selectedLiga) {
         partidas = []
       } else if (scope.selectedLiga) {
-        const busca = await buscarAgendaCampeonato(scope.selectedLiga.id)
+        const busca = await buscarAgendaCampeonato(scope.selectedLiga.id, { campeonatoInformado: Boolean(params.ligaId) })
         if (busca.erro) throw new Error('agenda')
+        const contagem = await supabaseAdmin.from('Partida').select('id', { count: 'exact', head: true }).eq('ligaId', scope.selectedLiga.id)
+        totalPartidas = contagem.count ?? 0
         agenda = { aoVivo: busca.aoVivo.partidas, proximos: busca.proximos.partidas, encerradas: busca.encerradas.partidas, analise: [], outras: [] }
         temMais = { aoVivo: busca.aoVivo.temMais, proximos: busca.proximos.temMais, encerradas: busca.encerradas.temMais }
         partidas = [...agenda.aoVivo, ...agenda.proximos, ...agenda.encerradas]
@@ -110,7 +115,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
         description={equipeCapitao ? 'Agenda das partidas da sua equipe.' : scope.organizadorId ? 'Agenda dos campeonatos da sua conta.' : 'Rodadas, horários, locais e placares do campeonato.'}
         aside={
           <div className="grid grid-cols-3 gap-3">
-            <Metric label="Partidas" value={partidas.length} />
+            <Metric label="Partidas" value={totalPartidas || partidas.length} />
             <Metric label="Rodadas" value={totalRodadas} />
             <Metric label="Locais" value={new Set(partidas.map((p) => p.localNome).filter(Boolean)).size} />
           </div>

@@ -13,6 +13,6 @@ export async function GET(req: NextRequest) {
   })
   if (lista.erro) return error('Não foi possível carregar os campeonatos.', 500)
   const resposta = success({ campeonatos: lista.campeonatos, temMais: lista.temMais, proximoOffset: lista.proximoOffset })
-  resposta.headers.set('Cache-Control', 'public, max-age=30')
+  resposta.headers.set('Cache-Control', 'no-store')
   return resposta
 }

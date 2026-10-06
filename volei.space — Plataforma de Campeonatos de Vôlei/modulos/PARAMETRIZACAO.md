@@ -8,7 +8,7 @@ summary: >-
   Configuração do campeonato.
 status: misto
 created: 2026-09-20
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 # Parametrização do campeonato
 
@@ -18,6 +18,6 @@ O nome que vale nas listas é o campo Nome do campeonato. Se ele ainda estiver n
 
 **Aprovado, pendente:** configuração de alvo livre dos sets regulares, alvo distinto do último set, terceiro set obrigatório em melhor de 3 e pontos de vencedor/perdedor por margem. Inscrição deve admitir convites por categoria antes da criação de equipes, sem aprovação manual. Conferir campos e dependências antes de concluir uma seção.
 
-**Categorias — implementado:** a seleção fica na 5ª etapa de Informações do campeonato (Dados, Identidade, Regulamento, Revisão, Categorias). Ao salvar, a primeira categoria da lista vira a categoria ativa. Estrutura, classificação, eliminatórias, calendário e inscrições só abrem com `categoriaCampeonatoId` e gravam em `CategoriaConfiguracao`. No retorno, abre a categoria pendente; se a última trabalhada ainda estiver pendente, ela tem preferência. O seletor mostra o nome e o status (pendente, em andamento, copiada para revisar, parametrizada). Replicar pede origem e destino, compara os parâmetros dos dois lados e só então confirma a cópia. A cópia não leva times, jogos, súmulas nem resultados. Salvar uma etapa com sucesso abre a seguinte; se o salvamento falha, a etapa atual permanece com os dados na tela. Mata-mata não mostra Classificação e segue para Eliminatórias. Se o formato voltar a ter fase de grupos ou pontos corridos, Classificação reaparece. A arquitetura em que cada `CategoriaCampeonato` é a fonte de verdade das competições internas continua como em [[references/CATEGORIAS-COMO-COMPETICOES]].
+**Categorias — implementado:** a seleção fica na 5ª etapa de Informações do campeonato (Dados, Identidade, Regulamento, Revisão, Categorias). Ao salvar, a primeira categoria da lista vira a categoria ativa. Estrutura, classificação, eliminatórias, calendário e inscrições só abrem com `categoriaCampeonatoId` e gravam em `CategoriaConfiguracao`. No retorno, abre a categoria pendente; se a última trabalhada ainda estiver pendente, ela tem preferência. O seletor mostra o nome e o status (pendente, em andamento, copiada para revisar, parametrizada). Replicar pede origem e destino, compara os parâmetros dos dois lados e só então confirma a cópia. A cópia não leva times, jogos, súmulas nem resultados. Salvar uma etapa com sucesso abre a seguinte; se o salvamento falha, a etapa atual permanece com os dados na tela. Mata-mata não mostra Classificação e segue para Eliminatórias. Com 10 equipes, a chave não fecha (vale 2, 4, 8, 16 ou 32): «corrigir» abre só o campo Quantidade de equipes, na mesma categoria, sem a lista de campeonatos no meio do formulário. Se o formato voltar a ter fase de grupos ou pontos corridos, Classificação reaparece. A arquitetura em que cada `CategoriaCampeonato` é a fonte de verdade das competições internas continua como em [[references/CATEGORIAS-COMO-COMPETICOES]].
 
 **Dependências:** [[modulos/INSCRICOES]], [[modulos/SUMULA-DIGITAL]], [[modulos/CLASSIFICACAO]], [[modulos/PAGAMENTOS]]. A parametrização define regras; não deve inventar equipe, partida ou pagamento somente por salvar uma seção.

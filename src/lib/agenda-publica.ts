@@ -40,12 +40,14 @@ async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean,
 
 export async function buscarAgendaCampeonato(
   ligaId: number,
-  opcoes?: { parte?: 'ao-vivo' | 'proximos' | 'encerradas'; offset?: number; limite?: number },
+  opcoes?: { parte?: 'ao-vivo' | 'proximos' | 'encerradas'; offset?: number; limite?: number; campeonatoInformado?: boolean },
 ) {
   const vazio: FatiaAgenda = { partidas: [], temMais: false, erro: false }
-  const publico = await idsSemCampeonatoDeTeste([ligaId])
-  if (publico.erro) return { aoVivo: { ...vazio, erro: true }, proximos: vazio, encerradas: vazio, erro: true }
-  if (!publico.ids.includes(ligaId)) return { aoVivo: vazio, proximos: vazio, encerradas: vazio, erro: false }
+  if (!opcoes?.campeonatoInformado) {
+    const publico = await idsSemCampeonatoDeTeste([ligaId])
+    if (publico.erro) return { aoVivo: { ...vazio, erro: true }, proximos: vazio, encerradas: vazio, erro: true }
+    if (!publico.ids.includes(ligaId)) return { aoVivo: vazio, proximos: vazio, encerradas: vazio, erro: false }
+  }
 
   const limite = Math.min(24, Math.max(1, opcoes?.limite ?? PAGINA_AGENDA))
   const offset = Math.max(0, opcoes?.offset ?? 0)

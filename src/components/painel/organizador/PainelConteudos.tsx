@@ -116,11 +116,10 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
   )
 }
 
-export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem[]; organizadorId: string }) {
-  const [ligaId, setLigaId] = useState<number | null>(ligas[0]?.id ?? null)
+export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; organizadorId: string; campeonatoId: number | null; onSelect: (id: number) => void }) {
   const [dados, setDados] = useState<any[]>([])
   const [pendente, setPendente] = useState(true)
-  const liga = ligas.find((item) => item.id === ligaId) ?? ligas[0] ?? null
+  const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
 
   useEffect(() => {
     if (!liga) {
@@ -152,10 +151,11 @@ export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem
     <section className="space-y-5">
       <label className="block max-w-md">
         <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Campeonato</span>
-        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => setLigaId(Number(evento.target.value))}>
+        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => onSelect(Number(evento.target.value))}>
           {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
       {pendente ? (
         <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
       ) : dados.length === 0 ? (
@@ -177,6 +177,7 @@ type PartidaOrganizacao = {
   setsPorB?: number | null
   pontosPorA?: number | null
   pontosPorB?: number | null
+  sumulaToken?: string | null
   equipeA?: { nome?: string | null } | null
   equipeB?: { nome?: string | null } | null
   liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
@@ -195,13 +196,12 @@ function ligaDaPartida(partida: PartidaOrganizacao) {
   return Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
 }
 
-export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]; ativo?: boolean }) {
-  const [ligaId, setLigaId] = useState<number | null>(ligas[0]?.id ?? null)
+export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void; ativo?: boolean }) {
   const [partidas, setPartidas] = useState<PartidaOrganizacao[]>([])
   const [temMais, setTemMais] = useState(false)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const liga = ligas.find((item) => item.id === ligaId) ?? ligas[0] ?? null
+  const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
   const quantidade = useRef(20)
   quantidade.current = Math.max(20, partidas.length)
 
@@ -254,8 +254,6 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
     return <EstadoVazio titulo="Nenhum jogo cadastrado" descricao="Crie um campeonato para montar a agenda." />
   }
 
-  if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
-
   const grupos = new Map<number, { nome: string; simulacao: boolean; partidas: PartidaOrganizacao[] }>()
   partidas.forEach((partida) => {
     const liga = ligaDaPartida(partida)
@@ -268,22 +266,18 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
     grupos.set(partida.ligaId, atual)
   })
 
-  if (grupos.size === 0) {
-    return (
-      <section>
-        <EstadoVazio titulo="Nenhum jogo cadastrado" descricao="As partidas aparecem aqui quando o calendário for montado. A coluna de árbitro fica nesta tabela." />
-      </section>
-    )
-  }
-
   return (
     <section className="space-y-6">
       <label className="block max-w-md">
         <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Campeonato</span>
-        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => setLigaId(Number(evento.target.value))}>
+        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => onSelect(Number(evento.target.value))}>
           {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
+      {loading ? <p className="text-sm font-bold text-white/50">Carregando...</p> : grupos.size === 0 ? (
+        <EstadoVazio titulo="Nenhum jogo neste campeonato" descricao="As partidas deste campeonato aparecem aqui quando o calendário for montado." />
+      ) : null}
       {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
       {Array.from(grupos.entries()).map(([ligaId, grupo]) => (
         <CollapseBar key={ligaId} title={grupo.simulacao ? `${grupo.nome} · simulação` : grupo.nome}>
@@ -297,6 +291,7 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Placar</th>
                   <th className="px-3 py-2">Árbitro responsável</th>
+                  <th className="px-3 py-2">Súmula</th>
                   <th className="px-3 py-2">Acesso do árbitro</th>
                 </tr>
               </thead>
@@ -317,6 +312,13 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                         {emJogo ? <span className="mt-1 block text-xs font-semibold text-white/70">{partida.pontosPorA ?? 0} a {partida.pontosPorB ?? 0}</span> : null}
                       </td>
                       <td data-label="Árbitro" className="px-3 py-3">{nomeArbitro}</td>
+                      <td data-label="Súmula" className="px-3 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
+                          <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Link público</a>
+                          <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Resumo da partida</a>
+                        </div>
+                      </td>
                       <td data-label="Acesso" className="px-3 py-3">
                         <AcessoArbitroJogo partidaId={partida.id} jogo={`${partida.equipeA?.nome ?? 'Equipe A'} × ${partida.equipeB?.nome ?? 'Equipe B'}`} />
                       </td>
@@ -333,9 +335,8 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
   )
 }
 
-export function PainelGaleria({ ligas }: { ligas: LigaCarouselItem[] }) {
-  const [ligaId, setLigaId] = useState<number | null>(ligas[0]?.id ?? null)
-  const liga = ligas.find((item) => item.id === ligaId) ?? ligas[0] ?? null
+export function PainelGaleria({ ligas, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void }) {
+  const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
 
   if (ligas.length === 0 || !liga) {
     return (
@@ -349,7 +350,7 @@ export function PainelGaleria({ ligas }: { ligas: LigaCarouselItem[] }) {
     <section className="space-y-5">
       <label className="block max-w-md">
         <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Campeonato</span>
-        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => setLigaId(Number(evento.target.value))}>
+        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => onSelect(Number(evento.target.value))}>
           {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>

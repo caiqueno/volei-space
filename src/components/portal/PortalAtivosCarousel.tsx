@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
+import { capaDoCampeonato } from '@/lib/capa-publica'
 import { formatLigaFormato } from '@/lib/format-liga'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 
@@ -100,7 +101,7 @@ export function PortalAtivosCarousel() {
 
   const atual = slides[index] ?? slides[0]
   const varios = slides.length > 1
-  const imagem = atual.capaUrl || atual.logoUrl
+  const imagem = capaDoCampeonato(atual.id, atual.capaUrl, atual.logoUrl)
 
   function irPara(proximo: number) {
     const total = slides?.length ?? 1

@@ -21,10 +21,17 @@ export async function GET(req: NextRequest) {
   if (ligaErr) return error('Erro ao carregar o campeonato', 500, ligaErr.message)
   if (!liga) return error('Campeonato não encontrado.', 404)
 
-  const { data, error: partidasErr } = await supabase
+  const status = new URL(req.url).searchParams.get('status')
+  const statusPermitido = ['EM_ANDAMENTO', 'AGENDADA', 'PENDENTE', 'ENCERRADA', 'WO', 'CANCELADA']
+  if (status && !statusPermitido.includes(status)) return error('Status inválido.', 422)
+
+  let consulta = supabase
     .from('Partida')
-    .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
+    .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaToken,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
     .eq('ligaId', ligaId)
+  if (status) consulta = consulta.eq('status', status)
+
+  const { data, error: partidasErr } = await consulta
     .order('dataHora', { ascending: true })
     .range(offset, offset + limite)
 

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { normalizarPartidaPublica, PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
+import { idsForaDaVitrine } from '@/lib/campeonatos-publicos'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +20,10 @@ export async function GET(req: NextRequest) {
     .eq('status', 'EM_ANDAMENTO')
     .order('dataHora', { ascending: true })
   if (Number.isInteger(ligaId) && ligaId > 0) consulta = consulta.eq('ligaId', ligaId)
+  else {
+    const ocultos = await idsForaDaVitrine()
+    if (ocultos.length) consulta = consulta.not('ligaId', 'in', `(${ocultos.join(',')})`)
+  }
 
   const { data, error: falha } = await consulta.range(offset, offset + limite)
   if (falha) return error('Não foi possível carregar as partidas ao vivo.', 500)

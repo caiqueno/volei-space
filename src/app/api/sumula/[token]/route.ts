@@ -25,6 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
+  if (new URL(req.url).searchParams.get('consulta') === '1') {
+    return success(sumulaParaConsulta(access.partida))
+  }
   const leitura = await requireSumulaLeitura(req, access.partida)
   if (leitura) return leitura
   return success(access.partida)
@@ -227,6 +230,65 @@ async function concluirPublicacao(ligaId: number) {
     await syncLeagueLifecycle(ligaId)
   } catch (err) {
     console.error('[sumula] súmula gravada; ciclo do campeonato não atualizado', err)
+  }
+}
+
+function valorUnico<T>(valor: T | T[] | null | undefined) {
+  return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
+}
+
+function jogadorConsulta(jogador: any) {
+  const item = valorUnico(jogador)
+  if (!item) return null
+  return { id: item.id, nome: item.nome, numero: item.numero ?? null, posicao: item.posicao ?? null }
+}
+
+function equipeConsulta(equipe: any) {
+  const item = valorUnico(equipe)
+  if (!item) return null
+  return {
+    id: item.id,
+    nome: item.nome,
+    jogadores: (item.jogadores ?? []).map(jogadorConsulta).filter(Boolean),
+  }
+}
+
+function sumulaParaConsulta(partida: any) {
+  const liga = valorUnico(partida.liga)
+  return {
+    id: partida.id,
+    ligaId: partida.ligaId,
+    rodada: partida.rodada,
+    status: partida.status,
+    categoria: partida.categoria,
+    dataHora: partida.dataHora,
+    localNome: partida.localNome,
+    setsPorA: partida.setsPorA,
+    setsPorB: partida.setsPorB,
+    pontosPorA: partida.pontosPorA,
+    pontosPorB: partida.pontosPorB,
+    vencedorId: partida.vencedorId,
+    sumulaAprovadaEm: partida.sumulaAprovadaEm,
+    liga: liga ? { id: liga.id, nome: liga.nome } : null,
+    equipeA: equipeConsulta(partida.equipeA),
+    equipeB: equipeConsulta(partida.equipeB),
+    sets: [...(partida.sets ?? [])].sort((a: { numero: number }, b: { numero: number }) => Number(a.numero) - Number(b.numero)),
+    presencas: (partida.presencas ?? []).map((item: any) => ({
+      id: item.id,
+      presente: item.presente,
+      equipeId: item.equipeId,
+      jogadorId: item.jogadorId,
+      numero: item.numero ?? null,
+      jogador: jogadorConsulta(item.jogador),
+    })),
+    ocorrencias: [...(partida.ocorrencias ?? [])]
+      .map((item: any) => ({ id: item.id, tipo: item.tipo, descricao: item.descricao, set: item.set, jogadorId: item.jogadorId ?? null }))
+      .sort((a: { id: number }, b: { id: number }) => Number(a.id) - Number(b.id)),
+    destaques: (partida.destaques ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, jogador: jogadorConsulta(item.jogador) })),
+    escala: (partida.escala ?? []).map((item: any) => {
+      const arbitro = valorUnico(item.arbitro)
+      return { id: item.id, cargo: item.cargo, arbitro: arbitro ? { nome: arbitro.nome } : null }
+    }),
   }
 }
 

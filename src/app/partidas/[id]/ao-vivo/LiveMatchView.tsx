@@ -32,7 +32,7 @@ type LivePlayer = {
   fotoUrl?: string | null
 }
 
-export default function LiveMatchView({ partidaId }: { partidaId: string }) {
+export default function LiveMatchView({ partidaId, embutido = false }: { partidaId: string; embutido?: boolean }) {
   const [match, setMatch] = useState<LiveMatch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -81,19 +81,22 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
   const timeline = useMemo(() => orderLiveEvents(match?.ocorrencias ?? []).filter(shouldShowLiveEvent), [match])
   const scout = useMemo(() => match ? buildIndividualScout(match) : [], [match])
 
+  const Root = embutido ? 'section' : 'main'
+  const classe = embutido ? 'live-match-page is-dock' : 'live-match-page'
+
   if (loading) {
     return (
-      <main className="live-match-page">
+      <Root className={classe}>
         <section className="live-match-state"><Activity size={22} /><h1>Carregando partida</h1><p>Buscando placar e movimentações ao vivo.</p></section>
-      </main>
+      </Root>
     )
   }
 
   if (error || !match || !match.equipeA || !match.equipeB) {
     return (
-      <main className="live-match-page">
+      <Root className={classe}>
         <section className="live-match-state is-error"><ShieldCheck size={24} /><h1>Partida indisponível</h1><p>{error || 'Não foi possível encontrar esta partida.'}</p></section>
-      </main>
+      </Root>
     )
   }
 
@@ -102,7 +105,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
   const finished = ['encerrada', 'finalizada', 'finished'].includes(normalizeStatus(match.status))
 
   return (
-    <main className="live-match-page">
+    <Root className={classe}>
       <section className="live-match-hero">
         <div>
           <div className="live-match-hero-top">
@@ -185,7 +188,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
           </div>
         </article>}
       </section>
-    </main>
+    </Root>
   )
 }
 

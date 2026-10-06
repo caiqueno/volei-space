@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
+import { OrganizadorSidebar } from '@/components/painel/organizador/OrganizadorSidebar'
 import { encerrarSessaoPublica } from '@/lib/sessao-publica'
 
 type HeaderSession = {
@@ -33,26 +34,24 @@ type HeaderLink = {
   icon?: LucideIcon
 }
 
-const publicLinks: HeaderLink[] = [
-  { href: '/portal', label: 'Portal', short: 'Portal' },
-  { href: '/ao-vivo', label: 'Ao vivo', short: 'Ao vivo' },
-]
+const TELAS_DO_PORTAL = new Set(['/portal', '/jogos', '/classificacao', '/rankings', '/galeria'])
 
-function linksDoCampeonato(ligaId: string): HeaderLink[] {
-  const consulta = `?ligaId=${encodeURIComponent(ligaId)}`
+function linksDoPortal(ligaId: string | null): HeaderLink[] {
+  const consulta = ligaId ? `?ligaId=${encodeURIComponent(ligaId)}` : ''
   return [
     { href: `/portal${consulta}`, label: 'Portal', short: 'Portal', icon: ClipboardCheck },
     { href: `/jogos${consulta}`, label: 'Jogos', short: 'Jogos', icon: CalendarDays },
-    { href: `/ao-vivo${consulta}`, label: 'Ao vivo', short: 'Ao vivo', icon: Trophy },
-    { href: `/classificacao${consulta}`, label: 'Classificação', short: 'Tabela', icon: Table2 },
-    { href: `/rankings${consulta}`, label: 'Rankings', short: 'Top', icon: Trophy },
+    { href: `/classificacao${consulta}`, label: 'Classificação', short: 'Classificação', icon: Table2 },
+    { href: `/rankings${consulta}`, label: 'Rankings', short: 'Rankings', icon: Trophy },
     { href: `/galeria${consulta}`, label: 'Galeria', short: 'Galeria', icon: Images },
   ]
 }
 
 export function Header() {
   const pathname = usePathname()
-  const ligaId = useSearchParams().get('ligaId')
+  const busca = useSearchParams()
+  const ligaInformada = busca.get('ligaId')
+  const ligaId = ligaInformada && /^\d+$/.test(ligaInformada) ? ligaInformada : null
   const [hydrated, setHydrated] = useState(false)
   const [session, setSession] = useState<HeaderSession | null>(null)
   const panelHref = session?.tipo === 'equipe'
@@ -65,22 +64,27 @@ export function Header() {
           ? '/painel'
           : null
   const isLegalPage = ['/termos-de-uso', '/politica-de-privacidade', '/politica-de-cookies'].includes(pathname)
+  const telaDoPortal = TELAS_DO_PORTAL.has(pathname)
   const scopedLinks = useMemo(
     () => {
+      if (telaDoPortal) return linksDoPortal(ligaId)
       if (isLegalPage && !session) return []
-      if ((!session || session.tipo === 'publico') && ligaId) return linksDoCampeonato(ligaId)
-      return getHeaderLinks(session)
+      if (!session || session.tipo === 'publico') return linksDoPortal(ligaId)
+      return getHeaderLinks(session, ligaId)
     },
-    [isLegalPage, session, ligaId],
+    [isLegalPage, ligaId, session, telaDoPortal],
   )
   const desktopLinks = useMemo(() => {
-    if (!panelHref) return scopedLinks
+    if (!panelHref || telaDoPortal) return scopedLinks
     return scopedLinks.filter((link) => {
       const cleanHref = link.href.split('?')[0].split('#')[0]
       return cleanHref !== panelHref || link.href.includes('#')
     })
-  }, [panelHref, scopedLinks])
-  const mobileLinks = useMemo(() => getMobileLinks(scopedLinks, panelHref), [scopedLinks, panelHref])
+  }, [panelHref, scopedLinks, telaDoPortal])
+  const mobileLinks = useMemo(
+    () => telaDoPortal ? scopedLinks : getMobileLinks(scopedLinks, panelHref),
+    [scopedLinks, panelHref, telaDoPortal],
+  )
 
   useEffect(() => {
     try {
@@ -147,10 +151,6 @@ export function Header() {
     return null
   }
 
-  if (pathname === '/painel' && session?.tipo === 'organizador') {
-    return null
-  }
-
   if (!hydrated && pathname !== '/') return null
 
   if (pathname === '/') {
@@ -182,7 +182,11 @@ export function Header() {
     )
   }
 
-  if (session && panelHref) {
+  if (session?.tipo === 'organizador') {
+    return <OrganizadorSidebar />
+  }
+
+  if (session && panelHref && !telaDoPortal) {
     const profileLabel = getProfileLabel(session.tipo)
     const userName = session.nome || profileLabel
 
@@ -242,7 +246,7 @@ export function Header() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#061426]/92 text-white backdrop-blur-2xl">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-luva-amber opacity-80" />
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4">
-          <Link href="/portal" className="group flex min-w-0 items-center gap-3">
+          <Link href="/" aria-label="Início" className="group flex min-w-0 items-center gap-3">
             <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl transition duration-300 group-hover:scale-105">
               <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="" fill sizes="44px" className="object-contain" priority />
             </span>
@@ -251,7 +255,7 @@ export function Header() {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-7 lg:flex">
+          <nav className="hidden items-center gap-4 xl:gap-6 lg:flex">
             {desktopLinks.map(({ href, label }) => {
               const active = isActivePath(pathname, href)
               return (
@@ -269,34 +273,35 @@ export function Header() {
                 </Link>
               )
             })}
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-black text-slate-100 transition hover:border-luva-amber/70 hover:text-white"
-              >
-                Entrar
-              </Link>
-            </div>
+            {!telaDoPortal && (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-black text-slate-100 transition hover:border-luva-amber/70 hover:text-white"
+                >
+                  Entrar
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
       </header>
 
       {!pathname.startsWith('/partidas') && (
         <nav
-          className="public-mobile-nav fixed inset-x-3 z-50 grid rounded-2xl border border-white/10 bg-[#061426]/94 p-1.5 shadow-2xl shadow-slate-950/40 backdrop-blur-2xl lg:hidden"
-          style={{ gridTemplateColumns: `repeat(${mobileLinks.length}, minmax(0, 1fr))` }}
+          className="public-mobile-nav fixed inset-x-3 z-50 flex flex-wrap gap-1 rounded-2xl border border-white/10 bg-[#061426]/94 p-1.5 shadow-2xl shadow-slate-950/40 backdrop-blur-2xl lg:hidden"
         >
-          {mobileLinks.map(({ href, short }) => {
+          {mobileLinks.map(({ href, label }) => {
             const active = isActivePath(pathname, href)
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex min-h-11 items-center justify-center rounded-xl px-1 text-[10px] font-black transition ${
+                className={`flex min-h-11 shrink-0 items-center justify-center rounded-xl px-3 text-xs font-black transition ${
                   active ? 'bg-luva-amber text-white' : 'text-slate-300'
                 }`}
               >
-                {short}
+                {label}
               </Link>
             )
           })}
@@ -306,8 +311,8 @@ export function Header() {
   )
 }
 
-function getHeaderLinks(session: HeaderSession | null): HeaderLink[] {
-  if (!session) return publicLinks
+function getHeaderLinks(session: HeaderSession | null, ligaId: string | null = null): HeaderLink[] {
+  if (!session) return linksDoPortal(ligaId)
 
   if (session.tipo === 'equipe') {
     const scoped = (href: string) => {
@@ -336,15 +341,7 @@ function getHeaderLinks(session: HeaderSession | null): HeaderLink[] {
   }
 
   if (session.tipo === 'organizador') {
-    return [
-      { href: '/painel?secao=campeonatos', label: 'Campeonatos', short: 'Ligas', icon: Trophy },
-      { href: '/painel?secao=jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
-      { href: '/ao-vivo', label: 'Ao vivo', short: 'Ao vivo', icon: Trophy },
-      { href: '/portal', label: 'Portal', short: 'Portal', icon: ClipboardCheck },
-      { href: '/painel?secao=tabela', label: 'Classificação', short: 'Tabela', icon: Table2 },
-      { href: '/rankings', label: 'Rankings', short: 'Top', icon: Trophy },
-      { href: '/painel?secao=galeria', label: 'Galeria', short: 'Galeria', icon: Images },
-    ]
+    return []
   }
 
   if (session.tipo === 'arbitro') {
@@ -363,7 +360,7 @@ function getHeaderLinks(session: HeaderSession | null): HeaderLink[] {
     ]
   }
 
-  return publicLinks
+  return linksDoPortal(ligaId)
 }
 
 function getMobileLinks(scopedLinks: HeaderLink[], panelHref: string | null): HeaderLink[] {

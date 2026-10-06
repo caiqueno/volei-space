@@ -8,9 +8,20 @@ export type CampeonatoCapa = {
   subtitulo: string | null
   capaUrl: string | null
   logoUrl: string | null
+  status: string
 }
 
-const COLUNAS = 'id,nome,slug,subtitulo,capaUrl,logoUrl,descricao,simulacao'
+const COLUNAS = 'id,nome,slug,subtitulo,capaUrl,logoUrl,descricao,simulacao,status'
+
+let campeonatosOcultos: { ids: number[]; expira: number } | null = null
+
+export async function idsForaDaVitrine() {
+  if (campeonatosOcultos && campeonatosOcultos.expira > Date.now()) return campeonatosOcultos.ids
+  const { data } = await supabaseAdmin.from('Liga').select('id,nome,slug,descricao,simulacao')
+  const ids = (data ?? []).filter((liga) => campeonatoDeTeste(liga)).map((liga) => liga.id)
+  campeonatosOcultos = { ids, expira: Date.now() + 60_000 }
+  return ids
+}
 
 export async function listarCampeonatosPublicos(opcoes?: { busca?: string; offset?: number; limite?: number }) {
   const limite = Math.min(24, Math.max(1, opcoes?.limite ?? 12))
@@ -42,6 +53,7 @@ export async function listarCampeonatosPublicos(opcoes?: { busca?: string; offse
       subtitulo: liga.subtitulo ?? null,
       capaUrl: liga.capaUrl ?? null,
       logoUrl: liga.logoUrl ?? null,
+      status: liga.status ?? 'EM_BREVE',
     })
   }
   return {

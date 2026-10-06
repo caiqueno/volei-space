@@ -23,12 +23,14 @@ export function CategoryNavigation({
   ativaId,
   onSelect,
   aoSemCategoria,
+  categorias: categoriasRecebidas,
 }: {
   ligaId: number
   replicate?: boolean
   ativaId?: string | null
   onSelect?: (id: string) => void | Promise<void>
   aoSemCategoria?: () => void
+  categorias?: SetupCategory[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -46,7 +48,14 @@ export function CategoryNavigation({
     return () => window.removeEventListener('categories-updated', refresh)
   }, [])
 
+  const recebidas = categoriasRecebidas !== undefined
+
   useEffect(() => {
+    if (recebidas) setCategories(categoriasRecebidas)
+  }, [recebidas, categoriasRecebidas])
+
+  useEffect(() => {
+    if (recebidas) return
     let active = true
     fetch(`/api/organizador/ligas/${ligaId}/categorias`, { cache: 'no-store' })
       .then(async (response) => {
@@ -58,7 +67,7 @@ export function CategoryNavigation({
         if (active) setMessage(cause instanceof Error ? cause.message : 'Não foi possível carregar categorias.')
       })
     return () => { active = false }
-  }, [ligaId, revision])
+  }, [ligaId, revision, recebidas])
 
   useEffect(() => {
     if (onSelect || !categories.length || daUrl) return

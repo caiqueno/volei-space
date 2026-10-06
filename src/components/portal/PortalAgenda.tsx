@@ -62,7 +62,8 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
     }
 
     if (tentativa > 0) void atualizarAoVivo()
-    const timer = window.setInterval(() => void atualizarAoVivo(), INTERVALO_MS)
+    const espera = grupos.aoVivo.length > 0 ? INTERVALO_MS : 60_000
+    const timer = window.setInterval(() => void atualizarAoVivo(), espera)
     const aoVoltar = () => {
       if (document.visibilityState === 'visible') void atualizarAoVivo()
     }
@@ -73,7 +74,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', aoVoltar)
     }
-  }, [ligaId, tentativa])
+  }, [ligaId, tentativa, grupos.aoVivo.length])
 
   async function carregarMais(parte: Parte) {
     if (carregando) return

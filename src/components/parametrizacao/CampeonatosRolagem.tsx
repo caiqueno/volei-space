@@ -19,7 +19,7 @@ export function CampeonatosRolagem({
   const ativo = ligas.some((liga) => liga.id === selecionado) ? selecionado : ligas[0].id
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Campeonatos cadastrados">
+    <div className="is-scroll-row flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Campeonatos cadastrados">
       {ligas.map((liga) => {
         const ativa = liga.id === ativo
         return (
