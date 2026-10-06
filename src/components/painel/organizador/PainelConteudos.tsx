@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import Link from 'next/link'
 import { GaleriaOrganizador } from '@/components/galeria/GaleriaOrganizador'
@@ -139,6 +140,19 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
     return () => controlador.abort()
   }, [liga])
 
+  useBancoAoVivo(
+    liga ? `classificacao-painel-${liga.id}` : '',
+    liga ? [{ tabela: 'ClassificacaoEntrada', filtro: `ligaId=eq.${liga.id}` }] : [],
+    () => {
+      if (!liga) return
+      consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}`, { forcar: true })
+        .then((payload) => setDados(Array.isArray(payload.data) ? payload.data : []))
+        .catch((erro) => {
+          if (erro instanceof ConsultaCancelada) return
+        })
+    },
+  )
+
   if (!liga) {
     return (
       <section>
@@ -159,7 +173,7 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
       {pendente ? (
         <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
       ) : dados.length === 0 ? (
-        <EstadoVazio titulo="Nenhuma partida registrada" descricao="A classificação aparece aqui após o primeiro resultado aprovado." />
+        <EstadoVazio titulo="Nenhuma equipe inscrita" descricao="A classificação deste campeonato aparece aqui com zero até a primeira partida." />
       ) : (
         <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} ligaId={liga.id} organizadorId={organizadorId} organizerMode />
       )}
@@ -226,18 +240,16 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
     }
   }
 
-  const temAoVivo = partidas.some((partida) => String(partida.status).toUpperCase() === 'EM_ANDAMENTO')
-
   useEffect(() => {
     if (!ativo || !liga) return
     void carregar()
   }, [ativo, liga?.id])
 
-  useEffect(() => {
-    if (!ativo || !temAoVivo || !liga) return
-    const timer = window.setInterval(() => void carregar(true), 8000)
-    return () => window.clearInterval(timer)
-  }, [ativo, temAoVivo, liga?.id])
+  useBancoAoVivo(
+    ativo && liga ? `painel-jogos-${liga.id}` : '',
+    ativo && liga ? [{ tabela: 'Partida', filtro: `ligaId=eq.${liga.id}` }] : [],
+    () => { void carregar(true) },
+  )
 
   async function verMais() {
     if (!liga) return

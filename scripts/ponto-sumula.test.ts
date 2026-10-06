@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { contarOrigens, lerJogadorPonto, lerRotuloPonto, linhasUltimosPontos, textoPonto } from '../src/lib/ponto-sumula'
+import { contarOrigens, ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, linhasUltimosPontos, textoPonto, textoPontoSemJogador } from '../src/lib/ponto-sumula'
 
 const saque = textoPonto('ace', 'Time A', '7', 'Pedro Oliveira')
 const bloqueio = textoPonto('block', 'Time B', '4', 'Carlos Santos')
@@ -13,6 +13,17 @@ assert.equal(lerJogadorPonto(bloqueio), 'Carlos Santos')
 assert.equal(lerJogadorPonto(saque), 'Pedro Oliveira')
 assert.match(ataque, /Ataque para Time A: #10 João Silva/)
 assert.equal(lerRotuloPonto('Ponto para Time A: jogada coletiva.'), null)
+
+const semJogador = textoPontoSemJogador('Time B')
+assert.equal(ehPontoSemJogador(semJogador), true)
+assert.equal(lerRotuloPonto(semJogador), '+1')
+assert.equal(lerJogadorPonto(semJogador), 'Sem jogador')
+assert.equal(ehPontoSemJogador(ataque), false)
+assert.doesNotMatch(semJogador, /Atleta|undefined|null|desconhecido/i)
+// Uma anotação do árbitro que cite a frase não pode virar ponto.
+assert.equal(ehPontoSemJogador('[Observação] Time B - Comissão: ponto anterior ficou Sem jogador por engano.'), false)
+assert.equal(ehPontoSemJogador('Ponto automático para Time A por cartão vermelho aplicado a Técnico.'), false)
+assert.equal(lerJogadorPonto('[Observação] revisar o lance Sem jogador do set 2.'), null)
 
 const historico = linhasUltimosPontos([
   { origem: 'ace', jogador: 'Pedro Oliveira' },

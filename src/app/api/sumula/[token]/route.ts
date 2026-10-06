@@ -185,6 +185,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
 
     if (updateErr) throw updateErr
     await syncLeagueLifecycle(partida.ligaId)
+    const setsMudaram = Number(partida.setsPorA ?? 0) !== liveSummary.setsPorA
+      || Number(partida.setsPorB ?? 0) !== liveSummary.setsPorB
+    const iniciouAgora = String(partida.status ?? '').toUpperCase() !== 'EM_ANDAMENTO'
+    if (setsMudaram || iniciouAgora) {
+      try {
+        await recalculateLeagueClassification(partida.ligaId)
+      } catch (err) {
+        console.error('[sumula] andamento gravado; classificação não recalculada', err)
+      }
+    }
     return success({ salva: true, oficial: false, status: 'EM_ANDAMENTO' })
   } catch (err) {
     console.error('[sumula] erro ao salvar andamento', err)
@@ -365,11 +375,10 @@ function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB
   const rules = getLiveRules(liga)
   const sortedSets = [...sets].sort((a, b) => Number(a.numero) - Number(b.numero))
   const latestSet = sortedSets[sortedSets.length - 1]
-  const completedSets = sortedSets.slice(0, -1)
   let setsPorA = 0
   let setsPorB = 0
 
-  for (const set of completedSets) {
+  for (const set of sortedSets) {
     const maxScore = Math.max(set.pontosA, set.pontosB)
     const diff = Math.abs(set.pontosA - set.pontosB)
     const threshold = Number(set.numero) === rules.setsPerMatch ? rules.lastSetPoints : rules.pointsPerSet

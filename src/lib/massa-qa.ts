@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { setEstaEncerrado, type RegraSet } from '@/lib/set-encerrado'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const MARCA = 'MASSA-QA-2026'
@@ -212,6 +213,49 @@ export async function gravarClassificacao(ligaId: number) {
       linha.pontos += lado.venceu ? (lado.setsContra === 0 ? 4 : 3) : (lado.setsPro === 0 ? 0 : 1)
     }
   }
+
+  const { data: emAndamento, error: falhaAndamento } = await supabaseAdmin
+    .from('Partida')
+    .select('equipeAId,equipeBId,categoriaCampeonatoId,sets:SetPartida(numero,pontosA,pontosB)')
+    .eq('ligaId', ligaId)
+    .eq('status', 'EM_ANDAMENTO')
+  if (falhaAndamento) throw new Error(falhaAndamento.message)
+  const { data: regrasCategoria, error: falhaRegras } = await supabaseAdmin
+    .from('CategoriaConfiguracao')
+    .select('categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet')
+    .eq('ligaId', ligaId)
+  if (falhaRegras) throw new Error(falhaRegras.message)
+  const regrasPorCategoria = new Map<string, RegraSet>()
+  for (const regra of regrasCategoria ?? []) {
+    regrasPorCategoria.set(regra.categoriaCampeonatoId, {
+      setsPorPartida: Number(regra.setsPorPartida) > 0 ? Number(regra.setsPorPartida) : 3,
+      pontosPorSet: Number(regra.pontosPorSet) > 0 ? Number(regra.pontosPorSet) : 21,
+      tieBreakUltimoSet: regra.tieBreakUltimoSet === true,
+      pontosUltimoSet: Number(regra.pontosUltimoSet) > 0 ? Number(regra.pontosUltimoSet) : 15,
+      diferencaMinimaSet: Number(regra.diferencaMinimaSet) > 0 ? Number(regra.diferencaMinimaSet) : 2,
+    })
+  }
+  const regraPadrao: RegraSet = { setsPorPartida: 3, pontosPorSet: 21, tieBreakUltimoSet: false, pontosUltimoSet: 15, diferencaMinimaSet: 2 }
+  for (const partida of emAndamento ?? []) {
+    const regra = regrasPorCategoria.get(partida.categoriaCampeonatoId) ?? regraPadrao
+    for (const set of partida.sets ?? []) {
+      if (!setEstaEncerrado(set, regra)) continue
+      const aVenceu = set.pontosA > set.pontosB
+      const lados = [
+        { id: partida.equipeAId, setsPro: aVenceu ? 1 : 0, setsContra: aVenceu ? 0 : 1, pontosPro: set.pontosA, pontosContra: set.pontosB },
+        { id: partida.equipeBId, setsPro: aVenceu ? 0 : 1, setsContra: aVenceu ? 1 : 0, pontosPro: set.pontosB, pontosContra: set.pontosA },
+      ]
+      for (const lado of lados) {
+        const linha = tabela.get(lado.id)
+        if (!linha) continue
+        linha.setsPro += lado.setsPro
+        linha.setsContra += lado.setsContra
+        linha.pontosPro += lado.pontosPro
+        linha.pontosContra += lado.pontosContra
+      }
+    }
+  }
+
   const ranque = Array.from(tabela.values()).sort((a, b) => (
     b.pontos - a.pontos || b.vitorias - a.vitorias || (b.setsPro - b.setsContra) - (a.setsPro - a.setsContra) || (b.pontosPro - b.pontosContra) - (a.pontosPro - a.pontosContra)
   ))

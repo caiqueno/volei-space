@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { syncLeagueLifecycle } from '@/lib/championship-operations'
+import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
@@ -38,5 +38,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     })
   }
   await syncLeagueLifecycle(access.partida.ligaId)
+  if (!jaIniciada) {
+    try {
+      await recalculateLeagueClassification(access.partida.ligaId)
+    } catch (err) {
+      console.error('[partida] iniciada; classificação não recalculada', err)
+    }
+  }
   return success(data)
 }

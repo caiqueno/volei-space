@@ -13,6 +13,23 @@ updated: 2026-10-06
 
 # Log
 
+## [2026-10-06] fix | auditoria antes da massa
+
+- pages_updated=`07-SEGURANCA`, `06-BANCO-DE-DADOS`, `modulos/PARTIDAS`, `hot`, `log`
+- A chave publicável lia `Partida.sumulaToken` e `Jogador` inteiro e era aceita em `PATCH /rest/v1/Partida`. A migration `fechar_acesso_anonimo` tirou isso e deixou só a leitura de placar, set e classificação que o Realtime usa; 22 arquivos de servidor passaram para `supabaseAdmin`.
+- `GET /api/jogadores` respondia sem sessão com CPF, documento, nascimento, telefones e `qrCodeToken` de todos os organizadores. `GET /api/rankings` e `/equipes/[slug]` repetiam o mesmo `select('*')`. As três listam colunas agora.
+- A vitrine pública anunciava «Súmula digital», que pede sessão, e repetia o link público em dois botões. O card ficou com um atalho só, e o acompanhamento `/api/partidas/{id}/ao-vivo` recusa apenas campeonato com `simulacao` — o filtro de campeonato de teste quebrava o link vindo da própria agenda.
+
+## [2026-10-06] fix | ponto sem jogador
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `log`
+- O botão Sem jogador registra o ponto do time na hora, sem modal, sem atleta e sem ação. O histórico mostra Sem jogador e a estatística individual não recebe esse ponto.
+
+## [2026-10-06] update | classificação ao vivo
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A tabela existe com zero antes da primeira partida. O set encerrado entra no saldo durante o jogo; jogos, vitórias e pontos do campeonato esperam o encerramento. Classificação, agenda e acompanhamento escutam o Realtime e relêem ao reconectar.
+
 ## [2026-10-06] update | publicação local e produção
 
 - pages_updated=`log`

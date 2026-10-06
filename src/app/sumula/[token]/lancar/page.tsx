@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { OrigemPontoModal } from '@/components/sumula/OrigemPontoModal'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
-import { lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, type OrigemPonto } from '@/lib/ponto-sumula'
+import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
 import {
   Activity,
   AlertCircle,
@@ -171,6 +171,7 @@ export default function SumulaPage() {
   const [substitutionLocks, setSubstitutionLocks] = useState<Record<number, Record<TeamId, Record<string, string>>>>({})
   const [substitutionsUsed, setSubstitutionsUsed] = useState<Record<number, Record<TeamId, number>>>({})
   const [sidesInverted, setSidesInverted] = useState(false)
+  const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
@@ -254,7 +255,7 @@ export default function SumulaPage() {
             time: salvo.time,
             set: o.set ?? 1,
             score: salvo.score,
-            teamId: equipeDoJogador(teamA, teamB, jogadorId),
+            teamId: equipeDoJogador(teamA, teamB, jogadorId) ?? equipeMencionada(salvo.text, teamA, teamB),
             jogadorId,
           }
         }))
@@ -421,12 +422,13 @@ export default function SumulaPage() {
       origem ?? 'point',
       origem
         ? textoPonto(origem, team.name, matchNumber, playerName)
-        : `Ponto para ${team.name}: jogada coletiva sem atleta individual destacado.`,
+        : textoPontoSemJogador(team.name),
       teamId,
       next,
       player?.id,
     )
     if (origem) addToast(`${ROTULO_PONTO[origem]} — ${playerName}`)
+    else addToast('+1 — Sem jogador')
     const eventIds = [eventId]
     if (number) {
       const flash = { teamId, number, id: Date.now() }
@@ -914,11 +916,15 @@ export default function SumulaPage() {
     if (String(token).includes('demo')) {
       window.localStorage.setItem(`luv-live-match-${partida.id}`, JSON.stringify(buildDemoLiveSnapshot(payload)))
     }
-    await fetch(`/api/sumula/${token}`, {
+    const resposta = await fetch(`/api/sumula/${token}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+    if (!resposta.ok) {
+      const corpo = await resposta.json().catch(() => ({}))
+      throw new Error(corpo?.error || 'Não foi possível salvar o andamento da súmula.')
+    }
   }
 
   function buildDemoLiveSnapshot(payload: ReturnType<typeof buildSumulaPayload>, statusOverride?: 'EM_ANDAMENTO' | 'ENCERRADA') {
@@ -958,7 +964,9 @@ export default function SumulaPage() {
     if (matchStatus !== 'live' || !teamA || !teamB) return
     if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     liveSaveRef.current = setTimeout(() => {
-      saveLiveSnapshot().catch(() => undefined)
+      saveLiveSnapshot()
+        .then(() => setFalhaSalvamento(null))
+        .catch((err) => setFalhaSalvamento(err instanceof Error ? err.message : 'Não foi possível salvar o andamento da súmula.'))
     }, 700)
     return () => {
       if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
@@ -1271,6 +1279,7 @@ export default function SumulaPage() {
             onAce={logAce}
             events={events}
             onPointOrigin={(teamId, origem, number) => logPoint(teamId, number, origem === 'ace' ? { ace: true } : { kind: origem })}
+            onPointWithoutPlayer={(teamId) => logPoint(teamId, '', { kind: 'team' })}
             onSubstitution={askSubstitution}
             onSelectSubstitution={executeSubstitution}
             onCloseSubstitution={() => setSubModal(null)}
@@ -1349,6 +1358,13 @@ export default function SumulaPage() {
           }}
           onConfirm={unlockPontuacao}
         />
+      )}
+
+      {falhaSalvamento && (
+        <div className="official-save-alert" role="alert">
+          <strong>Os lances não estão sendo gravados.</strong>
+          <span>{falhaSalvamento}</span>
+        </div>
       )}
 
       <div className="official-toasts">
@@ -1917,6 +1933,7 @@ function PontuacaoTab(props: {
   onBlock: (teamId: TeamId, number: string) => void
   onAce: () => void
   onPointOrigin: (teamId: TeamId, origem: OrigemPonto, number: string) => void
+  onPointWithoutPlayer: (teamId: TeamId) => void
   onSubstitution: (teamId: TeamId, index: number) => void
   onSelectSubstitution: (number: string) => void
   onCloseSubstitution: () => void
@@ -1969,6 +1986,7 @@ function PontuacaoTab(props: {
             serving={props.servingTeamId === leftTeamId}
             onAce={props.onAce}
             onPoint={() => abrirOrigem(leftTeamId)}
+            onPointWithoutPlayer={() => props.onPointWithoutPlayer(leftTeamId)}
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
@@ -1991,6 +2009,7 @@ function PontuacaoTab(props: {
             serving={props.servingTeamId === rightTeamId}
             onAce={props.onAce}
             onPoint={() => abrirOrigem(rightTeamId)}
+            onPointWithoutPlayer={() => props.onPointWithoutPlayer(rightTeamId)}
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
@@ -2010,6 +2029,7 @@ function PontuacaoTab(props: {
             serving={props.servingTeamId === leftTeamId}
             onAce={props.onAce}
             onPoint={() => abrirOrigem(leftTeamId)}
+            onPointWithoutPlayer={() => props.onPointWithoutPlayer(leftTeamId)}
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
@@ -2028,6 +2048,7 @@ function PontuacaoTab(props: {
             serving={props.servingTeamId === rightTeamId}
             onAce={props.onAce}
             onPoint={() => abrirOrigem(rightTeamId)}
+            onPointWithoutPlayer={() => props.onPointWithoutPlayer(rightTeamId)}
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
@@ -2079,14 +2100,18 @@ function PontuacaoTab(props: {
       <section className="official-point-history" aria-label="Últimos pontos">
         <h3>Últimos pontos</h3>
         <ol>
-          {props.events.filter((event) => event.type === 'ace' || event.type === 'attack' || event.type === 'block').slice(0, 8).map((event) => (
+          {props.events.filter((event) => event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)).slice(0, 8).map((event) => {
+            const equipe = event.teamId === 'teamA' ? props.teamA.name : event.teamId === 'teamB' ? props.teamB.name : ''
+            const rotulo = lerRotuloPonto(event.text) ?? ROTULO_PONTO[event.type as OrigemPonto]
+            return (
             <li key={event.id}>
-              <strong>{lerRotuloPonto(event.text) ?? ROTULO_PONTO[event.type as OrigemPonto]}</strong>
+              <strong>{event.time} — {equipe} {rotulo}</strong>
               <span>{lerJogadorPonto(event.text) ?? 'Atleta'}</span>
               <em>{event.score}</em>
             </li>
-          ))}
-          {props.events.every((event) => event.type !== 'ace' && event.type !== 'attack' && event.type !== 'block') && <li>Nenhum ponto registrado ainda.</li>}
+            )
+          })}
+          {props.events.every((event) => event.type !== 'ace' && event.type !== 'attack' && event.type !== 'block' && !ehPontoSemJogador(event.text)) && <li>Nenhum ponto registrado ainda.</li>}
         </ol>
       </section>
       {cardModal && (
@@ -2688,6 +2713,7 @@ function CompactTeamControl({
   serving,
   onAce,
   onPoint,
+  onPointWithoutPlayer,
   onUndo,
   onCard,
   timeoutsUsed,
@@ -2700,13 +2726,14 @@ function CompactTeamControl({
   serving: boolean
   onAce: () => void
   onPoint: () => void
+  onPointWithoutPlayer: () => void
   onUndo: () => void
   onCard: (tipo: 'Cartão amarelo' | 'Cartão vermelho') => void
   timeoutsUsed: number
   onTimeout: () => void
   events: MatchEvent[]
 }) {
-  const ultimo = events.find((event) => event.teamId === teamId && (event.type === 'ace' || event.type === 'attack' || event.type === 'block'))
+  const ultimo = events.find((event) => event.teamId === teamId && (event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)))
   const rotulo = ultimo ? lerRotuloPonto(ultimo.text) ?? ROTULO_PONTO[ultimo.type as OrigemPonto] : null
   const jogador = ultimo ? lerJogadorPonto(ultimo.text) : null
   return (
@@ -2726,7 +2753,10 @@ function CompactTeamControl({
         <Clock size={15} />
         {timeoutsUsed}/2
       </button>
-      <button className="official-compact-point-action" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name}`}>+1</button>
+      <div className="official-point-actions">
+        <button className="official-compact-point-action" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name}`}>+1</button>
+        <button className="official-compact-point-plain" type="button" onClick={onPointWithoutPlayer} aria-label={`Registrar ponto sem jogador para ${team.name}`}>Sem jogador</button>
+      </div>
       <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (
         <p className="official-last-point">
@@ -3033,6 +3063,16 @@ function atletasEmQuadra(team: Team, lineup: string[]) {
     .map((number) => [...team.players, ...team.reserves].find((player) => player.number === number))
     .filter((player): player is Player => Boolean(player))
     .map((player) => ({ number: player.number, name: displayPlayerName(player.name, team.name) }))
+}
+
+function equipeMencionada(texto: string, teamA: Team, teamB: Team): TeamId | undefined {
+  const normalizado = normalizeName(texto)
+  const mencionaA = normalizado.includes(normalizeName(`para ${teamA.name}`))
+  const mencionaB = normalizado.includes(normalizeName(`para ${teamB.name}`))
+  if (mencionaA && mencionaB) return teamA.name.length >= teamB.name.length ? 'teamA' : 'teamB'
+  if (mencionaA) return 'teamA'
+  if (mencionaB) return 'teamB'
+  return undefined
 }
 
 function equipeDoJogador(teamA: Team, teamB: Team, jogadorId?: number): TeamId | undefined {

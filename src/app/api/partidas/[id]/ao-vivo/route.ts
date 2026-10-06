@@ -3,8 +3,6 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { verifyPublicToken } from '@/lib/auth'
 import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
-import { campeonatoDeTeste } from '@/lib/campeonato-teste'
-
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -41,7 +39,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (partidaErr) return error('Não foi possível abrir o acompanhamento ao vivo.', 500)
     if (!data) return error('Partida não encontrada', 404)
     const { data: liga } = await supabase.from('Liga').select('nome,slug,descricao,simulacao').eq('id', data.ligaId).maybeSingle()
-    if (campeonatoDeTeste(liga) && !(await operadorDestaPartida(_req, partidaId, data.ligaId))) {
+    // Quem chega aqui já tem o id da partida, vindo da agenda do campeonato.
+    // Só a simulação fica fora do público; o resto seguiria link quebrado.
+    if (liga?.simulacao && !(await operadorDestaPartida(_req, partidaId, data.ligaId))) {
       return error('Partida não encontrada', 404)
     }
     data.equipeA = primeiro(data.equipeA)

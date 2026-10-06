@@ -18,6 +18,9 @@ export async function GET(req: NextRequest) {
     parte: parte as 'ao-vivo' | 'proximos' | 'encerradas' | undefined,
     offset: Number(params.get('offset') ?? 0),
     limite: Number(params.get('limite') ?? 8),
+    // Quem chamou já escolheu o campeonato, igual à página que renderiza a agenda.
+    // Sem isto o Realtime esvazia a lista de um campeonato marcado como teste.
+    campeonatoInformado: true,
   })
   if (agenda.erro) return error('Não foi possível carregar os jogos agora. Tente novamente em instantes.', 500)
 

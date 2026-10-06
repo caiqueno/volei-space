@@ -29,7 +29,9 @@ const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' |
   WO: { label: 'W.O.', variant: 'error' },
 }
 
-export function PartidaCard({ partida, roundLabel }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string }) {
+// A súmula completa pede sessão de organizador ou de árbitro do jogo.
+// Na vitrine pública fica só o acompanhamento, que abre sem login.
+export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string }) {
   const badge = statusBadge[partida.status] ?? { label: partida.status || 'Status não informado', variant: 'neutral' as const }
   const emAndamento = partida.status === 'EM_ANDAMENTO'
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
@@ -94,19 +96,17 @@ export function PartidaCard({ partida, roundLabel }: { partida: Partida; showSum
       </div>
 
       <div className="mt-3 grid gap-2">
-        <a href={sumulaHref} target="_blank" rel="noreferrer" className="match-public-action is-sumula">
-          <ClipboardList size={15} />
-          <span>Súmula digital</span>
-          <ExternalLink size={14} />
-        </a>
+        {showSumulaLink && (
+          <a href={sumulaHref} target="_blank" rel="noreferrer" className="match-public-action is-sumula">
+            <ClipboardList size={15} />
+            <span>Súmula digital</span>
+            <ExternalLink size={14} />
+          </a>
+        )}
         <a href={publicoHref} target="_blank" rel="noreferrer" className="match-public-action">
           <Radio size={15} />
-          <span>Link público</span>
+          <span>{liveLabel}</span>
           <ExternalLink size={14} />
-        </a>
-        <a href={publicoHref} target="_blank" rel="noreferrer" className="match-public-action">
-          <ExternalLink size={15} />
-          <span>{encerrada ? 'Resumo da partida' : liveLabel === 'Link público' ? 'Resumo da partida' : liveLabel}</span>
         </a>
       </div>
     </article>

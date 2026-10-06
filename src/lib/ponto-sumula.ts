@@ -13,11 +13,23 @@ export function textoPonto(origem: OrigemPonto, equipe: string, numero: string, 
   return `${rotulo} — ${jogador}. ${verbo} para ${equipe}: ${camisa}${jogador}.`
 }
 
+export function textoPontoSemJogador(equipe: string) {
+  return `+1 — Sem jogador. Ponto para ${equipe} sem jogador atribuído.`
+}
+
+const PONTO_SEM_JOGADOR = /^\+1\s+[—–-]\s+Sem jogador\./
+
+export function ehPontoSemJogador(texto: string) {
+  return PONTO_SEM_JOGADOR.test(texto.trim())
+}
+
 export function lerRotuloPonto(texto: string) {
+  if (ehPontoSemJogador(texto)) return '+1'
   return texto.match(/\+1 Ponto de (?:Saque|Bloqueio|Ataque)/)?.[0] ?? null
 }
 
 export function lerJogadorPonto(texto: string) {
+  if (ehPontoSemJogador(texto)) return 'Sem jogador'
   const atual = texto.match(/\+1 Ponto de (?:Saque|Bloqueio|Ataque)\s+[—-]\s+(.+?)\./)
   if (atual) return atual[1]
   const antigo = texto.match(/(?:ACE|Ataque|Bloqueio)\s+para\s+.+?:\s*#\S+\s+(.+?)(?:\.|$)/i)

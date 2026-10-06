@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { jogadorSchema } from '@/lib/schemas'
 import { exigirOrganizadorDaEquipe, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
@@ -11,7 +11,12 @@ export async function GET(req: NextRequest) {
     const busca = searchParams.get('q')?.trim()
     const ligasDoOrganizador = await ligasVisiveisAoOrganizador(req)
 
-    let q = supabase.from('Jogador').select('*, equipe:Equipe(id, nome, ligaId, categoriaCampeonatoId)').order('nome', { ascending: true })
+    // CPF, documento, nascimento, telefones e qrCodeToken nunca saem por aqui:
+    // esta rota responde sem sessão e alimenta telas que só mostram elenco.
+    let q = supabase
+      .from('Jogador')
+      .select('id, nome, numero, posicao, fotoUrl, fotoRostoUrl, equipeId, banido, equipe:Equipe(id, nome, ligaId, categoriaCampeonatoId)')
+      .order('nome', { ascending: true })
     if (ligasDoOrganizador) {
       const { data: equipes } = await supabase.from('Equipe').select('id').in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
       const ids = (equipes ?? []).map((equipe) => equipe.id)

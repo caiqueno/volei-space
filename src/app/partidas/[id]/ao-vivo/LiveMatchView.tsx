@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { Activity, CalendarDays, Clock, LogIn, LogOut, Radio, ShieldCheck, Trophy } from 'lucide-react'
 import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 
@@ -36,6 +37,8 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
   const [match, setMatch] = useState<LiveMatch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const recarregar = useRef<() => void>(() => {})
+  const partidaNumero = Number(partidaId)
 
   useEffect(() => {
     let alive = true
@@ -65,18 +68,28 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
         }
       }
     }
+    recarregar.current = () => { void load() }
     load()
     function handleStorage(event: StorageEvent) {
       if (event.key === demoStorageKey) syncStoredDemo()
     }
     window.addEventListener('storage', handleStorage)
-    const timer = window.setInterval(load, 2000)
     return () => {
       alive = false
       window.removeEventListener('storage', handleStorage)
-      window.clearInterval(timer)
     }
   }, [partidaId])
+
+  useBancoAoVivo(
+    Number.isInteger(partidaNumero) && partidaNumero > 0 ? `ao-vivo-${partidaNumero}` : '',
+    Number.isInteger(partidaNumero) && partidaNumero > 0
+      ? [
+          { tabela: 'Partida', filtro: `id=eq.${partidaNumero}` },
+          { tabela: 'SetPartida', filtro: `partidaId=eq.${partidaNumero}` },
+        ]
+      : [],
+    () => recarregar.current(),
+  )
 
   const timeline = useMemo(() => orderLiveEvents(match?.ocorrencias ?? []).filter(shouldShowLiveEvent), [match])
   const scout = useMemo(() => match ? buildIndividualScout(match) : [], [match])

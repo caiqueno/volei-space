@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 
 export async function GET(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     let q = supabase
       .from('VotoMVP')
-      .select('jogadorId, jogador:Jogador(*, equipe:Equipe(nome, corHex, categoriaCampeonatoId))')
+      .select('jogadorId, jogador:Jogador(id, nome, numero, posicao, fotoUrl, fotoRostoUrl, equipe:Equipe(nome, corHex, categoriaCampeonatoId))')
 
     if (!categoriaCampeonatoId && categoria) q = q.eq('categoria', categoria)
 

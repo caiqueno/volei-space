@@ -1,5 +1,5 @@
 import slugifyLib from 'slugify'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
 export function slugify(text: string): string {
   return slugifyLib(text, { lower: true, strict: true, locale: 'pt' })

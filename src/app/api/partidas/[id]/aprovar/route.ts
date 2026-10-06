@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
