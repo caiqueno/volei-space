@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
 
   const ligaId = Number(new URL(req.url).searchParams.get('ligaId'))
   if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
-  const limite = Math.min(30, Math.max(1, Number(new URL(req.url).searchParams.get('limite') ?? 20) || 20))
+  // A primeira página pede 20. "Ver mais" e a releitura do Realtime pedem a janela
+  // já aberta; o teto antigo de 30 devolvia menos do que a tela mostrava e ela recolhia.
+  const limite = Math.min(200, Math.max(1, Number(new URL(req.url).searchParams.get('limite') ?? 20) || 20))
   const offset = Math.max(0, Number(new URL(req.url).searchParams.get('offset') ?? 0) || 0)
 
   const { data: liga, error: ligaErr } = await supabase

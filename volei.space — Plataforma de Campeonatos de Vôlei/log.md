@@ -13,6 +13,11 @@ updated: 2026-10-06
 
 # Log
 
+## [2026-10-06] fix | ver mais não recolhe sozinho
+
+- pages_updated=`modulos/PARTIDAS`, `log`
+- "Ver mais" na agenda do campeonato e em Jogos do painel ficava aberto e, segundos depois, a releitura do Realtime gravava de novo a primeira página. A lista aberta pelo usuário permanece; placar e status continuam atualizando.
+
 ## [2026-10-06] fix | auditoria antes da massa
 
 - pages_updated=`07-SEGURANCA`, `06-BANCO-DE-DADOS`, `modulos/PARTIDAS`, `hot`, `log`

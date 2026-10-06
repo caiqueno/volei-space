@@ -210,6 +210,14 @@ function ligaDaPartida(partida: PartidaOrganizacao) {
   return Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
 }
 
+// A releitura traz placar e status novos. Se ela vier mais curta porque uma
+// consulta antiga ainda estava no ar, os jogos que o usuário já abriu ficam.
+function manterPaginaAberta(atual: PartidaOrganizacao[], novas: PartidaOrganizacao[], temMais: boolean) {
+  if (!temMais || novas.length >= atual.length) return novas
+  const porId = new Map(novas.map((partida) => [partida.id, partida]))
+  return atual.map((partida) => porId.get(partida.id) ?? partida)
+}
+
 export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void; ativo?: boolean }) {
   const [partidas, setPartidas] = useState<PartidaOrganizacao[]>([])
   const [temMais, setTemMais] = useState(false)
@@ -217,6 +225,9 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
   const [erro, setErro] = useState<string | null>(null)
   const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
   const quantidade = useRef(20)
+  // Sobe quando o usuário pede outra página ou troca de campeonato.
+  // Uma releitura que começou antes disso não pode recolher o que ele abriu.
+  const versao = useRef(0)
   quantidade.current = Math.max(20, partidas.length)
 
   async function carregar(silencioso = false) {
@@ -225,15 +236,20 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
       setLoading(false)
       return
     }
+    const visto = versao.current
+    const ligaId = liga.id
+    const limite = Math.max(20, quantidade.current)
     if (!silencioso) setLoading(true)
     try {
-      const limite = silencioso ? quantidade.current : 20
-      const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${liga.id}&limite=${limite}`, { forcar: silencioso })
-      setPartidas(Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : [])
-      setTemMais(Boolean(jogos.data?.temMais))
+      const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${ligaId}&limite=${limite}`, { forcar: true })
+      if (visto !== versao.current) return
+      const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
+      const aindaTem = Boolean(jogos.data?.temMais)
+      setPartidas((atual) => manterPaginaAberta(atual, novas, aindaTem))
+      setTemMais(aindaTem)
       setErro(null)
     } catch (falha) {
-      if (falha instanceof ConsultaCancelada) return
+      if (falha instanceof ConsultaCancelada || visto !== versao.current) return
       setErro('Não foi possível carregar a tabela de jogos.')
     } finally {
       if (!silencioso) setLoading(false)
@@ -242,6 +258,8 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
 
   useEffect(() => {
     if (!ativo || !liga) return
+    versao.current += 1
+    quantidade.current = 20
     void carregar()
   }, [ativo, liga?.id])
 
@@ -253,7 +271,10 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
 
   async function verMais() {
     if (!liga) return
+    versao.current += 1
+    const visto = versao.current
     const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${liga.id}&limite=20&offset=${partidas.length}`, { forcar: true })
+    if (visto !== versao.current) return
     const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
     setPartidas((atual) => {
       const ids = new Set(atual.map((partida) => partida.id))

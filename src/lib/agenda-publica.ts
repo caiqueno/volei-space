@@ -49,7 +49,9 @@ export async function buscarAgendaCampeonato(
     if (!publico.ids.includes(ligaId)) return { aoVivo: vazio, proximos: vazio, encerradas: vazio, erro: false }
   }
 
-  const limite = Math.min(24, Math.max(1, opcoes?.limite ?? PAGINA_AGENDA))
+  // A página segue em 8. Quem abriu "Ver mais" pede a janela inteira na releitura;
+  // um teto curto devolvia só o começo e a agenda recolhia sozinha.
+  const limite = Math.min(200, Math.max(1, opcoes?.limite ?? PAGINA_AGENDA))
   const offset = Math.max(0, opcoes?.offset ?? 0)
   const parte = opcoes?.parte
   const [aoVivo, proximos, encerradas] = await Promise.all([

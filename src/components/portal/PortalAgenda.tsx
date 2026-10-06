@@ -23,6 +23,12 @@ const consultaParte: Record<Parte, string> = {
   encerradas: 'encerradas',
 }
 
+function manterFaixa<T extends { id: number }>(atual: T[], novas: T[], temMais: boolean) {
+  if (!temMais || novas.length >= atual.length) return novas
+  const porId = new Map(novas.map((partida) => [partida.id, partida]))
+  return atual.map((partida) => porId.get(partida.id) ?? partida)
+}
+
 export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: Props) {
   const [grupos, setGrupos] = useState(inicial)
   const [temMais, setTemMais] = useState<TemMais>(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
@@ -31,35 +37,51 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
   const [carregando, setCarregando] = useState<Parte | null>(null)
   const gruposRef = useRef(grupos)
   gruposRef.current = grupos
+  const origem = useRef({ inicial, temMaisInicial, falhaInicial })
+  origem.current = { inicial, temMaisInicial, falhaInicial }
+  // Sobe quando o campeonato muda ou o usuário pede outra página.
+  // A releitura do Realtime que já estava no ar não aplica por cima.
+  const versao = useRef(0)
 
   useEffect(() => {
-    setGrupos(inicial)
-    setTemMais(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
-    setFalha(falhaInicial)
-  }, [inicial, temMaisInicial, falhaInicial, ligaId])
+    versao.current += 1
+    const props = origem.current
+    setGrupos(props.inicial)
+    setTemMais(props.temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
+    setFalha(props.falhaInicial)
+  }, [ligaId])
 
   async function sincronizar() {
+    const visto = versao.current
     setAtualizando(true)
     const atual = gruposRef.current
     const limite = Math.max(8, atual.aoVivo.length, atual.proximos.length, atual.encerradas.length)
     try {
       const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}&limite=${limite}&t=${Date.now()}`, { cache: 'no-store' })
       const json = await resposta.json()
+      if (visto !== versao.current) return
       if (!resposta.ok) throw new Error(json?.error || 'Erro ao carregar jogos')
-      setGrupos({
-        aoVivo: json.data?.aoVivo ?? [],
-        proximos: json.data?.proximos ?? [],
-        encerradas: json.data?.encerradas ?? [],
-        analise: [],
-        outras: [],
-      })
-      setTemMais({
+      const proximo = {
+        aoVivo: (json.data?.aoVivo ?? []) as PartidaPublica[],
+        proximos: (json.data?.proximos ?? []) as PartidaPublica[],
+        encerradas: (json.data?.encerradas ?? []) as PartidaPublica[],
+      }
+      const mais = {
         aoVivo: Boolean(json.data?.temMais?.aoVivo),
         proximos: Boolean(json.data?.temMais?.proximos),
         encerradas: Boolean(json.data?.temMais?.encerradas),
-      })
+      }
+      setGrupos((corrente) => ({
+        aoVivo: manterFaixa(corrente.aoVivo, proximo.aoVivo, mais.aoVivo),
+        proximos: manterFaixa(corrente.proximos, proximo.proximos, mais.proximos),
+        encerradas: manterFaixa(corrente.encerradas, proximo.encerradas, mais.encerradas),
+        analise: [],
+        outras: [],
+      }))
+      setTemMais(mais)
       setFalha(false)
     } catch {
+      if (visto !== versao.current) return
       setFalha(true)
     } finally {
       setAtualizando(false)
@@ -74,11 +96,14 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
 
   async function carregarMais(parte: Parte) {
     if (carregando) return
+    versao.current += 1
+    const visto = versao.current
     setCarregando(parte)
     try {
       const offset = grupos[parte].length
       const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}&parte=${consultaParte[parte]}&offset=${offset}&limite=8`, { cache: 'no-store' })
       const json = await resposta.json()
+      if (visto !== versao.current) return
       if (!resposta.ok) throw new Error(json?.error || 'Erro ao carregar jogos')
       const novas = (json.data?.[parte] ?? []) as PartidaPublica[]
       setGrupos((atual) => {
@@ -88,6 +113,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
       setTemMais((atual) => ({ ...atual, [parte]: Boolean(json.data?.temMais?.[parte]) }))
       setFalha(false)
     } catch {
+      if (visto !== versao.current) return
       setFalha(true)
     } finally {
       setCarregando(null)
