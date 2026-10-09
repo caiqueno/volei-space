@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   BadgeCheck,
@@ -183,7 +183,11 @@ export default function PainelPage() {
   }
 
   if (session?.tipo === 'organizador') {
-    return <OrganizadorHome session={session} logout={logout} />
+    return (
+      <Suspense fallback={<main className="luva-shell public-dashboard min-h-screen px-4 py-12"><p className="text-center text-sm font-semibold text-slate-300">Abrindo o painel...</p></main>}>
+        <OrganizadorHome session={session} />
+      </Suspense>
+    )
   }
 
   if (session?.tipo === 'equipe') {

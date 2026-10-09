@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { validateWebhookSignature, InfinitePayWebhookPayload } from '@/lib/infinitepay'
 import { sendEmail, emailEquipeAtivada } from '@/lib/email'
 import { slugifyUnique } from '@/utils/slug'

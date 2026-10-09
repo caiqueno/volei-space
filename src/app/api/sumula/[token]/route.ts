@@ -25,6 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
+  if (new URL(req.url).searchParams.get('consulta') === '1') {
+    return success(sumulaParaConsulta(access.partida))
+  }
   const leitura = await requireSumulaLeitura(req, access.partida)
   if (leitura) return leitura
   return success(access.partida)
@@ -56,6 +59,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: !campeonatoDeSimulacao(partida) })
     if (validationError) return error(validationError, 422)
     if (sets.length === 0) return error('A súmula só pode ser enviada com pelo menos um set registrado.', 422)
+    const mvp = (destaques ?? []).find((item) => item.tipo === 'MVP' && item.jogadorId)
+    if (!mvp?.jogadorId) return error('Escolha o MVP antes de oficializar a súmula.', 422)
+    const setsA = sets.filter((set) => set.pontosA > set.pontosB).length
+    const setsB = sets.filter((set) => set.pontosB > set.pontosA).length
+    if (setsA === setsB) return error('A partida precisa de uma equipe vencedora antes do MVP.', 422)
+    const equipeVencedoraId = setsA > setsB ? Number(partida.equipeAId) : Number(partida.equipeBId)
+    const { data: atletaMvp } = await supabase.from('Jogador').select('equipeId').eq('id', mvp.jogadorId).maybeSingle()
+    if (!atletaMvp || Number(atletaMvp.equipeId) !== equipeVencedoraId) {
+      return error('O MVP precisa ser um atleta da equipe vencedora.', 422)
+    }
     const regra = regrasDaPartida(partida.liga)
     const placarInvalido = validateCategoryResult(sets, regra)
     if (placarInvalido) return error(placarInvalido, 422)
@@ -172,6 +185,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
 
     if (updateErr) throw updateErr
     await syncLeagueLifecycle(partida.ligaId)
+    const setsMudaram = Number(partida.setsPorA ?? 0) !== liveSummary.setsPorA
+      || Number(partida.setsPorB ?? 0) !== liveSummary.setsPorB
+    const iniciouAgora = String(partida.status ?? '').toUpperCase() !== 'EM_ANDAMENTO'
+    if (setsMudaram || iniciouAgora) {
+      try {
+        await recalculateLeagueClassification(partida.ligaId)
+      } catch (err) {
+        console.error('[sumula] andamento gravado; classificação não recalculada', err)
+      }
+    }
     return success({ salva: true, oficial: false, status: 'EM_ANDAMENTO' })
   } catch (err) {
     console.error('[sumula] erro ao salvar andamento', err)
@@ -217,6 +240,65 @@ async function concluirPublicacao(ligaId: number) {
     await syncLeagueLifecycle(ligaId)
   } catch (err) {
     console.error('[sumula] súmula gravada; ciclo do campeonato não atualizado', err)
+  }
+}
+
+function valorUnico<T>(valor: T | T[] | null | undefined) {
+  return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
+}
+
+function jogadorConsulta(jogador: any) {
+  const item = valorUnico(jogador)
+  if (!item) return null
+  return { id: item.id, nome: item.nome, numero: item.numero ?? null, posicao: item.posicao ?? null }
+}
+
+function equipeConsulta(equipe: any) {
+  const item = valorUnico(equipe)
+  if (!item) return null
+  return {
+    id: item.id,
+    nome: item.nome,
+    jogadores: (item.jogadores ?? []).map(jogadorConsulta).filter(Boolean),
+  }
+}
+
+function sumulaParaConsulta(partida: any) {
+  const liga = valorUnico(partida.liga)
+  return {
+    id: partida.id,
+    ligaId: partida.ligaId,
+    rodada: partida.rodada,
+    status: partida.status,
+    categoria: partida.categoria,
+    dataHora: partida.dataHora,
+    localNome: partida.localNome,
+    setsPorA: partida.setsPorA,
+    setsPorB: partida.setsPorB,
+    pontosPorA: partida.pontosPorA,
+    pontosPorB: partida.pontosPorB,
+    vencedorId: partida.vencedorId,
+    sumulaAprovadaEm: partida.sumulaAprovadaEm,
+    liga: liga ? { id: liga.id, nome: liga.nome } : null,
+    equipeA: equipeConsulta(partida.equipeA),
+    equipeB: equipeConsulta(partida.equipeB),
+    sets: [...(partida.sets ?? [])].sort((a: { numero: number }, b: { numero: number }) => Number(a.numero) - Number(b.numero)),
+    presencas: (partida.presencas ?? []).map((item: any) => ({
+      id: item.id,
+      presente: item.presente,
+      equipeId: item.equipeId,
+      jogadorId: item.jogadorId,
+      numero: item.numero ?? null,
+      jogador: jogadorConsulta(item.jogador),
+    })),
+    ocorrencias: [...(partida.ocorrencias ?? [])]
+      .map((item: any) => ({ id: item.id, tipo: item.tipo, descricao: item.descricao, set: item.set, jogadorId: item.jogadorId ?? null }))
+      .sort((a: { id: number }, b: { id: number }) => Number(a.id) - Number(b.id)),
+    destaques: (partida.destaques ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, jogador: jogadorConsulta(item.jogador) })),
+    escala: (partida.escala ?? []).map((item: any) => {
+      const arbitro = valorUnico(item.arbitro)
+      return { id: item.id, cargo: item.cargo, arbitro: arbitro ? { nome: arbitro.nome } : null }
+    }),
   }
 }
 
@@ -293,11 +375,10 @@ function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB
   const rules = getLiveRules(liga)
   const sortedSets = [...sets].sort((a, b) => Number(a.numero) - Number(b.numero))
   const latestSet = sortedSets[sortedSets.length - 1]
-  const completedSets = sortedSets.slice(0, -1)
   let setsPorA = 0
   let setsPorB = 0
 
-  for (const set of completedSets) {
+  for (const set of sortedSets) {
     const maxScore = Math.max(set.pontosA, set.pontosB)
     const diff = Math.abs(set.pontosA - set.pontosB)
     const threshold = Number(set.numero) === rules.setsPerMatch ? rules.lastSetPoints : rules.pointsPerSet

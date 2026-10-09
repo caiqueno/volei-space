@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { isSupabaseServiceConfigured, supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireAuth, requirePublicRole } from '@/lib/auth'

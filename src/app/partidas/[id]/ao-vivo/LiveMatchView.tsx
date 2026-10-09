@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { Activity, CalendarDays, Clock, LogIn, LogOut, Radio, ShieldCheck, Trophy } from 'lucide-react'
+import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 
 type LiveMatch = {
   id: number
@@ -31,10 +33,12 @@ type LivePlayer = {
   fotoUrl?: string | null
 }
 
-export default function LiveMatchView({ partidaId }: { partidaId: string }) {
+export default function LiveMatchView({ partidaId, embutido = false }: { partidaId: string; embutido?: boolean }) {
   const [match, setMatch] = useState<LiveMatch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const recarregar = useRef<() => void>(() => {})
+  const partidaNumero = Number(partidaId)
 
   useEffect(() => {
     let alive = true
@@ -64,35 +68,48 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
         }
       }
     }
+    recarregar.current = () => { void load() }
     load()
     function handleStorage(event: StorageEvent) {
       if (event.key === demoStorageKey) syncStoredDemo()
     }
     window.addEventListener('storage', handleStorage)
-    const timer = window.setInterval(load, 4000)
     return () => {
       alive = false
       window.removeEventListener('storage', handleStorage)
-      window.clearInterval(timer)
     }
   }, [partidaId])
+
+  useBancoAoVivo(
+    Number.isInteger(partidaNumero) && partidaNumero > 0 ? `ao-vivo-${partidaNumero}` : '',
+    Number.isInteger(partidaNumero) && partidaNumero > 0
+      ? [
+          { tabela: 'Partida', filtro: `id=eq.${partidaNumero}` },
+          { tabela: 'SetPartida', filtro: `partidaId=eq.${partidaNumero}` },
+        ]
+      : [],
+    () => recarregar.current(),
+  )
 
   const timeline = useMemo(() => orderLiveEvents(match?.ocorrencias ?? []).filter(shouldShowLiveEvent), [match])
   const scout = useMemo(() => match ? buildIndividualScout(match) : [], [match])
 
+  const Root = embutido ? 'section' : 'main'
+  const classe = embutido ? 'live-match-page is-dock' : 'live-match-page'
+
   if (loading) {
     return (
-      <main className="live-match-page">
+      <Root className={classe}>
         <section className="live-match-state"><Activity size={22} /><h1>Carregando partida</h1><p>Buscando placar e movimentações ao vivo.</p></section>
-      </main>
+      </Root>
     )
   }
 
   if (error || !match || !match.equipeA || !match.equipeB) {
     return (
-      <main className="live-match-page">
+      <Root className={classe}>
         <section className="live-match-state is-error"><ShieldCheck size={24} /><h1>Partida indisponível</h1><p>{error || 'Não foi possível encontrar esta partida.'}</p></section>
-      </main>
+      </Root>
     )
   }
 
@@ -101,7 +118,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
   const finished = ['encerrada', 'finalizada', 'finished'].includes(normalizeStatus(match.status))
 
   return (
-    <main className="live-match-page">
+    <Root className={classe}>
       <section className="live-match-hero">
         <div>
           <div className="live-match-hero-top">
@@ -165,7 +182,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
                 <h3>{team.teamName}</h3>
                 {team.players.length ? (
                   <div className="live-match-scout-table">
-                    <div><span>Atleta</span><span>Pts</span><span>Ataq.</span><span>Bloq.</span><span>Aces</span></div>
+                    <div><span>Atleta</span><span>Pts</span><span>Ataque</span><span>Bloqueio</span><span>Saque</span></div>
                     {team.players.map((player) => (
                       <div key={`${team.teamId}-${player.number}-${player.name}`}>
                         <strong>#{player.number} {player.name}</strong>
@@ -184,7 +201,7 @@ export default function LiveMatchView({ partidaId }: { partidaId: string }) {
           </div>
         </article>}
       </section>
-    </main>
+    </Root>
   )
 }
 
@@ -236,6 +253,8 @@ function parseEventDescription(description: string) {
 }
 
 function liveEventTypeLabel(tipo: string, text: string) {
+  const rotulo = lerRotuloPonto(text)
+  if (rotulo) return rotulo
   const normalized = normalizeStatus(tipo)
   const lowerText = text.toLowerCase()
   if (normalized.includes('substitution') || normalized.includes('substituicao') || lowerText.includes('substitui')) return 'Substituição'
@@ -320,7 +339,7 @@ function buildIndividualScout(match: LiveMatch) {
 
     const parsed = parseEventDescription(event.descricao || '')
     const text = parsed.text || event.descricao || ''
-    const pointMatch = text.match(/^(ACE|Ataque|Bloqueio)\s+para\s+(.+?):\s*#([^\s]+)\s+(.+?)(?:\.|$)/i)
+    const pointMatch = text.match(/(ACE|Ataque|Bloqueio)\s+para\s+(.+?):\s*#([^\s]+)\s+(.+?)(?:\.|$)/i)
 
     // O jogadorId persistido é a fonte confiável de quem pontuou: o número no texto
     // pode ter sido sobrescrito para a partida e não bater mais com o número de elenco.
@@ -391,9 +410,11 @@ function parseSubstitutionText(text: string, teamNames: string[]) {
 function LiveEvent({ event, teamNames }: { event: NonNullable<LiveMatch['ocorrencias']>[number]; teamNames: string[] }) {
   const parsed = parseEventDescription(event.descricao)
   const label = liveEventTypeLabel(event.tipo, parsed.text)
+  const rotuloDePonto = lerRotuloPonto(parsed.text)
+  const jogadorDoPonto = lerJogadorPonto(parsed.text)
   const isSubstitution = event.tipo === 'substitution' || parsed.text.toLowerCase().includes('substitui')
   const substitution = isSubstitution ? parseSubstitutionText(parsed.text, teamNames) : null
-  const badgeText = isSubstitution ? label : parsed.score || label
+  const badgeText = isSubstitution ? label : rotuloDePonto || parsed.score || label
   const cleanText = cleanLiveText(parsed.text, teamNames, { removeScore: true })
   return (
     <>
@@ -410,6 +431,8 @@ function LiveEvent({ event, teamNames }: { event: NonNullable<LiveMatch['ocorren
           <span><LogOut size={16} /> Sai <strong>{substitution.outPlayer}</strong></span>
           <span><LogIn size={16} /> Entra <strong>{substitution.inPlayer}</strong></span>
         </div>
+      ) : rotuloDePonto ? (
+        <p>{jogadorDoPonto ?? cleanText}</p>
       ) : (
         <p>{cleanText}</p>
       )}

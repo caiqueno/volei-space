@@ -5,22 +5,55 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  TOURNAMENT-SEED em produção tem 960 jogadores e presença na súmula.
+  supabase/migrations é a fonte da verdade do Postgres. O Prisma só descreve esse banco. O elenco TOURNAMENT-SEED está no script idempotente.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-02
+updated: 2026-10-09
 ---
 # Modelo de dados
 
-`prisma/schema.prisma` descreve entidades; `supabase/migrations` documenta mudanças SQL e políticas. Confira o estado aplicado ao banco antes de concluir que uma coluna ou policy está ativa.
+A fonte da verdade do Postgres é `supabase/migrations`, na ordem do prefixo numérico. A CLI do Supabase só aplica arquivo cujo nome começa com dígitos. Não existe `prisma/migrations`. `prisma/schema.prisma` descreve o banco que essas migrations deixam: tabelas, colunas, unicidade e índices. Não use `prisma migrate` nem `prisma db push`. O script `setup-db.mjs`, que criava um SQLite em caminho Windows da LUVA, saiu do repositório. `npm run db:migrate` só confere `DIRECT_URL` (porta 5432, sem `pgbouncer=true`) e não reexecuta o SQL histórico. `DATABASE_URL` é o pooler de transação (porta 6543) e não aplica migration.
+
+Trinta e cinco arquivos que estavam sem prefixo (`supabase-*.sql`) passaram a ter versão anterior a `202610060004`. Quem concede `anon` ou `authenticated` fica antes do fechamento. Eles já foram aplicados à mão em produção e em desenvolvimento, então não estão em `supabase_migrations.schema_migrations`. Antes de `supabase db push`, marque cada versão renomeada como aplicada. Sem esse passo a CLI tenta rodar de novo SQL que não é todo idempotente.
+
+```bash
+supabase link --project-ref <ref-do-projeto>
+supabase migration repair --status applied \
+  202609200001 202609200002 202609200003 202609200004 202609200005 \
+  202609200006 202609200007 202609200008 202609200009 202609200010 \
+  202609200011 202609200012 202609200013 202609200014 202609200015 \
+  202609200016 202609200017 202609200018 202609200019 202609200020 \
+  202609200021 202609200022 202609200023 202609200024 \
+  202609270001 202609270002 202609270003 202609270004 202609270005 202609270006 \
+  202609290001 202609290002 \
+  202610010001 202610010002 202610010003
+```
+
+Rode o repair nos dois projetos. O `db push` seguinte aplica só o que ainda não está no histórico: `202610090001` (EXECUTE de `PUBLIC` nos default privileges), `202610090002` (índices de chave estrangeira) e `202610090003` (unicidade de classificação por liga e equipe). Nenhuma dessas três apaga linha.
+
+As tabelas base (`Liga`, `Equipe`, `Partida` e as outras que já existiam antes desta pasta) não nascem de um `CREATE TABLE` versionado. Um banco vazio não reproduz o produto só com `db push`. O histórico ordenado reproduz os deltas em cima dessa base.
 
 O projeto `volei-space-producao` é a base de produção e só pode ser usado no deploy da branch `main`. Local, preview e qualquer outra branch usam o projeto `caiqueno's Project`. A ligação é feita pelas variáveis do ambiente, não por endereço fixo no código. No Next.js elas são `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ALVO` (`producao` ou `desenvolvimento`) e, só no servidor, `SUPABASE_SERVICE_ROLE_KEY`. `SUPABASE_HOSTS_PROIBIDOS` lista hosts que aquele ambiente recusa. Se a configuração faltar ou misturar os alvos, as operações de banco não iniciam. O navegador recebe apenas a chave publicável. Várias tabelas seguem sem RLS nos dois projetos; ligar RLS sem política bloqueia o cliente público. `AcessoArbitroJogo` e `AcessoArbitroEvento` têm RLS ligada e nenhuma política para `anon` ou `authenticated`. Só o papel `service_role` lê e grava essas tabelas.
+
+A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authenticated` todo acesso ao schema `public`, inclusive nos objetos criados depois, e devolve apenas três leituras: `ClassificacaoEntrada` inteira, `SetPartida` inteira e as colunas de placar de `Partida` (sem `sumulaToken` e sem `sumulaTokenExpira`). É o mínimo que o Realtime do placar e da classificação precisa. Antes dela a chave publicável lia `Partida.sumulaToken`, lia `Jogador` inteiro e era aceita em `PATCH /rest/v1/Partida`. Todo acesso de servidor passou a usar `supabaseAdmin`; no navegador sobraram o Realtime e os uploads de storage.
+
+`revoke ... from anon, authenticated` não alcança a concessão que o Postgres dá a `PUBLIC` quando a função é criada. Por isso a chave publicável continuava chamando `/rest/v1/rpc/recalcular_classificacao_liga` e recalculando a tabela de qualquer campeonato sem sessão. A migration `202610060005_fechar_rpc_anonimo.sql` percorre as funções do schema `public` que não pertencem a extensão, revoga de `public`, `anon` e `authenticated`, e concede `execute` ao `service_role`. Função de gatilho não perde nada: o `EXECUTE` é conferido na criação do gatilho, não a cada disparo.
+
+O `alter default privileges in schema public` de `202610060004` também não tira o EXECUTE global de `PUBLIC`. A documentação do Postgres diz que o revoke limitado a um schema só desfaz um grant feito naquele schema. `202610090001_revogar_execute_public_default.sql` usa a forma sem schema, para o papel `postgres`, e mantém `EXECUTE` de função nova para `service_role`. Função criada no SQL Editor como `supabase_admin` não entra nesse default: o mesmo `revoke` precisa ser repetido para esse papel por quem puder alterá-lo. Essa migration ainda não foi aplicada nos bancos.
+
+As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produção, depois delas: `sumulaToken`, `Jogador` e `Equipe` respondem 401 à chave publicável, `PATCH` em `Partida` responde 401, as RPC respondem 401, e `Partida` (colunas de placar), `SetPartida` e `ClassificacaoEntrada` seguem legíveis para o Realtime.
+
+A leitura do Realtime está em migration versionada. A policy de linha é `public_read_classificacao`, `public_read_sets` e `public_read_partidas` em `202609200020_producao-elenco-sumula-rls.sql`, e `luv_public_select_classificacao`, `luv_public_select_set_partida` e `luv_public_select_partida` em `202609200021_rls-producao-permissoes-campeonatos.sql`. Policy é filtro de linha. A coluna fica de fora no `GRANT` de `202610060004_fechar_acesso_anonimo.sql`: `ClassificacaoEntrada` e `SetPartida` inteiras, e `Partida` só com id, liga, equipes, categoria, rodada, status, data, local, sets, pontos e vencedor. `sumulaToken` e `sumulaTokenExpira` não entram. A publicação em `202610060003_classificacao_ao_vivo.sql` repete essa lista de colunas da `Partida`.
+
+`ClassificacaoEntrada.equipeId` deixou de ser único sozinho. A mesma equipe participa de mais de uma liga, e o recálculo sobrescrevia a linha da outra liga. A unicidade vigente é `(ligaId, equipeId)`, criada em `202609200010` e repetida sem apagar linha em `202610090003`. `ligaId` nulo continua distinto, então linha órfã antiga permanece.
+
+`202610090002` cria índice, se ainda não existir, nas chaves estrangeiras que a revisão apontou sem a coluna na frente de um índice: `Equipe.ligaId`, `Jogador.equipeId`, `Partida.equipeAId`, `Partida.equipeBId`, `SumulaPresenca.jogadorId` e `equipeId`, `OcorrenciaPartida.partidaId` e `jogadorId`, `DestaquesPartida.jogadorId`, `EscalaArbitro.arbitroId`, `Premiacao.ligaId`, `Midia.ligaId`, `Mensagem.ligaId`, `CandidaturaEquipe.ligaId` e `ClassificacaoEntrada.ligaId` e `equipeId`. `SetPartida.partidaId` já é a primeira coluna da unicidade `(partidaId, numero)`; não há segundo índice. O `@@index` correspondente está no Prisma.
 
 `LinkInscricaoCampeonato` e `LinkInscricaoEvento` guardam o token de inscrição e a auditoria. As duas tabelas têm RLS ligada, sem política para `anon` ou `authenticated`, e só `service_role` as lê. `Equipe.seedKey` e `Jogador.seedKey` identificam a massa de teste.
 
 A massa `LINK-FLOW-2026` está nos dois bancos, sem reutilizar `SEED-CHAMP` nem `SEED-GAME`: 10 campeonatos `LINK-FLOW-CHAMP-01` a `10`, 100 equipes, 1.200 jogadores `TESTE-LINK-2026-CH##-EQ##-J###` e 400 partidas `LINK-FLOW-GAME-##-###` (100 encerradas, 200 em andamento, 100 agendadas). O campeonato 03 tem o link desativado, o 04 registra regeneração, o 05 abre as inscrições daqui a 10 dias e o 06 já encerrou o período. O campeonato 02 também tem 10 equipes, porque a massa de jogadores pede elenco em todos. O script `scripts/seed-link-flow-2026.sql` só insere `seedKey` ausente. Em produção continuam 8 ligas sem `seedKey` e a massa `TOURNAMENT-SEED-2026`.
 
-A massa `VOLEI_SPACE_TEST_SEED_2026` fica só no banco de desenvolvimento. O comando `npm run seed:test` recusa a branch `main` e qualquer URL de produção. Os campeonatos dessa massa usam a descrição `VOLEI_SPACE_TEST_SEED_2026` e o slug `seed-2026-`. A massa `TOURNAMENT-SEED-2026` está nos dois bancos: 10 campeonatos `SEED-CHAMP-01` a `SEED-CHAMP-10`, 80 equipes com `seedKey` `SEED-CHAMP-##-EQ##`, 960 jogadores `TESTE-SEED-2026-CH##-EQ##-J###` e 400 partidas `SEED-GAME-01-001` a `SEED-GAME-10-040`, com 100 encerradas, 200 em andamento e 100 agendadas. O script `scripts/seed-torneio-2026.sql` só insere o que ainda não tem `seedKey` e não apaga campeonatos reais. O elenco e a presença da súmula vêm de `scripts/seed-torneio-jogadores-2026.sql`, também idempotente. Em produção, essa carga de jogadores e presenças já foi aplicada. As duas massas deixam `simulacao` desligado, porque o portal público esconde campeonato simulado. `npm run seed:test:clean` apaga só a massa antiga e mantém `joao@teste.com.br`. O placar ao vivo do portal é relido por consulta periódica; `Partida` e `SetPartida` não estão na publicação Realtime.
+A massa `VOLEI_SPACE_TEST_SEED_2026` fica só no banco de desenvolvimento. O comando `npm run seed:test` recusa a branch `main` e qualquer URL de produção. Os campeonatos dessa massa usam a descrição `VOLEI_SPACE_TEST_SEED_2026` e o slug `seed-2026-`. A massa `TOURNAMENT-SEED-2026` está nos dois bancos: 10 campeonatos `SEED-CHAMP-01` a `SEED-CHAMP-10`, 80 equipes com `seedKey` `SEED-CHAMP-##-EQ##`, 960 jogadores `TESTE-SEED-2026-CH##-EQ##-J###` e 400 partidas `SEED-GAME-01-001` a `SEED-GAME-10-040`, com 100 encerradas, 200 em andamento e 100 agendadas. O script `scripts/seed-torneio-2026.sql` só insere o que ainda não tem `seedKey` e não apaga campeonatos reais. O elenco e a presença da súmula vêm de `scripts/seed-torneio-jogadores-2026.sql`, também idempotente. Em produção, essa carga de jogadores e presenças já foi aplicada; colocar o script no repositório não executa o SQL de novo. As duas massas deixam `simulacao` desligado, porque o portal público esconde campeonato simulado. `npm run seed:test:clean` apaga só a massa antiga e mantém `joao@teste.com.br`. O placar e a classificação públicos escutam o Realtime de `Partida`, `SetPartida` e `ClassificacaoEntrada`. A publicação de `Partida` não inclui `sumulaToken`. A identidade de réplica dessa tabela é o índice de `id` e `ligaId`, para o placar atualizar sem publicar o token. `Jogador`, presença e ocorrência ficam fora dessa publicação.
 
 ## Relações centrais
 

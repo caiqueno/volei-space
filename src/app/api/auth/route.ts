@@ -3,7 +3,7 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
+import { isReleasedPublicStatus, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
 import { adminEmailAllowed } from '@/lib/admin-access'
 import { loginDestination } from '@/lib/login-destination'
 import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
@@ -64,6 +64,9 @@ export async function POST(req: NextRequest) {
     const senhaOk = await bcrypt.compare(senha, usuario.senhaHash)
     if (!senhaOk) {
       return error(perfil === 'organizador' ? 'Usuário ou senha não conferem.' : 'Credenciais inválidas.', 401)
+    }
+    if (usuario.tipo === 'organizador' && !isReleasedPublicStatus(usuario.status)) {
+      return error('Seu cadastro de organizador ainda aguarda liberação do administrador.', 403)
     }
     if (EMAIL_ARBITRO_SIMULACAO.test(usuario.email) && process.env.NODE_ENV === 'production') {
       return error('Credenciais inválidas.', 401)

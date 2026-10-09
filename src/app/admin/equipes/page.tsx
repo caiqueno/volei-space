@@ -13,11 +13,9 @@ export default function AdminEquipesPage() {
   const [nome, setNome] = useState('')
   const [ligaId, setLigaId] = useState('')
   const [categoria, setCategoria] = useState('MASCULINO')
-  const [serie, setSerie] = useState('OURO')
   const [busca, setBusca] = useState('')
   const [filtroLigaId, setFiltroLigaId] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
-  const [filtroSerie, setFiltroSerie] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -27,7 +25,6 @@ export default function AdminEquipesPage() {
     if (busca.trim()) params.set('q', busca.trim())
     if (filtroLigaId) params.set('ligaId', filtroLigaId)
     if (filtroCategoria) params.set('categoria', filtroCategoria)
-    if (filtroSerie) params.set('serie', filtroSerie)
     const res = await fetch(`/api/equipes${params.toString() ? `?${params.toString()}` : ''}`)
     const json = await res.json()
     setEquipes(json.data ?? [])
@@ -49,7 +46,7 @@ export default function AdminEquipesPage() {
     const res = await fetch('/api/equipes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, ligaId: Number(ligaId), categoria, serie }),
+      body: JSON.stringify({ nome, ligaId: Number(ligaId), categoria }),
     })
     const json = await res.json()
     setSaving(false)
@@ -75,21 +72,16 @@ export default function AdminEquipesPage() {
       <h2 className="text-2xl font-black text-luva-navy mb-6">Equipes</h2>
 
       <div className="bg-white rounded-xl border border-luva-border p-4 mb-6">
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-4">
           <input className="border border-luva-border rounded-lg px-3 py-2 text-sm md:col-span-2" placeholder="Buscar equipe" value={busca} onChange={e => setBusca(e.target.value)} />
           <select className="border border-luva-border rounded-lg px-3 py-2 text-sm" value={filtroLigaId} onChange={e => setFiltroLigaId(e.target.value)}>
             <option value="">Todos os campeonatos</option>
             {ligas.map((liga: any) => <option key={liga.id} value={liga.id}>{liga.nome}</option>)}
           </select>
-          <select className="border border-luva-border rounded-lg px-3 py-2 text-sm" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}>
-            <option value="">Todas as categorias</option>
-            {categorias.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
           <div className="flex gap-2">
-            <select className="min-w-0 flex-1 border border-luva-border rounded-lg px-3 py-2 text-sm" value={filtroSerie} onChange={e => setFiltroSerie(e.target.value)}>
-              <option value="">Todas as séries</option>
-              <option value="OURO">Ouro</option>
-              <option value="PRATA">Prata</option>
+            <select className="min-w-0 flex-1 border border-luva-border rounded-lg px-3 py-2 text-sm" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}>
+              <option value="">Todas as categorias</option>
+              {categorias.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <button type="button" onClick={fetchEquipes} className="rounded-lg bg-luva-blue px-4 py-2 text-sm font-bold text-white">Filtrar</button>
           </div>
@@ -105,10 +97,6 @@ export default function AdminEquipesPage() {
           />
           <select className="border border-luva-border rounded-lg px-3 py-2 text-sm" value={categoria} onChange={e => setCategoria(e.target.value)}>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select className="border border-luva-border rounded-lg px-3 py-2 text-sm" value={serie} onChange={e => setSerie(e.target.value)}>
-            <option value="OURO">Ouro</option>
-            <option value="PRATA">Prata</option>
           </select>
           <select className="col-span-2 border border-luva-border rounded-lg px-3 py-2 text-sm md:col-span-4" value={ligaId} onChange={e => setLigaId(e.target.value)} required>
             <option value="">Selecionar campeonato</option>
@@ -132,7 +120,6 @@ export default function AdminEquipesPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Nome</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Categoria</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Série</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Campeonato</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Jogadores</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Ações</th>
@@ -143,7 +130,6 @@ export default function AdminEquipesPage() {
                 <tr key={e.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{e.nome}</td>
                   <td className="px-4 py-3"><Badge variant="neutral">{e.categoria}</Badge></td>
-                  <td className="px-4 py-3"><Badge variant={e.serie === 'OURO' ? 'warning' : 'neutral'}>{e.serie}</Badge></td>
                   <td className="px-4 py-3 text-luva-muted">{e.liga?.nome ?? e.ligaId}</td>
                   <td className="px-4 py-3 text-luva-muted">{e.jogadores?.length ?? 0}</td>
                   <td className="px-4 py-3">

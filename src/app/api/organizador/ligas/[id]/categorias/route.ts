@@ -24,10 +24,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{id:st
  // consumidores deste endpoint (navegação entre categorias, etc.) só
  // querem as ativas, então isso é opt-in via query param.
  const incluirRemovidas = new URL(req.url).searchParams.get('incluirRemovidas') === '1'
- let query = db.from('CategoriaCampeonato').select('*,configuracao:CategoriaConfiguracao(*),secoes:CategoriaSetupSecao(*)').eq('ligaId',ligaId).order('ordem')
+ // A seleção e a barra de categorias leem só a categoria. O vínculo com
+ // configuração e seções é chave composta; o PostgREST de produção recusa
+ // esse aninhamento com 400 e a tela mostra falha de carregamento.
+ let query = db.from('CategoriaCampeonato').select('id,codigo,nome,slug,ordem,statusConfiguracao,removidaEm').eq('ligaId',ligaId).order('ordem')
  if (!incluirRemovidas) query = query.is('removidaEm', null)
  const {data,error:err}=await query
- return err?error('Não foi possível carregar as categorias.',500):success(data)
+ if (err) {
+   console.error('Falha ao listar categorias', err.message)
+   return error('Não foi possível carregar as categorias.',500)
+ }
+ return success(data)
 }
 
 /**

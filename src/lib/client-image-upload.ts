@@ -31,12 +31,14 @@ export function validateImageFile(file: File) {
   return ''
 }
 
-export async function optimizeImageFile(file: File, outputName = 'imagem') {
+export async function optimizeImageFile(file: File, outputName = 'imagem', options?: { maxDimension?: number; maxOutputBytes?: number }) {
   const validationError = validateImageFile(file)
   if (validationError) throw new Error(validationError)
 
+  const maxDimension = options?.maxDimension ?? imageUploadRules.maxDimension
+  const maxOutputBytes = options?.maxOutputBytes ?? imageUploadRules.maxOutputBytes
   const image = await loadImage(file)
-  let { width, height } = fitImageSize(image.naturalWidth || image.width, image.naturalHeight || image.height)
+  let { width, height } = fitImageSize(image.naturalWidth || image.width, image.naturalHeight || image.height, maxDimension)
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Não foi possível processar a imagem no navegador.')
@@ -49,19 +51,19 @@ export async function optimizeImageFile(file: File, outputName = 'imagem') {
   const qualities = [0.72, 0.62, 0.52]
 
   for (const quality of qualities) {
-    if (finalBlob.size <= imageUploadRules.maxOutputBytes) break
+    if (finalBlob.size <= maxOutputBytes) break
     finalBlob = await canvasToBlob(canvas, type, quality)
   }
 
-  while (finalBlob.size > imageUploadRules.maxOutputBytes && width > 720 && height > 720) {
+  while (finalBlob.size > maxOutputBytes && width > 240 && height > 240) {
     width = Math.round(width * 0.85)
     height = Math.round(height * 0.85)
     drawImage(canvas, context, image, width, height)
     finalBlob = await canvasToBlob(canvas, type, 0.62)
   }
 
-  if (finalBlob.size > imageUploadRules.maxOutputBytes) {
-    throw new Error(`Não foi possível reduzir a imagem para ${formatBytes(imageUploadRules.maxOutputBytes)}. Tente outra foto.`)
+  if (finalBlob.size > maxOutputBytes) {
+    throw new Error(`Não foi possível reduzir a imagem para ${formatBytes(maxOutputBytes)}. Tente outra foto.`)
   }
 
   const extension = type === 'image/webp' ? 'webp' : 'jpg'
@@ -82,8 +84,7 @@ function drawImage(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D,
   context.drawImage(image, 0, 0, width, height)
 }
 
-function fitImageSize(width: number, height: number) {
-  const max = imageUploadRules.maxDimension
+function fitImageSize(width: number, height: number, max = imageUploadRules.maxDimension) {
   if (width <= max && height <= max) return { width, height }
   const ratio = Math.min(max / width, max / height)
   return {

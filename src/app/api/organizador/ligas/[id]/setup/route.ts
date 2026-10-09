@@ -2,7 +2,7 @@
 // resumo) + progresso geral ("N de 6" / %). Não confundir com
 // src/app/api/organizador/ligas/[id]/estrutura/route.ts (distribuição real).
 import { NextRequest } from 'next/server'
-import { success } from '@/lib/api-response'
+import { error, success } from '@/lib/api-response'
 import { requireOwnedLigaForSetup, getStoredSectionStatuses, isLigaEmAndamento } from '@/lib/championship-setup-access'
 import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
 import {
@@ -15,7 +15,8 @@ import {
   type SetupSection,
 } from '@/lib/championship-setup-status'
 import { formatEliminatoryPhase } from '@/lib/eliminatorias'
-
+import { categoryIdFromRequest } from '@/lib/category-setup-delegate'
+import { CategoryScopeError, getCategoryConfiguration } from '@/lib/category-scope'
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ligaId = Number(id)
@@ -39,7 +40,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     SECTION_ORDER.map((section) => [section, (validation.perSecao[section] ?? []).some((issue) => issue.severity === 'error')]),
   ) as Record<SetupSection, boolean>
 
-  const formato = (liga.formato as string | null) ?? null
+  const categoriaId = categoryIdFromRequest(req)
+  let formato = (liga.formato as string | null) ?? null
+  if (categoriaId) {
+    try {
+      const config = await getCategoryConfiguration(ligaId, categoriaId)
+      formato = (config.formato as string | null) ?? null
+    } catch (cause) {
+      if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
+      return error('Não foi possível carregar a categoria.', 500)
+    }
+  }
+  const consultaCategoria = categoriaId ? `&categoriaCampeonatoId=${encodeURIComponent(categoriaId)}` : ''
   const effective = computeAllEffectiveStatuses(stored, hasErrorsBySection, formato)
   const progress = computeSetupProgress(effective, formato)
 
@@ -72,7 +84,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       title: CARD_TITLES[section],
       status: effective[section],
       summary: summaryBySection[section],
-      href: `/painel/parametrizacao/${section}?ligaId=${ligaId}`,
+      href: `/painel/parametrizacao/${section}?ligaId=${ligaId}${consultaCategoria}`,
     })),
     {
       key: 'previa',

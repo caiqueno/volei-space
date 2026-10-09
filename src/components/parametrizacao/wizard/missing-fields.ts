@@ -1,7 +1,26 @@
+const CAMPO_A_CORRIGIR = 'parametrizacao-campo-corrigir'
+
+export function guardarCampoParaCorrigir(secao: string, campo: string) {
+  window.sessionStorage.setItem(CAMPO_A_CORRIGIR, `${secao}:${campo}`)
+}
+
+export function lerCampoPedido(secao: string) {
+  if (typeof window === 'undefined') return null
+  const gravado = window.sessionStorage.getItem(CAMPO_A_CORRIGIR)
+  if (gravado?.startsWith(`${secao}:`)) return gravado.slice(secao.length + 1)
+  return new URLSearchParams(window.location.search).get('campo')
+}
+
+export function limparCampoPedido(secao: string) {
+  const gravado = window.sessionStorage.getItem(CAMPO_A_CORRIGIR)
+  if (gravado?.startsWith(`${secao}:`)) window.sessionStorage.removeItem(CAMPO_A_CORRIGIR)
+}
+
 export const MISSING_FIELD_ANCHOR: Record<string, string> = {
   nome: 'nome-campeonato',
   formato: 'formato-competicao',
   quantidadeEquipes: 'quantidade-equipes',
+  classificadosPorGrupo: 'classificados-por-grupo',
   criteriosClassificacao: 'criterios-classificacao',
   faseEliminatoria: 'fase-eliminatoria',
   dataInicio: 'data-inicio',

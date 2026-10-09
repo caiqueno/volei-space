@@ -222,7 +222,7 @@ export default function OperacaoArbitroPage() {
         setPartida((current: any) => ({ ...current, ...json.data }))
         return
       }
-      window.location.assign(`/sumula/${destino}`)
+      window.location.assign(`/sumula/${destino}/lancar`)
     } catch {
       setMsg('Falha de conexão. A partida não foi iniciada.')
     } finally {
@@ -297,8 +297,14 @@ export default function OperacaoArbitroPage() {
               <ClipboardCheck size={18} />
               Iniciar partida
             </ActionBar>
+            {String(partida.status || '').toUpperCase() === 'EM_ANDAMENTO' ? (
+              <Link href={`/sumula/${partida.sumulaToken || partida.id}/lancar`} className="referee-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition">
+                Continuar lançamento
+                <ArrowRight size={18} />
+              </Link>
+            ) : null}
             <Link href={`/sumula/${partida.sumulaToken || partida.id}`} className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
-              Abrir súmula
+              Ver súmula
               <ArrowRight size={18} />
             </Link>
           </div>

@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import Link from 'next/link'
-import { Image as ImageIcon, PlaySquare } from 'lucide-react'
+import { GaleriaOrganizador } from '@/components/galeria/GaleriaOrganizador'
 import { ChampionshipTableSection } from '@/components/classificacao/ChampionshipTableSection'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { AcessoArbitroJogo } from './AcessoArbitroJogo'
-import { LinkInscricaoCampeonato } from './LinkInscricaoCampeonato'
+import { LinksCategoria } from './LinksCategoria'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
@@ -105,7 +106,7 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
               <span data-label="Inscrições">{liga.inscricoesAbertas === false ? 'Fechadas' : 'Abertas'}</span>
               <span className="flex flex-col items-start gap-2">
                 <Link href={`/painel/parametrizacao/previa?ligaId=${liga.id}`} className="championship-list-link">Prévia</Link>
-                <LinkInscricaoCampeonato ligaId={liga.id} nome={liga.nome} compacto />
+                <LinksCategoria ligaId={liga.id} nome={liga.nome} compacto />
                 <Link href={`/campeonatos/${liga.slug}`} className="championship-list-link">Ver campeonato</Link>
               </span>
             </article>
@@ -116,35 +117,43 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
   )
 }
 
-export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem[]; organizadorId: string }) {
-  const [tabelas, setTabelas] = useState<Array<{ id: number; nome: string; dados: any[]; pendente: boolean }>>([])
+export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; organizadorId: string; campeonatoId: number | null; onSelect: (id: number) => void }) {
+  const [dados, setDados] = useState<any[]>([])
+  const [pendente, setPendente] = useState(true)
+  const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
 
   useEffect(() => {
-    if (ligas.length === 0) {
-      setTabelas([])
+    if (!liga) {
+      setDados([])
+      setPendente(false)
       return
     }
     const controlador = new AbortController()
-    setTabelas(ligas.map((liga) => ({ id: liga.id, nome: liga.nome, dados: [], pendente: true })))
-    const ids = ligas.map((liga) => liga.id).join(',')
-    consultar<{ data?: Array<{ ligaId?: number }> }>(`/api/classificacao?ligaIds=${ids}`, { signal: controlador.signal })
-      .then((payload) => {
-        const linhas = Array.isArray(payload.data) ? payload.data : []
-        setTabelas(ligas.map((liga) => ({
-          id: liga.id,
-          nome: liga.nome,
-          dados: linhas.filter((linha) => Number(linha.ligaId) === liga.id),
-          pendente: false,
-        })))
-      })
+    setPendente(true)
+    consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}`, { signal: controlador.signal })
+      .then((payload) => setDados(Array.isArray(payload.data) ? payload.data : []))
       .catch((erro) => {
         if (erro instanceof ConsultaCancelada) return
-        setTabelas(ligas.map((liga) => ({ id: liga.id, nome: liga.nome, dados: [], pendente: false })))
+        setDados([])
       })
+      .finally(() => setPendente(false))
     return () => controlador.abort()
-  }, [ligas])
+  }, [liga])
 
-  if (ligas.length === 0) {
+  useBancoAoVivo(
+    liga ? `classificacao-painel-${liga.id}` : '',
+    liga ? [{ tabela: 'ClassificacaoEntrada', filtro: `ligaId=eq.${liga.id}` }] : [],
+    () => {
+      if (!liga) return
+      consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}`, { forcar: true })
+        .then((payload) => setDados(Array.isArray(payload.data) ? payload.data : []))
+        .catch((erro) => {
+          if (erro instanceof ConsultaCancelada) return
+        })
+    },
+  )
+
+  if (!liga) {
     return (
       <section>
         <EstadoVazio titulo="Nenhum campeonato para classificar." descricao="Crie um campeonato em Início. A tabela fica nesta página quando houver resultados." />
@@ -153,29 +162,21 @@ export function PainelTabela({ ligas, organizadorId }: { ligas: LigaCarouselItem
   }
 
   return (
-    <section className="space-y-8">
-      {tabelas.map((tabela) => (
-        <div key={tabela.id}>
-          {tabela.pendente ? (
-            <CollapseBar title={tabela.nome}>
-              <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
-            </CollapseBar>
-          ) : tabela.dados.length === 0 ? (
-            <CollapseBar title={tabela.nome}>
-              <EstadoVazio titulo="Nenhuma partida registrada" descricao="A classificação aparece aqui após o primeiro resultado aprovado." />
-            </CollapseBar>
-          ) : (
-            <ChampionshipTableSection
-              nome={tabela.nome}
-              regra={REGRA_TABELA}
-              dados={tabela.dados}
-              ligaId={tabela.id}
-              organizadorId={organizadorId}
-              organizerMode
-            />
-          )}
-        </div>
-      ))}
+    <section className="space-y-5">
+      <label className="block max-w-md">
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Campeonato</span>
+        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => onSelect(Number(evento.target.value))}>
+          {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+        </select>
+      </label>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
+      {pendente ? (
+        <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
+      ) : dados.length === 0 ? (
+        <EstadoVazio titulo="Nenhuma equipe inscrita" descricao="A classificação deste campeonato aparece aqui com zero até a primeira partida." />
+      ) : (
+        <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} ligaId={liga.id} organizadorId={organizadorId} organizerMode />
+      )}
     </section>
   )
 }
@@ -190,6 +191,7 @@ type PartidaOrganizacao = {
   setsPorB?: number | null
   pontosPorA?: number | null
   pontosPorB?: number | null
+  sumulaToken?: string | null
   equipeA?: { nome?: string | null } | null
   equipeB?: { nome?: string | null } | null
   liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
@@ -208,19 +210,46 @@ function ligaDaPartida(partida: PartidaOrganizacao) {
   return Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
 }
 
-export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]; ativo?: boolean }) {
+// A releitura traz placar e status novos. Se ela vier mais curta porque uma
+// consulta antiga ainda estava no ar, os jogos que o usuário já abriu ficam.
+function manterPaginaAberta(atual: PartidaOrganizacao[], novas: PartidaOrganizacao[], temMais: boolean) {
+  if (!temMais || novas.length >= atual.length) return novas
+  const porId = new Map(novas.map((partida) => [partida.id, partida]))
+  return atual.map((partida) => porId.get(partida.id) ?? partida)
+}
+
+export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void; ativo?: boolean }) {
   const [partidas, setPartidas] = useState<PartidaOrganizacao[]>([])
+  const [temMais, setTemMais] = useState(false)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
+  const quantidade = useRef(20)
+  // Sobe quando o usuário pede outra página ou troca de campeonato.
+  // Uma releitura que começou antes disso não pode recolher o que ele abriu.
+  const versao = useRef(0)
+  quantidade.current = Math.max(20, partidas.length)
 
   async function carregar(silencioso = false) {
+    if (!liga) {
+      setPartidas([])
+      setLoading(false)
+      return
+    }
+    const visto = versao.current
+    const ligaId = liga.id
+    const limite = Math.max(20, quantidade.current)
     if (!silencioso) setLoading(true)
     try {
-      const jogos = await consultar<{ data?: PartidaOrganizacao[] }>('/api/organizador/partidas', { forcar: silencioso })
-      setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
+      const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${ligaId}&limite=${limite}`, { forcar: true })
+      if (visto !== versao.current) return
+      const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
+      const aindaTem = Boolean(jogos.data?.temMais)
+      setPartidas((atual) => manterPaginaAberta(atual, novas, aindaTem))
+      setTemMais(aindaTem)
       setErro(null)
     } catch (falha) {
-      if (falha instanceof ConsultaCancelada) return
+      if (falha instanceof ConsultaCancelada || visto !== versao.current) return
       setErro('Não foi possível carregar a tabela de jogos.')
     } finally {
       if (!silencioso) setLoading(false)
@@ -228,13 +257,35 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
   }
 
   useEffect(() => {
-    if (!ativo) return
-    carregar()
-    const timer = window.setInterval(() => carregar(true), 30000)
-    return () => window.clearInterval(timer)
-  }, [ativo])
+    if (!ativo || !liga) return
+    versao.current += 1
+    quantidade.current = 20
+    void carregar()
+  }, [ativo, liga?.id])
 
-  if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
+  useBancoAoVivo(
+    ativo && liga ? `painel-jogos-${liga.id}` : '',
+    ativo && liga ? [{ tabela: 'Partida', filtro: `ligaId=eq.${liga.id}` }] : [],
+    () => { void carregar(true) },
+  )
+
+  async function verMais() {
+    if (!liga) return
+    versao.current += 1
+    const visto = versao.current
+    const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${liga.id}&limite=20&offset=${partidas.length}`, { forcar: true })
+    if (visto !== versao.current) return
+    const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
+    setPartidas((atual) => {
+      const ids = new Set(atual.map((partida) => partida.id))
+      return [...atual, ...novas.filter((partida) => !ids.has(partida.id))]
+    })
+    setTemMais(Boolean(jogos.data?.temMais))
+  }
+
+  if (!liga) {
+    return <EstadoVazio titulo="Nenhum jogo cadastrado" descricao="Crie um campeonato para montar a agenda." />
+  }
 
   const grupos = new Map<number, { nome: string; simulacao: boolean; partidas: PartidaOrganizacao[] }>()
   partidas.forEach((partida) => {
@@ -248,16 +299,18 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
     grupos.set(partida.ligaId, atual)
   })
 
-  if (grupos.size === 0) {
-    return (
-      <section>
-        <EstadoVazio titulo="Nenhum jogo cadastrado" descricao="As partidas aparecem aqui quando o calendário for montado. A coluna de árbitro fica nesta tabela." />
-      </section>
-    )
-  }
-
   return (
     <section className="space-y-6">
+      <label className="block max-w-md">
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Campeonato</span>
+        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => onSelect(Number(evento.target.value))}>
+          {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+        </select>
+      </label>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
+      {loading ? <p className="text-sm font-bold text-white/50">Carregando...</p> : grupos.size === 0 ? (
+        <EstadoVazio titulo="Nenhum jogo neste campeonato" descricao="As partidas deste campeonato aparecem aqui quando o calendário for montado." />
+      ) : null}
       {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
       {Array.from(grupos.entries()).map(([ligaId, grupo]) => (
         <CollapseBar key={ligaId} title={grupo.simulacao ? `${grupo.nome} · simulação` : grupo.nome}>
@@ -271,6 +324,7 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Placar</th>
                   <th className="px-3 py-2">Árbitro responsável</th>
+                  <th className="px-3 py-2">Súmula</th>
                   <th className="px-3 py-2">Acesso do árbitro</th>
                 </tr>
               </thead>
@@ -291,6 +345,13 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
                         {emJogo ? <span className="mt-1 block text-xs font-semibold text-white/70">{partida.pontosPorA ?? 0} a {partida.pontosPorB ?? 0}</span> : null}
                       </td>
                       <td data-label="Árbitro" className="px-3 py-3">{nomeArbitro}</td>
+                      <td data-label="Súmula" className="px-3 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
+                          <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Link público</a>
+                          <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Resumo da partida</a>
+                        </div>
+                      </td>
                       <td data-label="Acesso" className="px-3 py-3">
                         <AcessoArbitroJogo partidaId={partida.id} jogo={`${partida.equipeA?.nome ?? 'Equipe A'} × ${partida.equipeB?.nome ?? 'Equipe B'}`} />
                       </td>
@@ -302,115 +363,31 @@ export function PainelJogos({ ligas, ativo = true }: { ligas: LigaCarouselItem[]
           </div>
         </CollapseBar>
       ))}
+      {temMais && <button type="button" className="rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950" onClick={() => void verMais()}>Ver mais</button>}
     </section>
   )
 }
 
-export function PainelGaleria({ ligas }: { ligas: LigaCarouselItem[] }) {
-  const [blocos, setBlocos] = useState<Array<{ id: number; nome: string; midias: any[] }>>([])
-  const [loading, setLoading] = useState(true)
+export function PainelGaleria({ ligas, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void }) {
+  const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
 
-  useEffect(() => {
-    let cancelled = false
-    const controlador = new AbortController()
-    const ids = ligas.map((liga) => liga.id).join(',')
-    if (!ids) {
-      setBlocos([])
-      setLoading(false)
-      return
-    }
-    consultar<{ data?: Array<{ ligaId?: number }> }>(`/api/galeria?ligaIds=${ids}`, { signal: controlador.signal })
-      .then((payload) => {
-        const midias = Array.isArray(payload.data) ? payload.data : []
-        if (!cancelled) {
-          setBlocos(ligas.map((liga) => ({
-            id: liga.id,
-            nome: liga.nome,
-            midias: midias.filter((midia) => Number(midia.ligaId) === liga.id),
-          })))
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setBlocos([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-      controlador.abort()
-    }
-  }, [ligas])
-
-  if (loading) return <p className="px-4 py-10 text-sm font-bold text-white/50">Carregando...</p>
-  if (ligas.length === 0) {
+  if (ligas.length === 0 || !liga) {
     return (
       <section>
-        <EstadoVazio titulo="Nenhuma galeria disponível." descricao="Crie um campeonato em Início. Fotos e vídeos ficam nesta página quando forem publicados." />
+        <EstadoVazio titulo="Nenhuma galeria disponível." descricao="Crie um campeonato em Início. As fotos ficam nesta página quando forem publicadas." />
       </section>
     )
   }
 
   return (
-    <section className="space-y-10">
-      {blocos.map((bloco) => {
-        const fotos = bloco.midias.filter((midia) => midia.tipo === 'FOTO')
-        const videos = bloco.midias.filter((midia) => midia.tipo === 'VIDEO')
-        return (
-          <div key={bloco.id}>
-            <h2 className="font-display text-3xl font-black text-white">{bloco.nome}</h2>
-            {bloco.midias.length === 0 ? (
-              <div className="mt-4">
-                <EstadoVazio titulo="Nenhuma mídia disponível ainda" descricao="As fotos e vídeos aparecem aqui quando forem publicados." />
-              </div>
-            ) : (
-              <div className="mt-5 grid gap-8">
-                {fotos.length > 0 && (
-                  <div>
-                    <div className="mb-4 flex items-center gap-2">
-                      <ImageIcon size={20} className="text-luva-amber" />
-                      <h3 className="font-display text-2xl font-black text-white">Fotos</h3>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                      {fotos.map((foto, index) => (
-                        <figure key={foto.id} className={`gallery-card overflow-hidden rounded-2xl border ${index === 0 ? 'sm:col-span-2 sm:row-span-2' : ''}`}>
-                          <div className={`${index === 0 ? 'aspect-[16/10]' : 'aspect-square'} bg-slate-950/60`}>
-                            <img src={foto.url} alt={foto.titulo ?? 'Foto da liga'} className="h-full w-full object-cover" />
-                          </div>
-                          <figcaption className="p-4">
-                            <p className="font-black text-white">{foto.titulo ?? 'Registro da temporada'}</p>
-                            {foto.tag && <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-200">{foto.tag}</p>}
-                          </figcaption>
-                        </figure>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {videos.length > 0 && (
-                  <div>
-                    <div className="mb-4 flex items-center gap-2">
-                      <PlaySquare size={20} className="text-luva-amber" />
-                      <h3 className="font-display text-2xl font-black text-white">Vídeos</h3>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {videos.map((video) => (
-                        <div key={video.id} className="gallery-card overflow-hidden rounded-2xl border">
-                          <div className="aspect-video bg-slate-950/60">
-                            <iframe src={video.url} className="h-full w-full" allowFullScreen title={video.titulo ?? 'Vídeo da liga'} />
-                          </div>
-                          <div className="p-4">
-                            <p className="font-black text-white">{video.titulo ?? 'Vídeo da temporada'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
+    <section className="space-y-5">
+      <label className="block max-w-md">
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Campeonato</span>
+        <select className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white" value={liga.id} onChange={(evento) => onSelect(Number(evento.target.value))}>
+          {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+        </select>
+      </label>
+      <GaleriaOrganizador key={liga.id} ligaId={liga.id} capaUrl={liga.capaUrl} />
     </section>
   )
 }

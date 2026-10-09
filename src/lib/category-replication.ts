@@ -222,7 +222,7 @@ export function previewCategoryReplication(source: CategoryReplicationState, tar
   const previews = targets.map(target => {
     validateState(target)
     if (target.id === source.id || target.ligaId !== source.ligaId || target.organizadorId !== source.organizadorId) throw new Error('Origem e destinos devem ser categorias distintas do mesmo campeonato e organizador.')
-    const blockedReasons = getReplicationBlockReasons(target.operations)
+    const blockedReasons = mode === 'empty-only' ? getReplicationBlockReasons(target.operations) : []
     if (mode === 'empty-only' && target.hasSavedConfiguration) blockedReasons.push('A categoria já possui configuração salva.')
     const configuration = clone(target.configuration) as Record<string, unknown>
     const patch: Record<string, unknown> = {}

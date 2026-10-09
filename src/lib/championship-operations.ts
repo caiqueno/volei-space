@@ -12,6 +12,7 @@ type EquipeRecord = {
   id: number
   categoria?: string | null
   serie?: string | null
+  categoriaCampeonatoId?: string | null
   nome?: string | null
 }
 
@@ -62,7 +63,9 @@ export async function recalculateLeagueClassification(ligaId: number) {
   // visitas a /classificacao ao mesmo tempo) não se sobreporem e uma
   // execução mais lenta sobrescrever o resultado de uma mais rápida.
   const { error } = await supabase.rpc('recalcular_classificacao_liga', { p_liga_id: ligaId })
-  if (error) throw error
+  if (!error) return
+  const { gravarClassificacao } = await import('@/lib/massa-qa')
+  await gravarClassificacao(ligaId)
 }
 
 export function isFinishedMatch(partida: any) {
@@ -116,7 +119,7 @@ export async function getApprovedTeams(ligaId: number) {
   // registrada — seus times só existem ligados direto por Equipe.ligaId.
   const { data: legacyEquipes, error: legacyErr } = await supabase
     .from('Equipe')
-    .select('id,nome,categoria,serie')
+    .select('id,nome,categoria,serie,categoriaCampeonatoId')
     .eq('ligaId', ligaId)
 
   if (legacyErr) throw legacyErr
@@ -128,7 +131,8 @@ async function ensureClassificationEntries(ligaId: number, equipes: EquipeRecord
     equipeId: equipe.id,
     ligaId,
     categoria: equipe.categoria || 'GERAL',
-    serie: equipe.serie || 'UNICA',
+    serie: null,
+    categoriaCampeonatoId: equipe.categoriaCampeonatoId,
     posicao: index + 1,
     pontos: 0,
     jogos: 0,

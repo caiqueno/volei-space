@@ -4,7 +4,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, CalendarDays, Medal, ShieldCheck, Trophy, UsersRound } from 'lucide-react'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
-import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 
 type PageProps = {
@@ -86,7 +87,11 @@ export default async function EquipePublicPage({ params }: PageProps) {
   }
 
   const [{ data: jogadores }, { data: inscricoes }, { data: partidas }, { data: classificacao }] = await Promise.all([
-    supabase.from('Jogador').select('*').eq('equipeId', equipe.id).order('numero', { ascending: true }),
+    supabase
+      .from('Jogador')
+      .select('id, nome, numero, posicao, fotoUrl, fotoRostoUrl')
+      .eq('equipeId', equipe.id)
+      .order('numero', { ascending: true }),
     supabase
       .from('InscricaoCampeonato')
       .select('id,status,criadaEm,liga:Liga(id,nome,slug,status,formato)')

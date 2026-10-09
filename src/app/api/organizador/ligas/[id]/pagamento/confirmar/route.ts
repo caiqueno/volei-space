@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const validation = await validateChampionshipSetup(ligaId)
   if (!validation.isValid) {
-    return error('Configuração do campeonato ainda tem pendências — resolva-as antes de pagar.', 422, { errors: validation.errors })
+    return error('Configuração do campeonato ainda tem pendências — resolva-as antes de continuar.', 422, { errors: validation.errors })
   }
 
   const pagamentoConfirmadoEm = new Date().toISOString()
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .update({ pagamentoConfirmadoEm })
     .eq('id', ligaId)
 
-  if (updateErr) return error('Erro ao confirmar pagamento.', 500, updateErr)
+  if (updateErr) return error('Não foi possível liberar a configuração.', 500, updateErr)
 
   return success({ pagamentoConfirmadoEm })
 }

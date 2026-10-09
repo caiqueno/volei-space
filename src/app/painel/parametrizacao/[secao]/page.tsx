@@ -8,6 +8,7 @@ import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { SECTION_WIZARD_REGISTRY, isValidSetupSectionSlug } from '@/components/parametrizacao/sections/registry'
 import { ToastProvider } from '@/components/parametrizacao/ui/Toast'
 import { CategoryNavigation } from '@/components/parametrizacao/CategoryControls'
+import { secaoExigeCategoria } from '@/lib/categoria-ativa'
 
 function Content() {
   const params = useParams<{ secao: string }>()
@@ -37,10 +38,16 @@ function Content() {
   }
 
   const { component: SectionWizard } = SECTION_WIZARD_REGISTRY[secao]
+  const categoriaId = searchParams.get('categoriaCampeonatoId')
+  const exigeCategoria = secaoExigeCategoria(secao)
   return (
     <>
-      {secao !== 'categorias' && secao !== 'informacoes' && <CategoryNavigation ligaId={ligaId} />}
-      <SectionWizard key={`${ligaId}:${searchParams.get('categoriaCampeonatoId') ?? ''}`} ligaId={ligaId} etapaInicial={secao === 'informacoes' && searchParams.get('etapa') === 'categorias' ? 4 : 0} />
+      {exigeCategoria && <CategoryNavigation ligaId={ligaId} />}
+      {exigeCategoria && !categoriaId ? (
+        <p className="mx-auto max-w-6xl px-4 py-8 text-sm font-bold text-slate-300">Escolhendo a categoria para parametrizar.</p>
+      ) : (
+        <SectionWizard key={`${ligaId}:${categoriaId ?? ''}`} ligaId={ligaId} etapaInicial={secao === 'informacoes' && searchParams.get('etapa') === 'categorias' ? 4 : 0} />
+      )}
     </>
   )
 }

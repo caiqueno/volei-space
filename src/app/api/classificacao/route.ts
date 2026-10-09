@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,30 +10,57 @@ export async function GET(req: NextRequest) {
     if (searchParams.has('serie')) return error('A série não separa mais a categoria. Use a categoria do campeonato.', 422)
     const categoria = searchParams.get('categoria')
     const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
-    const ligaId = searchParams.get('ligaId')
-    const ligaIds = (searchParams.get('ligaIds') ?? '')
-      .split(',')
-      .map((valor) => Number(valor))
-      .filter((valor) => Number.isInteger(valor) && valor > 0)
-      .slice(0, 40)
+    const ligaId = Number(searchParams.get('ligaId'))
+    if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
 
-    const { data: simuladas } = await supabase.from('Liga').select('id').eq('simulacao', true)
-    const simulacaoIds = (simuladas ?? []).map((liga) => liga.id)
-
-    let q = supabase
+    let q = supabaseAdmin
       .from('ClassificacaoEntrada')
       .select('*, equipe:Equipe(*)')
+      .eq('ligaId', ligaId)
       .order('posicao', { ascending: true })
+      .limit(80)
+    let equipes = supabaseAdmin
+      .from('Equipe')
+      .select('id,nome,corHex,logoUrl,categoria,categoriaCampeonatoId')
+      .eq('ligaId', ligaId)
+      .eq('statusEquipe', 'ATIVA')
+      .order('nome', { ascending: true })
+    if (categoriaCampeonatoId) {
+      q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+      equipes = equipes.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    }
+    if (categoria) {
+      q = q.eq('categoria', categoria)
+      equipes = equipes.eq('categoria', categoria)
+    }
 
-    if (ligaIds.length) q = q.in('ligaId', ligaIds)
-    else if (ligaId) q = q.eq('ligaId', Number(ligaId))
-    if (simulacaoIds.length) q = q.not('ligaId', 'in', `(${simulacaoIds.join(',')})`)
-    if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-    if (categoria) q = q.eq('categoria', categoria)
-
-    const { data, error: err } = await q
+    const [{ data, error: err }, equipesResposta] = await Promise.all([q, equipes])
     if (err) throw err
-    return success(data)
+    const linhas = [...(data ?? [])]
+    const presentes = new Set(linhas.map((linha) => Number(linha.equipeId)))
+    let proxima = linhas.reduce((maior, linha) => Math.max(maior, Number(linha.posicao ?? 0)), 0)
+    for (const equipe of equipesResposta.data ?? []) {
+      if (presentes.has(equipe.id)) continue
+      proxima += 1
+      linhas.push({
+        posicao: proxima,
+        pontos: 0,
+        jogos: 0,
+        vitorias: 0,
+        derrotas: 0,
+        setsPro: 0,
+        setsContra: 0,
+        pontosPro: 0,
+        pontosContra: 0,
+        punicoes: 0,
+        equipeId: equipe.id,
+        ligaId,
+        equipe,
+      })
+    }
+    const resposta = success(linhas)
+    resposta.headers.set('Cache-Control', 'no-store')
+    return resposta
   } catch {
     return error('Erro ao buscar classificação', 500)
   }

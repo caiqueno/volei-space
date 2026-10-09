@@ -1,16 +1,28 @@
-import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { requireAuth } from '@/lib/auth'
 import { jogadorSchema } from '@/lib/schemas'
+import { exigirOrganizadorDaEquipe, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const equipeId = searchParams.get('equipeId')
     const busca = searchParams.get('q')?.trim()
+    const ligasDoOrganizador = await ligasVisiveisAoOrganizador(req)
 
-    let q = supabase.from('Jogador').select('*, equipe:Equipe(id, nome)').order('nome', { ascending: true })
+    // CPF, documento, nascimento, telefones e qrCodeToken nunca saem por aqui:
+    // esta rota responde sem sessão e alimenta telas que só mostram elenco.
+    let q = supabase
+      .from('Jogador')
+      .select('id, nome, numero, posicao, fotoUrl, fotoRostoUrl, equipeId, banido, equipe:Equipe(id, nome, ligaId, categoriaCampeonatoId)')
+      .order('nome', { ascending: true })
+    if (ligasDoOrganizador) {
+      const { data: equipes } = await supabase.from('Equipe').select('id').in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
+      const ids = (equipes ?? []).map((equipe) => equipe.id)
+      if (equipeId && !ids.includes(Number(equipeId))) return success([])
+      q = q.in('equipeId', ids.length ? ids : [-1])
+    }
     if (equipeId) q = q.eq('equipeId', Number(equipeId))
     if (busca) q = q.ilike('nome', `%${busca.replace(/[%_]/g, '')}%`)
 
@@ -23,12 +35,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authErr = await requireAuth(req)
-  if (authErr) return authErr
   try {
     const body = await req.json()
     const parsed = jogadorSchema.safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+    const acesso = await exigirOrganizadorDaEquipe(req, parsed.data.equipeId)
+    if (acesso instanceof NextResponse) return acesso
 
     const { data, error: err } = await supabase
       .from('Jogador')

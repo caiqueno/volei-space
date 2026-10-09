@@ -29,7 +29,9 @@ const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' |
   WO: { label: 'W.O.', variant: 'error' },
 }
 
-export function PartidaCard({ partida, showSumulaLink = false, roundLabel }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string }) {
+// A súmula completa pede sessão de organizador ou de árbitro do jogo.
+// Na vitrine pública fica só o acompanhamento, que abre sem login.
+export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string }) {
   const badge = statusBadge[partida.status] ?? { label: partida.status || 'Status não informado', variant: 'neutral' as const }
   const emAndamento = partida.status === 'EM_ANDAMENTO'
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
@@ -37,7 +39,8 @@ export function PartidaCard({ partida, showSumulaLink = false, roundLabel }: { p
   const setAtual = emAndamento ? [...(partida.sets ?? [])].sort((a, b) => a.numero - b.numero).at(-1) : null
   const dataFmt = formatMatchDate(partida.dataHora)
   const liveLabel = encerrada ? 'Resumo da partida' : emAndamento ? 'Acompanhar ao vivo' : 'Link público'
-  const sumulaHref = showSumulaLink && partida.sumulaToken ? `/sumula/${encodeURIComponent(partida.sumulaToken)}` : null
+  const sumulaHref = `/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`
+  const publicoHref = `/partidas/${partida.id}/ao-vivo`
 
   return (
     <article className="luva-card flex min-h-[258px] flex-col rounded-2xl p-5">
@@ -92,26 +95,19 @@ export function PartidaCard({ partida, showSumulaLink = false, roundLabel }: { p
         )}
       </div>
 
-      <div className={`mt-3 grid gap-2 ${showSumulaLink ? 'sm:grid-cols-2' : ''}`}>
-        <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="match-public-action">
+      <div className="mt-3 grid gap-2">
+        {showSumulaLink && (
+          <a href={sumulaHref} target="_blank" rel="noreferrer" className="match-public-action is-sumula">
+            <ClipboardList size={15} />
+            <span>Súmula digital</span>
+            <ExternalLink size={14} />
+          </a>
+        )}
+        <a href={publicoHref} target="_blank" rel="noreferrer" className="match-public-action">
           <Radio size={15} />
           <span>{liveLabel}</span>
           <ExternalLink size={14} />
         </a>
-        {showSumulaLink && (
-          sumulaHref ? (
-            <a href={sumulaHref} target="_blank" rel="noreferrer" className="match-public-action is-sumula">
-              <ClipboardList size={15} />
-              <span>Súmula digital</span>
-              <ExternalLink size={14} />
-            </a>
-          ) : (
-            <span className="match-public-action is-disabled">
-              <ClipboardList size={15} />
-              <span>Súmula indisponível</span>
-            </span>
-          )
-        )}
       </div>
     </article>
   )

@@ -1,4 +1,6 @@
+import { randomBytes } from 'crypto'
 import { NextRequest } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
@@ -46,12 +48,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return success({ aprovada: true, arbitroId, mensagem: 'Árbitro aprovado, perfil operacional criado e e-mail enviado.' })
     }
 
+    if (tipo === 'organizador') {
+      const senhaTemporaria = randomBytes(9).toString('base64url')
+      const senhaHash = await bcrypt.hash(senhaTemporaria, 10)
+      const { error: acessoErr } = await supabase.from(table).update({
+        status: 'ATIVA',
+        senhaHash,
+        trocarSenha: true,
+      }).eq('id', id)
+      if (acessoErr) return error('Não foi possível liberar o organizador.', 500)
+      await notifyApproval(candidatura.email, candidatura.nome, 'organizador')
+      return success({
+        aprovada: true,
+        senhaTemporaria,
+        mensagem: 'Organizador liberado. Entregue a senha temporária uma única vez. No primeiro acesso ele precisa trocá-la.',
+      })
+    }
+
     await supabase.from(table).update({ status: 'APROVADA' }).eq('id', id)
-    await notifyApproval(
-      candidatura.email,
-      candidatura.nome,
-      tipo === 'quadra' ? 'fornecedor de quadra' : 'criador de campeonatos',
-    )
+    await notifyApproval(candidatura.email, candidatura.nome, 'fornecedor de quadra')
 
     return success({ aprovada: true, mensagem: 'Cadastro aprovado e e-mail enviado.' })
   } catch (err) {

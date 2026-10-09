@@ -8,7 +8,7 @@
 // query, com campos operacionais adicionais; esse outro endpoint não foi
 // alterado por esta refatoração.
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {

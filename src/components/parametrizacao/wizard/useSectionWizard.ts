@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useCategoriaAtivaNoPainel } from '../PainelParametrizacaoContext'
 import { ConsultaCancelada, consultar, invalidarConsultas, lerJson } from '@/lib/api-cliente'
 import type { SetupSection, ChampionshipSetupStatus } from '@/types/championship-setup'
 
@@ -50,7 +51,12 @@ export function useSectionWizard<T extends object>(
   endpoint: string,
 ): UseSectionWizardResult<T> {
   const searchParams = useSearchParams()
-  const categoryId = section === 'informacoes' ? null : searchParams.get('categoriaCampeonatoId')
+  const categoriaNoPainel = useCategoriaAtivaNoPainel()
+  const categoryId = section === 'informacoes'
+    ? null
+    : categoriaNoPainel !== undefined
+      ? categoriaNoPainel
+      : searchParams.get('categoriaCampeonatoId')
   const scopedEndpoint = categoryId
     ? `${endpoint}${endpoint.includes('?') ? '&' : '?'}categoriaCampeonatoId=${encodeURIComponent(categoryId)}`
     : endpoint

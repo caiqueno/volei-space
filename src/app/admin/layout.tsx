@@ -6,6 +6,7 @@ import { Home, LogOut, ShieldCheck, Trophy } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 import { AdminNav } from './AdminNav'
 import { isAdminSession } from '@/lib/admin-access'
+import { AvisoAmbienteBanco } from '@/components/admin/AvisoAmbienteBanco'
 
 async function getAdmin(): Promise<JWTPayload | null> {
   const cookieStore = cookies()
@@ -26,7 +27,14 @@ async function getAdmin(): Promise<JWTPayload | null> {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await getAdmin()
 
-  if (!admin) return <>{children}</>
+  if (!admin) {
+    return (
+      <>
+        <AvisoAmbienteBanco />
+        {children}
+      </>
+    )
+  }
 
   return (
     <div className="admin-shell min-h-screen text-white lg:grid lg:grid-cols-[292px_1fr]">
@@ -67,6 +75,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
 
       <div className="min-w-0">
+        <AvisoAmbienteBanco />
         <header className="admin-topbar sticky top-0 z-30 border-b px-4 py-4 lg:px-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

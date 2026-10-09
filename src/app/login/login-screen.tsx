@@ -12,6 +12,7 @@ import { lerSessaoPublica } from '@/lib/sessao-publica'
 export function LoginScreen() {
   const searchParams = useSearchParams()
   const contaCriada = searchParams.get('conta') === 'criada'
+  const [etapa, setEtapa] = useState<'escolha' | 'membro'>(searchParams.get('modo') === 'membro' || searchParams.get('conta') === 'criada' ? 'membro' : 'escolha')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [email, setEmail] = useState('')
@@ -85,10 +86,14 @@ export function LoginScreen() {
               <span className="relative mx-auto flex h-20 w-20 overflow-hidden rounded-2xl">
                 <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="80px" className="object-contain" />
               </span>
-              <h2 className="mt-5 text-4xl font-black text-white">Identificação</h2>
-              <Link href="/cadastro?modo=cadastro" className="mt-3 block text-xs font-semibold text-slate-300 underline decoration-white/30 underline-offset-4 transition hover:text-white">
-                Ainda não tem cadastro? Clique aqui e cadastre-se
-              </Link>
+              <h2 className="mt-5 text-4xl font-black text-white">{etapa === 'membro' ? 'Entrar como membro' : 'Entrar'}</h2>
+              {etapa === 'escolha' ? (
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">Escolha como você quer continuar.</p>
+              ) : (
+                <button type="button" onClick={() => setEtapa('escolha')} className="mt-3 text-xs font-semibold text-slate-300 underline decoration-white/30 underline-offset-4 transition hover:text-white">
+                  Voltar
+                </button>
+              )}
               {contaCriada && (
                 <p className="cadastro-field-ok mt-4 text-sm font-semibold leading-6">
                   Conta criada. Entre com o e-mail e a senha que você acabou de definir.
@@ -96,7 +101,18 @@ export function LoginScreen() {
               )}
             </div>
 
-            <form autoComplete="off" onSubmit={handleSubmit} className="grid gap-4">
+            {etapa === 'escolha' ? (
+              <div className="grid gap-3">
+                <button type="button" onClick={() => setEtapa('membro')} className="admin-login-button inline-flex w-full items-center justify-center rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide">
+                  Membro
+                </button>
+                <Link href="/seja-membro" className="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 px-5 py-4 text-sm font-black uppercase tracking-wide text-white">
+                  Seja membro
+                </Link>
+              </div>
+            ) : null}
+
+            {etapa === 'membro' && <form autoComplete="off" onSubmit={handleSubmit} className="grid gap-4">
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">E-mail</span>
                 <input
@@ -143,7 +159,7 @@ export function LoginScreen() {
                 <LockKeyhole size={18} />
                 Entrar
               </ActionBar>
-            </form>
+            </form>}
           </div>
         </section>
       </div>

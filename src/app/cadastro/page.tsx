@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  CalendarPlus,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -35,7 +34,6 @@ const perfis = [
   { id: 'equipe' as const, titulo: 'Equipe', texto: 'Cadastre sua equipe para participar dos campeonatos.', icon: UsersRound },
   { id: 'arbitro' as const, titulo: 'Árbitro', texto: 'Candidate-se para atuar nas partidas oficiais.', icon: BadgeCheck },
   { id: 'quadra' as const, titulo: 'Fornecedor de quadra', texto: 'Cadastre uma arena, ginásio ou espaço parceiro.', icon: MapPinHouse },
-  { id: 'organizador' as const, titulo: 'Criador de campeonatos', texto: 'Crie sua conta para criar e operar campeonatos na volei.space.', icon: CalendarPlus },
 ]
 
 const initial: Record<CadastroTipo, FormState> = {
@@ -124,9 +122,8 @@ const labelBase = 'mb-1.5 block text-[10px] font-black uppercase tracking-[0.16e
 
 export default function CadastroPage() {
   const [mode, setMode] = useState<AuthMode>('cadastro')
-  // Sem escolha de perfil na UI — todo cadastro novo (sem contexto de convite
-  // via ?perfil= na URL, ex. convite de equipe) é Organizador por padrão.
-  const [tipo, setTipo] = useState<CadastroTipo>('organizador')
+  const [tipo, setTipo] = useState<CadastroTipo>('equipe')
+  const [pronto, setPronto] = useState(false)
   const [step, setStep] = useState(0)
   const [forms, setForms] = useState(initial)
   const [publico, setPublico] = useState({ nome: '', email: '', senha: '', confirmarSenha: '' })
@@ -157,14 +154,21 @@ export default function CadastroPage() {
       window.location.replace('/login')
       return
     }
+    if (perfil === 'organizador' || (!perfil && !ligaId && !conviteToken)) {
+      window.location.replace('/seja-membro')
+      return
+    }
     if (modo === 'cadastro') setMode('cadastro')
     if (perfil && ['equipe', 'arbitro', 'quadra'].includes(perfil)) {
       setTipo(perfil)
       setMode('cadastro')
+    } else if (ligaId || conviteToken) {
+      setTipo('equipe')
     }
     if (ligaId) {
       setForms((current) => ({ ...current, equipe: { ...current.equipe, ligaId, conviteToken: conviteToken ?? '' } }))
     }
+    setPronto(true)
   }, [])
 
   function switchMode(nextMode: AuthMode) {
@@ -365,6 +369,8 @@ export default function CadastroPage() {
       text: json.data?.mensagem ?? json.error ?? 'Não foi possível solicitar recuperação agora.',
     })
   }
+  if (!pronto) return <main className="luva-shell flex min-h-screen items-center justify-center px-4 text-white"><p className="text-sm font-bold">Abrindo o cadastro...</p></main>
+
   if (tipo === 'organizador' && mode === 'cadastro') {
     return (
       <PublicoCadastroScreen

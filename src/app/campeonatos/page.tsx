@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { unstable_noStore as noStore } from 'next/cache'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
-import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 
 export const metadata = createPageMetadata({

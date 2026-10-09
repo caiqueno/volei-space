@@ -130,9 +130,10 @@ function jogadorPayload(player: JogadorDraft) {
   }
 }
 
-export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null }: {
+export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, tokenCategoria = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null }: {
   ligaId: number
   linkToken?: string | null
+  tokenCategoria?: string | null
   nomeCampeonato: string
   config: ResolvedFormularioRapidaConfig
   categoriaFixa: CategoriaSerieOption | null
@@ -193,6 +194,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
     const timer = window.setTimeout(async () => {
       const [categoria, serie] = categoriaFixa ? [categoriaFixa.categoria, categoriaFixa.serie] : categoriaSerie.split(':')
       if (!nomeEquipe.trim() || !categoria || !serie) return
+      if (liderRequired && !lider.trim()) return
       setSaveState('saving')
       try {
         const response = await fetch(`/api/inscricao-rapida/${token}`, {
@@ -208,7 +210,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
       }
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [token, canEdit, nomeEquipe, logoUrl, lider, tecnico, categoriaSerie, categoriaFixa])
+  }, [token, canEdit, nomeEquipe, logoUrl, lider, tecnico, categoriaSerie, categoriaFixa, liderRequired])
 
   async function iniciarCadastro() {
     const [categoria, serie] = categoriaFixa ? [categoriaFixa.categoria, categoriaFixa.serie] : categoriaSerie.split(':')
@@ -217,7 +219,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
     setErrorMsg('')
     try {
       const response = await fetch('/api/inscricao-rapida', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ligaId, nomeEquipe, categoria, serie, linkToken }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ligaId, nomeEquipe, categoria, serie, linkToken, tokenCategoria }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Não foi possível iniciar a inscrição.')

@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, UserRound, Users } from 'lucide-react'
-import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
 export default async function AdminDashboardPage() {
   let counts = { partidas: 0, equipes: 0, jogadores: 0, pendentes: 0 }

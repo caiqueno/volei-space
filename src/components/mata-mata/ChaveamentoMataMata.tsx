@@ -172,14 +172,15 @@ function SlotCard({
             {partida.sets.map((s) => `${s.pontosA}-${s.pontosB}`).join(' · ')}
           </p>
         )}
-        <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
-          <Radio size={12} /> {encerrada ? 'Resumo da partida' : partida.status === 'EM_ANDAMENTO' ? 'Acompanhar ao vivo' : 'Link público'}
+        <a href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
+          Abrir súmula <ExternalLink size={12} />
         </a>
-        {organizerMode && partida.sumulaToken && (
-          <a href={`/sumula/${encodeURIComponent(partida.sumulaToken)}`} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
-            Súmula digital <ExternalLink size={12} />
-          </a>
-        )}
+        <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
+          <Radio size={12} /> Link público
+        </a>
+        <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
+          {encerrada ? 'Resumo da partida' : partida.status === 'EM_ANDAMENTO' ? 'Acompanhar ao vivo' : 'Resumo da partida'}
+        </a>
       </div>
     )
   }

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { verifyPasswordResetToken } from '@/lib/auth'
 

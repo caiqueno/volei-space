@@ -8,7 +8,7 @@ summary: >-
   Auditoria LLM Wiki: o que está pronto, o que falta de ambiente e quais rotas não são duplicata.
 status: misto
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-10-09
 ---
 
 # Prontidão, APIs e conexões
@@ -27,7 +27,7 @@ updated: 2026-09-25
 | `npm run test:team-sync` | ok |
 | `npm run test:championship-setup` | ok |
 | `npm run test:organizer-flow` | ok |
-| `npm run test:registration-draft` | ok depois de apontar o teste para `supabase/migrations/supabase-inscricao-equipe-rascunho.sql` (o arquivo na raiz não existia — era referência duplicada/errada) |
+| `npm run test:registration-draft` | ok depois de apontar o teste para `supabase/migrations/202609200015_inscricao-equipe-rascunho.sql` (o arquivo na raiz não existia — era referência duplicada/errada) |
 | `GET /api/ping` em `localhost:3001` | `200` — `database: not_configured` |
 | Rotas que leem banco (`/api/ligas`, classificação, rankings, partidas, equipes, galeria) | `500` — fetch ao Supabase placeholder falha. Esperado sem `.env` |
 | `GET /api/auth` e `GET /api/inscricao-rapida` e `GET /api/webhooks/infinitepay` | `405` — a rota existe; o método certo é POST |

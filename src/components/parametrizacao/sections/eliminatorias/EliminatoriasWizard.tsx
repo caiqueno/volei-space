@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { guardarCampoParaCorrigir, MISSING_FIELD_ANCHOR } from '../../wizard/missing-fields'
 import { Medal, ShieldOff, Sparkles, Swords } from 'lucide-react'
 import { useAbrirSecaoParametrizacao, useParametrizacaoNoPainel } from '../../PainelParametrizacaoContext'
 import { abrirProximaSecao, salvarEAvancarEtapa } from '../../wizard/salvar-etapa'
@@ -100,6 +100,21 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [faseCalculada, Boolean(data)])
 
+  function irParaCampoInvalido() {
+    const secao = isMataMataPuro ? 'estrutura' : 'classificacao'
+    const campo = isMataMataPuro ? 'quantidadeEquipes' : 'classificadosPorGrupo'
+    guardarCampoParaCorrigir(secao, campo)
+    if (abrir) {
+      abrir(secao)
+      return
+    }
+    const next = new URLSearchParams(window.location.search)
+    next.set('ligaId', String(ligaId))
+    next.set('campo', campo)
+    const ancora = MISSING_FIELD_ANCHOR[campo] ?? campo
+    router.push(`/painel/parametrizacao/${secao}?${next.toString()}#${ancora}`)
+  }
+
   if (loading) return <PageLoading label="Carregando eliminatórias..." />
   if (loadError || !data) {
     return (
@@ -148,11 +163,10 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
               <FormAlert variant="error">
                 <p className="font-black">{totalClassificados} classificado(s) não formam uma chave eliminatória válida (2, 4, 8, 16 ou 32).</p>
                 <p className="mt-1">
-                  Ajuste {isMataMataPuro ? 'a quantidade de equipes em Estrutura' : 'os classificados por grupo ou os melhores classificados gerais'} em{' '}
-                  <Link href={`/painel/parametrizacao/${isMataMataPuro ? 'estrutura' : 'classificacao'}?ligaId=${ligaId}`} className="underline">
+                  Ajuste {isMataMataPuro ? 'a quantidade de equipes' : 'os classificados por grupo'}.{' '}
+                  <button type="button" onClick={irParaCampoInvalido} className="underline">
                     corrigir
-                  </Link>
-                  .
+                  </button>
                 </p>
               </FormAlert>
             )}

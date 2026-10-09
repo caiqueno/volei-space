@@ -32,7 +32,7 @@ function payloadDoItem(item: Item): Record<string, string> {
 }
 
 export type SelecaoCategoriasHandle = {
-  salvar: () => Promise<{ ok: boolean; message: string | null }>
+  salvar: () => Promise<{ ok: boolean; message: string | null; categorias?: Array<{ id: string; nome?: string; ordem?: number }> }>
 }
 
 export const SelecaoCategorias = forwardRef<SelecaoCategoriasHandle, { ligaId: number }>(function SelecaoCategorias({ ligaId }, ref) {
@@ -132,8 +132,9 @@ export const SelecaoCategorias = forwardRef<SelecaoCategoriasHandle, { ligaId: n
         })
         const payload = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar as categorias.')
+        const categorias = Array.isArray(payload.data) ? payload.data as Array<{ id: string; nome?: string; ordem?: number }> : []
         setSaving(false)
-        return { ok: true, message: null }
+        return { ok: true, message: null, categorias }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Não foi possível salvar as categorias.'
         setSaveError(message)

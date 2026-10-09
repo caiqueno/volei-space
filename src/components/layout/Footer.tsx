@@ -15,17 +15,17 @@ export function Footer() {
         <div className="landing-footer-inner">
           <div className="landing-footer-brand">
             <span className="relative h-12 w-12 overflow-hidden rounded-xl">
-              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="48px" className="object-contain" />
+              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" aria-hidden="true" fill sizes="48px" className="object-contain" />
             </span>
             <div>
-              <strong></strong>
+              <strong>volei.space</strong>
             </div>
           </div>
 
           <nav>
             <a href="#temporada">Campeonato</a>
             <a href="#funcionalidades">Funcionalidades</a>
-            <a href="#portal-preview">Portal</a>
+            <Link href="/portal">Portal</Link>
             <Link href="/termos-de-uso">Termos</Link>
             <Link href="/politica-de-privacidade">Privacidade</Link>
             <Link href="/politica-de-cookies">Cookies</Link>
@@ -45,15 +45,15 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-9 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <span className="relative h-12 w-12 overflow-hidden rounded-xl">
-            <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" fill sizes="48px" className="object-contain" />
+            <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" aria-hidden="true" fill sizes="48px" className="object-contain" />
           </span>
           <div>
-            <p className="system-footer-brand-title font-display text-lg font-black"> </p>
+            <p className="system-footer-brand-title font-display text-lg font-black">volei.space</p>
           </div>
         </div>
         <div className="flex max-w-xl flex-col gap-3 md:items-end">
           <p className="system-footer-copy text-sm font-semibold leading-6 text-slate-200">
-            Calendário, classificação, rankings e cobertura da torneios em uma experiência digital rápida e responsiva.
+            Calendário, classificação, rankings e cobertura de torneios em uma experiência digital rápida e responsiva.
           </p>
           <nav className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-black text-slate-300" aria-label="Documentos legais">
             <Link className="transition hover:text-white" href="/termos-de-uso">Termos de Uso</Link>

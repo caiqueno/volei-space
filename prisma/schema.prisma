@@ -1,3 +1,9 @@
+// Fonte da verdade do banco: supabase/migrations, na ordem do prefixo
+// numérico. Este arquivo descreve esse banco. Não existe prisma/migrations;
+// não use `prisma migrate` nem `prisma db push` para alterar o Postgres.
+// Índices parciais (seedKey, tokenInscricao) ficam só no SQL: o Prisma não
+// expressa a cláusula WHERE.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,65 +17,65 @@ datasource db {
 // ─── Liga ─────────────────────────────────────────────────────────────────────
 
 model Liga {
-  id                Int       @id @default(autoincrement())
-  slug              String    @unique
-  nome              String
-  subtitulo         String?
-  descricao         String?
-  regulamento       String?
-  premiacao         String?
-  nomeCurto                     String?
-  quantidadeEquipes             Int?
-  quantidadeEquipesMinima       Int?
-  quantidadeEquipesMaxima       Int?
-  formato                       String?
-  quantidadeGrupos              Int?
-  nomesGrupos                   String?
-  faseEliminatoria              String?   @default("NENHUMA")
-  turnoReturno                  Boolean   @default(false)
-  setsFormato                   String    @default("MELHOR_DE")
-  setsPorPartida                Int       @default(3)
-  pontosPorSet                  Int       @default(25)
-  diferencaMinimaSet            Int       @default(2)
-  tieBreakUltimoSet             Boolean   @default(false)
-  pontosUltimoSet               Int?
-  criteriosClassificacao        String?
-  pontuacaoResultado            Json?
-  classificadosPorGrupo         Int?
-  melhoresClassificadosGerais   Int       @default(0)
-  metodoChaveamento             String    @default("MANUAL")
-  eliminatoriaIdaVolta          Boolean   @default(false)
-  disputaTerceiroLugar          Boolean   @default(true)
-  goldenSet                     Boolean   @default(false)
-  inscricoesAbertas             Boolean   @default(true)
-  inscricoesAberturaEm          DateTime?
-  inscricoesEncerramentoEm      DateTime?
-  inscricaoAprovacaoAutomatica  Boolean   @default(false)
-  inscricaoPermiteEdicaoAposEnvio Boolean @default(true)
-  inscricaoPrazoEdicaoDias      Int?
-  elencoQuantidadeMinima        Int?
-  elencoQuantidadeMaxima        Int?
-  elencoCadastroDuranteInscricao Boolean  @default(true)
-  elencoCadastroAposAprovacao   Boolean   @default(true)
-  prazoAlteracaoElencoDias      Int?
-  qrCodeEnabled                 Boolean   @default(false)
-  sumulaScoutsEnabled           Boolean   @default(false)
-  formularioInscricaoConfig     Json?
-  categoriasConfig              String?
-  logoUrl                       String?
-  capaUrl                       String?
-  corTematica                   String    @default("#0F2C52")
-  status                        String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA | FINALIZADO
-  simulacao                     Boolean   @default(false)
-  simulacaoRelogio              Json      @default("{}")
-  finalizadoEm                  DateTime?
-  finalizadoPor                 String?
-  organizadorId                 String?
-  pagamentoConfirmadoEm         DateTime?
-  dataInicio                    DateTime?
-  dataFim                       DateTime?
-  criadoEm                      DateTime  @default(now())
-  atualizadoEm                  DateTime  @default(now()) @updatedAt
+  id                              Int       @id @default(autoincrement())
+  slug                            String    @unique
+  nome                            String
+  subtitulo                       String?
+  descricao                       String?
+  regulamento                     String?
+  premiacao                       String?
+  nomeCurto                       String?
+  quantidadeEquipes               Int?
+  quantidadeEquipesMinima         Int?
+  quantidadeEquipesMaxima         Int?
+  formato                         String?
+  quantidadeGrupos                Int?
+  nomesGrupos                     String?
+  faseEliminatoria                String?   @default("NENHUMA")
+  turnoReturno                    Boolean   @default(false)
+  setsFormato                     String    @default("MELHOR_DE")
+  setsPorPartida                  Int       @default(3)
+  pontosPorSet                    Int       @default(25)
+  diferencaMinimaSet              Int       @default(2)
+  tieBreakUltimoSet               Boolean   @default(false)
+  pontosUltimoSet                 Int?
+  criteriosClassificacao          String?
+  pontuacaoResultado              Json?
+  classificadosPorGrupo           Int?
+  melhoresClassificadosGerais     Int       @default(0)
+  metodoChaveamento               String    @default("MANUAL")
+  eliminatoriaIdaVolta            Boolean   @default(false)
+  disputaTerceiroLugar            Boolean   @default(true)
+  goldenSet                       Boolean   @default(false)
+  inscricoesAbertas               Boolean   @default(true)
+  inscricoesAberturaEm            DateTime?
+  inscricoesEncerramentoEm        DateTime?
+  inscricaoAprovacaoAutomatica    Boolean   @default(false)
+  inscricaoPermiteEdicaoAposEnvio Boolean   @default(true)
+  inscricaoPrazoEdicaoDias        Int?
+  elencoQuantidadeMinima          Int?
+  elencoQuantidadeMaxima          Int?
+  elencoCadastroDuranteInscricao  Boolean   @default(true)
+  elencoCadastroAposAprovacao     Boolean   @default(true)
+  prazoAlteracaoElencoDias        Int?
+  qrCodeEnabled                   Boolean   @default(false)
+  sumulaScoutsEnabled             Boolean   @default(false)
+  formularioInscricaoConfig       Json?
+  categoriasConfig                String?
+  logoUrl                         String?
+  capaUrl                         String?
+  corTematica                     String    @default("#0F2C52")
+  status                          String    @default("EM_BREVE") // EM_BREVE | ATIVA | ENCERRADA | FINALIZADO
+  simulacao                       Boolean   @default(false)
+  simulacaoRelogio                Json      @default("{}")
+  finalizadoEm                    DateTime?
+  finalizadoPor                   String?
+  organizadorId                   String?
+  pagamentoConfirmadoEm           DateTime?
+  dataInicio                      DateTime?
+  dataFim                         DateTime?
+  criadoEm                        DateTime  @default(now())
+  atualizadoEm                    DateTime  @default(now()) @updatedAt
 
   equipes                    Equipe[]
   partidas                   Partida[]
@@ -82,6 +88,16 @@ model Liga {
   inscricoes                 InscricaoCampeonato[]
   convitesEquipe             ConviteEquipe[]
   inscricoesRascunho         InscricaoEquipeRascunho[]
+  convitesVaga               ConviteVagaEquipe[]
+  classificacaoEntradas      ClassificacaoEntrada[]
+  grupos                     GrupoCampeonato[]
+  gruposEquipe               GrupoEquipeCampeonato[]
+  locais                     LigaLocal[]
+  setupSecoes                LigaSetupSecao[]
+  linkInscricao              LinkInscricaoCampeonato?
+  linksInscricaoEvento       LinkInscricaoEvento[]
+
+  seedKey String?
 
   @@index([organizadorId])
 }
@@ -89,46 +105,53 @@ model Liga {
 // ─── Equipe ───────────────────────────────────────────────────────────────────
 
 model Equipe {
-  id              Int      @id @default(autoincrement())
-  nome            String
-  logoUrl         String?
-  lider           String?
-  tecnico         String?
-  corHex          String?
-  categoria       String // FEMININO | FEMININO_MASTER | MISTO | MASCULINO | MASCULINO_MASTER
-  serie           String   @default("PRATA") // OURO | PRATA
-  ligaId          Int
-  liga            Liga     @relation(fields: [ligaId], references: [id])
+  id                    Int      @id @default(autoincrement())
+  nome                  String
+  logoUrl               String?
+  lider                 String?
+  tecnico               String?
+  corHex                String?
+  categoria             String // FEMININO | FEMININO_MASTER | MISTO | MASCULINO | MASCULINO_MASTER
+  serie                 String? // legado; a migration de categoria tirou o NOT NULL e o default
+  categoriaCampeonatoId String   @db.Uuid
+  seedKey               String?
+  ligaId                Int
+  liga                  Liga     @relation(fields: [ligaId], references: [id])
   // ── campos de inscrição ──
-  slug            String?  @unique
-  statusEquipe    String   @default("ATIVA") // PENDENTE | ATIVA | INATIVA
-  inscricaoAtiva  Boolean  @default(true)
-  diasDisponiveis String? // JSON array
-  horarios        String? // JSON object
-  quadraInfo      String? // JSON object
-  criadoEm        DateTime @default(now())
+  slug                  String?  @unique
+  statusEquipe          String   @default("ATIVA") // PENDENTE | ATIVA | INATIVA
+  inscricaoAtiva        Boolean  @default(true)
+  diasDisponiveis       String? // JSON array
+  horarios              String? // JSON object
+  quadraInfo            String? // JSON object
+  criadoEm              DateTime @default(now())
 
   jogadores                  Jogador[]
   partidasComoA              Partida[]                   @relation("EquipeA")
   partidasComoB              Partida[]                   @relation("EquipeB")
   sumulaPresencas            SumulaPresenca[]
-  classificacao              ClassificacaoEntrada?
+  classificacaoEntradas      ClassificacaoEntrada[]
   classificacoesEliminatoria ClassificacaoEliminatoria[]
+  grupos                     GrupoEquipeCampeonato[]
   candidatura                CandidaturaEquipe?
   inscricoes                 InscricaoCampeonato[]
   inscricoesRascunho         InscricaoEquipeRascunho[]
+  convitesVaga               ConviteVagaEquipe[]
 
   @@unique([nome, ligaId, categoria, serie])
+  @@unique([categoriaCampeonatoId, nome])
+  @@index([ligaId])
 }
 
 model InscricaoCampeonato {
-  id           String   @id @default(cuid())
-  ligaId       Int
-  equipeId     Int
-  status       String   @default("SOLICITADA") // SOLICITADA | APROVADA | REJEITADA
-  observacao   String?
-  criadaEm     DateTime @default(now())
-  atualizadaEm DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  ligaId                Int
+  categoriaCampeonatoId String   @db.Uuid
+  equipeId              Int
+  status                String   @default("SOLICITADA") // SOLICITADA | APROVADA | REJEITADA
+  observacao            String?
+  criadaEm              DateTime @default(now())
+  atualizadaEm          DateTime @updatedAt
 
   liga     Liga                     @relation(fields: [ligaId], references: [id], onDelete: Cascade)
   equipe   Equipe                   @relation(fields: [equipeId], references: [id], onDelete: Cascade)
@@ -142,13 +165,14 @@ model InscricaoEquipeRascunho {
   id                    String    @id @default(uuid()) @db.Uuid
   token                 String    @unique @default(uuid()) @db.Uuid
   ligaId                Int
-  nomeEquipe            String
+  nomeEquipe            String?
   logoUrl               String?
   lider                 String?
   tecnico               String?
   categoria             String?
   serie                 String?
-  status                String    @default("RASCUNHO")
+  categoriaCampeonatoId String    @db.Uuid
+  status                String    @default("NAO_INICIADO")
   equipeId              Int?      @unique
   inscricaoCampeonatoId String?   @unique
   criadaEm              DateTime  @default(now())
@@ -159,6 +183,7 @@ model InscricaoEquipeRascunho {
   equipe              Equipe?                          @relation(fields: [equipeId], references: [id], onDelete: SetNull)
   inscricaoCampeonato InscricaoCampeonato?             @relation(fields: [inscricaoCampeonatoId], references: [id], onDelete: SetNull)
   jogadores           InscricaoEquipeJogadorRascunho[]
+  conviteVaga         ConviteVagaEquipe?
 
   @@index([ligaId, status])
 }
@@ -175,12 +200,14 @@ model InscricaoEquipeJogadorRascunho {
   dataNascimento      DateTime?
   documentoTipo       String?
   documentoNumero     String?
+  chaveCadastro       String?   @db.Uuid
   criadoEm            DateTime  @default(now())
   atualizadoEm        DateTime  @updatedAt
 
   inscricaoRascunho InscricaoEquipeRascunho @relation(fields: [inscricaoRascunhoId], references: [id], onDelete: Cascade)
   jogador           Jogador?                @relation(fields: [jogadorId], references: [id], onDelete: SetNull)
 
+  @@unique([inscricaoRascunhoId, chaveCadastro])
   @@index([inscricaoRascunhoId, criadoEm])
 }
 
@@ -204,6 +231,7 @@ model ConviteEquipe {
   @@index([ligaId])
   @@index([organizadorId])
   @@index([email])
+  @@index([candidaturaEquipeId])
 }
 
 // ─── Jogador ──────────────────────────────────────────────────────────────────
@@ -216,6 +244,8 @@ model Jogador {
   numero             Int?
   equipeId           Int
   equipe             Equipe    @relation(fields: [equipeId], references: [id])
+  chaveCadastro      String?   @db.Uuid
+  seedKey            String?
   // ── campos de auto-cadastro ──
   cpf                String?
   documentoTipo      String?
@@ -236,6 +266,9 @@ model Jogador {
   votosRecebidos    VotoMVP[]
   ocorrencias       OcorrenciaPartida[]
   inscricaoRascunho InscricaoEquipeJogadorRascunho?
+
+  @@unique([equipeId, chaveCadastro])
+  @@index([equipeId])
 }
 
 // ─── Árbitro ──────────────────────────────────────────────────────────────────
@@ -279,25 +312,31 @@ model EscalaArbitro {
   arbitro   Arbitro @relation(fields: [arbitroId], references: [id])
 
   @@unique([partidaId, cargo])
+  @@index([arbitroId])
 }
 
 // ─── Partida ──────────────────────────────────────────────────────────────────
 
 model Partida {
-  id            Int       @id @default(autoincrement())
-  ligaId        Int
-  liga          Liga      @relation(fields: [ligaId], references: [id])
-  equipeAId     Int
-  equipeBId     Int
-  equipeA       Equipe    @relation("EquipeA", fields: [equipeAId], references: [id])
-  equipeB       Equipe    @relation("EquipeB", fields: [equipeBId], references: [id])
-  categoria     String
-  serie         String
-  rodada        Int
-  status        String    @default("AGENDADA")
-  dataHora      DateTime?
-  localNome     String?
-  localEndereco String?
+  id                    Int              @id @default(autoincrement())
+  ligaId                Int
+  liga                  Liga             @relation(fields: [ligaId], references: [id])
+  equipeAId             Int
+  equipeBId             Int
+  equipeA               Equipe           @relation("EquipeA", fields: [equipeAId], references: [id])
+  equipeB               Equipe           @relation("EquipeB", fields: [equipeBId], references: [id])
+  categoria             String
+  serie                 String?
+  categoriaCampeonatoId String           @db.Uuid
+  grupoId               BigInt?
+  grupo                 GrupoCampeonato? @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  fase                  String           @default("GERAL")
+  seedKey               String?
+  rodada                Int
+  status                String           @default("AGENDADA")
+  dataHora              DateTime?
+  localNome             String?
+  localEndereco         String?
 
   setsPorA   Int?
   setsPorB   Int?
@@ -320,7 +359,12 @@ model Partida {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
+  acessosArbitro       AcessoArbitroJogo?
+  acessosArbitroEvento AcessoArbitroEvento[]
+
   @@index([ligaId, categoria, serie, rodada])
+  @@index([equipeAId])
+  @@index([equipeBId])
 }
 
 // ─── Sets da Partida ──────────────────────────────────────────────────────────
@@ -350,6 +394,8 @@ model SumulaPresenca {
   equipe    Equipe  @relation(fields: [equipeId], references: [id])
 
   @@unique([partidaId, jogadorId])
+  @@index([jogadorId])
+  @@index([equipeId])
 }
 
 // ─── Súmula — Ocorrências ────────────────────────────────────────────────────
@@ -363,6 +409,9 @@ model OcorrenciaPartida {
   jogadorId Int? // atleta responsável pelo scout (ponto/ataque/bloqueio/ace), quando aplicável
   partida   Partida  @relation(fields: [partidaId], references: [id], onDelete: Cascade)
   jogador   Jogador? @relation(fields: [jogadorId], references: [id])
+
+  @@index([partidaId])
+  @@index([jogadorId])
 }
 
 // ─── Destaques por Partida ────────────────────────────────────────────────────
@@ -376,18 +425,21 @@ model DestaquesPartida {
   jogador   Jogador @relation(fields: [jogadorId], references: [id])
 
   @@unique([partidaId, tipo])
+  @@index([jogadorId])
 }
 
 // ─── Votação MVP ─────────────────────────────────────────────────────────────
 
 model VotoMVP {
-  id        Int      @id @default(autoincrement())
-  jogadorId Int
-  categoria String
-  serie     String
-  sessaoId  String
-  criadoEm  DateTime @default(now())
-  jogador   Jogador  @relation(fields: [jogadorId], references: [id])
+  id                    Int      @id @default(autoincrement())
+  jogadorId             Int
+  ligaId                Int
+  categoriaCampeonatoId String   @db.Uuid
+  categoria             String
+  serie                 String?
+  sessaoId              String
+  criadoEm              DateTime @default(now())
+  jogador               Jogador  @relation(fields: [jogadorId], references: [id])
 
   @@unique([jogadorId, sessaoId])
 }
@@ -395,32 +447,39 @@ model VotoMVP {
 // ─── Classificação (cache calculado) ─────────────────────────────────────────
 
 model ClassificacaoEntrada {
-  id           Int      @id @default(autoincrement())
-  equipeId     Int      @unique
-  equipe       Equipe   @relation(fields: [equipeId], references: [id])
-  categoria    String
-  serie        String
-  posicao      Int
-  pontos       Int      @default(0)
-  jogos        Int      @default(0)
-  vitorias     Int      @default(0)
-  derrotas     Int      @default(0)
-  setsPro      Int      @default(0)
-  setsContra   Int      @default(0)
-  pontosPro    Int      @default(0)
-  pontosContra Int      @default(0)
-  punicoes     Int      @default(0)
-  ligaId       Int?
-  atualizadoEm DateTime @default(now()) @updatedAt
+  id                    Int      @id @default(autoincrement())
+  equipeId              Int
+  equipe                Equipe   @relation(fields: [equipeId], references: [id])
+  ligaId                Int
+  liga                  Liga     @relation(fields: [ligaId], references: [id])
+  categoriaCampeonatoId String   @db.Uuid
+  categoria             String
+  serie                 String?
+  posicao               Int
+  pontos                Int      @default(0)
+  jogos                 Int      @default(0)
+  vitorias              Int      @default(0)
+  derrotas              Int      @default(0)
+  setsPro               Int      @default(0)
+  setsContra            Int      @default(0)
+  pontosPro             Int      @default(0)
+  pontosContra          Int      @default(0)
+  punicoes              Int      @default(0)
+  atualizadoEm          DateTime @default(now()) @updatedAt
+
+  @@unique([ligaId, equipeId])
+  @@index([ligaId])
+  @@index([equipeId])
 }
 
 model ClassificacaoEliminatoria {
-  id            Int      @id @default(autoincrement())
-  ligaId        Int
-  equipeId      Int
-  organizadorId String
-  origem        String   @default("MANUAL")
-  criadoEm      DateTime @default(now())
+  id                    Int      @id @default(autoincrement())
+  ligaId                Int
+  categoriaCampeonatoId String   @db.Uuid
+  equipeId              Int
+  organizadorId         String
+  origem                String   @default("MANUAL")
+  criadoEm              DateTime @default(now())
 
   liga   Liga   @relation(fields: [ligaId], references: [id], onDelete: Cascade)
   equipe Equipe @relation(fields: [equipeId], references: [id], onDelete: Cascade)
@@ -434,14 +493,17 @@ model ClassificacaoEliminatoria {
 // ─── Premiação ────────────────────────────────────────────────────────────────
 
 model Premiacao {
-  id        Int     @id @default(autoincrement())
-  ligaId    Int
-  liga      Liga    @relation(fields: [ligaId], references: [id])
-  categoria String
-  serie     String
-  colocacao Int
-  descricao String
-  imagemUrl String?
+  id                    Int     @id @default(autoincrement())
+  ligaId                Int
+  liga                  Liga    @relation(fields: [ligaId], references: [id])
+  categoria             String
+  serie                 String?
+  categoriaCampeonatoId String  @db.Uuid
+  colocacao             Int
+  descricao             String
+  imagemUrl             String?
+
+  @@index([ligaId])
 }
 
 // ─── Galeria ──────────────────────────────────────────────────────────────────
@@ -452,9 +514,12 @@ model Midia {
   liga     Liga     @relation(fields: [ligaId], references: [id])
   tipo     String // FOTO | VIDEO
   url      String
+  thumbUrl String?
   titulo   String?
   tag      String? // DESTAQUE | RODADA | PREMIACAO
   criadoEm DateTime @default(now())
+
+  @@index([ligaId])
 }
 
 // ─── Mural de Mensagens ───────────────────────────────────────────────────────
@@ -467,6 +532,8 @@ model Mensagem {
   texto    String
   aprovada Boolean  @default(false)
   criadoEm DateTime @default(now())
+
+  @@index([ligaId])
 }
 
 // ─── Usuário Admin ───────────────────────────────────────────────────────────
@@ -482,35 +549,38 @@ model Admin {
 // ─── Candidaturas (novo) ─────────────────────────────────────────────────────
 
 model CandidaturaEquipe {
-  id                String          @id @default(cuid())
-  nome              String
-  responsavel       String
-  email             String
-  telefone          String?
-  senhaHash         String?
-  categoria         String
-  serie             String
-  genero            String?
-  categoriaEtaria   String?
-  nivel             String?
-  possuiLocalTreino Boolean         @default(false)
-  horariosTreino    Json?
-  cederQuadra       Boolean         @default(false)
-  temInstagram      Boolean         @default(false)
-  instagram         String?
-  diasDisponiveis   String // JSON array
-  horarios          String // JSON object
-  quadraInfo        String // JSON object
-  ligaId            Int
-  liga              Liga            @relation(fields: [ligaId], references: [id])
-  status            String          @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
-  pagamentoId       String?         @unique
-  pagamento         Pagamento?      @relation(fields: [pagamentoId], references: [id])
-  equipeId          Int?            @unique
-  equipe            Equipe?         @relation(fields: [equipeId], references: [id])
-  convites          ConviteEquipe[]
-  criadaEm          DateTime        @default(now())
-  atualizadaEm      DateTime        @updatedAt
+  id                    String          @id @default(cuid())
+  nome                  String
+  responsavel           String
+  email                 String
+  telefone              String?
+  senhaHash             String?
+  categoria             String
+  serie                 String?
+  categoriaCampeonatoId String          @db.Uuid
+  genero                String?
+  categoriaEtaria       String?
+  nivel                 String?
+  possuiLocalTreino     Boolean         @default(false)
+  horariosTreino        Json?
+  cederQuadra           Boolean         @default(false)
+  temInstagram          Boolean         @default(false)
+  instagram             String?
+  diasDisponiveis       String // JSON array
+  horarios              String // JSON object
+  quadraInfo            String // JSON object
+  ligaId                Int
+  liga                  Liga            @relation(fields: [ligaId], references: [id])
+  status                String          @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | ATIVA
+  pagamentoId           String?         @unique
+  pagamento             Pagamento?      @relation(fields: [pagamentoId], references: [id])
+  equipeId              Int?            @unique
+  equipe                Equipe?         @relation(fields: [equipeId], references: [id])
+  convites              ConviteEquipe[]
+  criadaEm              DateTime        @default(now())
+  atualizadaEm          DateTime        @updatedAt
+
+  @@index([ligaId])
 }
 
 model CandidaturaArbitro {
@@ -554,6 +624,9 @@ model CandidaturaQuadra {
   status         String   @default("PENDENTE")
   criadaEm       DateTime @default(now())
   atualizadaEm   DateTime @updatedAt
+
+  @@index([ligaId])
+  @@index([status])
 }
 
 model CandidaturaOrganizador {
@@ -615,45 +688,113 @@ model ContaPublico {
 }
 
 model CategoriaCampeonato {
-  id                   String   @id @default(uuid()) @db.Uuid
-  ligaId               Int
-  codigo               String
-  nome                 String
-  slug                 String
-  ordem                Int      @default(0)
-  statusConfiguracao   String   @default("NAO_INICIADA")
-  versao               Int      @default(1)
-  revisaoOperacional   Int      @default(0)
-  removidaEm           DateTime?
-  criadoEm             DateTime @default(now())
-  atualizadoEm         DateTime @default(now())
+  id                 String    @id @default(uuid()) @db.Uuid
+  ligaId             Int
+  codigo             String
+  nome               String
+  slug               String
+  ordem              Int       @default(0)
+  tokenInscricao     String?
+  statusConfiguracao String    @default("NAO_INICIADA")
+  versao             Int       @default(1)
+  revisaoOperacional Int       @default(0)
+  removidaEm         DateTime?
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @default(now())
+
+  convitesVaga ConviteVagaEquipe[]
 
   @@unique([ligaId, codigo])
   @@unique([ligaId, slug])
 }
 
-model CategoriaConfiguracao {
-  categoriaCampeonatoId String   @id @db.Uuid
+model ConviteVagaEquipe {
+  id                    String   @id @default(uuid()) @db.Uuid
   ligaId                Int
-  versao                Int      @default(1)
-  formato               String?
-  setsPorPartida        Int      @default(3)
-  pontosPorSet          Int      @default(25)
-  diferencaMinimaSet    Int      @default(2)
+  categoriaCampeonatoId String   @db.Uuid
+  vaga                  Int
+  token                 String   @unique
+  equipeId              Int?
+  inscricaoRascunhoId   String?  @unique @db.Uuid
+  status                String   @default("DISPONIVEL")
   criadoEm              DateTime @default(now())
-  atualizadoEm          DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+
+  liga      Liga                     @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  categoria CategoriaCampeonato      @relation(fields: [categoriaCampeonatoId], references: [id], onDelete: Cascade)
+  equipe    Equipe?                  @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+  rascunho  InscricaoEquipeRascunho? @relation(fields: [inscricaoRascunhoId], references: [id], onDelete: SetNull)
+
+  @@unique([ligaId, categoriaCampeonatoId, vaga])
+  @@index([ligaId])
+  @@index([categoriaCampeonatoId])
+  @@index([status])
+  @@index([equipeId])
+}
+
+model CategoriaConfiguracao {
+  categoriaCampeonatoId           String    @id @db.Uuid
+  ligaId                          Int
+  versao                          Int       @default(1)
+  quantidadeEquipes               Int?
+  quantidadeEquipesMinima         Int?
+  quantidadeEquipesMaxima         Int?
+  formato                         String?
+  quantidadeGrupos                Int?
+  turnoReturno                    Boolean   @default(false)
+  setsFormato                     String    @default("MELHOR_DE")
+  setsPorPartida                  Int       @default(3)
+  pontosPorSet                    Int       @default(25)
+  tieBreakUltimoSet               Boolean   @default(true)
+  pontosUltimoSet                 Int       @default(15)
+  terceiroSetObrigatorio          Boolean   @default(false)
+  diferencaMinimaSet              Int       @default(2)
+  criteriosClassificacao          String    @default("[\"PONTOS\",\"VITORIAS\",\"SALDO_SETS\",\"SALDO_PONTOS\"]")
+  pontuacaoResultado              Json?
+  pontosVencedorMargem1           Int       @default(2)
+  pontosPerdedorMargem1           Int       @default(1)
+  pontosVencedorMargem2           Int       @default(3)
+  pontosPerdedorMargem2           Int       @default(0)
+  classificadosPorGrupo           Int       @default(0)
+  melhoresClassificadosGerais     Int       @default(0)
+  nomesGrupos                     String?
+  faseEliminatoria                String    @default("NENHUMA")
+  metodoChaveamento               String    @default("MANUAL")
+  eliminatoriaIdaVolta            Boolean   @default(false)
+  disputaTerceiroLugar            Boolean   @default(true)
+  goldenSet                       Boolean   @default(false)
+  dataInicio                      DateTime?
+  dataFim                         DateTime?
+  inscricoesAbertas               Boolean   @default(true)
+  inscricoesAberturaEm            DateTime?
+  inscricoesEncerramentoEm        DateTime?
+  inscricaoPermiteEdicaoAposEnvio Boolean   @default(true)
+  inscricaoPrazoEdicaoDias        Int?
+  elencoQuantidadeMinima          Int?
+  elencoQuantidadeMaxima          Int?
+  elencoCadastroDuranteInscricao  Boolean   @default(true)
+  prazoAlteracaoElencoDias        Int?
+  formularioInscricaoConfig       Json      @default("{}")
+  qrCodeEnabled                   Boolean   @default(false)
+  sumulaScoutsEnabled             Boolean   @default(false)
+  criadoEm                        DateTime  @default(now())
+  atualizadoEm                    DateTime  @default(now())
+
+  @@unique([categoriaCampeonatoId, ligaId])
+  @@index([ligaId])
 }
 
 model CategoriaSetupSecao {
-  categoriaCampeonatoId String   @db.Uuid
+  categoriaCampeonatoId String    @db.Uuid
   ligaId                Int
   secao                 String
-  status                String   @default("not-started")
+  status                String    @default("not-started")
   revisaoConfirmada     Int?
-  atualizadoEm          DateTime @default(now())
+  atualizadoEm          DateTime  @default(now())
   concluidoEm           DateTime?
 
   @@id([categoriaCampeonatoId, secao])
+  @@index([ligaId])
 }
 
 model CategoriaReplicacaoAuditoria {
@@ -667,4 +808,144 @@ model CategoriaReplicacaoAuditoria {
   versaoAnterior     Int
   versaoResultante   Int
   criadoEm           DateTime @default(now())
+
+  @@index([ligaId])
+  @@index([origemCategoriaId])
+  @@index([destinoCategoriaId])
+}
+
+model GrupoCampeonato {
+  id                    BigInt   @id @default(autoincrement())
+  ligaId                Int
+  categoriaCampeonatoId String   @db.Uuid
+  nome                  String
+  ordem                 Int      @default(1)
+  classificados         Int      @default(0)
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @default(now())
+
+  liga     Liga                    @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  equipes  GrupoEquipeCampeonato[]
+  partidas Partida[]
+
+  @@unique([categoriaCampeonatoId, nome])
+  @@index([ligaId, ordem])
+}
+
+model GrupoEquipeCampeonato {
+  id                    BigInt   @id @default(autoincrement())
+  grupoId               BigInt
+  ligaId                Int
+  categoriaCampeonatoId String   @db.Uuid
+  equipeId              Int
+  posicao               Int      @default(1)
+  criadoEm              DateTime @default(now())
+
+  grupo  GrupoCampeonato @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  liga   Liga            @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  equipe Equipe          @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+
+  @@unique([ligaId, equipeId])
+  @@unique([grupoId, equipeId])
+}
+
+model LigaLocal {
+  id       BigInt   @id @default(autoincrement())
+  ligaId   Int
+  nome     String
+  endereco String?
+  quadra   String?
+  ordem    Int      @default(1)
+  criadoEm DateTime @default(now())
+
+  liga Liga @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+
+  @@index([ligaId, ordem])
+}
+
+model LigaSetupSecao {
+  ligaId       Int
+  secao        String
+  status       String    @default("not-started")
+  atualizadoEm DateTime  @default(now())
+  concluidoEm  DateTime?
+
+  liga Liga @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+
+  @@id([ligaId, secao])
+}
+
+model LinkInscricaoCampeonato {
+  id             String    @id @default(uuid())
+  ligaId         Int       @unique
+  token          String    @unique
+  ativo          Boolean   @default(true)
+  criadoPor      String?
+  criadoEm       DateTime  @default(now())
+  atualizadoEm   DateTime  @default(now())
+  expiraEm       DateTime?
+  ultimoAcessoEm DateTime?
+  revogadoEm     DateTime?
+  revogadoPor    String?
+
+  liga Liga @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+}
+
+model LinkInscricaoEvento {
+  id            String   @id @default(uuid())
+  ligaId        Int
+  linkId        String?
+  tipo          String
+  organizadorId String?
+  resultado     String
+  criadoEm      DateTime @default(now())
+
+  liga Liga @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+
+  @@index([ligaId, criadoEm])
+}
+
+model AcessoArbitroJogo {
+  id               String    @id @default(uuid())
+  partidaId        Int       @unique
+  token            String    @unique
+  codigoHash       String
+  ativo            Boolean   @default(true)
+  criadoPor        String?
+  criadoEm         DateTime  @default(now())
+  atualizadoEm     DateTime  @default(now())
+  expiraEm         DateTime?
+  ultimoAcessoEm   DateTime?
+  tentativasFalhas Int       @default(0)
+  bloqueadoAte     DateTime?
+  revogadoEm       DateTime?
+  revogadoPor      String?
+
+  partida Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+}
+
+model AcessoArbitroEvento {
+  id            String   @id @default(uuid())
+  partidaId     Int
+  acessoId      String?
+  tipo          String
+  organizadorId String?
+  resultado     String
+  criadoEm      DateTime @default(now())
+
+  partida Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
+
+  @@index([partidaId, criadoEm])
+}
+
+model AdminAcaoHistorico {
+  id         String   @id @default(uuid()) @db.Uuid
+  adminEmail String?
+  tipo       String
+  registroId String
+  acao       String
+  detalhes   Json?    @default("{}")
+  criadaEm   DateTime @default(now())
+
+  @@index([tipo, registroId, criadaEm])
 }

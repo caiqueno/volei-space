@@ -10,7 +10,7 @@ type Status = 'PENDENTE' | 'APROVADA' | 'REJEITADA' | 'ATIVA' | 'TODAS'
 const tipos: Array<{ value: Tipo; label: string }> = [
   { value: 'arbitro', label: 'Árbitros' },
   { value: 'quadra', label: 'Quadras' },
-  { value: 'organizador', label: 'Organizadores' },
+  { value: 'organizador', label: 'Solicitações de organizadores' },
 ]
 
 const statusList: Status[] = ['PENDENTE', 'APROVADA', 'ATIVA', 'REJEITADA', 'TODAS']
@@ -22,7 +22,7 @@ export default function CandidaturasPage() {
   const [selected, setSelected] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionId, setActionId] = useState<string | null>(null)
-  const [actionKind, setActionKind] = useState<'aprovar' | 'rejeitar' | null>(null)
+  const [actionKind, setActionKind] = useState<'aprovar' | 'rejeitar' | 'reenviar' | null>(null)
   const [msg, setMsg] = useState('')
 
   async function fetchCandidaturas() {
@@ -46,12 +46,31 @@ export default function CandidaturasPage() {
     const json = await res.json()
     setActionId(null)
     setActionKind(null)
-    setMsg(res.ok ? json.data?.mensagem ?? 'Cadastro aprovado.' : json.error ?? 'Erro ao aprovar.')
+    const senha = res.ok ? json.data?.senhaTemporaria : ''
+    setMsg(res.ok
+      ? senha
+        ? `${json.data?.mensagem ?? 'Organizador liberado.'} Senha temporária: ${senha}`
+        : json.data?.mensagem ?? 'Cadastro aprovado.'
+      : json.error ?? 'Erro ao aprovar.')
     if (res.ok) {
       setSelected(null)
       fetchCandidaturas()
     }
-    setTimeout(() => setMsg(''), 4500)
+    setTimeout(() => setMsg(''), senha ? 60000 : 4500)
+  }
+
+  async function handleReenviar(id: string) {
+    setActionId(id)
+    setActionKind('reenviar')
+    const res = await fetch(`/api/admin/candidaturas/${id}/reenviar`, { method: 'POST' })
+    const json = await res.json()
+    setActionId(null)
+    setActionKind(null)
+    const senha = res.ok ? json.data?.senhaTemporaria : ''
+    setMsg(res.ok
+      ? `${json.data?.mensagem ?? 'Acesso reenviado.'} Senha temporária: ${senha}`
+      : json.error ?? 'Erro ao reenviar o acesso.')
+    setTimeout(() => setMsg(''), senha ? 60000 : 4500)
   }
 
   async function handleRejeitar(id: string) {
@@ -86,7 +105,7 @@ export default function CandidaturasPage() {
       <header className="flex flex-col gap-4 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-luva-amber">Administração</p>
-          <h2 className="mt-2 font-display text-3xl font-black text-white">Candidaturas</h2>
+          <h2 className="mt-2 font-display text-3xl font-black text-white">{tipo === 'organizador' ? 'Solicitações de organizadores' : 'Candidaturas'}</h2>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-200">
             Analise cadastros, confira documentos, fotos e aprove ou rejeite cada solicitação.
           </p>
@@ -200,6 +219,7 @@ export default function CandidaturasPage() {
           onClose={() => setSelected(null)}
           onApprove={selected.status === 'PENDENTE' ? () => handleAprovar(selected.id) : undefined}
           onReject={selected.status === 'PENDENTE' ? () => handleRejeitar(selected.id) : undefined}
+          onResend={tipo === 'organizador' && ['ATIVA', 'ATIVO', 'APROVADA', 'APROVADO', 'LIBERADA', 'LIBERADO'].includes(selected.status) ? () => handleReenviar(selected.id) : undefined}
           busy={actionId === selected.id}
           actionKind={actionKind}
         />
@@ -208,14 +228,15 @@ export default function CandidaturasPage() {
   )
 }
 
-function DetailModal({ tipo, candidatura, onClose, onApprove, onReject, busy, actionKind }: {
+function DetailModal({ tipo, candidatura, onClose, onApprove, onReject, onResend, busy, actionKind }: {
   tipo: Tipo
   candidatura: any
   onClose: () => void
   onApprove?: () => void
   onReject?: () => void
+  onResend?: () => void
   busy: boolean
-  actionKind: 'aprovar' | 'rejeitar' | null
+  actionKind: 'aprovar' | 'rejeitar' | 'reenviar' | null
 }) {
   const rows = useMemo(() => detailRows(tipo, candidatura), [tipo, candidatura])
   const files = fileLinks(tipo, candidatura)
@@ -261,9 +282,10 @@ function DetailModal({ tipo, candidatura, onClose, onApprove, onReject, busy, ac
           </section>
         )}
 
-        {(onApprove || onReject) && (
+        {(onApprove || onReject || onResend) && (
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             {onReject && <ActionBar loading={busy && actionKind === 'rejeitar'} loadingLabel="Rejeitando" disabled={busy} onClick={onReject} className="rounded-full border border-red-300/40 px-5 py-3 text-sm font-black text-red-100 disabled:opacity-50">Rejeitar</ActionBar>}
+            {onResend && <ActionBar loading={busy && actionKind === 'reenviar'} loadingLabel="Reenviando" disabled={busy} onClick={onResend} className="rounded-full border border-white/20 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Reenviar acesso</ActionBar>}
             {onApprove && <ActionBar loading={busy && actionKind === 'aprovar'} loadingLabel="Aprovando" disabled={busy} onClick={onApprove} className="rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-white disabled:opacity-50">Aprovar cadastro</ActionBar>}
           </div>
         )}

@@ -20,6 +20,7 @@ import { PricingSummary } from '../../pricing/PricingSummary'
 import { FloatingLabelNumberInput } from '@/components/ui/floating-label'
 import PageLoading from '@/components/ui/page-loading'
 import type { EstruturaSectionDTO } from '@/types/championship-setup'
+import { lerCampoPedido, limparCampoPedido } from '../../wizard/missing-fields'
 import { COMPETITION_FORMATS, formatoTemFaseDeGrupos, type CompetitionFormat } from '@/lib/schemas'
 
 const STEPS: WizardStepDef[] = [
@@ -80,9 +81,19 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
   }, [data?.formato, definirFormato])
 
   useEffect(() => {
-    if (!invalidKeys.length || stepIndex !== 0) return
-    document.getElementById(invalidKeys.includes('quantidadeEquipes') ? 'quantidade-equipes' : 'formato-competicao')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [invalidKeys, stepIndex])
+    if (lerCampoPedido('estrutura') !== 'quantidadeEquipes') return
+    setStepIndex(0)
+    setVisited((current) => new Set(current).add(0))
+    setInvalidKeys((current) => current.includes('quantidadeEquipes') ? current : [...current, 'quantidadeEquipes'])
+  }, [])
+
+  useEffect(() => {
+    if (loading || !invalidKeys.length || stepIndex !== 0) return
+    const alvo = document.getElementById(invalidKeys.includes('quantidadeEquipes') ? 'quantidade-equipes' : 'formato-competicao')
+    alvo?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (alvo instanceof HTMLInputElement) alvo.focus()
+    if (invalidKeys.includes('quantidadeEquipes')) limparCampoPedido('estrutura')
+  }, [invalidKeys, stepIndex, loading])
 
   if (loading) return <PageLoading label="Carregando estrutura do campeonato..." />
   if (loadError || !data) {

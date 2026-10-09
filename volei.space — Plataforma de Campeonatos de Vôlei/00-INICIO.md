@@ -8,7 +8,7 @@ summary: >-
   Porta de entrada do vault: mapa do produto, estados e ponte LLM-WIKI.
 status: implementado
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-10-04
 ---
 	
 # volei.space — início
@@ -55,6 +55,7 @@ Quando código e requisito divergirem, registre a divergência; não apresente o
 | Decisões registradas | [[11-DECISOES]] |
 | Categorias como competições isoladas — requisito aprovado, pendente | [[references/CATEGORIAS-COMO-COMPETICOES]] |
 | Problemas conhecidos | [[12-BUGS-E-DEBITOS-TECNICOS]] |
+| O que corrigir, atualizar e descartar | [[13-TRIAGEM-PRODUTO]] |
 | Notas específicas | [[modulos/PARAMETRIZACAO]], [[modulos/INSCRICOES]], [[modulos/SUMULA-DIGITAL]] e [[05-MODULOS]] |
 | Origem LUVA | [[historico/LEGADO-LUVA]] |
 
