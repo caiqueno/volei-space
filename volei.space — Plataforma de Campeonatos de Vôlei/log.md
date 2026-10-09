@@ -8,10 +8,20 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] fix | histórico de migrations e default de função
+
+- pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `12-BUGS-E-DEBITOS-TECNICOS`, `modulos/INSCRICOES`, `synthesis/PRONTIDAO-E-APIS`, `hot`, `log`
+- Os 35 SQL sem prefixo numérico passaram a ter versão anterior a `202610060004`. Nenhum deles concede `anon` ou `authenticated` depois do fechamento. Produção precisa de `supabase migration repair` antes do `db push`, porque esses arquivos já foram aplicados à mão.
+- `202610090001` revoga o EXECUTE global de `PUBLIC` nos default privileges do papel `postgres`. O revoke dentro do schema, usado em `202610060004`, não remove esse default.
+- `ClassificacaoEntrada` fica única por `(ligaId, equipeId)`. A migration nova não apaga linha. Índices das chaves estrangeiras citadas na revisão entram em `202610090002` e no Prisma. `SetPartida.partidaId` continua coberto pela unicidade `(partidaId, numero)`.
+- As policies de leitura do Realtime já estavam nos SQL de elenco e de permissões; agora esses arquivos são versionados e rodam antes do `GRANT` de colunas de `202610060004`, que deixa `Partida` sem `sumulaToken`.
+- `setup-db.mjs` saiu. Era o SQLite local da LUVA.
+- Nada foi aplicado em banco real.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 
