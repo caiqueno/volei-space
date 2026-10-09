@@ -8,10 +8,17 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] ingest | importação Winners e partida com categoria
+
+- pages_updated=`modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e deixam `serie` nula. `GET` da estrutura passa a devolver `sumulaToken`.
+- A migration `202610090001_partida_atualizado_em_default.sql` define default `now()` em `Partida.atualizadoEm`. Ainda não está em produção.
+- `scripts/import-winners.mjs` cria os três campeonatos pelo fluxo HTTP. O campeão do Winners Teste é o vencedor da final.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 

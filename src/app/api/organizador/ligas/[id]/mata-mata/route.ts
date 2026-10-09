@@ -128,12 +128,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const { data: equipes, error: equipesErr } = await supabase
       .from('Equipe')
-      .select('id,categoria,serie')
+      .select('id,categoria,serie,categoriaCampeonatoId,ligaId')
       .in('id', [equipeAId, equipeBId])
     if (equipesErr) return error('Erro ao carregar os times.', 500, equipesErr.message)
     const equipeA = (equipes ?? []).find((equipe: any) => equipe.id === equipeAId)
     const equipeB = (equipes ?? []).find((equipe: any) => equipe.id === equipeBId)
     if (!equipeA || !equipeB) return error('Um dos times selecionados não foi encontrado.', 404)
+    if (Number(equipeA.ligaId) !== ligaId || Number(equipeB.ligaId) !== ligaId) {
+      return error('Os times selecionados não pertencem a este campeonato.', 422)
+    }
+    if (!equipeA.categoriaCampeonatoId || equipeA.categoriaCampeonatoId !== equipeB.categoriaCampeonatoId) {
+      return error('Os times do mata-mata precisam estar na mesma categoria.', 422)
+    }
 
     const { data: partida, error: insertErr } = await supabase
       .from('Partida')
@@ -142,7 +148,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
         equipeAId,
         equipeBId,
         categoria: equipeA.categoria || equipeB.categoria || 'GERAL',
-        serie: equipeA.serie || equipeB.serie || 'UNICA',
+        serie: null,
+        categoriaCampeonatoId: equipeA.categoriaCampeonatoId,
         rodada,
         status: 'AGENDADA',
         dataHora: null,

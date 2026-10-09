@@ -8,7 +8,7 @@ summary: >-
   Entidades e relações.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-01
+updated: 2026-10-09
 ---
 # Modelo de dados
 
@@ -17,6 +17,8 @@ updated: 2026-10-01
 O projeto `volei-space-producao` é a base de produção e só pode ser usado no deploy da branch `main`. Local, preview e qualquer outra branch usam o projeto `caiqueno's Project`. A ligação é feita pelas variáveis do ambiente, não por endereço fixo no código. No Next.js elas são `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ALVO` (`producao` ou `desenvolvimento`) e, só no servidor, `SUPABASE_SERVICE_ROLE_KEY`. `SUPABASE_HOSTS_PROIBIDOS` lista hosts que aquele ambiente recusa. Se a configuração faltar ou misturar os alvos, as operações de banco não iniciam. O navegador recebe apenas a chave publicável. Várias tabelas seguem sem RLS nos dois projetos; ligar RLS sem política bloqueia o cliente público. `AcessoArbitroJogo` e `AcessoArbitroEvento` têm RLS ligada e nenhuma política para `anon` ou `authenticated`. Só o papel `service_role` lê e grava essas tabelas.
 
 A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authenticated` todo acesso ao schema `public`, inclusive nos objetos criados depois, e devolve apenas três leituras: `ClassificacaoEntrada` inteira, `SetPartida` inteira e as colunas de placar de `Partida` (sem `sumulaToken` e sem `sumulaTokenExpira`). É o mínimo que o Realtime do placar e da classificação precisa. Antes dela a chave publicável lia `Partida.sumulaToken`, lia `Jogador` inteiro e era aceita em `PATCH /rest/v1/Partida`. Todo acesso de servidor passou a usar `supabaseAdmin`; no navegador sobraram o Realtime e os uploads de storage.
+
+`Partida.atualizadoEm` não tinha default. O cliente do Supabase insere a partida sem essa coluna e o banco recusava o confronto de grupos e o mata-mata. A migration `202610090001_partida_atualizado_em_default.sql` define `default now()`. Ela está no repositório e ainda não foi aplicada em produção: aplique só esse arquivo se a coluna continuar sem default. Não reaplique a pasta inteira.
 
 `revoke ... from anon, authenticated` não alcança a concessão que o Postgres dá a `PUBLIC` quando a função é criada. Por isso a chave publicável continuava chamando `/rest/v1/rpc/recalcular_classificacao_liga` e recalculando a tabela de qualquer campeonato sem sessão. A migration `202610060005_fechar_rpc_anonimo.sql` percorre as funções do schema `public` que não pertencem a extensão, revoga de `public`, `anon` e `authenticated`, e concede `execute` ao `service_role`. Função de gatilho não perde nada: o `EXECUTE` é conferido na criação do gatilho, não a cada disparo.
 
