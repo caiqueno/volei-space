@@ -1,5 +1,6 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { THIRD_PLACE_FASE } from '@/lib/mata-mata'
+import { vencedorDaPartida } from '@/lib/resultado-partida'
 
 export type PodiumTeam = {
   equipeId: number
@@ -9,28 +10,22 @@ export type PodiumTeam = {
   posicao: 1 | 2 | 3
 }
 
-function isDecided(partida: { status: string; vencedorId: number | null } | undefined): partida is { status: string; vencedorId: number; equipeAId: number; equipeBId: number } & Record<string, any> {
-  if (!partida) return false
-  const finished = partida.status === 'ENCERRADA' || partida.status === 'WO'
-  return finished && partida.vencedorId != null
-}
-
 export async function getChampionshipPodium(ligaId: number): Promise<PodiumTeam[]> {
   const { data: partidas } = await supabase
     .from('Partida')
-    .select('fase,rodada,status,vencedorId,equipeAId,equipeBId')
+    .select('fase,rodada,status,vencedorId,equipeAId,equipeBId,setsPorA,setsPorB')
     .eq('ligaId', ligaId)
     .in('fase', ['FINAL', THIRD_PLACE_FASE])
     .eq('rodada', 1)
 
   const final = (partidas ?? []).find((p: any) => p.fase === 'FINAL')
-  if (!isDecided(final)) return []
+  const campeaoId = final ? vencedorDaPartida(final) : null
+  if (campeaoId == null || !final) return []
 
-  const campeaoId = final.vencedorId
-  const viceId = final.equipeAId === campeaoId ? final.equipeBId : final.equipeAId
+  const viceId = Number(final.equipeAId) === campeaoId ? Number(final.equipeBId) : Number(final.equipeAId)
 
   const disputa3 = (partidas ?? []).find((p: any) => p.fase === THIRD_PLACE_FASE)
-  const terceiroId = isDecided(disputa3) ? disputa3.vencedorId : null
+  const terceiroId = disputa3 ? vencedorDaPartida(disputa3) : null
 
   const equipeIds = [campeaoId, viceId, ...(terceiroId ? [terceiroId] : [])]
   const { data: equipes } = await supabase.from('Equipe').select('id,nome,logoUrl,corHex').in('id', equipeIds)

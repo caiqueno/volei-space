@@ -5,17 +5,17 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Ver mais permanece aberto quando o Realtime atualiza a partida. A auditoria do acesso anônimo já está em produção.
-status: implementado
+  A simulação de servidor chega ao campeão. A tabela não usa mais a RPC antiga.
+status: misto
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Hot
 
 ## Foco atual
 
-"Ver mais" na agenda e em Jogos do painel não recolhe mais quando o Realtime relê a partida. A auditoria de 6 de outubro de 2026 correu antes de gerar qualquer massa e parou em seis falhas: a chave publicável lia `sumulaToken` e `Jogador` inteiro e aceitava `PATCH` em `Partida`; executava as RPC de classificação sem sessão; `GET /api/jogadores` devolvia CPF, documento e `qrCodeToken` sem sessão; a vitrine pública oferecia a súmula, que pede login; o acompanhamento ao vivo recusava partida de campeonato marcado como teste, deixando sem resposta o link da própria agenda; e a súmula engolia a falha do PUT. Todas corrigidas, publicadas na `main` e aplicadas em produção. O botão Sem jogador da súmula soma o ponto do time na hora, com `jogadorId` vazio e sem ação. A classificação pública e a do organizador mostram as equipes ativas com zero e passam a contar o set já encerrado enquanto a partida segue. Jogos, vitórias, derrotas e pontos do campeonato entram quando a súmula encerra. A agenda, o acompanhamento e a tabela escutam o Realtime e relêem o campeonato afetado ao reconectar. O painel desmonta a seção que saiu de vista. A galeria fica no campeonato, com foto principal em `Liga.capaUrl` e fotos em `Midia.thumbUrl`. O organizador cria o primeiro campeonato com nome, categoria e link; a estrutura não espera o pagamento simulado. «Finalizar campeonato» só aparece com status `ATIVA`. Esta fatia segue para a `main`. Fonte: [[modulos/PARTIDAS]].
+Em 9 de outubro de 2026 a lógica de servidor do campeonato foi revista até o campeão, sem UI, sem Prisma e sem migration. `recalculateLeagueClassification` grava `src/lib/classificacao.ts`: faixa de 1 set ou de 2 ou mais, fase de grupos apenas, set já fechado no saldo dos dois lados e WO. A RPC `recalcular_classificacao_liga` da migration atômica ficou de fora porque ainda usa 4/3/1/0 e mistura o mata-mata; o banco precisa repetir essa regra dentro do `pg_advisory_xact_lock`. Os classificados do chaveamento legado incluem os melhores gerais, e a final (e o 3º lugar, quando ligado) precisa estar decidida para `POST .../finalizar`. A súmula oficial aceita correção por 30 minutos e recusa a 9ª substituição. A simulação em `scripts/campeonato-completo.test.ts` cria grupos, joga, classifica, avança a chave e aponta o campeão. Não houve chamada a produção. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]].
 
 ## Key Takeaways
 

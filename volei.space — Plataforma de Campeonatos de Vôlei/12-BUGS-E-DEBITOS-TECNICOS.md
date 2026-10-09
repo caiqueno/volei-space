@@ -8,7 +8,7 @@ summary: >-
   Problemas conhecidos e débitos.
 status: implementado
 created: 2026-09-20
-updated: 2026-09-27
+updated: 2026-10-09
 ---
 # Divergências e débitos conhecidos
 
@@ -21,7 +21,7 @@ updated: 2026-09-27
 | Inscrições | PR #1, na revisão inicial, exigia equipe já aprovada; o requisito atual cria equipe pelo link e elimina aprovação. Ver [[modulos/INSCRICOES]]. |
 | Súmula | API aceitava encerramento com set insuficiente; UI encerrava melhor de 3 no 2×0 sem considerar terceiro obrigatório; MVP podia faltar. Ver [[modulos/SUMULA-DIGITAL]]. |
 | Substituições | Limite encontrado de 6 e vínculo de pares mantido em estado de tela; requisito é 8 por equipe/set e restauração após reload. |
-| Classificação | Regras configuradas por placar exato podem não aplicar a mesma faixa a 2×0 e 3×0. Inscrever uma equipe nova zerava a tabela inteira, porque o cadastro regravava todas as linhas com zero ponto. Isso foi corrigido em 25/09/2026: a linha nova entra sem apagar o que já foi jogado. Em 27/09/2026 a página deixou de recalcular cada campeonato ao abrir: isso segurava a tela por vários segundos. |
+| Classificação | Em 09/10/2026 o servidor passou a calcular a faixa de margem em `src/lib/classificacao.ts` e deixou de confiar na RPC. A função SQL de `supabase-recalcular-classificacao-liga-atomico.sql` continua com 4/3/1/0 e com jogo de mata-mata; precisa ser substituída, com a trava por liga, sem migration neste PR. Inscrever uma equipe nova não zera mais a tabela desde 25/09/2026. |
 | Abertura de páginas | O painel do organizador e o portal percorriam cada equipe antes de responder, e o login consultava as contas uma a uma. Em 27/09/2026 a leitura só sincroniza equipe que ainda não existe, e o login consulta as contas ao mesmo tempo. |
 | Correções | Súmula encerrada era bloqueada integralmente, divergindo da janela aprovada de 30 minutos. |
 | Pagamentos | Rota de ativação simulada, apesar da existência de código InfinitePay. Em 25/09/2026 o fluxo local percorreu cadastro, parametrização, Pix simulado e inscrição até a equipe aprovada. A cotação do Pix responde 200 mesmo com o campeonato ainda vazio: a validação aponta contradição, não seção em branco. |

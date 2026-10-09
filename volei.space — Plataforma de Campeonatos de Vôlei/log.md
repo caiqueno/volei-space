@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] lint | fluxo até o campeão
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- O cálculo da tabela saiu da RPC antiga e foi para `src/lib/classificacao.ts`. A chave legado considera os melhores gerais. Finalizar exige campeão. A súmula corrige por 30 minutos e limita 8 substituições por equipe e set. A função SQL atômica continua divergente e não foi alterada.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 

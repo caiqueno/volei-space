@@ -1,4 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { partidaEncerrada } from '@/lib/classificacao'
 import { resolveLeagueLifecycleStatus } from '@/lib/championship-lifecycle'
 
 type LigaRecord = {
@@ -58,21 +59,16 @@ export async function ensureClassificationAndCalendar(inscricao: InscricaoWithRe
 }
 
 export async function recalculateLeagueClassification(ligaId: number) {
-  // Todo o cálculo roda atomicamente no banco (função travada por
-  // pg_advisory_xact_lock), para chamadas concorrentes (POST de súmula +
-  // visitas a /classificacao ao mesmo tempo) não se sobreporem e uma
-  // execução mais lenta sobrescrever o resultado de uma mais rápida.
-  const { error } = await supabase.rpc('recalcular_classificacao_liga', { p_liga_id: ligaId })
-  if (!error) return
+  // A RPC recalcular_classificacao_liga que fica ativa depois da migration
+  // atomica ainda pontua 4/3/1/0 e soma jogo de mata-mata na tabela.
+  // O cálculo vigente é o de classificacao.ts, gravado aqui. A trava
+  // pg_advisory_xact_lock precisa voltar no banco em volta desta mesma regra.
   const { gravarClassificacao } = await import('@/lib/massa-qa')
   await gravarClassificacao(ligaId)
 }
 
 export function isFinishedMatch(partida: any) {
-  const status = String(partida.status ?? '').trim().toUpperCase()
-  return ['ENCERRADA', 'FINALIZADA', 'FINISHED', 'APROVADA'].includes(status)
-    || Boolean(partida.sumulaAprovadaEm)
-    || Boolean(partida.sumulaSubmetidaEm && partida.vencedorId)
+  return partidaEncerrada(partida)
 }
 
 export async function syncLeagueLifecycle(ligaId: number) {
