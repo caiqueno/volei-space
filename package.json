@@ -15,6 +15,7 @@
     "test:pricing": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/pricing.test.ts",
     "test:categorias": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/category-match-rules.test.ts && ts-node -r tsconfig-paths/register scripts/category-pricing.test.ts && ts-node -r tsconfig-paths/register scripts/category-replication.test.ts",
     "test:simulacao": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/simulacao.test.ts",
+    "test:api-layer": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/api-layer.test.ts",
     "seed:simulacao": "set TS_NODE_PROJECT=tsconfig.scripts.json&& set TS_NODE_COMPILER_OPTIONS={\"module\":\"CommonJS\",\"esModuleInterop\":true}&& ts-node -r tsconfig-paths/register scripts/recriar-simulacao.ts"
   },
   "prisma": {

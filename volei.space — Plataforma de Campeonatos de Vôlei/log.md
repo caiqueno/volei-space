@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] fix | endurecimento da camada de API
+
+- pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
+- A confirmação simulada de pagamento fica desligada por padrão. O webhook InfinitePay exige segredo, valor e vínculo com a candidatura de equipe. Login de administrador não revela se o e-mail existe. `GET /api/equipes` lista colunas. Partida recusa times iguais ou de outro campeonato, e o administrador cria e aprova jogo.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 

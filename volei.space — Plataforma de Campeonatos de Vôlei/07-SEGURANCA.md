@@ -8,7 +8,7 @@ summary: >-
   Acesso e dados pessoais.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-04
+updated: 2026-10-09
 ---
 # Segurança e permissões
 
@@ -28,5 +28,11 @@ updated: 2026-10-04
 - MVP, placares, substituições e status precisam de validação de servidor, não apenas da interface.
 - Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais.
 - Uploads, fotos, documentos e QR de atletas exigem políticas compatíveis com a finalidade e o escopo.
+
+`POST /api/partidas` e `POST /api/partidas/{id}/aprovar` aceitam a sessão do administrador ou a do organizador dono do campeonato. `PUT /api/partidas/{id}` continua só com o organizador dono. A partida recusa o mesmo time nos dois lados e time de outro campeonato. Se a categoria muda, `categoriaCampeonatoId` é recalculado.
+
+`GET /api/equipes` lista colunas explícitas de equipe, campeonato e atleta. Ficam de fora líder, técnico, horários, quadra e o restante de `Liga`.
+
+O login em `POST /api/auth` responde «Credenciais inválidas.» quando o administrador não existe, não está permitido ou a senha não confere. Falha interna não devolve `err.message`. Há limite simples de 20 tentativas a cada 10 minutos por IP. `GET /api/mensagens` e `GET /api/partidas` recusam identificador que não seja inteiro positivo.
 
 Não registre tokens reais, segredos, dados de atletas nem credenciais nos documentos do vault. Ver [[06-BANCO-DE-DADOS]].
