@@ -8,11 +8,11 @@ summary: >-
   Entidades e relações.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-01
+updated: 2026-10-09
 ---
 # Modelo de dados
 
-`prisma/schema.prisma` descreve entidades; `supabase/migrations` documenta mudanças SQL e políticas. Confira o estado aplicado ao banco antes de concluir que uma coluna ou policy está ativa.
+`prisma/schema.prisma` descreve entidades; `supabase/migrations` documenta mudanças SQL e políticas. Confira o estado aplicado ao banco antes de concluir que uma coluna ou policy está ativa. Não há pasta `prisma/migrations`. `npm run db:migrate` confere `DIRECT_URL` (porta 5432, sem `pgbouncer=true`) e não reexecuta o SQL histórico. `DATABASE_URL` é o pooler de transação (porta 6543) e não aplica migration. `prisma db push` não faz parte do fluxo de produção.
 
 O projeto `volei-space-producao` é a base de produção e só pode ser usado no deploy da branch `main`. Local, preview e qualquer outra branch usam o projeto `caiqueno's Project`. A ligação é feita pelas variáveis do ambiente, não por endereço fixo no código. No Next.js elas são `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ALVO` (`producao` ou `desenvolvimento`) e, só no servidor, `SUPABASE_SERVICE_ROLE_KEY`. `SUPABASE_HOSTS_PROIBIDOS` lista hosts que aquele ambiente recusa. Se a configuração faltar ou misturar os alvos, as operações de banco não iniciam. O navegador recebe apenas a chave publicável. Várias tabelas seguem sem RLS nos dois projetos; ligar RLS sem política bloqueia o cliente público. `AcessoArbitroJogo` e `AcessoArbitroEvento` têm RLS ligada e nenhuma política para `anon` ou `authenticated`. Só o papel `service_role` lê e grava essas tabelas.
 

@@ -152,12 +152,13 @@ export function ParametrizacaoNoPainel({
     setAviso(payload.data?.mensagem ?? 'Campeonato finalizado. Ele permanece disponível para consulta e apresentação.')
   }
 
-  if (ligas.length === 0) {
-    return <p className="text-sm font-semibold text-slate-300">Crie um campeonato em Início para escolher o que parametrizar.</p>
-  }
   useEffect(() => {
     if (formatoPulaClassificacao(formato) && guia === 'classificacao') setGuia('eliminatorias')
   }, [formato, guia])
+
+  if (ligas.length === 0) {
+    return <p className="text-sm font-semibold text-slate-300">Crie um campeonato em Início para escolher o que parametrizar.</p>
+  }
 
   function abrirSecao(section: string, etapa?: number) {
     if (section === 'informacoes') setEtapaInformacoes(etapa ?? 0)

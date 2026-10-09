@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] fix | build, CI e contrato de ambiente
+
+- pages_updated=`08-INTEGRACOES`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O build da Vercel passa a gerar o client Prisma e o Node fica em 22.x. O CI roda install, generate, validate, a trava de migration, lint, typecheck e build. `db:migrate` recusa o pooler de transação. Não há ledger Prisma para aplicar; o SQL continua em `supabase/migrations`.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 
