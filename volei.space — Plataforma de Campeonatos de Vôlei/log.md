@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] fix | falhas de interface no cabeçalho, inscrição e nova partida
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Cabeçalho e rodapé passam a mostrar «volei.space». Fora da home, o cabeçalho reserva 72px até ler a sessão local. Nova partida trata falha de rede, não busca as equipes duas vezes e lista as categorias do campeonato. Inscrição de equipe distingue erro de sucesso. Sair no admin limpa a sessão local.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 
