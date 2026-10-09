@@ -55,7 +55,7 @@ export const arbitroSchema = z.object({
   diplomaUrl: z.string().url().optional().or(z.literal('')),
 })
 
-export const partidaSchema = z.object({
+const partidaCamposSchema = z.object({
   ligaId: z.number().int().positive(),
   equipeAId: z.number().int().positive(),
   equipeBId: z.number().int().positive(),
@@ -66,6 +66,18 @@ export const partidaSchema = z.object({
   localNome: z.string().optional(),
   localEndereco: z.string().optional(),
 })
+
+export const partidaSchema = partidaCamposSchema.refine(
+  (partida) => partida.equipeAId !== partida.equipeBId,
+  { message: 'As duas equipes devem ser diferentes.', path: ['equipeBId'] },
+)
+
+export const partidaAtualizacaoSchema = partidaCamposSchema.partial().refine(
+  (partida) => partida.equipeAId == null || partida.equipeBId == null || partida.equipeAId !== partida.equipeBId,
+  { message: 'As duas equipes devem ser diferentes.', path: ['equipeBId'] },
+)
+
+export const idInteiroPositivoSchema = z.coerce.number().int().positive()
 
 export const fieldRequirementValues = ['disabled', 'optional', 'required'] as const
 export const fieldRequirementSchema = z.enum(fieldRequirementValues)
@@ -343,6 +355,10 @@ export const mensagemSchema = z.object({
   autor: z.string().min(1),
   texto: z.string().min(1),
 })
+
+export const mensagemAprovacaoSchema = z.object({
+  aprovada: z.boolean(),
+}).strict()
 
 export const midiaSchema = z.object({
   ligaId: z.number().int().positive(),

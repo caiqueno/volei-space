@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
+import { exigirOrganizadorOuAdminDaPartida } from '@/lib/organizador-isolamento'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const acesso = await exigirOrganizadorDaPartida(req, Number(id))
+  const acesso = await exigirOrganizadorOuAdminDaPartida(req, Number(id))
   if (acesso instanceof NextResponse) return acesso
 
   try {

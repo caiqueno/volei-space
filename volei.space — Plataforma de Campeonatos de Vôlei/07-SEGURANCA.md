@@ -29,4 +29,10 @@ updated: 2026-10-09
 - Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais. O default global de `EXECUTE` para `PUBLIC` não cai com `alter default privileges in schema public`. A migration `202610090001_revogar_execute_public_default.sql` revoga esse default das funções que `postgres` criar depois, e deixa `EXECUTE` para `service_role`. Ela ainda não foi aplicada nos bancos. Arquivo de migration que conceda acesso a `anon` ou `authenticated` fica antes de `202610060004` e `202610060005`.
 - Uploads, fotos, documentos e QR de atletas exigem políticas compatíveis com a finalidade e o escopo.
 
+`POST /api/partidas` e `POST /api/partidas/{id}/aprovar` aceitam a sessão do administrador ou a do organizador dono do campeonato. `PUT /api/partidas/{id}` continua só com o organizador dono. A partida recusa o mesmo time nos dois lados e time de outro campeonato. Se a categoria muda, `categoriaCampeonatoId` é recalculado.
+
+`GET /api/equipes` lista colunas explícitas de equipe, campeonato e atleta. Ficam de fora líder, técnico, horários, quadra e o restante de `Liga`.
+
+O login em `POST /api/auth` responde «Credenciais inválidas.» quando o administrador não existe, não está permitido ou a senha não confere. Falha interna não devolve `err.message`. Há limite simples de 20 tentativas a cada 10 minutos por IP. `GET /api/mensagens` e `GET /api/partidas` recusam identificador que não seja inteiro positivo.
+
 Não registre tokens reais, segredos, dados de atletas nem credenciais nos documentos do vault. Ver [[06-BANCO-DE-DADOS]].

@@ -1,6 +1,7 @@
 // InfinitePay payment integration.
 // Docs: https://developers.infinitepay.io
 import { createHmac, timingSafeEqual } from 'crypto'
+import { z } from 'zod'
 
 const INFINITEPAY_API_URL = 'https://api.infinitepay.io/v2'
 
@@ -54,33 +55,41 @@ export async function createPaymentLink(params: CreatePaymentLinkParams): Promis
   }
 }
 
-// The exact implementation depends on InfinitePay's webhook signing method.
-// Keep the signature check permissive in development, but strict in production.
+// Assinatura obrigatória em qualquer ambiente. Sem o segredo, o webhook é recusado.
 export function validateWebhookSignature(
   payload: string,
   signature: string | null,
 ): boolean {
   const webhookSecret = process.env.INFINITEPAY_WEBHOOK_SECRET
-  if (!webhookSecret) {
-    console.warn('INFINITEPAY_WEBHOOK_SECRET not set - skipping signature validation in dev')
-    return process.env.NODE_ENV !== 'production'
-  }
-  if (!signature) return false
+  if (!webhookSecret || !signature) return false
 
   const expected = createHmac('sha256', webhookSecret)
     .update(payload)
     .digest('hex')
+  const received = Buffer.from(signature)
+  const expectedBuffer = Buffer.from(expected)
+  if (received.length !== expectedBuffer.length) return false
 
-  return timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected),
-  )
+  try {
+    return timingSafeEqual(received, expectedBuffer)
+  } catch {
+    return false
+  }
 }
 
-export interface InfinitePayWebhookPayload {
-  id: string
-  external_id: string
-  status: 'paid' | 'pending' | 'cancelled' | 'expired'
-  amount: number
-  paid_at?: string
+// InfinitePay pode enviar o valor em reais ou em centavos.
+export function paymentAmountsMatch(expected: number, received: number) {
+  if (!Number.isFinite(expected) || !Number.isFinite(received) || expected < 0 || received < 0) return false
+  if (Math.abs(expected - received) < 0.009) return true
+  return Math.abs(Math.round(expected * 100) - received) < 0.009
 }
+
+export const infinitePayWebhookSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  external_id: z.string().trim().regex(/^(equipe|arbitro):([a-z0-9-]{8,64})$/i),
+  status: z.enum(['paid', 'pending', 'cancelled', 'expired']),
+  amount: z.coerce.number().finite().nonnegative(),
+  paid_at: z.string().trim().min(1).max(40).optional(),
+})
+
+export type InfinitePayWebhookPayload = z.infer<typeof infinitePayWebhookSchema>

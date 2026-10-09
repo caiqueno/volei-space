@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requirePublicRole, verifyPublicToken } from '@/lib/auth'
+import { requirePublicRole, verifyPublicToken, verifyToken } from '@/lib/auth'
 import { error } from '@/lib/api-response'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -56,4 +56,33 @@ export async function exigirOrganizadorDaPartida(req: NextRequest, partidaId: nu
     .maybeSingle()
   if (leitura || !data) return error('Partida não encontrada.', 404)
   return exigirOrganizadorDaLiga(req, Number(data.ligaId))
+}
+
+export async function exigirOrganizadorOuAdminDaLiga(req: NextRequest, ligaId: number) {
+  const acesso = await exigirOrganizadorDaLiga(req, ligaId)
+  if (!(acesso instanceof NextResponse)) return acesso
+  if (acesso.status !== 401 && acesso.status !== 403) return acesso
+
+  const admin = await verifyToken(req)
+  if (!admin) return acesso
+  if (!Number.isInteger(ligaId)) return error('Campeonato inválido.', 400)
+
+  const { data, error: leitura } = await supabaseAdmin
+    .from('Liga')
+    .select('id')
+    .eq('id', ligaId)
+    .maybeSingle()
+  if (leitura || !data) return error('Campeonato não encontrado.', 404)
+  return admin
+}
+
+export async function exigirOrganizadorOuAdminDaPartida(req: NextRequest, partidaId: number) {
+  if (!Number.isInteger(partidaId)) return error('Partida inválida.', 400)
+  const { data, error: leitura } = await supabaseAdmin
+    .from('Partida')
+    .select('ligaId')
+    .eq('id', partidaId)
+    .maybeSingle()
+  if (leitura || !data) return error('Partida não encontrada.', 404)
+  return exigirOrganizadorOuAdminDaLiga(req, Number(data.ligaId))
 }
