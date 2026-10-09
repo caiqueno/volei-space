@@ -13,6 +13,11 @@ updated: 2026-10-09
 
 # Log
 
+## [2026-10-09] fix | sessão, webhook e súmula
+
+- pages_updated=`07-SEGURANCA`, `modulos/PAGAMENTOS`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- Token de reset deixa de passar em `isAdminSession`. O JWT de sessão exige `scope: admin` e recusa `purpose`. O reset carrega fingerprint HMAC, não o hash bcrypt. `ADMIN_EMAIL` é obrigatório em produção e preview. Login não enumera conta, limita tentativa em memória (30 por IP e 8 por IP e e-mail) e não devolve o JWT no corpo. O webhook ficou com o schema e o vínculo de `Pagamento` da camada de API, mais a ativação de árbitro quando o pagamento existe e não é de equipe. O valor confere em reais ou em centavos do valor gravado; o inverso ficou de fora. Súmula confere erro e tenta restaurar; a transação no banco continua pendente. `GET ?consulta=1` permanece a consulta pública.
+
 ## [2026-10-09] fix | endurecimento da camada de API
 
 - pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`

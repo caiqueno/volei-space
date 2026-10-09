@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { verifyPasswordResetToken } from '@/lib/auth'
+import { fingerprintsMatch, passwordResetFingerprint, verifyPasswordResetToken } from '@/lib/auth'
 
 const schema = z.object({
   token: z.string().min(20),
@@ -19,14 +19,15 @@ export async function POST(req: NextRequest) {
     const payload = await verifyPasswordResetToken(parsed.data.token)
     if (!payload) return error('Link inválido ou expirado', 400)
 
-    const { data: admin } = await supabase
+    const { data: admin, error: leituraErr } = await supabase
       .from('Admin')
       .select('id,senhaHash')
       .eq('id', payload.adminId)
       .eq('email', payload.email)
       .maybeSingle()
 
-    if (!admin || admin.senhaHash !== payload.senhaHash) {
+    if (leituraErr) throw leituraErr
+    if (!admin?.senhaHash || !fingerprintsMatch(passwordResetFingerprint(admin.senhaHash), payload.senhaFingerprint)) {
       return error('Link inválido ou já utilizado', 400)
     }
 

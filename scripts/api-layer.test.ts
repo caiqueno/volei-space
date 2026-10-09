@@ -9,8 +9,16 @@ const payload = '{"id":"pay_1"}'
 const segredo = 'segredo-de-teste'
 const assinatura = createHmac('sha256', segredo).update(payload).digest('hex')
 
+const nodeEnvAnterior = process.env.NODE_ENV
+const vercelEnvAnterior = process.env.VERCEL_ENV
+process.env.NODE_ENV = 'production'
+delete process.env.VERCEL_ENV
 delete process.env.INFINITEPAY_WEBHOOK_SECRET
 assert.equal(validateWebhookSignature(payload, assinatura), false)
+if (nodeEnvAnterior === undefined) delete process.env.NODE_ENV
+else process.env.NODE_ENV = nodeEnvAnterior
+if (vercelEnvAnterior === undefined) delete process.env.VERCEL_ENV
+else process.env.VERCEL_ENV = vercelEnvAnterior
 
 process.env.INFINITEPAY_WEBHOOK_SECRET = segredo
 assert.equal(validateWebhookSignature(payload, null), false)

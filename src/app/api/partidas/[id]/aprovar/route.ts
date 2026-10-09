@@ -47,11 +47,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (updateErr) throw updateErr
 
-    // Update classification for both teams
-    await recalculateLeagueClassification(partida.ligaId)
+    try {
+      await recalculateLeagueClassification(partida.ligaId)
+    } catch (err) {
+      console.error('[partidas/aprovar] partida aprovada; classificação não recalculada', err)
+    }
 
     return success(updated)
-  } catch {
+  } catch (err) {
+    console.error('[partidas/aprovar] erro', err)
     return error('Erro ao aprovar partida', 500)
   }
 }

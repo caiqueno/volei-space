@@ -50,7 +50,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return success({ tipo, candidatura: data })
   } catch (err) {
     console.error('[candidaturas/public/get] erro', err)
-    return error(`Erro ao buscar candidatura: ${errorDetail(err)}`, 500)
+    return error('Erro ao buscar candidatura.', 500)
   }
 }
 
@@ -103,7 +103,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const duplicateError = duplicateDatabaseMessage(detail)
     if (duplicateError) return error(duplicateError, 409)
     console.error('[candidaturas/public/patch] erro', err)
-    return error(`Erro ao atualizar candidatura: ${detail}`, 500)
+    return error('Erro ao atualizar candidatura.', 500)
   }
 }
 

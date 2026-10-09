@@ -1,7 +1,8 @@
+import { createHmac, timingSafeEqual } from 'crypto'
 import { SignJWT, jwtVerify } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
+import { ADMIN_SESSION_SCOPE, configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
 
 const COOKIE_NAME = 'luva_token'
 export const OFFICIAL_ADMIN_EMAIL = configuredAdminEmail() || ''
@@ -10,6 +11,19 @@ function getSecret() {
   const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET not set')
   return new TextEncoder().encode(secret)
+}
+
+export function passwordResetFingerprint(senhaHash: string) {
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET not set')
+  return createHmac('sha256', secret).update(senhaHash).digest('hex')
+}
+
+export function fingerprintsMatch(left: string, right: string) {
+  const a = Buffer.from(left)
+  const b = Buffer.from(right)
+  if (a.length === 0 || a.length !== b.length) return false
+  return timingSafeEqual(a, b)
 }
 
 export type JWTPayload = {
@@ -41,9 +55,10 @@ type RequirePublicRoleOptions = {
 
 export type PasswordResetPayload = {
   purpose: 'password-reset'
+  scope: 'password-reset'
   adminId: number
   email: string
-  senhaHash: string
+  senhaFingerprint: string
 }
 
 export type AccountActivationPayload = {
@@ -53,7 +68,7 @@ export type AccountActivationPayload = {
 }
 
 export async function signToken(payload: JWTPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+  return new SignJWT({ ...payload, scope: ADMIN_SESSION_SCOPE })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('8h')
@@ -115,8 +130,18 @@ export async function requirePublicRole(
   return payload
 }
 
-export async function signPasswordResetToken(payload: PasswordResetPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+export async function signPasswordResetToken(input: {
+  adminId: number
+  email: string
+  senhaHash: string
+}): Promise<string> {
+  return new SignJWT({
+    purpose: 'password-reset',
+    scope: 'password-reset',
+    adminId: input.adminId,
+    email: input.email,
+    senhaFingerprint: passwordResetFingerprint(input.senhaHash),
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('30m')
@@ -126,7 +151,10 @@ export async function signPasswordResetToken(payload: PasswordResetPayload): Pro
 export async function verifyPasswordResetToken(token: string): Promise<PasswordResetPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret())
-    if (payload.purpose !== 'password-reset') return null
+    if (payload.purpose !== 'password-reset' || payload.scope !== 'password-reset') return null
+    if (payload.senhaHash != null) return null
+    if (typeof payload.senhaFingerprint !== 'string' || payload.senhaFingerprint.length === 0) return null
+    if (typeof payload.email !== 'string' || payload.adminId == null) return null
     return payload as unknown as PasswordResetPayload
   } catch {
     return null
@@ -134,7 +162,7 @@ export async function verifyPasswordResetToken(token: string): Promise<PasswordR
 }
 
 export async function signAccountActivationToken(payload: Omit<AccountActivationPayload, 'purpose'>): Promise<string> {
-  return new SignJWT({ ...payload, purpose: 'account-activation' })
+  return new SignJWT({ ...payload, purpose: 'account-activation', scope: 'account-activation' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('24h')

@@ -55,13 +55,26 @@ export async function createPaymentLink(params: CreatePaymentLinkParams): Promis
   }
 }
 
-// Assinatura obrigatória em qualquer ambiente. Sem o segredo, o webhook é recusado.
+function desenvolvimentoLocal() {
+  return process.env.NODE_ENV !== 'production' && !process.env.VERCEL_ENV
+}
+
+// Sem segredo, só o `next dev` local segue sem assinatura. Produção e preview
+// da Vercel recusam. Tamanhos diferentes não estouram o timingSafeEqual.
 export function validateWebhookSignature(
   payload: string,
   signature: string | null,
 ): boolean {
   const webhookSecret = process.env.INFINITEPAY_WEBHOOK_SECRET
-  if (!webhookSecret || !signature) return false
+  if (!webhookSecret) {
+    if (desenvolvimentoLocal()) {
+      console.warn('INFINITEPAY_WEBHOOK_SECRET ausente — assinatura ignorada só no desenvolvimento local')
+      return true
+    }
+    console.error('INFINITEPAY_WEBHOOK_SECRET ausente — webhook recusado')
+    return false
+  }
+  if (!signature) return false
 
   const expected = createHmac('sha256', webhookSecret)
     .update(payload)
@@ -72,16 +85,23 @@ export function validateWebhookSignature(
 
   try {
     return timingSafeEqual(received, expectedBuffer)
-  } catch {
+  } catch (err) {
+    console.error('[infinitepay] falha ao comparar assinatura', err)
     return false
   }
 }
 
-// InfinitePay pode enviar o valor em reais ou em centavos.
+// O webhook pode mandar centavos do valor gravado em reais. O caminho inverso
+// (valor gravado em centavos e evento em reais) fica de fora: R$ 100 e R$ 1
+// passariam a conferir.
 export function paymentAmountsMatch(expected: number, received: number) {
   if (!Number.isFinite(expected) || !Number.isFinite(received) || expected < 0 || received < 0) return false
   if (Math.abs(expected - received) < 0.009) return true
   return Math.abs(Math.round(expected * 100) - received) < 0.009
+}
+
+export function valoresDePagamentoConferem(esperado: number, recebido: number) {
+  return paymentAmountsMatch(esperado, recebido)
 }
 
 export const infinitePayWebhookSchema = z.object({
