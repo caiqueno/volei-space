@@ -8,7 +8,7 @@ summary: >-
   Serviços externos.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-04
+updated: 2026-10-09
 ---
 # Integrações e serviços
 
@@ -16,7 +16,7 @@ updated: 2026-10-04
 | --- | --- | --- |
 | Supabase/PostgreSQL | Dados, migrations, RLS e storage | Comparar schema do git com ambiente efetivo |
 | InfinitePay | Código de webhook e utilitários | O checkout de ativação do campeonato em `src/app/api/organizador/ligas/[id]/pagamento` está marcado como **simulado**; não afirmar ativação real sem conferir |
-| Vercel | Hospedagem da aplicação. Produção deve ler `volei-space-producao`; Preview deve ler `caiqueno's Project` | A produção publica a partir da `main`. `NEXT_PUBLIC_SUPABASE_ALVO` é `producao` na Production e `desenvolvimento` no Preview. |
+| Vercel | Hospedagem da aplicação. Produção deve ler `volei-space-producao`; Preview deve ler `caiqueno's Project` | A produção publica a partir da `main`. `NEXT_PUBLIC_SUPABASE_ALVO` é `producao` na Production e `desenvolvimento` no Preview. O build é `npm run build` (`prisma generate` e em seguida `next build`), com Node.js 22.x. O CI está em `.github/workflows/ci.yml`. |
 | E-mail | Comunicação em `src/lib/email.ts` | Variáveis e entregabilidade dependem do ambiente |
 | Google Search Console e DNS | Descoberta do site/domínio | Gestão fora do código principal |
 

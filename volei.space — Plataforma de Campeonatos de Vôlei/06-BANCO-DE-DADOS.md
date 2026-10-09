@@ -12,7 +12,7 @@ updated: 2026-10-09
 ---
 # Modelo de dados
 
-A fonte da verdade do Postgres é `supabase/migrations`, na ordem do prefixo numérico. A CLI do Supabase só aplica arquivo cujo nome começa com dígitos. Não existe `prisma/migrations`. `prisma/schema.prisma` descreve o banco que essas migrations deixam: tabelas, colunas, unicidade e índices. Não use `prisma migrate` nem `prisma db push`. O script `setup-db.mjs`, que criava um SQLite em caminho Windows da LUVA, saiu do repositório.
+A fonte da verdade do Postgres é `supabase/migrations`, na ordem do prefixo numérico. A CLI do Supabase só aplica arquivo cujo nome começa com dígitos. Não existe `prisma/migrations`. `prisma/schema.prisma` descreve o banco que essas migrations deixam: tabelas, colunas, unicidade e índices. Não use `prisma migrate` nem `prisma db push`. O script `setup-db.mjs`, que criava um SQLite em caminho Windows da LUVA, saiu do repositório. `npm run db:migrate` só confere `DIRECT_URL` (porta 5432, sem `pgbouncer=true`) e não reexecuta o SQL histórico. `DATABASE_URL` é o pooler de transação (porta 6543) e não aplica migration.
 
 Trinta e cinco arquivos que estavam sem prefixo (`supabase-*.sql`) passaram a ter versão anterior a `202610060004`. Quem concede `anon` ou `authenticated` fica antes do fechamento. Eles já foram aplicados à mão em produção e em desenvolvimento, então não estão em `supabase_migrations.schema_migrations`. Antes de `supabase db push`, marque cada versão renomeada como aplicada. Sem esse passo a CLI tenta rodar de novo SQL que não é todo idempotente.
 

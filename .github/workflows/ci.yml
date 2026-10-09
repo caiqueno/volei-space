@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # URLs fictícias. `prisma validate` e `db:migrate` não abrem conexão.
+      # DATABASE_URL imita o pooler de transação; DIRECT_URL imita a sessão/direta.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:6543/postgres?pgbouncer=true&connection_limit=1
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      JWT_SECRET: ci-only-placeholder-secret-32chars
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # NEXT_PUBLIC_SUPABASE_* fica de fora de propósito. Com URL pública válida,
+      # o build pré-renderiza /sitemap.xml e exige SUPABASE_SERVICE_ROLE_KEY.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --include=dev
+
+      - name: Prisma generate
+        run: npm run db:generate
+
+      - name: Prisma validate
+        run: npm run db:validate
+
+      - name: Migration guard
+        run: npm run db:migrate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
