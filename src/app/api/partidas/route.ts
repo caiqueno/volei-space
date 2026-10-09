@@ -5,6 +5,7 @@ import { exigirOrganizadorDaLiga } from '@/lib/organizador-isolamento'
 import { partidaSchema } from '@/lib/schemas'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { PARTIDA_PUBLICA_COLUNAS, normalizarPartidaPublica } from '@/lib/partida-publica'
+import { equipesPertencemALiga } from '@/lib/partida-escrita'
 import { v4 as uuidv4 } from 'uuid'
 
 export async function GET(req: NextRequest) {
@@ -59,6 +60,9 @@ export async function POST(req: NextRequest) {
       .is('removidaEm', null)
       .maybeSingle()
     if (!categoria) return error('Esta categoria não está disponível no campeonato.', 422)
+    if (parsed.data.equipeAId === parsed.data.equipeBId) return error('As equipes da partida precisam ser diferentes.', 422)
+    const equipesOk = await equipesPertencemALiga(parsed.data.ligaId, [parsed.data.equipeAId, parsed.data.equipeBId])
+    if (!equipesOk) return error('As equipes precisam pertencer a este campeonato.', 422)
 
     const token = uuidv4()
     const { data, error: err } = await supabase

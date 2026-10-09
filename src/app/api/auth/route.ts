@@ -3,10 +3,15 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { isReleasedPublicStatus, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
+import { clearTokenCookie, isReleasedPublicStatus, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
 import { adminEmailAllowed } from '@/lib/admin-access'
 import { loginDestination } from '@/lib/login-destination'
 import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
+import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
+
+const CREDENCIAIS_INVALIDAS = 'Credenciais inválidas.'
+const FALHA_ENTRADA = 'Não foi possível entrar agora.'
+const JANELA_LOGIN_MS = 15 * 60 * 1000
 const loginSchema = z.object({
   email: z.string().email(),
   senha: z.string().min(1),
@@ -25,6 +30,10 @@ type PublicUser = {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = ipDaRequisicao(req)
+  if (!consumirLimite(`login:ip:${ip}`, 30, JANELA_LOGIN_MS).ok) {
+    return error('Muitas tentativas. Tente novamente em instantes.', 429)
+  }
   try {
     const body = await req.json()
     const parsed = loginSchema.safeParse(body)
@@ -33,14 +42,18 @@ export async function POST(req: NextRequest) {
     const adminOnly = req.nextUrl.searchParams.get('admin') === '1'
     const email = parsed.data.email.trim().toLowerCase()
     const senha = parsed.data.senha
+    if (!consumirLimite(`login:email:${email}`, 10, JANELA_LOGIN_MS).ok) {
+      return error('Muitas tentativas. Tente novamente em instantes.', 429)
+    }
 
     if (!isSupabaseServiceConfigured) {
-      return error('SUPABASE_SERVICE_ROLE_KEY não está configurada no ambiente da Vercel.', 500)
+      console.error('[AUTH] service role ausente')
+      return error(FALHA_ENTRADA, 500)
     }
 
     const adminResponse = await loginAdmin(email, senha)
     if (adminResponse) return adminResponse
-    if (adminOnly) return error('Administrador não encontrado. Verifique se este e-mail existe na tabela Admin.', 401)
+    if (adminOnly) return error(CREDENCIAIS_INVALIDAS, 401)
 
     const perfil = parsed.data.perfil
     const usuario = perfil === 'publico'
@@ -52,24 +65,24 @@ export async function POST(req: NextRequest) {
           : await findPublicUser(email)
 
     if (perfil === 'organizador' && usuario && usuario.tipo !== 'organizador') {
-      return error('Esta conta não é de organizador.', 403)
+      return error(CREDENCIAIS_INVALIDAS, 401)
     }
     if (perfil === 'participante' && usuario?.tipo === 'organizador') {
-      return error('Organizador entra com o usuário e a senha atribuídos pelo administrador.', 403)
+      return error(CREDENCIAIS_INVALIDAS, 401)
     }
     if (!usuario?.senhaHash) {
-      return error(perfil === 'organizador' ? 'Usuário ou senha não conferem.' : 'Credenciais inválidas.', 401)
+      return error(CREDENCIAIS_INVALIDAS, 401)
     }
 
     const senhaOk = await bcrypt.compare(senha, usuario.senhaHash)
     if (!senhaOk) {
-      return error(perfil === 'organizador' ? 'Usuário ou senha não conferem.' : 'Credenciais inválidas.', 401)
+      return error(CREDENCIAIS_INVALIDAS, 401)
     }
     if (usuario.tipo === 'organizador' && !isReleasedPublicStatus(usuario.status)) {
       return error('Seu cadastro de organizador ainda aguarda liberação do administrador.', 403)
     }
     if (EMAIL_ARBITRO_SIMULACAO.test(usuario.email) && process.env.NODE_ENV === 'production') {
-      return error('Credenciais inválidas.', 401)
+      return error(CREDENCIAIS_INVALIDAS, 401)
     }
 
     const trocarSenha = (usuario.tipo === 'organizador' || usuario.tipo === 'arbitro') && usuario.trocarSenha
@@ -98,9 +111,8 @@ export async function POST(req: NextRequest) {
     res.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<typeof res.cookies.set>[2])
     return res
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[AUTH ERROR]', msg)
-    return error(`Erro ao autenticar: ${msg}`, 500)
+    console.error('[AUTH ERROR]', err)
+    return error(FALHA_ENTRADA, 500)
   }
 }
 
@@ -113,23 +125,20 @@ async function loginAdmin(email: string, senha: string) {
 
   if (dbErr) {
     console.error('[AUTH ADMIN DB ERROR]', dbErr.message)
-    return error('Não foi possível consultar o usuário administrador.', 500)
+    return error(FALHA_ENTRADA, 500)
   }
 
   const admin = Array.isArray(data) && data.length > 0 ? data[0] : null
-  if (!admin) return null
-  if (!adminEmailAllowed(email)) {
-    return error('Esta conta não tem permissão de administrador.', 403)
-  }
-  if (!admin.senhaHash) return error('Administrador sem senha configurada.', 401)
+  if (!admin || !adminEmailAllowed(String(admin.email ?? email))) return null
+  if (!admin.senhaHash) return error(CREDENCIAIS_INVALIDAS, 401)
 
   const senhaOk = await bcrypt.compare(senha, admin.senhaHash)
-  if (!senhaOk) return error('Credenciais inválidas.', 401)
+  if (!senhaOk) return error(CREDENCIAIS_INVALIDAS, 401)
 
   const token = await signToken({ adminId: admin.id, email: admin.email, nome: admin.nome })
   const cookie = setTokenCookie(token)
 
-  const res = success({ token, admin: { id: admin.id, nome: admin.nome, email: admin.email }, redirectTo: '/admin' })
+  const res = success({ admin: { id: admin.id, nome: admin.nome, email: admin.email }, redirectTo: '/admin' })
   res.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<typeof res.cookies.set>[2])
   return res
 }
@@ -260,6 +269,7 @@ async function findInTables(email: string, tables: string[]): Promise<PublicUser
 
 export async function DELETE() {
   const res = NextResponse.json({ data: { mensagem: 'Logout realizado' } })
-  res.cookies.set('luva_token', '', { maxAge: 0, path: '/' })
+  const cookie = clearTokenCookie()
+  res.cookies.set(cookie.name, cookie.value, cookie.options)
   return res
 }

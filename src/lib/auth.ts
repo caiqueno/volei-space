@@ -1,16 +1,12 @@
-import { SignJWT, jwtVerify } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
+import { fingerprintSenha } from '@/lib/password-fingerprint'
+import { assinarToken, lerToken } from '@/lib/token-verify'
 
 const COOKIE_NAME = 'luva_token'
+const SESSION_MAX_AGE = 60 * 60 * 8
 export const OFFICIAL_ADMIN_EMAIL = configuredAdminEmail() || ''
-
-function getSecret() {
-  const secret = process.env.JWT_SECRET
-  if (!secret) throw new Error('JWT_SECRET not set')
-  return new TextEncoder().encode(secret)
-}
 
 export type JWTPayload = {
   adminId: number
@@ -43,7 +39,7 @@ export type PasswordResetPayload = {
   purpose: 'password-reset'
   adminId: number
   email: string
-  senhaHash: string
+  senhaFingerprint: string
 }
 
 export type AccountActivationPayload = {
@@ -52,20 +48,22 @@ export type AccountActivationPayload = {
   email: string
 }
 
+export function tokenCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge,
+    path: '/',
+  }
+}
+
 export async function signToken(payload: JWTPayload): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('8h')
-    .sign(getSecret())
+  return assinarToken({ ...payload }, 'admin', '8h')
 }
 
 export async function signPublicToken(payload: PublicJWTPayload): Promise<string> {
-  return new SignJWT({ ...payload, scope: 'public-user' })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('8h')
-    .sign(getSecret())
+  return assinarToken({ ...payload, scope: 'public-user' }, 'public', '8h')
 }
 
 export async function readPublicSession(): Promise<PublicJWTPayload | null> {
@@ -73,12 +71,16 @@ export async function readPublicSession(): Promise<PublicJWTPayload | null> {
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
     if (!token) return null
-    const { payload } = await jwtVerify(token, getSecret())
-    if (payload.scope !== 'public-user') return null
-    return payload as unknown as PublicJWTPayload
+    return lerSessaoPublica(token)
   } catch {
     return null
   }
+}
+
+async function lerSessaoPublica(token: string): Promise<PublicJWTPayload | null> {
+  const payload = await lerToken<PublicJWTPayload & { scope?: unknown }>(token, 'public')
+  if (!payload || payload.scope !== 'public-user') return null
+  return payload
 }
 
 export async function verifyPublicToken(req: NextRequest): Promise<PublicJWTPayload | null> {
@@ -88,10 +90,7 @@ export async function verifyPublicToken(req: NextRequest): Promise<PublicJWTPayl
       ?? req.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return null
-
-    const { payload } = await jwtVerify(token, getSecret())
-    if (payload.scope !== 'public-user') return null
-    return payload as unknown as PublicJWTPayload
+    return lerSessaoPublica(token)
   } catch {
     return null
   }
@@ -115,40 +114,31 @@ export async function requirePublicRole(
   return payload
 }
 
-export async function signPasswordResetToken(payload: PasswordResetPayload): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('30m')
-    .sign(getSecret())
+export async function signPasswordResetToken(input: { adminId: number; email: string; senhaHash: string }): Promise<string> {
+  return assinarToken({
+    purpose: 'password-reset',
+    adminId: input.adminId,
+    email: input.email,
+    senhaFingerprint: fingerprintSenha(input.senhaHash),
+  }, 'reset', '30m')
 }
 
 export async function verifyPasswordResetToken(token: string): Promise<PasswordResetPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, getSecret())
-    if (payload.purpose !== 'password-reset') return null
-    return payload as unknown as PasswordResetPayload
-  } catch {
-    return null
-  }
+  const payload = await lerToken<PasswordResetPayload>(token, 'reset')
+  if (!payload || payload.purpose !== 'password-reset') return null
+  if (typeof payload.senhaFingerprint !== 'string' || !payload.senhaFingerprint) return null
+  if ('senhaHash' in payload) return null
+  return payload
 }
 
 export async function signAccountActivationToken(payload: Omit<AccountActivationPayload, 'purpose'>): Promise<string> {
-  return new SignJWT({ ...payload, purpose: 'account-activation' })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('24h')
-    .sign(getSecret())
+  return assinarToken({ ...payload, purpose: 'account-activation' }, 'activation', '24h')
 }
 
 export async function verifyAccountActivationToken(token: string): Promise<AccountActivationPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, getSecret())
-    if (payload.purpose !== 'account-activation') return null
-    return payload as unknown as AccountActivationPayload
-  } catch {
-    return null
-  }
+  const payload = await lerToken<AccountActivationPayload>(token, 'activation')
+  if (!payload || payload.purpose !== 'account-activation') return null
+  return payload
 }
 
 export async function verifyToken(req: NextRequest): Promise<JWTPayload | null> {
@@ -158,10 +148,9 @@ export async function verifyToken(req: NextRequest): Promise<JWTPayload | null> 
       ?? req.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return null
-
-    const { payload } = await jwtVerify(token, getSecret())
-    if (!isAdminSession(payload)) return null
-    return payload as unknown as JWTPayload
+    const payload = await lerToken<JWTPayload>(token, 'admin')
+    if (!payload || !isAdminSession(payload)) return null
+    return payload
   } catch {
     return null
   }
@@ -175,16 +164,18 @@ export async function requireAuth(req: NextRequest): Promise<NextResponse | null
   return null
 }
 
-export function setTokenCookie(token: string): { name: string; value: string; options: object } {
+export function setTokenCookie(token: string): { name: string; value: string; options: ReturnType<typeof tokenCookieOptions> } {
   return {
     name: COOKIE_NAME,
     value: token,
-    options: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 8,
-      path: '/',
-    },
+    options: tokenCookieOptions(SESSION_MAX_AGE),
+  }
+}
+
+export function clearTokenCookie(): { name: string; value: string; options: ReturnType<typeof tokenCookieOptions> } {
+  return {
+    name: COOKIE_NAME,
+    value: '',
+    options: tokenCookieOptions(0),
   }
 }

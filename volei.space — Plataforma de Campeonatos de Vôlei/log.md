@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] fix | sessão, webhook e dados de atleta
+
+- pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
+- Recuperação de senha, audiência dos JWTs, admin sem e-mail configurado, login, cookie de logout, webhook InfinitePay, massa de QA, quadras, colunas da súmula, máscara da inscrição rápida, equipes da partida e erros de liga.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 

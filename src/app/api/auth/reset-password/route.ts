@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { verifyPasswordResetToken } from '@/lib/auth'
+import { fingerprintSenha, fingerprintsConferem } from '@/lib/password-fingerprint'
 
 const schema = z.object({
   token: z.string().min(20),
@@ -26,7 +27,8 @@ export async function POST(req: NextRequest) {
       .eq('email', payload.email)
       .maybeSingle()
 
-    if (!admin || admin.senhaHash !== payload.senhaHash) {
+    const fingerprint = admin?.senhaHash ? fingerprintSenha(admin.senhaHash) : ''
+    if (!admin?.senhaHash || !fingerprintsConferem(fingerprint, payload.senhaFingerprint)) {
       return error('Link inválido ou já utilizado', 400)
     }
 

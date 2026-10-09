@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { exigirOrganizadorDaLiga, exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
 import { partidaSchema } from '@/lib/schemas'
+import { camposEditaveisDaPartida, equipesPertencemALiga } from '@/lib/partida-escrita'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -33,15 +34,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (destino instanceof NextResponse) return destino
     }
 
-    const { data: atual } = await supabase.from('Partida').select('ligaId').eq('id', Number(id)).maybeSingle()
+    const { data: atual } = await supabase.from('Partida').select('ligaId,equipeAId,equipeBId').eq('id', Number(id)).maybeSingle()
     if (atual?.ligaId) {
       const bloqueio = await rejectIfCampeonatoFinalizado(Number(atual.ligaId))
       if (bloqueio) return bloqueio
     }
 
+    const patch = camposEditaveisDaPartida(parsed.data)
+    if (Object.keys(patch).length === 0) return error('Dados inválidos', 422)
+    if (atual && (patch.equipeAId !== undefined || patch.equipeBId !== undefined || patch.ligaId !== undefined)) {
+      const ligaId = Number(patch.ligaId ?? atual.ligaId)
+      const equipeAId = Number(patch.equipeAId ?? atual.equipeAId)
+      const equipeBId = Number(patch.equipeBId ?? atual.equipeBId)
+      if (equipeAId === equipeBId) return error('As equipes da partida precisam ser diferentes.', 422)
+      const equipesOk = await equipesPertencemALiga(ligaId, [equipeAId, equipeBId])
+      if (!equipesOk) return error('As equipes precisam pertencer a este campeonato.', 422)
+    }
+
     const { data, error: err } = await supabase
       .from('Partida')
-      .update(parsed.data)
+      .update(patch)
       .eq('id', Number(id))
       .select()
       .single()

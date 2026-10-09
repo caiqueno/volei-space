@@ -8,7 +8,7 @@ summary: >-
   Acesso e dados pessoais.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-04
+updated: 2026-10-09
 ---
 # Segurança e permissões
 
@@ -30,3 +30,19 @@ updated: 2026-10-04
 - Uploads, fotos, documentos e QR de atletas exigem políticas compatíveis com a finalidade e o escopo.
 
 Não registre tokens reais, segredos, dados de atletas nem credenciais nos documentos do vault. Ver [[06-BANCO-DE-DADOS]].
+
+## Sessão, webhook e leitura de atleta (09/10/2026)
+
+Implementado neste lote, conferido no código:
+
+- O JWT de recuperação de senha leva um HMAC da `senhaHash`, não o hash. Trocar a senha invalida o link. Tokens de admin, sessão pública, recuperação e ativação têm `aud` e `typ` próprios e a verificação recusa o tipo errado.
+- Sem `ADMIN_EMAIL`, nenhuma sessão de administrador é aceita. O login e o esqueci-a-senha têm limite de tentativas. A resposta de login não devolve o JWT nem `err.message`. O logout apaga `luva_token` com os mesmos atributos usados ao gravar o cookie.
+- O webhook InfinitePay recusa a chamada se `INFINITEPAY_WEBHOOK_SECRET` estiver ausente, compara a assinatura só com buffers do mesmo tamanho, só marca `Pagamento` uma vez e só ativa a candidatura quando `external_id` confere com esse registro.
+- `GET` e `POST /api/dev/massa-qa` exigem sessão de administrador, além do bloqueio fora do banco de desenvolvimento. A resposta de erro não inclui a exceção.
+- `GET /api/organizador/quadras` e o `PATCH` só alcançam quadras de campeonatos do organizador autenticado.
+- Súmula e operação do árbitro listam do atleta `id`, `nome`, `numero`, `posicao`, `fotoUrl`, `fotoRostoUrl` e `equipeId`, e do árbitro `id` e `nome`.
+- `GET /api/inscricao-rapida/[token]` mascara CPF e data de nascimento. Ao concluir, o token do rascunho é substituído e o link anterior deixa de abrir a inscrição.
+- `POST` e `PUT /api/partidas` recusam equipes de outro campeonato. O `PUT` grava só liga, equipes, categoria, rodada, data, local e endereço.
+- As rotas de `ligas` registram a falha no servidor e não devolvem `err.message`.
+
+A auditoria das rotas em `src/app/api` manteve públicos os fluxos de vitrine, portal, ping, cadastro, interessados, inscrição por token, súmula por sessão e QR do atleta. Mutações de campeonato, equipe, jogador e partida continuam presas ao organizador dono.

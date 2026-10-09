@@ -54,27 +54,42 @@ export async function createPaymentLink(params: CreatePaymentLinkParams): Promis
   }
 }
 
-// The exact implementation depends on InfinitePay's webhook signing method.
-// Keep the signature check permissive in development, but strict in production.
+// Sem o segredo a assinatura não é conferida: a rota recusa o webhook.
 export function validateWebhookSignature(
   payload: string,
   signature: string | null,
 ): boolean {
   const webhookSecret = process.env.INFINITEPAY_WEBHOOK_SECRET
-  if (!webhookSecret) {
-    console.warn('INFINITEPAY_WEBHOOK_SECRET not set - skipping signature validation in dev')
-    return process.env.NODE_ENV !== 'production'
-  }
-  if (!signature) return false
+  if (!webhookSecret || !signature) return false
 
   const expected = createHmac('sha256', webhookSecret)
     .update(payload)
     .digest('hex')
+  const recebida = Buffer.from(signature)
+  const calculada = Buffer.from(expected)
+  if (recebida.length !== calculada.length) return false
 
-  return timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected),
-  )
+  return timingSafeEqual(recebida, calculada)
+}
+
+export function parseExternalId(externalId: string): { tipo: 'equipe' | 'arbitro'; candidaturaId: string } | null {
+  if (!externalId || externalId.length > 200) return null
+  const partes = externalId.split(':')
+  if (partes.length !== 2) return null
+  const [tipo, candidaturaId] = partes
+  if ((tipo !== 'equipe' && tipo !== 'arbitro') || !candidaturaId || candidaturaId.length > 80) return null
+  return { tipo, candidaturaId }
+}
+
+export function pagamentoConfereExternalId(
+  pagamento: { id: string; descricao?: string | null },
+  externalId: string,
+  candidatura: { id: string; pagamentoId?: string | null } | null,
+) {
+  const externo = parseExternalId(externalId)
+  if (!externo || !candidatura || externo.candidaturaId !== candidatura.id) return false
+  if (candidatura.pagamentoId && candidatura.pagamentoId === pagamento.id) return true
+  return (pagamento.descricao ?? '') === externalId
 }
 
 export interface InfinitePayWebhookPayload {
