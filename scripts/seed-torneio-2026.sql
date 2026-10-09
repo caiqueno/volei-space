@@ -1,6 +1,7 @@
 -- Massa TOURNAMENT-SEED-2026. Idempotente: não apaga dados e não duplica seedKey.
 -- Códigos de teste do árbitro ficam em scripts/massa-acesso-arbitro.ts.
 -- Executar só depois da migration supabase-acesso-arbitro-jogo.sql.
+-- Elenco e presença: scripts/seed-torneio-jogadores-2026.sql.
 
 do $$
 declare

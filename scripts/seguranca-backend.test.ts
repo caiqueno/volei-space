@@ -63,7 +63,7 @@ async function main() {
 
   assert.equal(valoresDePagamentoConferem(49, 49), true)
   assert.equal(valoresDePagamentoConferem(49, 4900), true)
-  assert.equal(valoresDePagamentoConferem(4900, 49), true)
+  assert.equal(valoresDePagamentoConferem(4900, 49), false)
   assert.equal(valoresDePagamentoConferem(49, 50), false)
 
   process.env.INFINITEPAY_WEBHOOK_SECRET = 'segredo-webhook'

@@ -2,19 +2,21 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireAuth } from '@/lib/auth'
-import { mensagemSchema } from '@/lib/schemas'
+import { idInteiroPositivoSchema, mensagemSchema } from '@/lib/schemas'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const ligaId = searchParams.get('ligaId')
-
     let q = supabase
       .from('Mensagem')
-      .select('*')
+      .select('id,ligaId,autor,texto,aprovada,criadoEm')
       .eq('aprovada', true)
       .order('criadoEm', { ascending: false })
-    if (ligaId) q = q.eq('ligaId', Number(ligaId))
+    if (searchParams.has('ligaId')) {
+      const ligaId = idInteiroPositivoSchema.safeParse(searchParams.get('ligaId'))
+      if (!ligaId.success) return error('Identificador inválido.', 422)
+      q = q.eq('ligaId', ligaId.data)
+    }
 
     const { data, error: err } = await q
     if (err) throw err

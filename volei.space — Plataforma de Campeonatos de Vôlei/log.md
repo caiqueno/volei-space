@@ -16,7 +16,32 @@ updated: 2026-10-09
 ## [2026-10-09] fix | sessão, webhook e súmula
 
 - pages_updated=`07-SEGURANCA`, `modulos/PAGAMENTOS`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
-- Token de reset deixa de passar em `isAdminSession`. O JWT de sessão exige `scope: admin` e recusa `purpose`. O reset carrega fingerprint HMAC, não o hash bcrypt. `ADMIN_EMAIL` é obrigatório em produção e preview. Login não enumera conta, limita tentativa em memória e não devolve o JWT no corpo. Webhook InfinitePay deixa de aceitar tudo sem segredo fora do dev local e não responde 200 quando o banco falha. Súmula confere erro e tenta restaurar; a transação no banco continua pendente. `GET ?consulta=1` permanece a consulta pública.
+- Token de reset deixa de passar em `isAdminSession`. O JWT de sessão exige `scope: admin` e recusa `purpose`. O reset carrega fingerprint HMAC, não o hash bcrypt. `ADMIN_EMAIL` é obrigatório em produção e preview. Login não enumera conta, limita tentativa em memória (30 por IP e 8 por IP e e-mail) e não devolve o JWT no corpo. O webhook ficou com o schema e o vínculo de `Pagamento` da camada de API, mais a ativação de árbitro quando o pagamento existe e não é de equipe. O valor confere em reais ou em centavos do valor gravado; o inverso ficou de fora. Súmula confere erro e tenta restaurar; a transação no banco continua pendente. `GET ?consulta=1` permanece a consulta pública.
+
+## [2026-10-09] fix | endurecimento da camada de API
+
+- pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
+- A confirmação simulada de pagamento fica desligada por padrão. O webhook InfinitePay exige segredo, valor e vínculo com a candidatura de equipe. Login de administrador não revela se o e-mail existe. `GET /api/equipes` lista colunas. Partida recusa times iguais ou de outro campeonato, e o administrador cria e aprova jogo.
+
+## [2026-10-09] fix | build, CI e contrato de ambiente
+
+- pages_updated=`08-INTEGRACOES`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O build da Vercel passa a gerar o client Prisma e o Node fica em 22.x. O CI roda install, generate, validate, a trava de migration, lint, typecheck e build. `db:migrate` recusa o pooler de transação. Não há ledger Prisma para aplicar; o SQL continua em `supabase/migrations`.
+
+## [2026-10-09] fix | falhas de interface no cabeçalho, inscrição e nova partida
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Cabeçalho e rodapé passam a mostrar «volei.space». Fora da home, o cabeçalho reserva 72px até ler a sessão local. Nova partida trata falha de rede, não busca as equipes duas vezes e lista as categorias do campeonato. Inscrição de equipe distingue erro de sucesso. Sair no admin limpa a sessão local.
+
+## [2026-10-09] fix | histórico de migrations e default de função
+
+- pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `12-BUGS-E-DEBITOS-TECNICOS`, `modulos/INSCRICOES`, `synthesis/PRONTIDAO-E-APIS`, `hot`, `log`
+- Os 35 SQL sem prefixo numérico passaram a ter versão anterior a `202610060004`. Nenhum deles concede `anon` ou `authenticated` depois do fechamento. Produção precisa de `supabase migration repair` antes do `db push`, porque esses arquivos já foram aplicados à mão.
+- `202610090001` revoga o EXECUTE global de `PUBLIC` nos default privileges do papel `postgres`. O revoke dentro do schema, usado em `202610060004`, não remove esse default.
+- `ClassificacaoEntrada` fica única por `(ligaId, equipeId)`. A migration nova não apaga linha. Índices das chaves estrangeiras citadas na revisão entram em `202610090002` e no Prisma. `SetPartida.partidaId` continua coberto pela unicidade `(partidaId, numero)`.
+- As policies de leitura do Realtime já estavam nos SQL de elenco e de permissões; agora esses arquivos são versionados e rodam antes do `GRANT` de colunas de `202610060004`, que deixa `Partida` sem `sumulaToken`.
+- `setup-db.mjs` saiu. Era o SQLite local da LUVA.
+- Nada foi aplicado em banco real.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 
@@ -196,6 +221,11 @@ updated: 2026-10-09
 
 - pages_updated=`log`
 - O commit `5416441` foi para a `main`. A Vercel publica a produção a partir dessa branch. As alterações locais ainda não commitadas (separação de ambiente, scripts soltos e o app Android) ficaram de fora.
+
+## [2026-10-02] ops | jogadores da massa TOURNAMENT-SEED em produção
+
+- pages_updated=`06-BANCO-DE-DADOS`, `hot`, `log`
+- As 80 equipes `SEED-CHAMP` estavam sem elenco. Foram cadastrados 960 jogadores `TESTE-SEED-2026-CH##-EQ##-J###` (12 por equipe) e 9.600 presenças nas 400 partidas `SEED-GAME`. As equipes receberam `seedKey` `SEED-CHAMP-##-EQ##`. O script idempotente é `scripts/seed-torneio-jogadores-2026.sql`. LINK-FLOW e FLUXO-CADASTRO permaneceram.
 
 ## [2026-10-02] teste | fluxo de cadastro nos dois ambientes
 

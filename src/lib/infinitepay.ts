@@ -1,6 +1,7 @@
 // InfinitePay payment integration.
 // Docs: https://developers.infinitepay.io
 import { createHmac, timingSafeEqual } from 'crypto'
+import { z } from 'zod'
 
 const INFINITEPAY_API_URL = 'https://api.infinitepay.io/v2'
 
@@ -58,8 +59,8 @@ function desenvolvimentoLocal() {
   return process.env.NODE_ENV !== 'production' && !process.env.VERCEL_ENV
 }
 
-// Sem segredo, só o `next dev` local segue sem assinatura. Preview da Vercel
-// tem NODE_ENV=production e VERCEL_ENV=preview; os dois casos recusam.
+// Sem segredo, só o `next dev` local segue sem assinatura. Produção e preview
+// da Vercel recusam. Tamanhos diferentes não estouram o timingSafeEqual.
 export function validateWebhookSignature(
   payload: string,
   signature: string | null,
@@ -78,32 +79,37 @@ export function validateWebhookSignature(
   const expected = createHmac('sha256', webhookSecret)
     .update(payload)
     .digest('hex')
+  const received = Buffer.from(signature)
+  const expectedBuffer = Buffer.from(expected)
+  if (received.length !== expectedBuffer.length) return false
 
   try {
-    const recebida = Buffer.from(signature)
-    const esperada = Buffer.from(expected)
-    if (recebida.length !== esperada.length) return false
-    return timingSafeEqual(recebida, esperada)
+    return timingSafeEqual(received, expectedBuffer)
   } catch (err) {
     console.error('[infinitepay] falha ao comparar assinatura', err)
     return false
   }
 }
 
-// O valor gravado pode estar em reais e o webhook em centavos, ou o contrário.
-export function valoresDePagamentoConferem(esperado: number, recebido: number) {
-  if (!Number.isFinite(esperado) || !Number.isFinite(recebido)) return false
-  if (esperado < 0 || recebido < 0) return false
-  const mesmoValor = Math.abs(esperado - recebido) < 0.009
-  const recebidoEmCentavos = Math.abs(Math.round(esperado * 100) - recebido) < 0.009
-  const esperadoEmCentavos = Math.abs(Math.round(recebido * 100) - esperado) < 0.009
-  return mesmoValor || recebidoEmCentavos || esperadoEmCentavos
+// O webhook pode mandar centavos do valor gravado em reais. O caminho inverso
+// (valor gravado em centavos e evento em reais) fica de fora: R$ 100 e R$ 1
+// passariam a conferir.
+export function paymentAmountsMatch(expected: number, received: number) {
+  if (!Number.isFinite(expected) || !Number.isFinite(received) || expected < 0 || received < 0) return false
+  if (Math.abs(expected - received) < 0.009) return true
+  return Math.abs(Math.round(expected * 100) - received) < 0.009
 }
 
-export interface InfinitePayWebhookPayload {
-  id: string
-  external_id: string
-  status: 'paid' | 'pending' | 'cancelled' | 'expired'
-  amount: number
-  paid_at?: string
+export function valoresDePagamentoConferem(esperado: number, recebido: number) {
+  return paymentAmountsMatch(esperado, recebido)
 }
+
+export const infinitePayWebhookSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  external_id: z.string().trim().regex(/^(equipe|arbitro):([a-z0-9-]{8,64})$/i),
+  status: z.enum(['paid', 'pending', 'cancelled', 'expired']),
+  amount: z.coerce.number().finite().nonnegative(),
+  paid_at: z.string().trim().min(1).max(40).optional(),
+})
+
+export type InfinitePayWebhookPayload = z.infer<typeof infinitePayWebhookSchema>

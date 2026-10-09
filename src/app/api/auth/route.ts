@@ -11,6 +11,7 @@ import { consumirCota, ipDaRequisicao } from '@/lib/rate-limit'
 import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
 
 const CREDENCIAIS = 'Usuário ou senha não conferem.'
+const FALHA_ENTRADA = 'Não foi possível entrar agora. Tente novamente.'
 const JANELA_LOGIN_MS = 10 * 60 * 1000
 let hashComparacao: Promise<string> | null = null
 
@@ -57,8 +58,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!isSupabaseServiceConfigured) {
-      console.error('[AUTH] SUPABASE_SERVICE_ROLE_KEY ausente')
-      return error('Erro ao autenticar.', 500)
+      console.error('[AUTH] service role ausente')
+      return error(FALHA_ENTRADA, 500)
     }
 
     const adminResponse = await loginAdmin(email, senha)
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
     return res
   } catch (err: unknown) {
     console.error('[AUTH ERROR]', err)
-    return error('Erro ao autenticar.', 500)
+    return error(FALHA_ENTRADA, 500)
   }
 }
 
@@ -135,7 +136,7 @@ async function loginAdmin(email: string, senha: string) {
 
   if (dbErr) {
     console.error('[AUTH ADMIN DB ERROR]', dbErr.message)
-    return error('Erro ao autenticar.', 500)
+    return error(FALHA_ENTRADA, 500)
   }
 
   const admin = Array.isArray(data) && data.length > 0 ? data[0] : null

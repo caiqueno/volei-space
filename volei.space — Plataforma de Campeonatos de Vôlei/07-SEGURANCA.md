@@ -5,7 +5,7 @@ category: area
 tags: [seguranca]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Acesso e dados pessoais.
+  Acesso e dados pessoais. Função nova não nasce executável por PUBLIC.
 status: implementado
 created: 2026-09-20
 updated: 2026-10-09
@@ -26,7 +26,7 @@ updated: 2026-10-09
 - `GET` público de equipe e partida devolve do atleta só id, nome, número, posição e foto. CPF e documento ficam fora dessa resposta. A auditoria de 06/10/2026 achou três rotas que não cumpriam isso e devolviam `Jogador` inteiro — `GET /api/jogadores` (sem sessão, qualquer organizador), `GET /api/rankings` e a página pública `/equipes/[slug]`. As três passaram a listar colunas; `cpf`, `documentoTipo`, `documentoNumero`, `dataNascimento`, `telefone`, `telefoneEmergencia`, `documentosUrls` e `qrCodeToken` não saem mais por elas. Quem adicionar uma consulta de atleta escreve as colunas: `select('*')` em `Jogador` é o jeito de repetir o vazamento.
 - Token de súmula permite correção por 30 minutos do **primeiro** encerramento; após isso, corrigir exige identidade e propriedade do organizador verificadas no servidor.
 - MVP, placares, substituições e status precisam de validação de servidor, não apenas da interface.
-- Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais.
+- Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais. O default global de `EXECUTE` para `PUBLIC` não cai com `alter default privileges in schema public`. A migration `202610090001_revogar_execute_public_default.sql` revoga esse default das funções que `postgres` criar depois, e deixa `EXECUTE` para `service_role`. Ela ainda não foi aplicada nos bancos. Arquivo de migration que conceda acesso a `anon` ou `authenticated` fica antes de `202610060004` e `202610060005`.
 - Uploads, fotos, documentos e QR de atletas exigem políticas compatíveis com a finalidade e o escopo.
 
 ## Sessão, recuperação de senha e login
@@ -35,13 +35,15 @@ updated: 2026-10-09
 
 `ADMIN_EMAIL` é obrigatório em produção e no preview da Vercel. Sem essa variável o login de administrador é recusado. No `next dev` local, com a variável ausente, a tabela `Admin` continua sendo a lista, como em 29/09/2026.
 
-O login e o esqueci-senha respondem a falha com a mesma frase e aplicam um limite em memória por instância (IP e e-mail). Isso não substitui um limite compartilhado entre instâncias. O cookie `luva_token` segue sendo a sessão; o corpo do login de administrador não devolve mais o JWT. Curingas `%` e `_` no `ILIKE` do e-mail são escapados, e a linha lida ainda precisa ser o mesmo e-mail.
+O login responde «Usuário ou senha não conferem.» antes de a senha conferir. Depois da senha correta, perfil errado ou organizador aguardando liberação usam a frase específica. O limite em memória é de 30 tentativas por IP e 8 por IP e e-mail a cada 10 minutos, por instância. O cookie `luva_token` segue sendo a sessão; o corpo do login de administrador não devolve o JWT. Curingas `%` e `_` no `ILIKE` do e-mail são escapados, e a linha lida ainda precisa ser o mesmo e-mail.
 
 Erros de autenticação, da edição pública de candidatura e do cadastro de equipe, árbitro e quadra não devolvem mensagem interna do banco. A duplicidade de e-mail continua respondendo 409 com a frase já usada na tela. O cadastro rápido de inscrição ainda devolve o detalhe do erro.
 
+`POST /api/partidas` e `POST /api/partidas/{id}/aprovar` aceitam a sessão do administrador ou a do organizador dono do campeonato. `PUT /api/partidas/{id}` continua só com o organizador dono. A partida recusa o mesmo time nos dois lados e time de outro campeonato. Se a categoria muda, `categoriaCampeonatoId` é recalculado. `GET /api/equipes` lista colunas explícitas. `GET /api/mensagens` e `GET /api/partidas` recusam identificador que não seja inteiro positivo.
+
 ## Webhook e súmula
 
-**Implementado, com pendência de banco:** o webhook InfinitePay exige `INFINITEPAY_WEBHOOK_SECRET` fora do desenvolvimento local. Assinatura de tamanho diferente não derruba a rota. Evento `paid` só ativa equipe se a candidatura aponta para um `Pagamento` do mesmo identificador e de valor compatível (reais ou centavos). Repetição não cria outra equipe quando a candidatura já tem `equipeId`, e o índice único `(nome, ligaId, categoria, serie)` segura a corrida mais comum. Árbitro só ativa se já existe `Pagamento` com aquele `infinitePayId` e o valor confere; não há coluna ligando `Pagamento` a `CandidaturaArbitro`. Falha de banco responde 500 para o provedor tentar de novo. Nada no código grava `Pagamento` hoje, então este webhook não ativa candidatura até essa linha existir.
+**Implementado, com pendência de banco:** o webhook InfinitePay exige `INFINITEPAY_WEBHOOK_SECRET` fora do desenvolvimento local. Assinatura de tamanho diferente não derruba a rota. O corpo passa por schema (`equipe` ou `arbitro`, status e valor). Evento que não é `paid` responde `{ received: true }`. Evento `paid` só ativa equipe se a candidatura aponta para um `Pagamento` do mesmo identificador. O valor confere em reais ou com o webhook em centavos desse valor; o inverso não confere, para R$ 100 e R$ 1 não serem tratados como iguais. Repetição não cria outra equipe quando a candidatura já tem `equipeId`, e o índice único `(nome, ligaId, categoria, serie)` segura a corrida mais comum. Árbitro só ativa se já existe `Pagamento` com aquele `infinitePayId`, o valor confere e o pagamento não é de uma equipe. Falha de banco responde 500 para o provedor tentar de novo. Nada no código grava `Pagamento` hoje, então este webhook não ativa candidatura até essa linha existir.
 
 A gravação da súmula confere cada erro e, se quebra no meio, tenta recolocar sets, presenças, ocorrências e destaques lidos antes. Isso não é transação: duas gravações simultâneas ainda podem se misturar. A correção definitiva é uma função única no banco. `GET /api/sumula/{token}?consulta=1` segue sem `requireSumulaLeitura` de propósito: é a leitura pública já filtrada. Tokens de demonstração da súmula não respondem com `NODE_ENV=production` nem em preview.
 

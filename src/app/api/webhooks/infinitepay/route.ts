@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
-import { validateWebhookSignature, valoresDePagamentoConferem, InfinitePayWebhookPayload } from '@/lib/infinitepay'
+import {
+  validateWebhookSignature,
+  infinitePayWebhookSchema,
+  paymentAmountsMatch,
+  type InfinitePayWebhookPayload,
+} from '@/lib/infinitepay'
 import { sendEmail, emailEquipeAtivada } from '@/lib/email'
 import { slugifyUnique } from '@/utils/slug'
 
@@ -9,6 +14,7 @@ type ErroBanco = { code?: string; message?: string } | null
 class FalhaWebhook extends Error {
   constructor(message: string, readonly status: number) {
     super(message)
+    this.name = 'FalhaWebhook'
   }
 }
 
@@ -22,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   let payload: InfinitePayWebhookPayload
   try {
-    payload = JSON.parse(rawBody)
+    payload = infinitePayWebhookSchema.parse(JSON.parse(rawBody))
   } catch {
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
@@ -31,23 +37,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true })
   }
 
-  const externo = String(payload.external_id ?? '')
-  const separador = externo.indexOf(':')
-  const tipo = separador === -1 ? '' : externo.slice(0, separador)
-  const candidaturaId = separador === -1 ? '' : externo.slice(separador + 1).trim()
-  const valorRecebido = Number(payload.amount)
+  const externo = /^(equipe|arbitro):([a-z0-9-]{8,64})$/i.exec(payload.external_id)
+  if (!externo) return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
+  const tipo = externo[1].toLowerCase()
+  const candidaturaId = externo[2]
 
   try {
-    if (!payload.id || !candidaturaId || !Number.isFinite(valorRecebido)) {
-      throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
-    }
-    if (tipo === 'equipe') {
-      await handleEquipePagamento(candidaturaId, payload, valorRecebido)
-    } else if (tipo === 'arbitro') {
-      await handleArbitroPagamento(candidaturaId, payload, valorRecebido)
-    } else {
-      throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
-    }
+    if (tipo === 'equipe') await handleEquipePagamento(candidaturaId, payload)
+    else await handleArbitroPagamento(candidaturaId, payload)
   } catch (err) {
     console.error('[infinitepay] falha ao processar webhook', payload.id, tipo, candidaturaId, err)
     if (err instanceof FalhaWebhook) {
@@ -67,7 +64,14 @@ function recusarBanco(contexto: string, erro: ErroBanco): never {
   throw new FalhaWebhook('Não foi possível processar o pagamento.', 500)
 }
 
-async function handleEquipePagamento(candidaturaId: string, payload: InfinitePayWebhookPayload, valorRecebido: number) {
+function dataPaga(paidAt?: string) {
+  if (!paidAt) return new Date().toISOString()
+  const data = new Date(paidAt)
+  return Number.isNaN(data.getTime()) ? new Date().toISOString() : data.toISOString()
+}
+
+async function handleEquipePagamento(candidaturaId: string, payload: InfinitePayWebhookPayload) {
+  const valorRecebido = payload.amount
   const { data: candidatura, error: candidaturaErr } = await supabase
     .from('CandidaturaEquipe')
     .select('id,nome,email,categoria,serie,ligaId,status,equipeId,pagamentoId,diasDisponiveis,horarios,quadraInfo')
@@ -86,7 +90,7 @@ async function handleEquipePagamento(candidaturaId: string, payload: InfinitePay
   if (pagamento.infinitePayId && pagamento.infinitePayId !== payload.id) {
     throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
   }
-  if (!valoresDePagamentoConferem(Number(pagamento.valor), valorRecebido)) {
+  if (!paymentAmountsMatch(Number(pagamento.valor), valorRecebido)) {
     throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
   }
 
@@ -100,16 +104,18 @@ async function handleEquipePagamento(candidaturaId: string, payload: InfinitePay
     if (outro && outro.id !== pagamento.id) throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
   }
 
-  const { error: pagoErr } = await supabase
-    .from('Pagamento')
-    .update({
-      status: 'PAGO',
-      pagoEm: payload.paid_at || new Date().toISOString(),
-      webhookPayload: JSON.stringify(payload),
-      infinitePayId: payload.id,
-    })
-    .eq('id', pagamento.id)
-  if (pagoErr) recusarBanco('atualização do pagamento da equipe', pagoErr)
+  if (pagamento.status !== 'PAGO') {
+    const { error: pagoErr } = await supabase
+      .from('Pagamento')
+      .update({
+        status: 'PAGO',
+        pagoEm: dataPaga(payload.paid_at),
+        webhookPayload: JSON.stringify(payload),
+        infinitePayId: payload.id,
+      })
+      .eq('id', pagamento.id)
+    if (pagoErr) recusarBanco('atualização do pagamento da equipe', pagoErr)
+  }
 
   if (candidatura.equipeId) {
     if (candidatura.status !== 'ATIVA') {
@@ -211,7 +217,7 @@ async function descartarEquipeCriada(equipeId: number) {
   if (error) console.error('[infinitepay] equipe órfã não removida', equipeId, error)
 }
 
-async function handleArbitroPagamento(candidaturaId: string, payload: InfinitePayWebhookPayload, valorRecebido: number) {
+async function handleArbitroPagamento(candidaturaId: string, payload: InfinitePayWebhookPayload) {
   const { data: candidatura, error: candidaturaErr } = await supabase
     .from('CandidaturaArbitro')
     .select('id,nome,email,telefone,cref,diplomaUrl,status,arbitroId')
@@ -226,7 +232,7 @@ async function handleArbitroPagamento(candidaturaId: string, payload: InfinitePa
     .eq('infinitePayId', payload.id)
     .maybeSingle()
   if (pagamentoErr) recusarBanco('leitura do pagamento do árbitro', pagamentoErr)
-  if (!pagamento || !valoresDePagamentoConferem(Number(pagamento.valor), valorRecebido)) {
+  if (!pagamento || !paymentAmountsMatch(Number(pagamento.valor), payload.amount)) {
     throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
   }
 
@@ -238,15 +244,17 @@ async function handleArbitroPagamento(candidaturaId: string, payload: InfinitePa
   if (donaErr) recusarBanco('vínculo do pagamento com equipe', donaErr)
   if (equipeDona) throw new FalhaWebhook('Pagamento não confere com a candidatura.', 422)
 
-  const { error: pagoErr } = await supabase
-    .from('Pagamento')
-    .update({
-      status: 'PAGO',
-      pagoEm: payload.paid_at || new Date().toISOString(),
-      webhookPayload: JSON.stringify(payload),
-    })
-    .eq('id', pagamento.id)
-  if (pagoErr) recusarBanco('atualização do pagamento do árbitro', pagoErr)
+  if (pagamento.status !== 'PAGO') {
+    const { error: pagoErr } = await supabase
+      .from('Pagamento')
+      .update({
+        status: 'PAGO',
+        pagoEm: dataPaga(payload.paid_at),
+        webhookPayload: JSON.stringify(payload),
+      })
+      .eq('id', pagamento.id)
+    if (pagoErr) recusarBanco('atualização do pagamento do árbitro', pagoErr)
+  }
 
   if (candidatura.status === 'ATIVA' && candidatura.arbitroId) return
 
