@@ -212,6 +212,11 @@ updated: 2026-10-09
 - pages_updated=`log`
 - O commit `5416441` foi para a `main`. A Vercel publica a produção a partir dessa branch. As alterações locais ainda não commitadas (separação de ambiente, scripts soltos e o app Android) ficaram de fora.
 
+## [2026-10-02] ops | jogadores da massa TOURNAMENT-SEED em produção
+
+- pages_updated=`06-BANCO-DE-DADOS`, `hot`, `log`
+- As 80 equipes `SEED-CHAMP` estavam sem elenco. Foram cadastrados 960 jogadores `TESTE-SEED-2026-CH##-EQ##-J###` (12 por equipe) e 9.600 presenças nas 400 partidas `SEED-GAME`. As equipes receberam `seedKey` `SEED-CHAMP-##-EQ##`. O script idempotente é `scripts/seed-torneio-jogadores-2026.sql`. LINK-FLOW e FLUXO-CADASTRO permaneceram.
+
 ## [2026-10-02] teste | fluxo de cadastro nos dois ambientes
 
 - pages_updated=`log`

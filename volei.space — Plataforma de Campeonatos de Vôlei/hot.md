@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Build com Prisma generate, Node 22 e CI. Interface do cabeçalho e migrations numeradas seguem na main.
+  O script do elenco TOURNAMENT-SEED está no repositório. Build, interface e migrations numeradas seguem na main.
 status: implementado
 created: 2026-09-25
 updated: 2026-10-09
@@ -14,6 +14,8 @@ updated: 2026-10-09
 # Hot
 
 ## Foco atual
+
+O script idempotente `scripts/seed-torneio-jogadores-2026.sql` descreve o elenco da massa `TOURNAMENT-SEED-2026` (12 jogadores por equipe e presença na súmula). Essa carga já tinha sido aplicada em produção antes deste merge; o SQL não foi executado de novo. Fonte: [[06-BANCO-DE-DADOS]].
 
 Auditoria de deploy em 9 de outubro de 2026: o build é `prisma generate && next build`, o Node na Vercel fica em 22.x, e o CI cobre install, generate, validate, lint, typecheck e build. `npm run db:migrate` só aceita `DIRECT_URL` na porta 5432. Não há `prisma/migrations`; nada disso reaplica `supabase/migrations` em produção.
 
