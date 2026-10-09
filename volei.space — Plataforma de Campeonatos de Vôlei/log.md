@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Log
+
+## [2026-10-09] fix | sessão, webhook e súmula
+
+- pages_updated=`07-SEGURANCA`, `modulos/PAGAMENTOS`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- Token de reset deixa de passar em `isAdminSession`. O JWT de sessão exige `scope: admin` e recusa `purpose`. O reset carrega fingerprint HMAC, não o hash bcrypt. `ADMIN_EMAIL` é obrigatório em produção e preview. Login não enumera conta, limita tentativa em memória e não devolve o JWT no corpo. Webhook InfinitePay deixa de aceitar tudo sem segredo fora do dev local e não responde 200 quando o banco falha. Súmula confere erro e tenta restaurar; a transação no banco continua pendente. `GET ?consulta=1` permanece a consulta pública.
 
 ## [2026-10-06] fix | ver mais não recolhe sozinho
 

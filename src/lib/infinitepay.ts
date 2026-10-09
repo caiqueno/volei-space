@@ -54,16 +54,24 @@ export async function createPaymentLink(params: CreatePaymentLinkParams): Promis
   }
 }
 
-// The exact implementation depends on InfinitePay's webhook signing method.
-// Keep the signature check permissive in development, but strict in production.
+function desenvolvimentoLocal() {
+  return process.env.NODE_ENV !== 'production' && !process.env.VERCEL_ENV
+}
+
+// Sem segredo, só o `next dev` local segue sem assinatura. Preview da Vercel
+// tem NODE_ENV=production e VERCEL_ENV=preview; os dois casos recusam.
 export function validateWebhookSignature(
   payload: string,
   signature: string | null,
 ): boolean {
   const webhookSecret = process.env.INFINITEPAY_WEBHOOK_SECRET
   if (!webhookSecret) {
-    console.warn('INFINITEPAY_WEBHOOK_SECRET not set - skipping signature validation in dev')
-    return process.env.NODE_ENV !== 'production'
+    if (desenvolvimentoLocal()) {
+      console.warn('INFINITEPAY_WEBHOOK_SECRET ausente — assinatura ignorada só no desenvolvimento local')
+      return true
+    }
+    console.error('INFINITEPAY_WEBHOOK_SECRET ausente — webhook recusado')
+    return false
   }
   if (!signature) return false
 
@@ -71,10 +79,25 @@ export function validateWebhookSignature(
     .update(payload)
     .digest('hex')
 
-  return timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected),
-  )
+  try {
+    const recebida = Buffer.from(signature)
+    const esperada = Buffer.from(expected)
+    if (recebida.length !== esperada.length) return false
+    return timingSafeEqual(recebida, esperada)
+  } catch (err) {
+    console.error('[infinitepay] falha ao comparar assinatura', err)
+    return false
+  }
+}
+
+// O valor gravado pode estar em reais e o webhook em centavos, ou o contrário.
+export function valoresDePagamentoConferem(esperado: number, recebido: number) {
+  if (!Number.isFinite(esperado) || !Number.isFinite(recebido)) return false
+  if (esperado < 0 || recebido < 0) return false
+  const mesmoValor = Math.abs(esperado - recebido) < 0.009
+  const recebidoEmCentavos = Math.abs(Math.round(esperado * 100) - recebido) < 0.009
+  const esperadoEmCentavos = Math.abs(Math.round(recebido * 100) - esperado) < 0.009
+  return mesmoValor || recebidoEmCentavos || esperadoEmCentavos
 }
 
 export interface InfinitePayWebhookPayload {

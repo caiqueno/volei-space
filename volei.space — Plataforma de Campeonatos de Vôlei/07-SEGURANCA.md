@@ -8,7 +8,7 @@ summary: >-
   Acesso e dados pessoais.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-04
+updated: 2026-10-09
 ---
 # Segurança e permissões
 
@@ -28,5 +28,21 @@ updated: 2026-10-04
 - MVP, placares, substituições e status precisam de validação de servidor, não apenas da interface.
 - Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais.
 - Uploads, fotos, documentos e QR de atletas exigem políticas compatíveis com a finalidade e o escopo.
+
+## Sessão, recuperação de senha e login
+
+**Implementado:** o JWT de sessão do administrador carrega `scope: admin` e não carrega `purpose`. `isAdminSession` recusa token com `purpose` ou com outro `scope`, inclusive o de recuperação de senha e o de ativação de conta. O link de reset dura 30 minutos, traz um fingerprint HMAC da senha (não o hash bcrypt) e deixa de valer quando a senha muda. Sessões antigas, sem `scope`, pedem login de novo.
+
+`ADMIN_EMAIL` é obrigatório em produção e no preview da Vercel. Sem essa variável o login de administrador é recusado. No `next dev` local, com a variável ausente, a tabela `Admin` continua sendo a lista, como em 29/09/2026.
+
+O login e o esqueci-senha respondem a falha com a mesma frase e aplicam um limite em memória por instância (IP e e-mail). Isso não substitui um limite compartilhado entre instâncias. O cookie `luva_token` segue sendo a sessão; o corpo do login de administrador não devolve mais o JWT. Curingas `%` e `_` no `ILIKE` do e-mail são escapados, e a linha lida ainda precisa ser o mesmo e-mail.
+
+Erros de autenticação, da edição pública de candidatura e do cadastro de equipe, árbitro e quadra não devolvem mensagem interna do banco. A duplicidade de e-mail continua respondendo 409 com a frase já usada na tela. O cadastro rápido de inscrição ainda devolve o detalhe do erro.
+
+## Webhook e súmula
+
+**Implementado, com pendência de banco:** o webhook InfinitePay exige `INFINITEPAY_WEBHOOK_SECRET` fora do desenvolvimento local. Assinatura de tamanho diferente não derruba a rota. Evento `paid` só ativa equipe se a candidatura aponta para um `Pagamento` do mesmo identificador e de valor compatível (reais ou centavos). Repetição não cria outra equipe quando a candidatura já tem `equipeId`, e o índice único `(nome, ligaId, categoria, serie)` segura a corrida mais comum. Árbitro só ativa se já existe `Pagamento` com aquele `infinitePayId` e o valor confere; não há coluna ligando `Pagamento` a `CandidaturaArbitro`. Falha de banco responde 500 para o provedor tentar de novo. Nada no código grava `Pagamento` hoje, então este webhook não ativa candidatura até essa linha existir.
+
+A gravação da súmula confere cada erro e, se quebra no meio, tenta recolocar sets, presenças, ocorrências e destaques lidos antes. Isso não é transação: duas gravações simultâneas ainda podem se misturar. A correção definitiva é uma função única no banco. `GET /api/sumula/{token}?consulta=1` segue sem `requireSumulaLeitura` de propósito: é a leitura pública já filtrada. Tokens de demonstração da súmula não respondem com `NODE_ENV=production` nem em preview.
 
 Não registre tokens reais, segredos, dados de atletas nem credenciais nos documentos do vault. Ver [[06-BANCO-DE-DADOS]].
