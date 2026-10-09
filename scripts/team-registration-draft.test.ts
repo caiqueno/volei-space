@@ -80,7 +80,7 @@ function testEditRules() {
 }
 
 function testMigrationContract() {
-  const sql = fs.readFileSync(path.join(process.cwd(), 'supabase', 'migrations', 'supabase-inscricao-equipe-rascunho.sql'), 'utf8')
+  const sql = fs.readFileSync(path.join(process.cwd(), 'supabase', 'migrations', '202609200015_inscricao-equipe-rascunho.sql'), 'utf8')
   assert.match(sql, /create table if not exists public\."InscricaoEquipeRascunho"/)
   assert.match(sql, /create table if not exists public\."InscricaoEquipeJogadorRascunho"/)
   assert.match(sql, /token uuid not null unique default gen_random_uuid\(\)/)
