@@ -151,7 +151,7 @@ export function Header() {
     return null
   }
 
-  if (!hydrated && pathname !== '/') return null
+  if (!hydrated && pathname !== '/') return <CabecalhoReservado />
 
   if (pathname === '/') {
     return (
@@ -159,10 +159,10 @@ export function Header() {
         <div className="landing-header-inner">
           <Link href="/" className="landing-brand">
             <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl">
-              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt=" " fill sizes="70px" className="object-contain" priority />
+              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" aria-hidden="true" fill sizes="70px" className="object-contain" priority />
             </span>
             <span>
-              <strong></strong>
+              <strong>volei.space</strong>
             </span>
           </Link>
 
@@ -195,7 +195,7 @@ export function Header() {
         <aside className="profile-sidebar">
           <Link href={panelHref} className="profile-sidebar-brand">
             <span className="relative h-[45px] w-[135px] shrink-0">
-              <Image src="/brand/volei-space_wordmark_transparente.png" alt=" " fill sizes="135px" className="object-contain object-left" priority />
+              <Image src="/brand/volei-space_wordmark_transparente.png" alt="volei.space" fill sizes="135px" className="object-contain object-left" priority />
             </span>
             <span>
               <small>{profileLabel}</small>
@@ -246,12 +246,12 @@ export function Header() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#061426]/92 text-white backdrop-blur-2xl">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-luva-amber opacity-80" />
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4">
-          <Link href="/" aria-label="Início" className="group flex min-w-0 items-center gap-3">
+          <Link href="/" className="group flex min-w-0 items-center gap-3">
             <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl transition duration-300 group-hover:scale-105">
-              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="" fill sizes="44px" className="object-contain" priority />
+              <Image src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" aria-hidden="true" fill sizes="44px" className="object-contain" priority />
             </span>
             <span className="min-w-0">
-              <span className="block font-display text-lg font-black leading-none text-[#ffffff]"> </span>
+              <span className="block font-display text-lg font-black leading-none text-[#ffffff]">volei.space</span>
             </span>
           </Link>
 
@@ -395,4 +395,13 @@ function getProfileLabel(tipo: string) {
 
 function logout() {
   void encerrarSessaoPublica()
+}
+
+function CabecalhoReservado() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#061426]/92 text-white backdrop-blur-2xl" aria-hidden="true">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-luva-amber opacity-80" />
+      <div className="mx-auto h-[72px] max-w-7xl px-4" />
+    </header>
+  )
 }
