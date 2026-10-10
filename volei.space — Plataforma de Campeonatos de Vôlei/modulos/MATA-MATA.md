@@ -16,6 +16,8 @@ updated: 2026-10-10
 
 A chave legado usa os N primeiros de cada grupo e, em seguida, `melhoresClassificadosGerais`. Sem grupos, o mata-mata puro leva todas as equipes da tabela. O confronto seguinte só aceita os vencedores dos dois jogos que o alimentam; o 3º lugar só aceita os perdedores das semifinais e só existe quando `disputaTerceiroLugar` não está desligado. WO com `vencedorId` e sets 0×0 também avança. `POST /api/organizador/ligas/[id]/finalizar` recusa o campeonato sem campeão: final decidida no mata-mata, ou líder com jogo válido nos pontos corridos. A disputa de 3º lugar, quando ligada e há semifinal, também precisa estar decidida.
 
+`/fase-mata-mata` lê `Liga.faseEliminatoria`. Quando o campeonato tem uma categoria, salvar Eliminatórias copia essa fase para `Liga`; com mais de uma categoria a cópia não acontece, para não misturar as chaves. A tabela do organizador só pede o fim da fase de grupos enquanto existir jogo `GERAL` ou `GRUPOS` ainda não encerrado.
+
 **Ainda no banco:** `classificados_categoria` não devolve ninguém quando o formato não é mata-mata e não há grupos. `criar_confronto_categoria` ignora `vencedorId` e não tem vaga para ida e volta — o índice único é um jogo por fase e slot. Um número ímpar de equipes no calendário automático continua sem bye, porque não há coluna para isso.
 
 Relacionados: [[modulos/GRUPOS]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]].

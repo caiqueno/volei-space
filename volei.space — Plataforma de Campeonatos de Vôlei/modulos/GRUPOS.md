@@ -8,13 +8,13 @@ summary: >-
   Fase de grupos.
 status: misto
 created: 2026-09-20
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 # Grupos
 
 **Implementado:** configuração de quantidade e regras em `setup/estrutura`; distribuição real de equipes e confrontos em `src/app/api/organizador/ligas/[id]/estrutura/route.ts`; migrations de grupos em `supabase/migrations`. A geração exige que as equipes aprovadas compartilhem uma `CategoriaCampeonato`, grava `categoriaCampeonatoId` no grupo, no vínculo e na partida, e deixa `serie` nula — o gatilho `guard_category_scope` recusa série. `GET` da estrutura devolve `setsPorA`, `setsPorB` e `sumulaToken`, senão a súmula do árbitro não acha a partida. `Partida.atualizadoEm` tem default `now()` na migration `202610090004_partida_atualizado_em_default.sql`; sem isso o insert do cliente chega nulo e o banco recusa o confronto. Essa migration ainda não está aplicada em produção.
 
-A definição de grupos do campeonato não se confunde com o convite de equipe por categoria. Convites não devem entrar na distribuição competitiva até o cadastro da equipe estar concluído. Quantidade de classificados deve ser compatível com a fase eliminatória configurada.
+Recriar os confrontos apaga, ou cancela se a exclusão esbarrar em chave, os jogos ainda não iniciados da fase `GRUPOS` e também os da fase `GERAL` sem súmula. Jogo de mata-mata não entra nessa limpeza. Jogo em andamento, encerrado ou com súmula bloqueia a recriação. A definição de grupos do campeonato não se confunde com o convite de equipe por categoria. Convites não devem entrar na distribuição competitiva até o cadastro da equipe estar concluído. Quantidade de classificados deve ser compatível com a fase eliminatória configurada.
 
 Para apresentação pública e classificação, preserve o campeonato, categoria e fase corretos. Ver [[modulos/PARAMETRIZACAO]], [[modulos/INSCRICOES]], [[modulos/MATA-MATA]].
 

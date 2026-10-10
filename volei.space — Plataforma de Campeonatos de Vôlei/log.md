@@ -13,6 +13,12 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | edição da categoria até o jogo começar
+
+- pages_updated=`modulos/PARAMETRIZACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `hot`, `log`
+- Estrutura, classificação e eliminatórias aceitam equipes sem jogo iniciado. Jogo em andamento, encerrado ou com súmula continua bloqueado.
+- Recriar confrontos remove ou cancela jogos não iniciados da fase `GERAL`. A função SQL `salvar_configuracao_categoria` não foi alterada.
+
 ## [2026-10-10] decisao | troca de lado ao encerrar o set
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

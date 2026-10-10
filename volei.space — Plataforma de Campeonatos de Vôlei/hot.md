@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Microinterações de 150–250ms entram fora da súmula e das páginas públicas. A migration 202610100002 ainda não foi aplicada.
+  Estrutura, classificação e eliminatórias seguem editáveis com equipes, até o primeiro jogo iniciado. Recriar grupos tira jogos GERAL não iniciados.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Estrutura, classificação e eliminatórias da categoria podem ser gravadas com equipes inscritas e jogos só agendados. O bloqueio fica para jogo em andamento, encerrado ou com súmula, com mensagem que explica o motivo. A função `salvar_configuracao_categoria` ainda recusa essa gravação (`Operacao iniciada`); a rota grava direto nesse caso. Com uma categoria, fase eliminatória e tie-break também vão para `Liga`, senão `/fase-mata-mata` continua em `NENHUMA`. Recriar confrontos remove ou cancela jogos não iniciados da fase `GERAL` que ficavam órfãos e seguravam a tabela. O assistente deixa de dizer que a configuração fica para depois das equipes. Fonte: [[modulos/PARAMETRIZACAO]], [[modulos/GRUPOS]], [[modulos/MATA-MATA]].
 
 Encerrar um set que não fecha a partida inverte os lados da quadra na súmula e grava «Equipes inverteram os lados da quadra.». O saque dos sets 2 a 4 continua com quem não sacou no set anterior; o 5º set continua no sorteio. O pulso do rótulo segue `sumula-micro-set`. Fonte: [[modulos/SUMULA-DIGITAL]].
 

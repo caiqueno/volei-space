@@ -629,7 +629,7 @@ function EstruturaContent() {
                 <h2 className="mt-2 font-display text-2xl font-black">Confirmar estrutura e gerar jogos</h2>
                 <p className="mt-2 text-sm font-semibold text-slate-300">
                   {hasGeneratedCalendar
-                    ? `${partidas.length} jogo(s) já existem. Confirmar novamente recria apenas os confrontos da fase de grupos e mantém partidas de outras fases intactas.`
+                    ? `${partidas.length} jogo(s) já existem. Confirmar novamente recria os confrontos da fase de grupos e remove os jogos ainda não iniciados da configuração anterior, inclusive os da fase geral. Mata-mata e jogos já iniciados permanecem.`
                     : `${confrontosPrevistos} confronto(s) serão criados na fase de grupos.`}
                 </p>
               </div>
@@ -655,7 +655,7 @@ function EstruturaContent() {
             {hasGeneratedCalendar && !validation && (
               <div className="mt-5 flex gap-3 rounded-2xl border border-[#ffb331]/35 bg-[#ffb331]/10 p-4 text-sm font-bold text-amber-50">
                 <AlertTriangle className="mt-0.5 shrink-0 text-[#ffb331]" size={18} />
-                Alterar grupos depois de gerar calendário recria os jogos da fase de grupos. Partidas em andamento ou encerradas bloqueiam esta operação automaticamente.
+                Alterar grupos depois de gerar calendário recria os jogos da fase de grupos e remove ou cancela os jogos não iniciados da fase geral que ficaram da configuração anterior. Partidas em andamento, encerradas ou com súmula bloqueiam esta operação.
               </div>
             )}
             {message && (
