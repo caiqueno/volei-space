@@ -37,6 +37,8 @@ model Liga {
   setsPorPartida                  Int       @default(3)
   setsPorPartidaFinal             Int?
   setsPorPartidaSemifinal         Int?
+  setsPorPartidaQuartas           Int?
+  setsPorPartidaOitavas           Int?
   setsPorPartidaTerceiroLugar     Int?
   pontosPorSet                    Int       @default(25)
   diferencaMinimaSet              Int       @default(2)
@@ -770,6 +772,8 @@ model CategoriaConfiguracao {
   setsPorPartida                  Int       @default(3)
   setsPorPartidaFinal             Int?
   setsPorPartidaSemifinal         Int?
+  setsPorPartidaQuartas           Int?
+  setsPorPartidaOitavas           Int?
   setsPorPartidaTerceiroLugar     Int?
   pontosPorSet                    Int       @default(25)
   tieBreakUltimoSet               Boolean   @default(true)

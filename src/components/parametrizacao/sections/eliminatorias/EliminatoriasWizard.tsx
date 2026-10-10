@@ -203,6 +203,16 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
                     <NumberInput value={data.setsPorPartidaTerceiroLugar} min={1} max={5} placeholder={String(data.setsPorPartida ?? 3)} onChange={(v) => updateNow({ setsPorPartidaTerceiroLugar: v })} />
                   </Field>
                 )}
+                {vagas >= 8 && (
+                  <Field label="Sets das quartas" hint="Em branco, as quartas usam a quantidade de sets do campeonato.">
+                    <NumberInput value={data.setsPorPartidaQuartas} min={1} max={5} placeholder={String(data.setsPorPartida ?? 3)} onChange={(v) => updateNow({ setsPorPartidaQuartas: v })} />
+                  </Field>
+                )}
+                {vagas >= 16 && (
+                  <Field label="Sets das oitavas" hint="Em branco, as oitavas usam a quantidade de sets do campeonato.">
+                    <NumberInput value={data.setsPorPartidaOitavas} min={1} max={5} placeholder={String(data.setsPorPartida ?? 3)} onChange={(v) => updateNow({ setsPorPartidaOitavas: v })} />
+                  </Field>
+                )}
               </div>
               <ToggleCards
                 value={data.eliminatoriaIdaVolta}
@@ -228,6 +238,8 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
                 <ReviewRow icon={Medal} label="Sets da final" value={rotuloSetsDaFase(data.setsPorPartidaFinal, data.setsPorPartida)} />
                 {vagas >= 4 && <ReviewRow icon={Medal} label="Sets da semifinal" value={rotuloSetsDaFase(data.setsPorPartidaSemifinal, data.setsPorPartida)} />}
                 {vagas >= 4 && data.disputaTerceiroLugar && <ReviewRow icon={Medal} label="Sets do 3º lugar" value={rotuloSetsDaFase(data.setsPorPartidaTerceiroLugar, data.setsPorPartida)} />}
+                {vagas >= 8 && <ReviewRow icon={Medal} label="Sets das quartas" value={rotuloSetsDaFase(data.setsPorPartidaQuartas, data.setsPorPartida)} />}
+                {vagas >= 16 && <ReviewRow icon={Medal} label="Sets das oitavas" value={rotuloSetsDaFase(data.setsPorPartidaOitavas, data.setsPorPartida)} />}
               </>
             )}
             {!temEliminatoria && <ReviewRow icon={ShieldOff} label="Situação" value="Não aplicável — concluído automaticamente" />}

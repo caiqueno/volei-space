@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A escala grava 1º árbitro, 2º, mesário e juiz de linha. O mesmo árbitro não cobre dois jogos no mesmo horário.
+  Quartas e oitavas herdam a quantidade de sets do campeonato. Um número de 1 a 5 só vale quando o organizador grava o campo.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 quartas e oitavas podem ter quantidade de sets própria, de 1 a 5. Vazio herda `setsPorPartida`. Dezesseis avos e grupos continuam no padrão. Sem as colunas, a súmula lê final, semifinal e 3º lugar como antes e as quartas seguem o campeonato. `20261010139900_sets_quartas_oitavas.sql` não foi aplicada. O prefixo fica depois de `20261010139800` e antes de `20261010140000`. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a escala do calendário grava 1º árbitro, 2º árbitro, mesário e juiz de linha, cada um na própria linha de `EscalaArbitro`. O mesmo árbitro não é escalado em dois jogos dentro de 90 minutos. Sem horário, a escala não é bloqueada. Não houve migration. Fonte: [[modulos/PARTIDAS]].
 

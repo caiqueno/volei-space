@@ -239,6 +239,8 @@ export const ligaSchema = z.object({
   setsPorPartida: z.number().int().min(1).max(5).optional(),
   setsPorPartidaFinal: z.number().int().min(1).max(5).nullable().optional(),
   setsPorPartidaSemifinal: z.number().int().min(1).max(5).nullable().optional(),
+  setsPorPartidaQuartas: z.number().int().min(1).max(5).nullable().optional(),
+  setsPorPartidaOitavas: z.number().int().min(1).max(5).nullable().optional(),
   setsPorPartidaTerceiroLugar: z.number().int().min(1).max(5).nullable().optional(),
   pontosPorSet: z.number().int().min(1).max(99).optional(),
   setsFormato: z.enum(['MELHOR_DE', 'QUANTIDADE_FIXA']).optional(),
@@ -351,6 +353,8 @@ export const setupEliminatoriasSchema = ligaSchema.pick({
   goldenSet: true,
   setsPorPartidaFinal: true,
   setsPorPartidaSemifinal: true,
+  setsPorPartidaQuartas: true,
+  setsPorPartidaOitavas: true,
   setsPorPartidaTerceiroLugar: true,
 }).partial()
 

@@ -1,11 +1,13 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { montarFonteDeRegras, regrasParaFase, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { CAMPOS_SETS_POR_FASE_ANTERIORES, CAMPOS_SETS_QUARTAS_OITAVAS } from '@/lib/sets-por-fase'
 
 // `terceiroSetObrigatorio` existe só em CategoriaConfiguracao. Pedi-lo na Liga
 // faz o PostgREST recusar a leitura inteira e a súmula cai no default da Liga.
 const CAMPOS_LIGA = 'setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,setsFormato'
 const CAMPOS_CATEGORIA = `${CAMPOS_LIGA},terceiroSetObrigatorio`
-const CAMPOS_FASE = 'setsPorPartidaFinal,setsPorPartidaSemifinal,setsPorPartidaTerceiroLugar'
+const CAMPOS_FASE = CAMPOS_SETS_POR_FASE_ANTERIORES.join(',')
+const CAMPOS_FASE_NOVA = CAMPOS_SETS_QUARTAS_OITAVAS.join(',')
 
 function primeiro(valor: unknown) {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
@@ -13,10 +15,14 @@ function primeiro(valor: unknown) {
 
 function colunaDeFaseAusente(erro: { message?: string; code?: string; details?: string } | null) {
   const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|TerceiroLugar)|PGRST204|42703/i.test(texto)
+  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|PGRST204|42703/i.test(texto)
 }
 
 async function lerLinha(tabela: 'Liga' | 'CategoriaConfiguracao', campos: string, coluna: string, valor: number | string) {
+  const completa = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA}`).eq(coluna, valor).maybeSingle()
+  if (!completa.error) return completa.data as Record<string, unknown> | null
+  if (!colunaDeFaseAusente(completa.error)) throw new Error(completa.error.message)
+  // Quartas e oitavas ainda não existem em produção. A segunda leitura mantém final, semifinal e 3º lugar.
   const comFase = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE}`).eq(coluna, valor).maybeSingle()
   if (!comFase.error) return comFase.data as Record<string, unknown> | null
   if (!colunaDeFaseAusente(comFase.error)) throw new Error(comFase.error.message)

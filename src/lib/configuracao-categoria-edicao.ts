@@ -34,6 +34,8 @@ const CAMPOS_LIGA = new Set([
   'goldenSet',
   'setsPorPartidaFinal',
   'setsPorPartidaSemifinal',
+  'setsPorPartidaQuartas',
+  'setsPorPartidaOitavas',
   'setsPorPartidaTerceiroLugar',
   'formularioInscricaoConfig',
 ])
@@ -110,7 +112,17 @@ export function secoesDependentes(secao: string, patch: Record<string, unknown>)
 const FASE_DO_CAMPO_DE_SETS: Record<(typeof CAMPOS_SETS_POR_FASE)[number], string> = {
   setsPorPartidaFinal: 'FINAL',
   setsPorPartidaSemifinal: 'SEMIFINAL',
+  setsPorPartidaQuartas: 'QUARTAS',
+  setsPorPartidaOitavas: 'OITAVAS',
   setsPorPartidaTerceiroLugar: 'TERCEIRO_LUGAR',
+}
+
+const NOME_DA_FASE_DE_SETS: Record<string, string> = {
+  FINAL: 'A final',
+  SEMIFINAL: 'A semifinal',
+  QUARTAS: 'As quartas',
+  OITAVAS: 'As oitavas',
+  TERCEIRO_LUGAR: 'A disputa de 3º lugar',
 }
 
 export function patchSoDeSetsPorFase(patch: Record<string, unknown>) {
@@ -125,7 +137,7 @@ export function motivoBloqueioEdicao(secao: string, patch: Record<string, unknow
       const fase = FASE_DO_CAMPO_DE_SETS[chave]
       const travou = jogos.some((jogo) => String(jogo.fase ?? '').trim().toUpperCase() === fase && jogoImpedeEdicaoDaCategoria(jogo))
       if (!travou) continue
-      const nome = fase === 'FINAL' ? 'A final' : fase === 'SEMIFINAL' ? 'A semifinal' : 'A disputa de 3º lugar'
+      const nome = NOME_DA_FASE_DE_SETS[fase] ?? 'Esta fase'
       return `${nome} já tem jogo em andamento, encerrado ou com súmula. A quantidade de sets dessa fase fica travada.`
     }
     return null

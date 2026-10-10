@@ -88,6 +88,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       goldenSet: liga.goldenSet,
       setsPorPartidaFinal: (liga.setsPorPartidaFinal as number | null) ?? null,
       setsPorPartidaSemifinal: (liga.setsPorPartidaSemifinal as number | null) ?? null,
+      setsPorPartidaQuartas: (liga.setsPorPartidaQuartas as number | null) ?? null,
+      setsPorPartidaOitavas: (liga.setsPorPartidaOitavas as number | null) ?? null,
       setsPorPartidaTerceiroLugar: (liga.setsPorPartidaTerceiroLugar as number | null) ?? null,
     },
     calendar: {

@@ -10,7 +10,7 @@ import { FormAlert } from '../../ui/FormAlert'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
 import { formatDateBr } from '@/lib/date-brazil'
-import { formatEliminatoryPhase } from '@/lib/eliminatorias'
+import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { rotuloSetsDaFase } from '@/lib/sets-por-fase'
 import { SECTION_TITLES, textoResumoPrevia } from '@/lib/championship-setup-status'
 import type { ChampionshipPreviaDTO } from '@/types/championship-setup'
@@ -124,6 +124,12 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
               <SummaryRow label="Formato" value={previa.knockout.eliminatoriaIdaVolta ? 'Ida e volta' : 'Jogo único'} />
               {previa.knockout.faseEliminatoria && previa.knockout.faseEliminatoria !== 'NENHUMA' && (
                 <SummaryRow label="Sets da final" value={rotuloSetsDaFase(previa.knockout.setsPorPartidaFinal, previa.structure.setsPorPartida)} />
+              )}
+              {getRequiredEliminatoryTeams(previa.knockout.faseEliminatoria) >= 8 && (
+                <SummaryRow label="Sets das quartas" value={rotuloSetsDaFase(previa.knockout.setsPorPartidaQuartas, previa.structure.setsPorPartida)} />
+              )}
+              {getRequiredEliminatoryTeams(previa.knockout.faseEliminatoria) >= 16 && (
+                <SummaryRow label="Sets das oitavas" value={rotuloSetsDaFase(previa.knockout.setsPorPartidaOitavas, previa.structure.setsPorPartida)} />
               )}
             </SummaryCard>
 
