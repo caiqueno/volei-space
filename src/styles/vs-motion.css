@@ -23,7 +23,7 @@
 :root {
   --vs-motion-press: 90ms;
   --vs-motion-tap: 160ms;
-  --vs-motion-burst: 480ms;
+  --vs-motion-burst: 640ms;
   --vs-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --vs-motion-ease-snap: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -81,19 +81,19 @@ html body .vs-focus:focus-visible {
   }
   22% {
     opacity: 1;
-    transform: translate(-50%, -78px) scale(1.08);
+    transform: translate(-50%, -96px) scale(1.12);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -168px) scale(0.72) rotate(28deg);
+    transform: translate(-50%, -220px) scale(0.7) rotate(32deg);
   }
 }
 
 .vs-ball-burst {
   position: fixed;
   z-index: 90;
-  width: 36px;
-  height: 36px;
+  width: 64px;
+  height: 64px;
   margin: 0;
   padding: 0;
   pointer-events: none;
