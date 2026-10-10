@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
+import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
@@ -1401,7 +1402,7 @@ export default function SumulaPage() {
         )}
 
         {activeTab === 'anotacoes' && (
-          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={jogadoresVencedores} />
+          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={jogadoresVencedores} mvpTeamId={setsWon.teamA > setsWon.teamB ? 'teamA' : 'teamB'} getMatchNumber={getMatchNumber} />
         )}
       </section>
 
@@ -2629,7 +2630,7 @@ function TemposTab({ teamA, teamB, currentSet, currentScore, timeoutsUsedA, time
   )
 }
 
-function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveNote, mvpId, setMvpId, allPlayers }: {
+function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveNote, mvpId, setMvpId, allPlayers, mvpTeamId, getMatchNumber }: {
   teamA: Team
   teamB: Team
   currentSet: number
@@ -2639,6 +2640,8 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
   mvpId: string
   setMvpId: (value: string) => void
   allPlayers: Player[]
+  mvpTeamId: TeamId
+  getMatchNumber: (teamId: TeamId, number: string) => string
 }) {
   const playerTargets = [
     ...[...teamA.players, ...teamA.reserves].map((player) => ({
@@ -2673,7 +2676,7 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
             <option>Não se aplica</option>
             {playerTargets.map((player) => <option key={player.value} value={player.value}>{player.label}</option>)}
           </select>
-          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da equipe vencedora</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{player.number} - {player.name}</option>)}</select>
+          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da equipe vencedora</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{numeroMvpDaLista(player.number, getMatchNumber(mvpTeamId, player.number))} - {player.name}</option>)}</select>
           <textarea value={descricao} onChange={(event) => setDescricao(event.target.value)} placeholder="Digite o registro oficial..." />
           <button className="official-primary" onClick={() => { if (descricao.trim()) { saveNote({ tipo, equipeRelacionada: resolvedEquipe, pessoaRelacionada: resolvedPessoa, descricao }); setDescricao('') } }}>Salvar anotação na súmula</button>
         </div>

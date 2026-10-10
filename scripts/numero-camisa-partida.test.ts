@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   interpretarNumeroCamisa,
+  numeroMvpDaLista,
   numeroNaPartida,
   presencaFoiDecidida,
   proximoAtletaNoElenco,
@@ -58,5 +59,10 @@ assert.equal(presencaFoiDecidida({ presente: null }), false)
 assert.equal(presencaFoiDecidida({ presente: undefined }), false)
 assert.equal(presencaFoiDecidida({ presente: true }), true)
 assert.equal(presencaFoiDecidida({ presente: false }), true)
+
+assert.equal(numeroMvpDaLista('1', '21'), '21')
+assert.equal(numeroMvpDaLista('1', null), '1')
+assert.equal(numeroMvpDaLista('21', '21'), '21')
+assert.equal(numeroMvpDaLista('7', '  '), '7')
 
 console.log('numero-camisa-partida ok')
