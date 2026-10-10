@@ -5,13 +5,18 @@ import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, Trophy, UsersRound } from 'lucide-react'
 import { CampeonatoActions } from '@/components/campeonatos/CampeonatoActions'
+import { CampeonatoMataMata } from '@/components/campeonatos/CampeonatoMataMata'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import type { BracketRoundView, BracketSlot, TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
+import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podium'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { getMataMataBracket } from '@/lib/mata-mata'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import mi from '@/styles/microinteracoes.module.css'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -69,7 +74,10 @@ export default async function CampeonatoPage({ params }: PageProps) {
     )
   }
 
-  const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }] = await Promise.all([
+  const finalizado = isCampeonatoFinalizado(liga.status)
+  const faseChave = await faseDaChave(liga.id, liga.faseEliminatoria)
+  const chaveVazia = { rounds: [] as BracketRoundView[], champion: null as TeamOption | null, thirdPlace: null as BracketSlot | null }
+  const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }, bracket, podium] = await Promise.all([
     supabase.from('InscricaoCampeonato').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id).eq('status', 'APROVADA'),
     supabase.from('Partida').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id),
     supabase
@@ -78,10 +86,11 @@ export default async function CampeonatoPage({ params }: PageProps) {
       .eq('ligaId', liga.id)
       .eq('status', 'APROVADA')
       .order('criadaEm', { ascending: true }),
+    faseChave ? getMataMataBracket(liga.id, faseChave, false) : Promise.resolve(chaveVazia),
+    finalizado ? getChampionshipPodium(liga.id) : Promise.resolve([] as PodiumTeam[]),
   ])
   const vagasLimite = liga.quantidadeEquipes ?? null
   const vagasDisponiveis = vagasLimite ? Math.max(vagasLimite - (equipesCount ?? 0), 0) : null
-  const finalizado = isCampeonatoFinalizado(liga.status)
   const inscricoesAbertas = !finalizado && liga.inscricoesAbertas !== false && (vagasDisponiveis === null || vagasDisponiveis > 0)
 
   return (
@@ -91,7 +100,6 @@ export default async function CampeonatoPage({ params }: PageProps) {
           <div>
             <p className="luva-kicker flex flex-wrap items-center gap-2">
               <Trophy size={16} /> {formatLigaStatus(liga.status)}
-              {finalizado && <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-black text-white">Finalizado</span>}
             </p>
             {finalizado && (
               <p className="mt-4 max-w-2xl text-sm font-bold text-slate-100">Este campeonato está finalizado e disponível apenas para consulta.</p>
@@ -106,15 +114,24 @@ export default async function CampeonatoPage({ params }: PageProps) {
       </section>
 
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-8 md:grid-cols-4">
-        <InfoCard icon={<UsersRound size={22} />} label="Equipes previstas" value={liga.quantidadeEquipes ?? '-'} />
-        <InfoCard icon={<Trophy size={22} />} label="Formato" value={formatLigaFormato(liga.formato)} />
-        <InfoCard icon={<UsersRound size={22} />} label="Equipes aprovadas" value={equipesCount ?? 0} />
-        <InfoCard icon={<CalendarDays size={22} />} label="Jogos" value={jogosCount ?? 0} />
+        <InfoCard icon={<UsersRound size={22} />} label="Equipes previstas" value={liga.quantidadeEquipes ?? '-'} atraso="0ms" />
+        <InfoCard icon={<Trophy size={22} />} label="Formato" value={formatLigaFormato(liga.formato)} atraso="40ms" />
+        <InfoCard icon={<UsersRound size={22} />} label="Equipes aprovadas" value={equipesCount ?? 0} atraso="80ms" />
+        <InfoCard icon={<CalendarDays size={22} />} label="Jogos" value={jogosCount ?? 0} atraso="120ms" />
       </section>
+
+      <CampeonatoMataMata
+        ligaId={liga.id}
+        rounds={bracket.rounds}
+        champion={bracket.champion}
+        thirdPlace={bracket.thirdPlace}
+        podium={podium}
+        finalizado={finalizado}
+      />
 
       {Boolean(equipesConfirmadas?.length) && (
         <section className="mx-auto max-w-7xl px-4 pb-8">
-          <article className="championship-card rounded-[1.75rem] border p-6">
+          <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="luva-kicker">Equipes confirmadas</p>
@@ -127,7 +144,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
                 const equipe = Array.isArray(item.equipe) ? item.equipe[0] : item.equipe
                 if (!equipe) return null
                 return (
-                  <Link key={item.id} href={`/equipes/${equipe.slug}`} className="grid gap-2 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.06] sm:grid-cols-[1fr_auto] sm:items-center">
+                  <Link key={item.id} href={`/equipes/${equipe.slug}`} className={`grid gap-2 bg-white/[0.03] px-4 py-4 hover:bg-white/[0.06] sm:grid-cols-[1fr_auto] sm:items-center ${mi.linha}`}>
                     <div>
                       <p className="font-display text-lg font-black text-white">{equipe.nome}</p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">
@@ -146,7 +163,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
       )}
 
       <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-12 lg:grid-cols-[1fr_0.9fr]">
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar} ${mi.cartao}`}>
           <p className="luva-kicker">Informações importantes</p>
           <h2 className="mt-3 font-display text-3xl font-black text-white">Como participar</h2>
           <div className="mt-5 grid gap-3">
@@ -169,25 +186,25 @@ export default async function CampeonatoPage({ params }: PageProps) {
               'O portal público mostra agenda, classificação, rankings e galeria deste campeonato.',
             ].map((item, index) => (
               <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-luva-amber text-sm font-black text-slate-950">{index + 1}</span>
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-luva-amber text-sm font-black text-slate-950 ${mi.numero}`}>{index + 1}</span>
                 <p className="text-sm font-bold leading-6 text-slate-100">{item}</p>
               </div>
             ))}
           </div>
         </article>
 
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar} ${mi.cartao}`} style={{ animationDelay: '60ms' }}>
           <p className="luva-kicker">Portal</p>
           <h2 className="mt-3 font-display text-3xl font-black text-white">Acompanhe a competição</h2>
           <p className="mt-3 text-sm font-semibold leading-7 text-slate-200">
             Use os atalhos abaixo para ver somente dados deste campeonato.
           </p>
           <div className="mt-5 grid gap-3">
-            <Link href={`/portal?ligaId=${liga.id}`} className="creator-mini-action justify-center">Portal</Link>
-            <Link href={`/jogos?ligaId=${liga.id}`} className="creator-mini-action justify-center">Jogos</Link>
-            <Link href={`/classificacao?ligaId=${liga.id}`} className="creator-mini-action justify-center">Classificação</Link>
-            <Link href={`/rankings?ligaId=${liga.id}`} className="creator-mini-action justify-center">Rankings</Link>
-            <Link href={`/galeria?ligaId=${liga.id}`} className="creator-mini-action justify-center">Galeria <ArrowRight size={16} /></Link>
+            <Link href={`/portal?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Portal</Link>
+            <Link href={`/jogos?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Jogos</Link>
+            <Link href={`/classificacao?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Classificação</Link>
+            <Link href={`/rankings?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Rankings</Link>
+            <Link href={`/galeria?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Galeria <ArrowRight size={16} /></Link>
           </div>
         </article>
       </section>
@@ -195,11 +212,21 @@ export default async function CampeonatoPage({ params }: PageProps) {
   )
 }
 
-function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+const FASES_DA_CHAVE = ['DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMIFINAL', 'FINAL']
+
+async function faseDaChave(ligaId: number, faseEliminatoria?: string | null) {
+  const configurada = String(faseEliminatoria ?? '').trim().toUpperCase()
+  if (configurada && configurada !== 'NENHUMA') return configurada
+  const { data } = await supabase.from('Partida').select('fase').eq('ligaId', ligaId).in('fase', FASES_DA_CHAVE)
+  const presentes = new Set((data ?? []).map((partida) => String(partida.fase ?? '')))
+  return FASES_DA_CHAVE.find((fase) => presentes.has(fase)) ?? null
+}
+
+function InfoCard({ icon, label, value, atraso = '0ms' }: { icon: React.ReactNode; label: string; value: React.ReactNode; atraso?: string }) {
   return (
-    <article className="championship-card rounded-[1.5rem] border p-5">
+    <article className={`championship-card rounded-[1.5rem] border p-5 ${mi.entrar} ${mi.cartao}`} style={{ animationDelay: atraso }}>
       <span className="championship-card-icon flex h-11 w-11 items-center justify-center rounded-2xl">{icon}</span>
-      <p className="mt-4 text-3xl font-black text-white">{value}</p>
+      <p className={`mt-4 text-3xl font-black text-white ${mi.numero}`}>{value}</p>
       <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-200">{label}</p>
     </article>
   )

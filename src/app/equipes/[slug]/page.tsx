@@ -4,9 +4,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, CalendarDays, Medal, ShieldCheck, Trophy, UsersRound } from 'lucide-react'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import { formatLigaFormato } from '@/lib/format-liga'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
+import mi from '@/styles/microinteracoes.module.css'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -129,7 +131,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
                 {[equipe.categoria, equipe.serie].filter(Boolean).join(' · ') || 'Equipe cadastrada na plataforma volei.space.'}
               </p>
             </div>
-            <article className="championship-card rounded-[1.75rem] border p-6">
+            <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar} ${mi.cartao}`}>
               <p className="luva-kicker">Resumo</p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <Metric label="Jogos" value={jogos.length} />
@@ -143,7 +145,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
       </section>
 
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-10 lg:grid-cols-[1fr_0.8fr]">
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="luva-kicker">Elenco</p>
@@ -153,17 +155,17 @@ export default async function EquipePublicPage({ params }: PageProps) {
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {(jogadores as Jogador[] | null)?.length ? (jogadores as Jogador[]).map((jogador) => (
-              <div key={jogador.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+            {(jogadores as Jogador[] | null)?.length ? (jogadores as Jogador[]).map((jogador, index) => (
+              <div key={jogador.id} className={`flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 ${mi.linha} ${mi.entrar}`} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
                 {jogador.fotoRostoUrl || jogador.fotoUrl ? (
                   <img src={jogador.fotoRostoUrl || jogador.fotoUrl || ''} alt={jogador.nome} className="h-14 w-14 rounded-2xl object-cover" />
                 ) : (
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-sm font-black text-luva-amber">
+                  <span className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-sm font-black text-luva-amber ${mi.numero}`}>
                     #{jogador.numero ?? '--'}
                   </span>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate font-black text-white">{jogador.nome}</p>
+                  <p className="break-words font-black text-white">{jogador.nome}</p>
                   <p className="mt-1 text-xs font-bold uppercase tracking-[0.1em] text-slate-300">
                     #{jogador.numero ?? '--'} · {jogador.posicao || 'Atleta'}
                   </p>
@@ -178,7 +180,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
         </article>
 
         <div className="grid gap-6">
-          <article className="championship-card rounded-[1.75rem] border p-6">
+          <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`} style={{ animationDelay: '40ms' }}>
             <p className="luva-kicker">Histórico</p>
             <h2 className="mt-2 font-display text-3xl font-black text-white">Performance</h2>
             <div className="mt-5 grid gap-3">
@@ -189,7 +191,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
             </div>
           </article>
 
-          <article className="championship-card rounded-[1.75rem] border p-6">
+          <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`} style={{ animationDelay: '80ms' }}>
             <p className="luva-kicker">Assiduidade</p>
             <h2 className="mt-2 font-display text-3xl font-black text-white">Presença competitiva</h2>
             <p className="mt-3 text-sm font-semibold leading-7 text-slate-200">
@@ -200,7 +202,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-12">
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="luva-kicker">Competições</p>
@@ -212,10 +214,10 @@ export default async function EquipePublicPage({ params }: PageProps) {
             {inscricoes?.length ? inscricoes.map((item: any) => {
               const liga = Array.isArray(item.liga) ? item.liga[0] : item.liga
               return (
-                <Link key={item.id} href={liga?.slug ? `/campeonatos/${liga.slug}` : '/campeonatos'} className="grid gap-2 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.06] md:grid-cols-[1fr_auto_auto] md:items-center">
+                <Link key={item.id} href={liga?.slug ? `/campeonatos/${liga.slug}` : '/campeonatos'} className={`grid gap-2 bg-white/[0.03] px-4 py-4 hover:bg-white/[0.06] md:grid-cols-[1fr_auto_auto] md:items-center ${mi.linha}`}>
                   <div>
                     <p className="font-display text-lg font-black text-white">{liga?.nome ?? 'Campeonato'}</p>
-                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">{liga?.formato ?? 'Formato a definir'}</p>
+                    <p className="mt-1 text-xs font-bold tracking-[0.04em] text-slate-300">{formatLigaFormato(liga?.formato)}</p>
                   </div>
                   <span className="text-sm font-black text-slate-200">{item.status?.replace(/_/g, ' ')}</span>
                   <span className="inline-flex items-center gap-2 text-sm font-black text-luva-amber">Ver campeonato <ArrowLeft className="rotate-180" size={15} /></span>
@@ -231,7 +233,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-16">
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`} style={{ animationDelay: '40ms' }}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="luva-kicker">Agenda</p>
@@ -245,13 +247,13 @@ export default async function EquipePublicPage({ params }: PageProps) {
               const equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] : partida.equipeB
               const liga = Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
               return (
-                <div key={partida.id} className="grid gap-2 bg-white/[0.03] px-4 py-4 md:grid-cols-[1fr_auto_auto] md:items-center">
+                <div key={partida.id} className={`grid gap-2 bg-white/[0.03] px-4 py-4 md:grid-cols-[1fr_auto_auto] md:items-center ${mi.linha}`}>
                   <div>
                     <p className="font-display text-lg font-black text-white">{equipeA?.nome ?? 'Equipe A'} x {equipeB?.nome ?? 'Equipe B'}</p>
                     <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">{liga?.nome ?? 'Campeonato'} · Rodada {partida.rodada ?? '-'}</p>
                   </div>
                   <span className="text-sm font-black text-slate-200">{formatDate(partida.dataHora)}</span>
-                  <span className="text-sm font-black text-luva-amber">{partida.setsPorA ?? 0} x {partida.setsPorB ?? 0}</span>
+                  <span className={`text-sm font-black text-luva-amber ${mi.numero}`}>{partida.setsPorA ?? 0} x {partida.setsPorB ?? 0}</span>
                 </div>
               )
             }) : (
@@ -268,8 +270,8 @@ export default async function EquipePublicPage({ params }: PageProps) {
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-3xl font-black text-white">{value}</p>
+    <div className={`rounded-2xl border border-white/10 bg-white/[0.04] p-4 ${mi.cartao}`}>
+      <p className={`text-3xl font-black text-white ${mi.numero}`}>{value}</p>
       <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">{label}</p>
     </div>
   )
@@ -277,9 +279,9 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 
 function HistoryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+    <div className={`flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 ${mi.linha}`}>
       <span className="flex items-center gap-2 text-sm font-bold text-slate-200">{icon}{label}</span>
-      <strong className="font-black text-white">{value}</strong>
+      <strong className={`font-black text-white ${mi.numero}`}>{value}</strong>
     </div>
   )
 }

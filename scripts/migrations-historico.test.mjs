@@ -35,7 +35,7 @@ for (const name of files) {
   assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+authenticated\b/i, `${name} concede a authenticated depois do fechamento`)
 }
 
-const placar = fs.readFileSync(path.join(dir, '202610100001_fechar_leitura_publica_placar.sql'), 'utf8')
+const placar = fs.readFileSync(path.join(dir, '202610100002_fechar_leitura_publica_placar.sql'), 'utf8')
 assert.match(placar, /enable row level security/i)
 assert.match(placar, /revoke all on table public\."SetPartida" from anon, authenticated/i)
 assert.match(placar, /revoke all on table public\."ClassificacaoEntrada" from anon, authenticated/i)
@@ -90,6 +90,10 @@ assert.match(
   fs.readFileSync(path.join(dir, '202610060003_classificacao_ao_vivo.sql'), 'utf8'),
   /add table public\."Partida"/,
 )
+
+const numeroPartida = fs.readFileSync(path.join(dir, '202610100001_sumula_presenca_presente_nulo.sql'), 'utf8')
+assert.match(numeroPartida, /alter column presente drop not null/i)
+assert.doesNotMatch(numeroPartida, /\b(delete|truncate|drop table)\b/i)
 
 assert.equal(fs.existsSync(path.join(process.cwd(), 'setup-db.mjs')), false)
 

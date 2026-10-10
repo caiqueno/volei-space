@@ -1,13 +1,26 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import { Manrope } from 'next/font/google'
+import { Barlow_Condensed, Manrope } from 'next/font/google'
 import './globals.css'
+import '../styles/vs-motion.css'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { IndicadorDemora } from '@/components/ui/IndicadorDemora'
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
 
-const manrope = Manrope({ subsets: ['latin'] })
+const sans = Manrope({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans',
+  display: 'swap',
+})
+
+const display = Barlow_Condensed({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  variable: '--font-display',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -84,14 +97,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${sans.variable} ${display.variable}`}>
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
         />
       </head>
-      <body className={manrope.className}>
+      <body className={sans.className}>
         <script dangerouslySetInnerHTML={{ __html: "try{if(window.self!==window.top)document.documentElement.classList.add('painel-embed')}catch(e){}" }} />
         <IndicadorDemora />
         <Suspense fallback={null}>

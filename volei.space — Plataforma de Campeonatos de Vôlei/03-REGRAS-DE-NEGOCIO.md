@@ -8,7 +8,7 @@ summary: >-
   Regras aprovadas do produto.
 status: misto
 created: 2026-09-20
-updated: 2026-09-28
+updated: 2026-10-10
 ---
 # Regras de negócio aprovadas
 
@@ -31,7 +31,7 @@ O organizador escolhe livremente a pontuação dos sets regulares (`Np`) e confi
 
 ## Substituições, MVP e correção
 
-Oito substituições por equipe e set; o mesmo par pode trocar e retornar repetidamente, respeitando o limite. Líbero gera apenas registro informativo. Antes da oficialização, selecionar MVP da vencedora; sugerir pelos scouts da partida e destacar nome, número, posição e scouts no resumo. O link corrige a súmula até 30 minutos do primeiro encerramento; depois, somente o organizador autorizado. Correção não renova o prazo e deve atualizar dados derivados. Ver [[modulos/SUMULA-DIGITAL]].
+Oito substituições por equipe e set. O par fica vinculado no set: quem entrou só sai para o titular voltar e, depois da volta, os dois não se substituem de novo naquele set. O requisito bruto ainda descreve a repetição do par dentro do limite; a decisão de 10/10/2026 fecha o par. Líbero gera apenas registro informativo e não entra na cota. Não há substituição excepcional. Antes da oficialização, selecionar MVP da vencedora; sugerir pelos scouts da partida e destacar nome, número, posição e scouts no resumo. O link corrige a súmula até 30 minutos do primeiro encerramento; depois, somente o organizador autorizado. Correção não renova o prazo e deve atualizar dados derivados. Ver [[modulos/SUMULA-DIGITAL]].
 
 ## Simulação — implementado no desenvolvimento
 

@@ -17,6 +17,7 @@ import { LandingExperience } from '@/components/landing/LandingExperience'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
 import { LandingMotion } from '@/components/landing/LandingMotion'
 import { createPageMetadata } from '@/lib/seo'
+import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
   title: 'Gestão de campeonatos de vôlei',
@@ -55,7 +56,7 @@ type RoleStat = (typeof stats)[number]
 
 function RoleCard({ stat }: { stat: RoleStat }) {
   return (
-    <div className={`landing-role-card is-${stat.tone}`}>
+    <div className={`landing-role-card is-${stat.tone} ${mi.toque}`}>
       <span className="role-card-photo" aria-hidden="true" />
       <span className="role-card-signal" aria-hidden="true" />
       <div className="role-card-copy">
@@ -115,15 +116,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="temporada" className="landing-section landing-animate">
-        <div className="landing-section-head landing-animate">
+      <section id="temporada" className={`landing-section ${mi.entrar}`}>
+        <div className="landing-section-head">
           <h2>Um campeonato para acompanhar do início ao fim.</h2>
         </div>
         <div className="landing-image-band">
-          <div className="image-band-media landing-animate">
+          <div className={`image-band-media ${mi.entrar}`}>
             <Image src="/brand/landing-season-volleyball.jpg" alt="Partida de vôlei em quadra" fill sizes="(min-width: 1024px) 620px, 100vw" className="object-cover" />
           </div>
-          <div className="image-band-copy landing-animate">
+          <div className={`image-band-copy ${mi.entrar}`} style={{ animationDelay: '60ms' }}>
             <h3>A página pública do campeonato.</h3>
             <p>
               Página pública para divulgar campeonatos, abrir inscrições, acompanhar confrontos e transformar cada rodada em memória para atletas e torcida.
@@ -132,13 +133,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="funcionalidades" className="landing-section landing-animate">
-        <div className="landing-section-head compact landing-animate">
+      <section id="funcionalidades" className="landing-section">
+        <div className={`landing-section-head compact ${mi.entrar}`}>
           <h2>Um só lugar para quem joga, apita, recebe e organiza.</h2>
         </div>
         <div className="landing-feature-grid">
           {features.map((feature, index) => (
-            <article key={feature.title} className="landing-tech-card landing-animate" style={{ animationDelay: `${index * 70}ms` }}>
+            <article key={feature.title} className={`landing-tech-card ${mi.entrar} ${mi.toque}`} style={{ animationDelay: `${Math.min(index, 6) * 40}ms` }}>
               <span>{feature.icon}</span>
               <h3>{feature.title}</h3>
               <p>{feature.text}</p>
@@ -157,14 +158,14 @@ export default function LandingPage() {
         <LandingExperience />
       </section>
 
-      <section id="etapas" className="landing-section landing-flow landing-animate">
-        <div className="landing-section-head compact landing-animate">
+      <section id="etapas" className="landing-section landing-flow">
+        <div className={`landing-section-head compact ${mi.entrar}`}>
           <h2>Da inscrição à final, tudo fica visível.</h2>
         </div>
         <div className="timeline-grid">
-          {stages.map((stage) => (
-            <article key={stage.step} className="timeline-item landing-animate">
-              <strong>{stage.step}</strong>
+          {stages.map((stage, index) => (
+            <article key={stage.step} className={`timeline-item ${mi.entrar} ${mi.toque}`} style={{ animationDelay: `${index * 40}ms` }}>
+              <strong className={mi.numero}>{stage.step}</strong>
               <span>{stage.title}</span>
               <p>{stage.text}</p>
             </article>
@@ -179,7 +180,7 @@ export default function LandingPage() {
         <p className="landing-form-intro landing-animate">
           Informe nome, e-mail e telefone. O administrador libera o acesso e entrega uma senha temporária.
         </p>
-        <Link href="/seja-membro" className="landing-primary inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black">
+        <Link href="/seja-membro" className={`landing-primary inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black ${mi.toque}`}>
           Seja membro <ArrowRight size={16} />
         </Link>
       </section>

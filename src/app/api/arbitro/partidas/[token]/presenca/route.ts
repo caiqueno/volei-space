@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       equipeId: atleta.equipeId,
       presente: parsed.data.presente,
     }, { onConflict: 'partidaId,jogadorId' })
-    .select('id,jogadorId,equipeId,presente')
+    .select('id,jogadorId,equipeId,presente,numero')
     .single()
 
   if (presencaErr || !data) return error('Não foi possível salvar a presença.', 500)

@@ -6,6 +6,7 @@ import { ExternalLink, Radio, Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import mi from '@/styles/microinteracoes.module.css'
 
 export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null }
 
@@ -77,9 +78,9 @@ export function ChaveamentoMataMata({
         {showThirdPlaceInline ? (
           <>
             <div className="relative flex items-end gap-8">
-              <BracketNode node={root.children[0]} ligaId={ligaId} organizerMode={organizerMode} />
-              <SlotCard slot={thirdPlace!} roundLabel="Disputa de 3º lugar" multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} />
-              <BracketNode node={root.children[1]} ligaId={ligaId} organizerMode={organizerMode} />
+              <BracketNode node={root.children[0]} ligaId={ligaId} organizerMode={organizerMode} nivel={1} />
+              <SlotCard slot={thirdPlace!} roundLabel="Disputa de 3º lugar" multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} nivel={1} />
+              <BracketNode node={root.children[1]} ligaId={ligaId} organizerMode={organizerMode} nivel={1} />
               {/* Conector especial: com o card do 3º lugar ocupando a vaga central da linha,
                   os dois cards da semifinal ficam a 1/6.5 e 5,5/6.5 da largura total (256px de
                   card + 32px de gap, repetidos 3x) — não mais em 25%/75% como nas linhas normais. */}
@@ -89,14 +90,14 @@ export function ChaveamentoMataMata({
               </svg>
             </div>
             <div className="h-7" />
-            <SlotCard slot={root.slot} roundLabel={root.round.label} multiSlot={root.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} highlight={root.round.fase === 'FINAL'} />
+            <SlotCard slot={root.slot} roundLabel={root.round.label} multiSlot={root.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} highlight={root.round.fase === 'FINAL'} nivel={0} />
           </>
         ) : (
           <BracketNode node={root} ligaId={ligaId} organizerMode={organizerMode} />
         )}
         <StraightConnector />
-        <div className="border-beam flex w-56 flex-col items-center gap-2 rounded-2xl bg-luva-navy p-5 text-center shadow-[0_0_28px_rgba(239,159,39,0.4)]">
-          <Trophy size={26} className="text-luva-amber" />
+        <div className={`border-beam flex w-56 flex-col items-center gap-2 rounded-2xl bg-luva-navy p-5 text-center shadow-[0_0_28px_rgba(239,159,39,0.4)] ${mi.campeao} ${mi.entrar}`} style={{ animationDelay: '180ms' }}>
+          <Trophy size={26} className={`text-luva-amber ${mi.pop}`} />
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">Campeão</p>
           {champion ? (
             <p className="font-display text-lg font-black text-white">{champion.nome}</p>
@@ -109,14 +110,14 @@ export function ChaveamentoMataMata({
   )
 }
 
-function BracketNode({ node, ligaId, organizerMode }: { node: Node; ligaId: number; organizerMode: boolean }) {
+function BracketNode({ node, ligaId, organizerMode, nivel = 0 }: { node: Node; ligaId: number; organizerMode: boolean; nivel?: number }) {
   const hasChildren = node.children.length > 0
   return (
     <div className="flex flex-col items-center">
       {hasChildren && (
         <div className="relative flex items-start gap-8">
           {node.children.map((child, index) => (
-            <BracketNode key={index} node={child} ligaId={ligaId} organizerMode={organizerMode} />
+            <BracketNode key={index} node={child} ligaId={ligaId} organizerMode={organizerMode} nivel={nivel + 1} />
           ))}
           {/* Spans the exact rendered width of the row above via absolute positioning, so the
               25%/75% marks land on each child's center regardless of subtree width. */}
@@ -127,7 +128,7 @@ function BracketNode({ node, ligaId, organizerMode }: { node: Node; ligaId: numb
         </div>
       )}
       {hasChildren && <div className="h-7" />}
-      <SlotCard slot={node.slot} roundLabel={node.round.label} multiSlot={node.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} highlight={node.round.fase === 'FINAL'} />
+      <SlotCard slot={node.slot} roundLabel={node.round.label} multiSlot={node.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} highlight={node.round.fase === 'FINAL'} nivel={nivel} />
     </div>
   )
 }
@@ -143,6 +144,7 @@ function SlotCard({
   ligaId,
   organizerMode,
   highlight = false,
+  nivel = 0,
 }: {
   slot: BracketSlot
   roundLabel: string
@@ -150,8 +152,10 @@ function SlotCard({
   ligaId: number
   organizerMode: boolean
   highlight?: boolean
+  nivel?: number
 }) {
   const tag = multiSlot ? `${roundLabel} · Jogo ${slot.rodada}` : roundLabel
+  const revelacao = { animationDelay: `${Math.max(0, 3 - nivel) * 50}ms` }
 
   if (slot.partida) {
     const { partida } = slot
@@ -160,7 +164,7 @@ function SlotCard({
     const winnerId = encerrada ? (Number(partida.setsPorA ?? 0) > Number(partida.setsPorB ?? 0) ? partida.equipeA.id : Number(partida.setsPorB ?? 0) > Number(partida.setsPorA ?? 0) ? partida.equipeB.id : null) : null
 
     return (
-      <div className={`w-64 rounded-2xl bg-white p-4 ${highlight ? 'border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)]' : 'border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.08)]'}`}>
+      <div className={`w-64 rounded-2xl bg-white p-4 ${mi.chave} ${mi.cartao} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.08)]'}`} style={revelacao}>
         <div className="mb-3 flex items-center justify-between gap-2">
           <span className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
           <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -168,7 +172,7 @@ function SlotCard({
         <TeamRow team={partida.equipeA} score={partida.setsPorA} isWinner={winnerId === partida.equipeA.id} />
         <TeamRow team={partida.equipeB} score={partida.setsPorB} isWinner={winnerId === partida.equipeB.id} />
         {partida.sets.length > 0 && (
-          <p className="mt-2 border-t border-slate-100 pt-2 font-mono text-[11px] font-bold text-slate-400">
+          <p className={`mt-2 border-t border-slate-100 pt-2 text-[11px] font-bold text-slate-400 ${mi.numero}`}>
             {partida.sets.map((s) => `${s.pontosA}-${s.pontosB}`).join(' · ')}
           </p>
         )}
@@ -186,11 +190,11 @@ function SlotCard({
   }
 
   if (organizerMode && slot.eligibleOptions) {
-    return <CriarConfrontoCard slot={slot} tag={tag} ligaId={ligaId} options={slot.eligibleOptions} highlight={highlight} />
+    return <CriarConfrontoCard slot={slot} tag={tag} ligaId={ligaId} options={slot.eligibleOptions} highlight={highlight} revelacao={revelacao} />
   }
 
   return (
-    <div className={`flex w-64 flex-col items-center justify-center gap-1 rounded-2xl bg-slate-50 p-4 text-center ${highlight ? 'border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)]' : 'border border-dashed border-slate-300'}`}>
+    <div className={`flex w-64 flex-col items-center justify-center gap-1 rounded-2xl bg-slate-50 p-4 text-center ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-dashed border-slate-300'}`} style={revelacao}>
       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
       <span className="text-sm font-bold text-slate-400">A definir</span>
     </div>
@@ -199,14 +203,14 @@ function SlotCard({
 
 function TeamRow({ team, score, isWinner }: { team: TeamOption; score: number | null; isWinner: boolean }) {
   return (
-    <div className={`flex items-center justify-between gap-2 py-1.5 ${isWinner ? '' : 'opacity-70'}`}>
+    <div className={`flex items-center justify-between gap-2 py-1.5 ${isWinner ? mi.lider : 'opacity-70'}`}>
       <TeamIdentity nome={team.nome} cor={team.corHex} logoUrl={team.logoUrl} compact />
-      {score != null && <span className={`font-mono text-sm font-black ${isWinner ? 'text-emerald-600' : 'text-slate-400'}`}>{score}</span>}
+      {score != null && <span className={`text-sm font-black ${mi.numero} ${isWinner ? 'text-emerald-600' : 'text-slate-400'}`}>{score}</span>}
     </div>
   )
 }
 
-function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false }: { slot: BracketSlot; tag: string; ligaId: number; options: TeamOption[]; highlight?: boolean }) {
+function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false, revelacao }: { slot: BracketSlot; tag: string; ligaId: number; options: TeamOption[]; highlight?: boolean; revelacao?: { animationDelay: string } }) {
   const router = useRouter()
   const [equipeAId, setEquipeAId] = useState('')
   const [equipeBId, setEquipeBId] = useState('')
@@ -245,7 +249,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false }: {
 
   if (options.length === 0) {
     return (
-      <div className="flex w-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+      <div className={`flex w-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center ${mi.chave}`} style={revelacao}>
         <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
         <span className="text-sm font-bold text-slate-400">Sem times disponíveis</span>
       </div>
@@ -253,7 +257,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false }: {
   }
 
   return (
-    <div className={`w-64 rounded-2xl bg-amber-50/40 p-4 ${highlight ? 'border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)]' : 'border border-luva-amber/40'}`}>
+    <div className={`w-64 rounded-2xl bg-amber-50/40 p-4 ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-luva-amber/40'}`} style={revelacao}>
       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{tag}</span>
       <div className="mt-2 grid gap-2">
         <select value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900">

@@ -2,6 +2,7 @@
 
 import { Plus } from 'lucide-react'
 import { LoadingTrack } from '@/components/ui/action-bar'
+import mi from '@/styles/microinteracoes.module.css'
 
 // Mesmo formato/dimensões de ChampionshipCard (item 12) — não o botão
 // redondo antigo (VolleyballActionButton). É o elemento de maior destaque
@@ -12,7 +13,7 @@ export function EmptyChampionshipCard({ onCreate, creating }: { onCreate: () => 
       type="button"
       onClick={onCreate}
       disabled={creating}
-      className="group flex h-full w-full flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-dashed border-luva-amber/40 bg-luva-amber/[0.04] p-8 text-center transition hover:border-luva-amber/70 hover:bg-luva-amber/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+      className={`group flex h-full w-full flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-dashed border-luva-amber/40 bg-luva-amber/[0.04] p-8 text-center hover:border-luva-amber/70 hover:bg-luva-amber/[0.08] disabled:cursor-not-allowed disabled:opacity-60 ${mi.entrar} ${mi.cartao}`}
     >
       {creating ? <LoadingTrack label="Criando" className="w-full rounded-2xl" /> : (
         <>
