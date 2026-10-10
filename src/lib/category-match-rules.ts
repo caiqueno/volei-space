@@ -4,6 +4,7 @@
  * O formato único de 3 sets de 21 de `brain/02 - Regulamento e Regras da Liga/Formato da Temporada.md`
  * não está fixado nesta função.
  */
+import { quantidadeDeLiberos } from '@/lib/libero-sumula'
 import { inteiroDeSets, setsDaFase, type SetsPorFase } from '@/lib/sets-por-fase'
 
 export type CategorySet = { numero: number; pontosA: number; pontosB: number }
@@ -20,6 +21,8 @@ export type CategoryMatchRules = SetsPorFase & {
   separarTempos?: boolean | null
   tempoMedico?: boolean | null
   substituicaoPorLesao?: boolean | null
+  exigirLiberoInicial?: boolean | null
+  quantidadeLiberos?: number | null
 }
 
 export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null): CategoryMatchRules {
@@ -78,6 +81,8 @@ export function montarFonteDeRegras(input: {
       separarTempos: categoria.separarTempos === true,
       tempoMedico: categoria.tempoMedico === true,
       substituicaoPorLesao: categoria.substituicaoPorLesao === true,
+      exigirLiberoInicial: categoria.exigirLiberoInicial,
+      quantidadeLiberos: quantidadeDeLiberos(categoria.quantidadeLiberos),
     }
   }
   const liga = input.liga ?? {}
@@ -99,6 +104,8 @@ export function montarFonteDeRegras(input: {
     separarTempos: liga.separarTempos === true,
     tempoMedico: liga.tempoMedico === true,
     substituicaoPorLesao: liga.substituicaoPorLesao === true,
+    exigirLiberoInicial: liga.exigirLiberoInicial,
+    quantidadeLiberos: quantidadeDeLiberos(liga.quantidadeLiberos),
   }
 }
 

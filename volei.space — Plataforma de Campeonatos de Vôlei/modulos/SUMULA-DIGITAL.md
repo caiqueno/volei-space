@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O andamento da súmula grava o placar de novo. A ocorrência de presença deixa o id com a sequence. Os salvamentos do árbitro entram um atrás do outro.
+  Sem configuração, a súmula continua pedindo um líbero inicial e a troca não conta como substituição. O andamento da súmula grava o placar de novo. A ocorrência de presença deixa o id com a sequence.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -19,6 +19,8 @@ updated: 2026-10-10
 **Sanções — implementado:** advertência, penalidade, expulsão e desqualificação entram na ocorrência da súmula. No mesmo jogo a sequência sobe sozinha; uma sanção mais grave pode ser aplicada direto. A segunda advertência precisa ser gravada como penalidade. Expulsão, desqualificação e cada duas advertências suspendem o atleta na partida seguinte da categoria. A súmula recusa a presença dele. Penalidade pesa 1 na coluna `punicoes`, expulsão pesa 1 e desqualificação pesa 2. Advertência pesa 0. O peso não tira ponto de campeonato. O cartão amarelo antigo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A decisão de cumprimento lê as ocorrências e não grava essa tabela.
 
 **Regras da categoria — implementado no código:** lançamento, andamento, validação e o placar recalculado leem `CategoriaConfiguracao` da partida (`setsPorPartida`, pontos, tie-break, `terceiroSetObrigatorio`, formato e a quantidade da fase). A `Liga` não entra nessa leitura quando a partida tem categoria. `terceiroSetObrigatorio` não é coluna da `Liga`; sem categoria, ele fica desligado e o tie-break usa o valor da `Liga` (o default dela é desligado; o da categoria é ligado). A tela `/sumula/{token}/lancar` usa a mesma função. Com terceiro set obrigatório ou quantidade fixa, ela não encerra em 2×0. Resultado manual e aprovação seguem o mesmo carregamento.
+
+**Líbero — implementado no código, migration pendente:** a escalação continua pedindo um líbero inicial enquanto `exigirLiberoInicial` não está false. A troca de líbero não conta no limite de substituições e não cria par, com ou sem a opção. `quantidadeLiberos` 1 ou 2 corta a lista de quem pode ser o líbero inicial; vazio, ausente ou fora disso não corta. Sem as colunas, a leitura não pede esses campos no pedido seguinte e a conferência da escalação permanece a de hoje. `20261010139990_libero_sumula.sql` não foi aplicada.
 
 **Tempo médico e lesão — implementado no código, migration pendente:** `tempoMedico` true mostra o botão de tempo médico, que não entra na conta dos tempos. `substituicaoPorLesao` true permite marcar a entrada como lesão: ela não conta no limite e não cria par. Com as opções desligadas, ausentes ou sem a coluna, não há botão novo, o teto de tempos permanece e o par fecha na volta. Uma ocorrência `lesao` enviada sem a opção conta como substituição comum, para não furar o limite. `20261010139980_lesao_sumula.sql` não foi aplicada.
 
