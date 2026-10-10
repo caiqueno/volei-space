@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Corrigir o último ponto volta a funcionar depois de recarregar a súmula. A presença do árbitro deixa o upsert.
+  /painel/elenco tem seletor de campeonato. Corrigir o último ponto funciona depois de recarregar. A presença do árbitro deixa o upsert.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 `/painel/elenco` mostra o seletor de campeonato e abre o campeonato ativo do painel. Sem `ligaId` na consulta, entra o primeiro campeonato do organizador. Fonte: [[modulos/EQUIPES-E-ATLETAS]].
 
 Em 10 de outubro de 2026 corrigir o último ponto continua valendo depois de recarregar a súmula. O histórico do set em andamento é refeito pelos eventos gravados. Fonte: [[modulos/SUMULA-DIGITAL]].
 
