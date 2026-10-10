@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A vitrine mostra a fase do mata-mata, numera o turno sem reescrever jogos já gravados e deixa data e local do card legíveis. Nome novo de equipe entra em maiúsculas. 20261010140000 ainda não foi aplicada.
+  A foto do atleta é opcional na inscrição. 20261010130000 ainda não foi aplicada. A vitrine e o RLS de 20261010140000 seguem pendentes de banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a foto do atleta deixou de bloquear a inscrição. O link da vaga, o rascunho, a inscrição rápida e o capitão mostram o campo como opcional e aceitam salvar e concluir sem imagem. O upload segue gravando `fotoUrl` ou `fotoRostoUrl` quando a foto é enviada. O campo continua oculto só se a configuração estiver `disabled`. A função instalada ainda pode recusar a conclusão; `20261010130000_foto_atleta_opcional.sql` tira essa recusa de `finalizar_inscricao_equipe_rascunho` e de `validar_jogador_formulario_categoria` e não foi aplicada. Ela deve entrar depois de `202610100002`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a página ao vivo, a súmula e o card do jogo usam o nome da fase no mata-mata (`Final`, `3º lugar`, `Semifinal`). Data e local «A definir» somem quando a partida já encerrou; jogo agendado continua com «A definir». O turno único e o returno ocupam a primeira rodada em que as duas equipes estão livres. Três equipes que já jogaram entre si não empurram o quarto confronto para a rodada 6. Jogos já gravados não são reescritos. A função SQL `substituir_estrutura_categoria` continua numerando em sequência e não é chamada pelo app; não houve migration. As partidas `GERAL` da liga 60 em produção ficam como estão: 919 está na rodada 5 e 920 na 6. Um calendário novo das equipes 266–269 coloca os dois pares nas rodadas 2 e 3. O card de data e local usa a superfície elevada `#16243D` e o texto `#F5F7FB`. Nome de equipe novo ou editado é gravado em maiúsculas no servidor (inscrição, formulário, importação e admin). A tela também aplica `text-transform` e `normalizarNomeEquipe`. Não houve migration nem atualização das linhas já gravadas. Fonte: [[modulos/PARTIDAS]], [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/EQUIPES-E-ATLETAS]], [[09-UI-UX]].
 

@@ -32,7 +32,8 @@ export function resolveFormularioRapidaConfig(raw: unknown): ResolvedFormularioR
     atleta: {
       numeroCamisa: data.atleta?.numeroCamisa ?? defaults.atleta.numeroCamisa,
       posicao: data.atleta?.posicao ?? defaults.atleta.posicao,
-      foto: data.atleta?.foto ?? defaults.atleta.foto,
+      // A foto do atleta é opcional na inscrição, mesmo se o formulário gravou required por causa do QR.
+      foto: (data.atleta?.foto ?? defaults.atleta.foto) === 'disabled' ? 'disabled' : 'optional',
       cpf: data.atleta?.cpf ?? defaults.atleta.cpf,
       dataNascimento: data.atleta?.dataNascimento ?? defaults.atleta.dataNascimento,
       documento: data.atleta?.documento ?? defaults.atleta.documento,

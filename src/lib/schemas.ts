@@ -41,10 +41,12 @@ export const equipeSchema = z.object({
   logoUrl: z.string().url().optional().or(z.literal('')),
 })
 
+const urlDeFotoOpcional = z.string().url().optional().nullable().or(z.literal(''))
+
 export const jogadorSchema = z.object({
   nome: z.string().min(1),
   equipeId: z.number().int().positive(),
-  fotoUrl: z.string().url().optional().or(z.literal('')),
+  fotoUrl: urlDeFotoOpcional,
   posicao: z.string().optional(),
   numero: z.number().int().optional(),
   banido: z.boolean().optional(),
@@ -140,11 +142,12 @@ export const formularioInscricaoConfigSchema = z.object({
 // (ver mapeamento em src/app/api/inscricao-rapida/route.ts). Requisitos por
 // campo (obrigatório/opcional/desabilitado) vêm de Liga.formularioInscricaoConfig
 // e são checados em runtime na rota, não aqui — este schema só valida forma.
+// A foto do atleta não entra nessa exigência: ausência, null e string vazia passam.
 export const inscricaoRapidaJogadorSchema = z.object({
   nome: z.string().trim().min(1),
   numero: z.number().int().min(0).max(999).optional(),
   posicao: z.string().trim().optional(),
-  fotoUrl: z.string().url().optional().or(z.literal('')),
+  fotoUrl: urlDeFotoOpcional,
   cpf: z.string().trim().optional(),
   dataNascimento: z.string().optional(),
   documentoTipo: z.string().trim().optional(),
@@ -509,7 +512,7 @@ export const playerInscricaoSchema = z.object({
   email: z.string().email('E-mail inválido'),
   celular: z.string().min(10, 'Celular inválido'),
   telefoneEmergencia: z.string().min(10, 'Telefone de emergência inválido'),
-  fotoRostoUrl: z.string().url().optional().or(z.literal('')),
+  fotoRostoUrl: urlDeFotoOpcional,
   documentosUrls: z.array(z.string().url()).optional(),
   posicao: z.enum(posicoesJogador).optional(),
   numero: z.number().int().optional(),
