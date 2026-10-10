@@ -31,22 +31,4 @@ export type LigaPanel = {
   criadoEm?: string
 }
 
-export function formatLigaFormato(formato?: string | null) {
-  const map: Record<string, string> = {
-    PONTOS_CORRIDOS: 'Pontos corridos',
-    GRUPOS_MATA_MATA: 'Grupos + mata-mata',
-    MATA_MATA: 'Mata-mata',
-    COPA_CURTA: 'Mata-mata',
-  }
-  return formato ? map[formato] ?? formato : 'Formato a definir'
-}
-
-export function formatLigaStatusLabel(status?: string | null) {
-  const map: Record<string, string> = {
-    EM_BREVE: 'Em breve',
-    ATIVA: 'Ativo',
-    ENCERRADA: 'Encerrado',
-  }
-  if (!status) return 'Em breve'
-  return map[status] ?? status.toLowerCase().replace(/_/g, ' ')
-}
+export { formatLigaFormato, formatLigaStatus as formatLigaStatusLabel } from '@/lib/format-liga'

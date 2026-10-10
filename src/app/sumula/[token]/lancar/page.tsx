@@ -3,9 +3,10 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { OrigemPontoModal } from '@/components/sumula/OrigemPontoModal'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
+import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
+import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import {
   Activity,
   AlertCircle,
@@ -169,8 +170,7 @@ export default function SumulaPage() {
   const [mvpId, setMvpId] = useState('')
   const [editingSlot, setEditingSlot] = useState<{ teamId: TeamId; index: number } | null>(null)
   const [subModal, setSubModal] = useState<{ teamId: TeamId; index: number; outNumber: string } | null>(null)
-  const [substitutionLocks, setSubstitutionLocks] = useState<Record<number, Record<TeamId, Record<string, string>>>>({})
-  const [substitutionsUsed, setSubstitutionsUsed] = useState<Record<number, Record<TeamId, number>>>({})
+  const [controleSubstituicao, setControleSubstituicao] = useState<Record<number, Record<TeamId, ControleSubstituicao>>>({})
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -237,15 +237,15 @@ export default function SumulaPage() {
         const restoredTimeouts = countSavedTimeouts(savedOccurrences, teamA, teamB, restored.currentSet)
         setTimeoutsUsedA(restoredTimeouts.teamA)
         setTimeoutsUsedB(restoredTimeouts.teamB)
-        setSubstitutionsUsed(countSavedSubstitutions(savedOccurrences, teamA, teamB))
-        setSubstitutionLocks(restoreSubstitutionLocks(savedOccurrences, teamA, teamB))
+        const numerosDaPartida = restoreMatchNumberOverrides(teamA, teamB, savedPresence)
+        setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida))
         const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
         if (destaqueMvp?.jogadorId) setMvpId(String(destaqueMvp.jogadorId))
         setSidesInverted(countSavedSideInversions(savedOccurrences) % 2 === 1)
 
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setValidatedB(teamB.players.concat(teamB.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
-        setMatchNumberOverrides(restoreMatchNumberOverrides(teamA, teamB, savedPresence))
+        setMatchNumberOverrides(numerosDaPartida)
         setEvents(savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => {
           const salvo = partirDescricaoSalva(String(o.descricao ?? 'Ocorrência registrada'))
           const jogadorId = o.jogadorId ?? undefined
@@ -609,10 +609,13 @@ export default function SumulaPage() {
       return
     }
 
-    const chosenServer = initialServerBySet[currentSet]
-    if (!chosenServer) {
-      addToast(`Defina quem começa sacando no set ${currentSet} antes de liberar a pontuação.`)
+    const resolvido = resolverSaqueInicial(currentSet)
+    if (!resolvido.lado) {
+      addToast(resolvido.erro ?? `Defina quem começa sacando no set ${currentSet} antes de liberar a pontuação.`)
       return
+    }
+    if (initialServerBySet[currentSet] !== resolvido.lado) {
+      setInitialServerBySet((current) => ({ ...current, [currentSet]: resolvido.lado }))
     }
 
     const isFirstMatchStart = currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO'
@@ -626,14 +629,24 @@ export default function SumulaPage() {
   }
 
   function unlockPontuacao() {
-    const chosenServer = initialServerBySet[currentSet]
-    if (!chosenServer) return
+    const resolvido = resolverSaqueInicial(currentSet)
+    const chosenServer = resolvido.lado
+    if (!chosenServer) {
+      addToast(resolvido.erro ?? 'Defina o saque inicial antes de liberar a pontuação.')
+      return
+    }
     setServingTeamId(chosenServer)
     setServerIndexA(5)
     setServerIndexB(5)
     setActiveTab('pontuacao')
     const starterName = chosenServer === 'teamA' ? teamA?.name : teamB?.name
-    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
+    const anterior = initialServerBySet[currentSet - 1]
+    const motivo = modoSaqueInicial(currentSet) === 'alternancia' && (anterior === 'teamA' || anterior === 'teamB')
+      ? ` Alternância: ${starterName ?? 'A equipe'} não sacou no set ${currentSet - 1}.`
+      : modoSaqueInicial(currentSet) === 'sorteio'
+        ? ' Sorteio do tie-break definiu o saque deste set.'
+        : ''
+    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
     if (currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO') {
       fetch('/api/arbitro/partidas/' + token + '/iniciar', { method: 'POST' })
         .then((res) => {
@@ -649,8 +662,53 @@ export default function SumulaPage() {
   }
 
   function setInitialServerForCurrentSet(teamId: TeamId) {
+    if (modoSaqueInicial(currentSet) === 'alternancia') return
     setInitialServerBySet((current) => ({ ...current, [currentSet]: teamId }))
   }
+
+  function registrarSorteioTieBreak(teamId: TeamId, origem: 'aplicativo' | 'mesa') {
+    if (modoSaqueInicial(currentSet) !== 'sorteio' || !teamA || !teamB) return
+    setInitialServerBySet((current) => ({ ...current, [currentSet]: teamId }))
+    const nome = teamId === 'teamA' ? teamA.name : teamB.name
+    const frase = origem === 'aplicativo'
+      ? `Sorteio do set ${currentSet}: o aplicativo sorteou ${nome}, que começa sacando. ${marcarSaqueInicial(teamId)}`
+      : `Sorteio do set ${currentSet}: a mesa registrou que ${nome} começa sacando. ${marcarSaqueInicial(teamId)}`
+    addMatchEvent('anotacao', frase)
+  }
+
+  function resolverSaqueInicial(setNumero: number) {
+    const anterior = initialServerBySet[setNumero - 1] ?? null
+    if (modoSaqueInicial(setNumero) === 'alternancia') {
+      const obrigatorio = saqueObrigatorio(setNumero, anterior)
+      if (!obrigatorio) return { lado: null as TeamId | null, erro: `O saque do set ${setNumero} depende de quem sacou no set ${setNumero - 1}.` }
+      return { lado: obrigatorio, erro: null as string | null }
+    }
+    const escolhido = initialServerBySet[setNumero] ?? null
+    if (!escolhido) {
+      return {
+        lado: null as TeamId | null,
+        erro: modoSaqueInicial(setNumero) === 'sorteio'
+          ? 'Registre o sorteio do 5º set antes de liberar a pontuação.'
+          : `Defina quem começa sacando no set ${setNumero} antes de liberar a pontuação.`,
+      }
+    }
+    return { lado: escolhido, erro: null as string | null }
+  }
+
+  useEffect(() => {
+    if (currentSet < 2 || currentSet > 4 || !teamA || !teamB) return
+    const anterior = initialServerBySet[currentSet - 1]
+    if (anterior !== 'teamA' && anterior !== 'teamB') return
+    const obrigatorio = ladoOposto(anterior)
+    if (initialServerBySet[currentSet] !== obrigatorio) {
+      setInitialServerBySet((current) => ({ ...current, [currentSet]: obrigatorio }))
+    }
+    if (matchStatus !== 'live') return
+    const jaMarcado = events.some((event) => event.set === currentSet && event.text.includes('[[SAQUE:') && event.text.includes(`:${obrigatorio}]]`))
+    if (jaMarcado) return
+    const nome = obrigatorio === 'teamA' ? teamA.name : teamB.name
+    addMatchEvent('anotacao', `Alternância do set ${currentSet}: ${nome} começa sacando. ${marcarSaqueInicial(obrigatorio)}`)
+  }, [currentSet, initialServerBySet, matchStatus, teamA, teamB, events])
 
   function setStartingLibero(teamId: TeamId, number: string) {
     if (teamId === 'teamA') setLineupConfirmedA(false)
@@ -720,16 +778,18 @@ export default function SumulaPage() {
     setSubModal({ teamId, index, outNumber: number })
   }
 
-  function getAllowedSubstitutionNumbers(teamId: TeamId, outNumber: string) {
+  function listaDeSubstituicao(teamId: TeamId, outNumber: string) {
     const currentBench = teamId === 'teamA' ? benchA : benchB
-    const teamLocks = substitutionLocks[currentSet]?.[teamId] ?? {}
-    const lockedPartner = teamLocks[outNumber]
-    return currentBench.filter((number) => {
-      const incomingLock = teamLocks[number]
-      if (lockedPartner && number !== lockedPartner) return false
-      if (incomingLock && incomingLock !== outNumber) return false
-      return true
-    })
+    const controle = controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()
+    return reservasElegiveis(controle, outNumber, currentBench)
+  }
+
+  function avisoDoModal() {
+    if (!subModal) return null
+    const lista = listaDeSubstituicao(subModal.teamId, subModal.outNumber)
+    if (!lista.aviso) return null
+    const teamId = subModal.teamId
+    return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero))
   }
 
   function executeSubstitution(inNumber: string) {
@@ -741,20 +801,16 @@ export default function SumulaPage() {
     const outPlayer = getPlayer(team, subModal.outNumber)
     const inPlayer = getPlayer(team, inNumber)
     const currentBench = isA ? benchA : benchB
-    const allowedBench = getAllowedSubstitutionNumbers(subModal.teamId, subModal.outNumber)
     const isLiberoExchange = Boolean(outPlayer?.isLibero || inPlayer?.isLibero)
 
     if (!currentBench.includes(inNumber)) {
       addToast('Escolha um atleta do banco de reservas.')
       return
     }
-    if (!allowedBench.includes(inNumber)) {
-      addToast(`Neste set, este atleta só pode voltar com #${allowedBench[0] ?? '--'}.`)
-      return
-    }
-    const usedSubstitutions = substitutionsUsed[currentSet]?.[subModal.teamId] ?? 0
-    if (!isLiberoExchange && usedSubstitutions >= 8) {
-      addToast('Limite de 8 substituições por set atingido para esta equipe.')
+    const controleAtual = controleSubstituicao[currentSet]?.[subModal.teamId] ?? controleVazio()
+    const proximoControle = isLiberoExchange ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber)
+    if (proximoControle?.falha) {
+      addToast(mensagemFalhaSubstituicao(proximoControle.falha, currentSet))
       return
     }
 
@@ -775,34 +831,20 @@ export default function SumulaPage() {
         : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
       subModal.teamId,
     )
-    if (!isLiberoExchange) {
-      setSubstitutionsUsed((current) => {
-        const currentSetCounts = current[currentSet] ?? { teamA: 0, teamB: 0 }
+    if (proximoControle) {
+      const gravado = proximoControle.controle
+      setControleSubstituicao((current) => {
+        const doSet = current[currentSet] ?? { teamA: controleVazio(), teamB: controleVazio() }
         return {
           ...current,
           [currentSet]: {
-            ...currentSetCounts,
-            [subModal.teamId]: (currentSetCounts[subModal.teamId] ?? 0) + 1,
+            teamA: doSet.teamA ?? controleVazio(),
+            teamB: doSet.teamB ?? controleVazio(),
+            [subModal.teamId]: gravado,
           },
         }
       })
     }
-    setSubstitutionLocks((current) => {
-      const currentSetLocks = current[currentSet] ?? { teamA: {}, teamB: {} }
-      const teamLocks = currentSetLocks[subModal.teamId] ?? {}
-      return {
-        ...current,
-        [currentSet]: {
-          teamA: currentSetLocks.teamA ?? {},
-          teamB: currentSetLocks.teamB ?? {},
-          [subModal.teamId]: {
-            ...teamLocks,
-            [subModal.outNumber]: inNumber,
-            [inNumber]: subModal.outNumber,
-          },
-        },
-      }
-    })
     setSubModal(null)
     addToast(isLiberoExchange ? 'Troca de líbero registrada.' : 'Substituição registrada.')
   }
@@ -1273,14 +1315,14 @@ export default function SumulaPage() {
             pointFlash={pointFlash}
             rules={matchRules}
             subModal={subModal}
-            allowedSubstitutions={subModal ? getAllowedSubstitutionNumbers(subModal.teamId, subModal.outNumber) : []}
+            allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
+            substitutionNotice={avisoDoModal()}
             getMatchNumber={getMatchNumber}
             onAttack={(teamId, number) => logPoint(teamId, number, { kind: 'attack' })}
             onBlock={(teamId, number) => logPoint(teamId, number, { kind: 'block' })}
             onAce={logAce}
             events={events}
-            onPointOrigin={(teamId, origem, number) => logPoint(teamId, number, origem === 'ace' ? { ace: true } : { kind: origem })}
-            onPointWithoutPlayer={(teamId) => logPoint(teamId, '', { kind: 'team' })}
+            onPoint={(teamId) => logPoint(teamId, '', { kind: 'team' })}
             onSubstitution={askSubstitution}
             onSelectSubstitution={executeSubstitution}
             onCloseSubstitution={() => setSubModal(null)}
@@ -1318,12 +1360,15 @@ export default function SumulaPage() {
             confirmLineup={confirmLineup}
             setStartingLibero={setStartingLibero}
             executeSubstitution={executeSubstitution}
-            allowedSubstitutions={subModal ? getAllowedSubstitutionNumbers(subModal.teamId, subModal.outNumber) : []}
+            allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
+            substitutionNotice={avisoDoModal()}
             closeSubModal={() => setSubModal(null)}
             getMatchNumber={getMatchNumber}
             onMatchNumberChange={updateMatchNumber}
             vistaQuadra={vistaQuadra}
             sidesInverted={sidesInverted}
+            initialServers={initialServerBySet}
+            onRegistrarSorteio={registrarSorteioTieBreak}
           />
         )}
 
@@ -1928,13 +1973,13 @@ function PontuacaoTab(props: {
   rules: MatchRules
   subModal: { teamId: TeamId; index: number; outNumber: string } | null
   allowedSubstitutions: string[]
+  substitutionNotice: string | null
   getMatchNumber: (teamId: TeamId, number: string) => string
   events: MatchEvent[]
   onAttack: (teamId: TeamId, number: string) => void
   onBlock: (teamId: TeamId, number: string) => void
   onAce: () => void
-  onPointOrigin: (teamId: TeamId, origem: OrigemPonto, number: string) => void
-  onPointWithoutPlayer: (teamId: TeamId) => void
+  onPoint: (teamId: TeamId) => void
   onSubstitution: (teamId: TeamId, index: number) => void
   onSelectSubstitution: (number: string) => void
   onCloseSubstitution: () => void
@@ -1948,15 +1993,10 @@ function PontuacaoTab(props: {
   vistaQuadra: '2d' | '3d'
 }) {
   const [cardModal, setCardModal] = useState<{ teamId: TeamId; tipo: 'Cartão amarelo' | 'Cartão vermelho' } | null>(null)
-  const [origemEquipe, setOrigemEquipe] = useState<TeamId | null>(null)
   const substitutionTeam = props.subModal?.teamId === 'teamA' ? props.teamA : props.teamB
   const substitutionLineup = props.subModal?.teamId === 'teamA' ? props.lineupA : props.lineupB
   const substitutionBench = props.subModal?.teamId === 'teamA' ? props.benchA : props.benchB
   const penaltyTeam = cardModal?.teamId === 'teamA' ? props.teamA : props.teamB
-
-  function abrirOrigem(teamId: TeamId) {
-    setOrigemEquipe(teamId)
-  }
 
   const leftTeamId: TeamId = props.sidesInverted ? 'teamB' : 'teamA'
   const rightTeamId: TeamId = props.sidesInverted ? 'teamA' : 'teamB'
@@ -1986,8 +2026,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[leftTeamId]}
             serving={props.servingTeamId === leftTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(leftTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(leftTeamId)}
+            onPoint={() => props.onPoint(leftTeamId)}
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
@@ -2009,8 +2048,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[rightTeamId]}
             serving={props.servingTeamId === rightTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(rightTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(rightTeamId)}
+            onPoint={() => props.onPoint(rightTeamId)}
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
@@ -2029,8 +2067,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[leftTeamId]}
             serving={props.servingTeamId === leftTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(leftTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(leftTeamId)}
+            onPoint={() => props.onPoint(leftTeamId)}
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
@@ -2048,8 +2085,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[rightTeamId]}
             serving={props.servingTeamId === rightTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(rightTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(rightTeamId)}
+            onPoint={() => props.onPoint(rightTeamId)}
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
@@ -2077,25 +2113,11 @@ function PontuacaoTab(props: {
           lineup={substitutionLineup}
           bench={substitutionBench}
           onlyBench={props.allowedSubstitutions}
+          notice={props.substitutionNotice}
           teamId={props.subModal.teamId}
           getMatchNumber={props.getMatchNumber}
           onSelect={props.onSelectSubstitution}
           onClose={props.onCloseSubstitution}
-        />
-      )}
-      {origemEquipe && (
-        <OrigemPontoModal
-          key={origemEquipe}
-          equipe={(origemEquipe === 'teamA' ? props.teamA : props.teamB).name}
-          sacando={props.servingTeamId === origemEquipe}
-          sacador={(origemEquipe === 'teamA' ? props.lineupA : props.lineupB)[origemEquipe === 'teamA' ? props.serverIndexA : props.serverIndexB]}
-          atletas={atletasEmQuadra(origemEquipe === 'teamA' ? props.teamA : props.teamB, origemEquipe === 'teamA' ? props.lineupA : props.lineupB)}
-          numeroExibido={(number) => props.getMatchNumber(origemEquipe, number)}
-          onClose={() => setOrigemEquipe(null)}
-          onConfirm={(origem, number) => {
-            props.onPointOrigin(origemEquipe, origem, number)
-            setOrigemEquipe(null)
-          }}
         />
       )}
       <section className="official-point-history" aria-label="Últimos pontos">
@@ -2153,11 +2175,14 @@ function EscalacaoTab(props: {
   setStartingLibero: (teamId: TeamId, number: string) => void
   executeSubstitution: (number: string) => void
   allowedSubstitutions: string[]
+  substitutionNotice: string | null
   closeSubModal: () => void
   getMatchNumber: (teamId: TeamId, number: string) => string
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
   vistaQuadra: '2d' | '3d'
   sidesInverted: boolean
+  initialServers: Record<number, TeamId | null>
+  onRegistrarSorteio: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId>('teamA')
   const [pickedNumber, setPickedNumber] = useState<string | null>(null)
@@ -2183,6 +2208,16 @@ function EscalacaoTab(props: {
   const selectedTeamConfirmed = selectedTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
   const reviewLibero = props.startingLiberos[selectedTeamId] ?? ''
   const buttonLabel = selectedTeamConfirmed ? `${team.name} confirmado` : `Confirmar ${team.name}`
+  const otherTeamId: TeamId = selectedTeamId === 'teamA' ? 'teamB' : 'teamA'
+  const otherTeam = otherTeamId === 'teamA' ? props.teamA : props.teamB
+  const otherConfirmed = otherTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
+  const confirmedCount = Number(props.lineupConfirmedA) + Number(props.lineupConfirmedB)
+  const modoSaque = modoSaqueInicial(props.currentSet)
+  const saqueAnterior = props.initialServers[props.currentSet - 1] ?? null
+  const saqueAlternado = saqueObrigatorio(props.currentSet, saqueAnterior)
+  const servidorExibido: TeamId | null = modoSaque === 'alternancia' ? saqueAlternado : props.initialServer
+  const nomeServidor = servidorExibido === 'teamA' ? props.teamA.name : servidorExibido === 'teamB' ? props.teamB.name : ''
+  const nomeAnterior = saqueAnterior === 'teamA' ? props.teamA.name : saqueAnterior === 'teamB' ? props.teamB.name : ''
   const ladoEsquerdoId: TeamId = props.sidesInverted ? 'teamB' : 'teamA'
   const ladoDireitoId: TeamId = props.sidesInverted ? 'teamA' : 'teamB'
   const equipeEsquerda = ladoEsquerdoId === 'teamA' ? props.teamA : props.teamB
@@ -2279,15 +2314,30 @@ function EscalacaoTab(props: {
 
   return (
     <div className="official-panel">
-      <div className="official-team-selector">
-        <button className={selectedTeamId === 'teamA' ? 'is-active' : ''} onClick={() => setSelectedTeamId('teamA')}>{props.teamA.name}{props.lineupConfirmedA ? ' ✓' : ''}</button>
-        <button className={selectedTeamId === 'teamB' ? 'is-active' : ''} onClick={() => setSelectedTeamId('teamB')}>{props.teamB.name}{props.lineupConfirmedB ? ' ✓' : ''}</button>
+      <div className="official-team-selector" role="tablist" aria-label="Times para conferir a papeleta">
+        {(['teamA', 'teamB'] as const).map((teamId) => {
+          const side = teamId === 'teamA' ? props.teamA : props.teamB
+          const confirmed = teamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
+          return (
+            <button
+              key={teamId}
+              type="button"
+              role="tab"
+              aria-selected={selectedTeamId === teamId}
+              className={`${selectedTeamId === teamId ? 'is-active' : ''} ${confirmed ? 'is-confirmed' : ''}`}
+              onClick={() => setSelectedTeamId(teamId)}
+            >
+              <span>{side.name}</span>
+              <small>{confirmed ? 'Confirmada' : 'Pendente'}</small>
+            </button>
+          )
+        })}
       </div>
       {!props.lineupConfirmed && (
         <div className="official-lineup-review">
           <span>Conferência obrigatória</span>
           <strong>Revise a escalação de {team.name}</strong>
-          <p>Você pode revisar os dois times em qualquer ordem. A pontuação só libera quando as duas papeletas estiverem confirmadas.</p>
+          <p>{confirmedCount} de 2 papeletas confirmadas. Confira este time, confirme e avance para o outro. A pontuação só libera quando as duas papeletas estiverem confirmadas.</p>
         </div>
       )}
       <div className="official-grid">
@@ -2307,7 +2357,91 @@ function EscalacaoTab(props: {
               <span>{team.name}</span>
             </div>
           </div>
-          {props.vistaQuadra === '2d' ? (
+          {!props.lineupConfirmed ? (
+          <>
+          <p className="volley-help">Toque numa posição ou arraste um atleta do banco. Esta papeleta é só de {team.name}.{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}</p>
+          <div className="official-court" aria-label={`Papeleta de ${team.name}`}>
+            <p className="official-court-net">Rede</p>
+            <div>
+              {posicoes.map((position, index) => {
+                const number = lineup[index]
+                const player = getAnyPlayer(team, number)
+                const canEditNumber = props.currentSet === 1 && !selectedTeamConfirmed && Boolean(number)
+                const displayNumber = number ? props.getMatchNumber(selectedTeamId, number) : number
+                return (
+                  <div
+                    key={position}
+                    role="button"
+                    tabIndex={0}
+                    onDragOver={(event) => {
+                      if (props.lineupConfirmed) return
+                      event.preventDefault()
+                    }}
+                    onDrop={(event) => {
+                      if (props.lineupConfirmed) return
+                      event.preventDefault()
+                      const numero = event.dataTransfer.getData('text/plain')
+                      if (!numero) return
+                      props.changeSlot(selectedTeamId, index, numero)
+                      setPickedNumber(null)
+                    }}
+                    onClick={() => {
+                      if (pickedNumber) {
+                        props.changeSlot(selectedTeamId, index, pickedNumber)
+                        setPickedNumber(null)
+                        return
+                      }
+                      props.setEditingSlot({ teamId: selectedTeamId, index })
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      if (pickedNumber) {
+                        props.changeSlot(selectedTeamId, index, pickedNumber)
+                        setPickedNumber(null)
+                        return
+                      }
+                      props.setEditingSlot({ teamId: selectedTeamId, index })
+                    }}
+                    className={`${number ? 'is-filled' : ''} ${number && number === selectedLibero ? 'is-libero-start' : ''}`}
+                  >
+                    <span>{position}</span>
+                    {number && canEditNumber && editingNumberSlot === index ? (
+                      <input
+                        className="official-slot-number-edit"
+                        value={editingNumberDraft}
+                        autoFocus
+                        aria-label="Número do atleta na partida"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => {
+                          event.stopPropagation()
+                          if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur()
+                        }}
+                        onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
+                        onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
+                      />
+                    ) : (
+                      <strong>{number ? `#${displayNumber}` : 'Sem atleta'}</strong>
+                    )}
+                    {number && number === selectedLibero && <em>Líbero</em>}
+                    <small>{player ? displayPlayerName(player.name, team.name) : 'Clique para escalar'}</small>
+                    {canEditNumber && (
+                      <button
+                        type="button"
+                        className="official-sub-action is-icon official-slot-edit-number"
+                        onClick={(event) => { event.stopPropagation(); setEditingNumberDraft(displayNumber); setEditingNumberSlot(index) }}
+                        aria-label={`Corrigir número do atleta ${number} nesta partida`}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          </>
+          ) : props.vistaQuadra === '2d' ? (
           <div className="official-facing-court" aria-label="Escalação 2D com as equipes de frente">
             {ladoEscalacao2d(ladoEsquerdoId, zonasEsquerda)}
             <div className="official-facing-net" aria-hidden="true"><span>Rede</span></div>
@@ -2315,59 +2449,15 @@ function EscalacaoTab(props: {
           </div>
           ) : (
           <>
-          <p className="volley-help">{props.lineupConfirmed ? 'A formação em quadra segue a rotação oficial. Toque em um atleta para substituir.' : 'Toque numa posição ou arraste um atleta do banco. A equipe selecionada é a que pode ser editada.'}{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}{substitutionMode ? ' Modo substituição ativo.' : ''}</p>
+          <p className="volley-help">A formação em quadra segue a rotação oficial. Toque em um atleta para substituir.{substitutionMode ? ' Modo substituição ativo.' : ''}</p>
           <QuadraVolei
             modo="escalacao"
             numeroExibido={props.getMatchNumber}
-            esquerda={ladoEscalacao(equipeEsquerda, escalacaoEsquerda, !props.lineupConfirmed && selectedTeamId === ladoEsquerdoId, props.startingLiberos[ladoEsquerdoId] ?? '')}
-            direita={ladoEscalacao(equipeDireita, escalacaoDireita, !props.lineupConfirmed && selectedTeamId === ladoDireitoId, props.startingLiberos[ladoDireitoId] ?? '')}
-            onAtivar={(teamId, indice) => {
-              if (!props.lineupConfirmed && teamId !== selectedTeamId) {
-                setSelectedTeamId(teamId)
-                setPickedNumber(null)
-                return
-              }
-              if (!props.lineupConfirmed && pickedNumber) {
-                props.changeSlot(teamId, indice, pickedNumber)
-                setPickedNumber(null)
-                return
-              }
-              if (props.lineupConfirmed) props.askSubstitution(teamId, indice)
-              else props.setEditingSlot({ teamId, index: indice })
-            }}
-            onSoltar={(teamId, indice, numero) => {
-              if (props.lineupConfirmed || teamId !== selectedTeamId) return
-              props.changeSlot(teamId, indice, numero)
-              setPickedNumber(null)
-            }}
+            esquerda={ladoEscalacao(equipeEsquerda, escalacaoEsquerda, false, props.startingLiberos[ladoEsquerdoId] ?? '')}
+            direita={ladoEscalacao(equipeDireita, escalacaoDireita, false, props.startingLiberos[ladoDireitoId] ?? '')}
+            onAtivar={(teamId, indice) => props.askSubstitution(teamId, indice)}
+            onSoltar={() => undefined}
           />
-          {props.currentSet === 1 && !selectedTeamConfirmed && (
-            <div className="volley-numbers">
-              {posicoes.map((posicao, index) => {
-                const number = lineup[index]
-                if (!number) return null
-                const displayNumber = props.getMatchNumber(selectedTeamId, number)
-                const editing = editingNumberSlot === index
-                return (
-                  <label key={posicao}>
-                    <span>{posicao}</span>
-                    {editing ? (
-                      <input
-                        value={editingNumberDraft}
-                        autoFocus
-                        aria-label={`Número de ${posicao} nesta partida`}
-                        onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
-                        onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
-                        onKeyDown={(event) => { if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur() }}
-                      />
-                    ) : (
-                      <button type="button" onClick={() => { setEditingNumberDraft(displayNumber); setEditingNumberSlot(index) }} aria-label={`Corrigir número do atleta ${number}`}>#{displayNumber}</button>
-                    )}
-                  </label>
-                )
-              })}
-            </div>
-          )}
           </>
           )}
           <div className="official-libero-start">
@@ -2385,14 +2475,40 @@ function EscalacaoTab(props: {
           {!props.lineupConfirmed && (
             <div className="official-mini-panel official-initial-serve-panel">
               <h3>Saque inicial do set {props.currentSet}</h3>
-              <p>Escolha a equipe que começa sacando neste set.</p>
-              <div className="official-two-cols">
-                <ServeChoice team={props.teamA} active={props.initialServer === 'teamA'} onClick={() => props.setInitialServer('teamA')} setNumber={props.currentSet} />
-                <ServeChoice team={props.teamB} active={props.initialServer === 'teamB'} onClick={() => props.setInitialServer('teamB')} setNumber={props.currentSet} />
-              </div>
+              {modoSaque === 'escolha' && (
+                <>
+                  <p>Escolha a equipe que começa sacando neste set.</p>
+                  <div className="official-two-cols">
+                    <ServeChoice team={props.teamA} active={props.initialServer === 'teamA'} onClick={() => props.setInitialServer('teamA')} setNumber={props.currentSet} />
+                    <ServeChoice team={props.teamB} active={props.initialServer === 'teamB'} onClick={() => props.setInitialServer('teamB')} setNumber={props.currentSet} />
+                  </div>
+                </>
+              )}
+              {modoSaque === 'alternancia' && (
+                <div className="official-serve-locked" aria-live="polite">
+                  <span>Alternância obrigatória</span>
+                  <strong>{nomeServidor || 'Saque do set anterior ainda não definido'}</strong>
+                  <p>{nomeServidor ? `${nomeServidor} começa sacando neste set porque não sacou no set ${props.currentSet - 1}. No set ${props.currentSet - 1} o saque foi de ${nomeAnterior}.` : `O saque deste set depende de quem começou sacando no set ${props.currentSet - 1}.`}</p>
+                </div>
+              )}
+              {modoSaque === 'sorteio' && (
+                <SorteioTieBreak
+                  teamA={props.teamA}
+                  teamB={props.teamB}
+                  servidor={props.initialServer}
+                  onRegistrar={props.onRegistrarSorteio}
+                />
+              )}
             </div>
           )}
-          {!props.lineupConfirmed && <button className="official-primary" disabled={!reviewLibero || !props.initialServer || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>}
+          {!props.lineupConfirmed && (
+            <div className="official-lineup-actions">
+              <button className="official-primary" disabled={!reviewLibero || !servidorExibido || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>
+              <button type="button" className="official-secondary" onClick={() => setSelectedTeamId(otherTeamId)}>
+                {otherConfirmed ? `Ver ${otherTeam.name}` : `Conferir ${otherTeam.name}`}
+              </button>
+            </div>
+          )}
         </section>
         <section className="official-mini-panel official-span-4">
           <div className="official-section-row"><h3>Banco de reservas</h3><span>{bench.length} atletas</span></div>
@@ -2435,6 +2551,7 @@ function EscalacaoTab(props: {
           lineup={props.subModal.teamId === 'teamA' ? props.lineupA : props.lineupB}
           bench={props.subModal.teamId === 'teamA' ? props.benchA : props.benchB}
           onlyBench={props.allowedSubstitutions}
+          notice={props.substitutionNotice}
           onSelect={props.executeSubstitution}
           onClose={props.closeSubModal}
         />
@@ -2659,6 +2776,39 @@ function PlayerAvatar({ player }: { player: Player }) {
   return <span className="official-player-avatar">{initials(player.name)}</span>
 }
 
+function SorteioTieBreak({
+  teamA,
+  teamB,
+  servidor,
+  onRegistrar,
+}: {
+  teamA: Team
+  teamB: Team
+  servidor: TeamId | null
+  onRegistrar: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
+}) {
+  const nome = servidor === 'teamA' ? teamA.name : servidor === 'teamB' ? teamB.name : ''
+  return (
+    <div className="official-toss-setup">
+      <p>No 5º set o saque sai de um sorteio novo. Registre o resultado da mesa ou sorteie no aplicativo.</p>
+      <button type="button" className="official-secondary" onClick={() => onRegistrar(sortearLado(Math.random()), 'aplicativo')}>
+        Sortear no aplicativo
+      </button>
+      <div className="official-two-cols">
+        <button type="button" className={`official-serve ${servidor === 'teamA' ? 'is-active' : ''}`} onClick={() => onRegistrar('teamA', 'mesa')}>
+          <strong>{teamA.name}</strong>
+          <span>Registrar sorteio da mesa</span>
+        </button>
+        <button type="button" className={`official-serve ${servidor === 'teamB' ? 'is-active' : ''}`} onClick={() => onRegistrar('teamB', 'mesa')}>
+          <strong>{teamB.name}</strong>
+          <span>Registrar sorteio da mesa</span>
+        </button>
+      </div>
+      <strong>{nome ? `${nome} começa sacando neste tie-break.` : 'O sorteio ainda não definiu quem saca.'}</strong>
+    </div>
+  )
+}
+
 function ServeChoice({ team, active, onClick, setNumber = 1 }: { team: Team; active: boolean; onClick: () => void; setNumber?: number }) {
   return <button className={`official-serve ${active ? 'is-active' : ''}`} onClick={onClick}><strong>{team.name}</strong><span>Inicia sacando no set {setNumber}</span></button>
 }
@@ -2714,7 +2864,6 @@ function CompactTeamControl({
   serving,
   onAce,
   onPoint,
-  onPointWithoutPlayer,
   onUndo,
   onCard,
   timeoutsUsed,
@@ -2727,7 +2876,6 @@ function CompactTeamControl({
   serving: boolean
   onAce: () => void
   onPoint: () => void
-  onPointWithoutPlayer: () => void
   onUndo: () => void
   onCard: (tipo: 'Cartão amarelo' | 'Cartão vermelho') => void
   timeoutsUsed: number
@@ -2756,9 +2904,8 @@ function CompactTeamControl({
       </button>
       <div className="official-point-actions">
         <VolleyballBurst>
-          <button className="official-compact-point-action vs-press vs-focus" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name}`}>+1</button>
+          <button className="official-compact-point-action vs-press vs-focus" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
         </VolleyballBurst>
-        <button className="official-compact-point-plain" type="button" onClick={onPointWithoutPlayer} aria-label={`Registrar ponto sem jogador para ${team.name}`}>Sem jogador</button>
       </div>
       <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (
@@ -3061,13 +3208,6 @@ function RosterClickers({
   )
 }
 
-function atletasEmQuadra(team: Team, lineup: string[]) {
-  return lineup
-    .map((number) => [...team.players, ...team.reserves].find((player) => player.number === number))
-    .filter((player): player is Player => Boolean(player))
-    .map((player) => ({ number: player.number, name: displayPlayerName(player.name, team.name) }))
-}
-
 function equipeMencionada(texto: string, teamA: Team, teamB: Team): TeamId | undefined {
   const normalizado = normalizeName(texto)
   const mencionaA = normalizado.includes(normalizeName(`para ${teamA.name}`))
@@ -3216,21 +3356,25 @@ function TimeoutCard({ team, used, set, onRequest }: { team: Team; used: number;
   return <section className="official-panel"><div className="official-section-row"><h3>{team.name}</h3><span>Set {set}</span></div><div className="official-timeout-boxes">{[1, 2].map((n) => <div key={n} className={used >= n ? 'is-used' : ''}><Clock size={15} />Tempo {n}</div>)}</div><button className="official-primary" disabled={used >= 2} onClick={onRequest}>Registrar tempo</button></section>
 }
 
-function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, selectedLibero = '', hideLiberos = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; selectedLibero?: string; hideLiberos?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string) => void; onClose: () => void }) {
-  const substitutionMode = Boolean(onlyBench)
+function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string) => void; onClose: () => void }) {
+  const substitutionMode = onlyBench != null
   const players = [...team.players, ...team.reserves].filter((player) => !(hideLiberos && player.isLibero))
+  const visiveis = substitutionMode
+    ? players.filter((player) => onlyBench.includes(player.number) && !lineup.includes(player.number))
+    : players
   return (
-    <div className="official-modal">
+    <div className="official-modal" role="dialog" aria-modal="true" aria-label={title}>
       <div>
         <h3>{title}</h3>
         <p className="official-modal-caption">{team.name}</p>
+        {notice ? <p className="official-modal-note">{notice}</p> : null}
         <div>
-          {players.map((player) => {
+          {visiveis.map((player) => {
             const isCourt = lineup.includes(player.number)
             const isBench = bench.includes(player.number)
             const isSelectedLibero = selectedLibero === player.number
             const isLibero = Boolean(player.isLibero || isSelectedLibero)
-            const isSelectable = !isSelectedLibero && (!onlyBench || onlyBench.includes(player.number))
+            const isSelectable = !isSelectedLibero && (!substitutionMode || onlyBench.includes(player.number))
             const playerName = displayPlayerName(player.name, team.name)
             const displayNumber = teamId && getMatchNumber ? getMatchNumber(teamId, player.number) : player.number
             return (
@@ -3245,6 +3389,7 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
               </button>
             )
           })}
+          {substitutionMode && visiveis.length === 0 && !notice ? <p className="official-modal-empty">Nenhum reserva elegível neste set.</p> : null}
         </div>
         <button onClick={onClose}>Voltar</button>
       </div>
@@ -3441,26 +3586,16 @@ function countSavedTimeouts(savedOccurrences: any[], teamA: Team, teamB: Team, c
   return result
 }
 
-function countSavedSubstitutions(savedOccurrences: any[], teamA: Team, teamB: Team) {
-  const result: Record<number, { teamA: number; teamB: number }> = {}
-  for (const occurrence of savedOccurrences) {
-    if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
-    const setNumber = Number(occurrence.set ?? 1)
-    if (!result[setNumber]) result[setNumber] = { teamA: 0, teamB: 0 }
-    const text = normalizeName(String(occurrence.descricao ?? ''))
-    if (text.includes(normalizeName(teamA.name))) result[setNumber].teamA += 1
-    if (text.includes(normalizeName(teamB.name))) result[setNumber].teamB += 1
-  }
-  return result
-}
-
-function restoreSubstitutionLocks(savedOccurrences: any[], teamA: Team, teamB: Team) {
-  const locks: Record<number, Record<TeamId, Record<string, string>>> = {}
+function restoreControleSubstituicao(
+  savedOccurrences: any[],
+  teamA: Team,
+  teamB: Team,
+  overrides: Record<TeamId, Record<number, string>>,
+) {
+  const controle: Record<number, Record<TeamId, ControleSubstituicao>> = {}
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
     const text = String(occurrence.descricao ?? '')
-    const troca = text.match(/sai #([^\s,]+).+entra #([^\s,]+)/i)
-    if (!troca) continue
     const setNumber = Number(occurrence.set ?? 1)
     const normalized = normalizeName(text)
     const teamId: TeamId | null = normalized.includes(normalizeName(teamA.name))
@@ -3469,10 +3604,28 @@ function restoreSubstitutionLocks(savedOccurrences: any[], teamA: Team, teamB: T
         ? 'teamB'
         : null
     if (!teamId) continue
-    locks[setNumber] = locks[setNumber] ?? { teamA: {}, teamB: {} }
-    locks[setNumber][teamId][troca[1]] = troca[2]
+    const team = teamId === 'teamA' ? teamA : teamB
+    const troca = numerosDaTroca(text)
+    const atual = controle[setNumber]?.[teamId] ?? controleVazio()
+    const proximo = troca
+      ? aplicarSubstituicao(atual, numeroDoElenco(team, troca[0], overrides[teamId]), numeroDoElenco(team, troca[1], overrides[teamId]))
+      : atual.usadas >= LIMITE_SUBSTITUICOES_POR_SET
+        ? null
+        : { controle: { usadas: atual.usadas + 1, pares: atual.pares }, falha: null }
+    if (!proximo || proximo.falha) continue
+    controle[setNumber] = {
+      teamA: controle[setNumber]?.teamA ?? controleVazio(),
+      teamB: controle[setNumber]?.teamB ?? controleVazio(),
+      [teamId]: proximo.controle,
+    }
   }
-  return locks
+  return controle
+}
+
+function numeroDoElenco(team: Team, exibido: string, overrides: Record<number, string> | undefined) {
+  const players = [...team.players, ...team.reserves]
+  const encontrado = players.find((player) => (overrides?.[player.id] || player.number) === exibido)
+  return encontrado?.number ?? exibido
 }
 
 function countSavedSideInversions(savedOccurrences: any[]) {

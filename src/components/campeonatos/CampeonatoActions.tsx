@@ -65,6 +65,22 @@ export function CampeonatoActions({
     }
   }
 
+  if (!inscricoesAbertas) {
+    return (
+      <div className="championship-action-box grid gap-3 rounded-[1.5rem] border p-4">
+        <p className="rounded-2xl border border-luva-amber/25 bg-luva-amber/10 px-4 py-3 text-sm font-bold text-slate-100">
+          {finalizado
+            ? 'Este campeonato está finalizado e não aceita novas inscrições.'
+            : 'As inscrições estão fechadas ou o limite de equipes aprovadas foi atingido.'}
+        </p>
+        <Link href={`/portal?ligaId=${ligaId}`} className="landing-secondary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black">
+          Abrir portal do campeonato
+          <ArrowRight size={18} />
+        </Link>
+      </div>
+    )
+  }
+
   if (session?.tipo === 'equipe') {
     const semEquipe = !session.candidaturaId
     return (
@@ -77,14 +93,7 @@ export function CampeonatoActions({
           Abrir portal do campeonato
           <ArrowRight size={18} />
         </Link>
-        {!inscricoesAbertas && (
-          <p className="rounded-2xl border border-luva-amber/25 bg-luva-amber/10 px-4 py-3 text-sm font-bold text-slate-100">
-            {finalizado
-              ? 'Este campeonato está finalizado e não aceita novas inscrições.'
-              : 'As inscrições estão fechadas ou o limite de equipes aprovadas foi atingido.'}
-          </p>
-        )}
-        {vagasDisponiveis !== null && inscricoesAbertas && (
+        {vagasDisponiveis !== null && (
           <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-100">
             {vagasDisponiveis} vaga(s) aprovadas disponível(is).
           </p>
