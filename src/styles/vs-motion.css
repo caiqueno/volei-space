@@ -77,23 +77,23 @@ html body .vs-focus:focus-visible {
 @keyframes vs-ball-burst {
   0% {
     opacity: 0;
-    transform: translate(-50%, -40%) scale(0.35);
+    transform: translate(-50%, -50%) scale(0.4);
   }
-  18% {
+  22% {
     opacity: 1;
-    transform: translate(-50%, -80%) scale(1);
+    transform: translate(-50%, -78px) scale(1.08);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -190%) scale(0.82) rotate(22deg);
+    transform: translate(-50%, -168px) scale(0.72) rotate(28deg);
   }
 }
 
 .vs-ball-burst {
   position: fixed;
   z-index: 90;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0;
   pointer-events: none;
