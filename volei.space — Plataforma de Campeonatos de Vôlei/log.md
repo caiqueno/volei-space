@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - O número editado no credenciamento fica em `SumulaPresenca.numero`, por partida, e não no cadastro `Jogador.numero`. `202610100001` torna `presente` anulável para a linha existir antes da confirmação. Não foi aplicada em produção.
 
+## [2026-10-10] fix | papeleta de um time e alternância do saque
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- A conferência da distribuição tática voltou a mostrar um time por vez. O layout com as duas equipes e a rede no meio tinha entrado em 29/09/2026 junto com a quadra 2D (`d8982de`); essa quadra permanece na pontuação. O saque inicial alterna do set 2 ao 4 e o 5º set exige sorteio. `PUT` e `POST` da súmula recusam a sequência gravada fora dessa regra.
+
 ## [2026-10-10] fix | chave, pódio e rótulos públicos
 
 - pages_updated=`09-UI-UX`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `hot`, `log`
