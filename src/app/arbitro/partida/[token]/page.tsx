@@ -8,6 +8,7 @@ import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { numeroNaPartida, presencaFoiDecidida, proximoAtletaNoElenco, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
+import { jogoJaIniciado } from '@/lib/arbitro-responsavel'
 
 export default function OperacaoArbitroPage() {
   const { token } = useParams<{ token: string }>()
@@ -56,6 +57,11 @@ export default function OperacaoArbitroPage() {
   useEffect(() => {
     fetchPartida(true)
   }, [token])
+
+  useEffect(() => {
+    if (!partida || !jogoJaIniciado(partida.status)) return
+    window.location.replace(`/sumula/${encodeURIComponent(partida.sumulaToken || partida.id)}/lancar`)
+  }, [partida])
 
   useEffect(() => {
     return () => stopCamera()
@@ -329,6 +335,7 @@ export default function OperacaoArbitroPage() {
 
   if (loading) return <Status title="Carregando operação" text="Buscando partida e equipes." />
   if (!partida) return <Status title="Partida indisponível" text={falha || 'Não foi possível abrir esta partida.'} error onRetry={() => fetchPartida(true)} />
+  if (jogoJaIniciado(partida.status)) return <Status title="Abrindo a súmula" text="Este jogo já começou. O credenciamento não se repete." />
 
   const janela = partida.janelaValidacao
   const liberada = Boolean(janela?.liberada)

@@ -166,7 +166,7 @@ function SlotCard({
     const winnerId = encerrada ? (Number(partida.setsPorA ?? 0) > Number(partida.setsPorB ?? 0) ? partida.equipeA.id : Number(partida.setsPorB ?? 0) > Number(partida.setsPorA ?? 0) ? partida.equipeB.id : null) : null
 
     return (
-      <div className={`w-64 rounded-2xl bg-white p-4 ${mi.chave} ${mi.cartao} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.08)]'}`} style={revelacao}>
+      <div className={`chave-confronto w-64 rounded-2xl bg-white p-4 ${mi.chave} ${mi.cartao} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.08)]'}`} style={revelacao}>
         <div className="mb-3 flex items-center justify-between gap-2">
           <span className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
           <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -196,7 +196,7 @@ function SlotCard({
   }
 
   return (
-    <div className={`flex w-64 flex-col items-center justify-center gap-1 rounded-2xl bg-slate-50 p-4 text-center ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-dashed border-slate-300'}`} style={revelacao}>
+    <div className={`chave-confronto flex w-64 flex-col items-center justify-center gap-1 rounded-2xl bg-slate-50 p-4 text-center ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-dashed border-slate-300'}`} style={revelacao}>
       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
       <span className="text-sm font-bold text-slate-400">A definir</span>
     </div>
@@ -251,7 +251,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false, rev
 
   if (options.length === 0) {
     return (
-      <div className={`flex w-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center ${mi.chave}`} style={revelacao}>
+      <div className={`chave-confronto flex w-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center ${mi.chave}`} style={revelacao}>
         <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
         <span className="text-sm font-bold text-slate-400">Sem times disponíveis</span>
       </div>
@@ -259,7 +259,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false, rev
   }
 
   return (
-    <div className={`w-64 rounded-2xl bg-amber-50/40 p-4 ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-luva-amber/40'}`} style={revelacao}>
+    <div className={`chave-confronto w-64 rounded-2xl bg-amber-50/40 p-4 ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-luva-amber/40'}`} style={revelacao}>
       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{tag}</span>
       <div className="mt-2 grid gap-2">
         <select value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900">

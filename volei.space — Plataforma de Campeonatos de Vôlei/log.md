@@ -16,7 +16,17 @@ updated: 2026-10-10
 ## [2026-10-10] feat | jogos só dentro do grupo, tabelas separadas e elenco
 
 - pages_updated=`modulos/GRUPOS`, `modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
-- O gerador e a criação manual recusam jogo de grupo entre grupos diferentes. A classificação separa os grupos e usa confronto direto. A semifinal de dois grupos cruza 1º e 2º. O elenco é consulta. Nenhuma migration foi aplicada e os jogos já gravados não foram alterados.
+- O gerador e a criação manual recusam jogo de grupo entre grupos diferentes. A classificação separa os grupos e usa confronto direto. A chave automática usa esse ranque. O elenco é consulta. Nenhuma migration foi aplicada e os jogos já gravados não foram alterados.
+
+## [2026-10-10] feat | W.O. configurável
+
+- pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Placar e punição do W.O. são opcionais. Sem eles, a tabela segue a vitória de margem 2 e zero sets. `20261010150000_wo_configuravel.sql` não foi aplicada.
+
+## [2026-10-10] fix | súmula do organizador, scout e chave automática
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
+- O organizador grava a própria súmula. O MVP pede confirmação. Anotações usam o número da partida. Últimos pontos seguem o lado do lance. A quadra encerrada esconde +1, ACE, P, B e S. O scout separa ponto sem atleta. O árbitro do link deixa de aparecer como não registrado, e o credenciamento não volta em jogo já iniciado. Ver mais conserva o mata-mata sem data. A chave nasce dos grupos e o texto dos cartões claros fica escuro. Sem migration.
 
 ## [2026-10-10] fix | sets por fase do mata-mata e pódio público
 

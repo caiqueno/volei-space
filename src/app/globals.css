@@ -4684,6 +4684,17 @@ html body main.sport-grid li {
   opacity: 1;
 }
 
+html body main.luva-shell .chave-confronto :is(p, span, li, strong, a, em, small):not(.luva-kicker):not(.bg-luva-amber):not(.landing-primary):not(.rank-pos):not(.team-mark),
+html body main.sport-grid .chave-confronto :is(p, span, li, strong, a, em, small):not(.luva-kicker):not(.bg-luva-amber):not(.landing-primary):not(.rank-pos):not(.team-mark) {
+  color: #0f172a;
+}
+
+html body main.luva-shell .chave-confronto :is(select, option),
+html body main.sport-grid .chave-confronto :is(select, option) {
+  color: #0f172a;
+  background: #fff;
+}
+
 html body main.luva-shell .luva-card,
 html body main.luva-shell .luva-surface,
 html body main.sport-grid .luva-card,

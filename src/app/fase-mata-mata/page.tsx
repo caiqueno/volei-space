@@ -6,7 +6,7 @@ import { PageHero } from '@/components/layout/PageHero'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
-import { CruzarSemifinais } from '@/components/mata-mata/CruzarSemifinais'
+import { GeradorChave } from '@/components/mata-mata/GeradorChave'
 import { getMataMataBracket } from '@/lib/mata-mata'
 import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
 import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
@@ -82,9 +82,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
           <EstadoVazio titulo="Sem fase eliminatória configurada" descricao="Este campeonato não tem uma fase de mata-mata configurada." />
         ) : (
           <>
-            {organizerMode && rounds[0]?.fase === 'SEMIFINAL' && rounds[0].slots.every((slot) => !slot.partida) ? (
-              <CruzarSemifinais ligaId={scope.selectedLiga.id} categoriaId={categoriaId} />
-            ) : null}
+            {organizerMode ? <GeradorChave ligaId={scope.selectedLiga.id} categoriaId={categoriaId} /> : null}
             <ChaveamentoMataMata ligaId={scope.selectedLiga.id} rounds={rounds} champion={champion} thirdPlace={thirdPlace} organizerMode={organizerMode} />
           </>
         )}

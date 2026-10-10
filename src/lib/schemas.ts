@@ -248,6 +248,11 @@ export const ligaSchema = z.object({
   quantidadeGrupos: z.number().int().min(1).max(32).optional(),
   nomesGrupos: z.string().optional(),
   criteriosClassificacao: z.string().optional(),
+  woSetsVencedor: z.number().int().min(1).max(5).nullable().optional(),
+  woSetsPerdedor: z.number().int().min(0).max(5).nullable().optional(),
+  woPontosSetVencedor: z.number().int().min(0).max(99).nullable().optional(),
+  woPontosSetPerdedor: z.number().int().min(0).max(99).nullable().optional(),
+  woPunicaoPontos: z.number().int().min(0).max(20).nullable().optional(),
   pontuacaoResultado: pontuacaoResultadoSchema.optional().nullable(),
   classificadosPorGrupo: z.number().int().min(0).max(64).optional(),
   melhoresClassificadosGerais: z.number().int().min(0).max(64).optional(),
@@ -327,6 +332,11 @@ export const setupClassificacaoSchema = ligaSchema.pick({
   pontuacaoResultado: true,
   classificadosPorGrupo: true,
   melhoresClassificadosGerais: true,
+  woSetsVencedor: true,
+  woSetsPerdedor: true,
+  woPontosSetVencedor: true,
+  woPontosSetPerdedor: true,
+  woPunicaoPontos: true,
 }).partial()
 
 export const setupEliminatoriasSchema = ligaSchema.pick({

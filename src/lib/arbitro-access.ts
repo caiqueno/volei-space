@@ -1,6 +1,6 @@
 import type { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
-import { requirePublicRole, isReleasedPublicStatus, type PublicJWTPayload } from '@/lib/auth'
+import { requirePublicRole, verifyPublicToken, isReleasedPublicStatus, type PublicJWTPayload } from '@/lib/auth'
 import { error } from '@/lib/api-response'
 import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
 
@@ -23,17 +23,20 @@ export async function requireArbitroPartidaAccess(
   req: NextRequest,
   token: string,
 ): Promise<ArbitroPartidaAccess | NextResponse> {
-  if (/^\d+$/.test(token)) {
-    const sessao = await lerSessaoAcesso(req)
-    if (!sessao || Number(sessao.partidaId) !== Number(token)) {
-      return error('Use o link exclusivo do jogo para operar esta partida.', 401)
-    }
+  // O id numérico não é token de AcessoArbitroJogo. Sem sessão, a resposta
+  // continua 401 antes de consultar o banco.
+  if (!/^\d+$/.test(token)) {
+    const peloLink = await acessoPeloLink(req, token)
+    if (peloLink) return peloLink
   }
-
-  const peloLink = await acessoPeloLink(req, token)
-  if (peloLink) return peloLink
   const pelaSessao = await acessoPelaSessaoNaPartida(req, token)
   if (pelaSessao) return pelaSessao
+  const peloOrganizador = await acessoPeloOrganizador(req, token)
+  if (peloOrganizador) return peloOrganizador
+
+  if (/^\d+$/.test(token)) {
+    return error('Use o link exclusivo do jogo para operar esta partida.', 401)
+  }
 
   const auth = await requirePublicRole(req, ['arbitro'], { releasedOnly: true })
   if (auth instanceof Response) return auth
@@ -89,6 +92,34 @@ async function acessoPelaSessaoNaPartida(req: NextRequest, token: string): Promi
   return {
     auth: { userId: acesso.id, email: '', nome: 'Árbitro do jogo', tipo: 'arbitro', status: 'ATIVA' },
     candidatura: { id: acesso.id, nome: 'Árbitro do jogo', email: '', status: 'ATIVA', arbitroId: null },
+    partida,
+  }
+}
+
+async function acessoPeloOrganizador(req: NextRequest, token: string): Promise<ArbitroPartidaAccess | null> {
+  const sessao = await verifyPublicToken(req)
+  if (!sessao || sessao.tipo !== 'organizador' || sessao.trocarSenha) return null
+  if (!isReleasedPublicStatus(sessao.status)) return null
+
+  const numerico = /^\d+$/.test(token)
+  let consulta = supabase.from('Partida').select(PARTIDA_OPERACAO)
+  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
+  const { data: partida } = await consulta.maybeSingle()
+  if (!partida) return null
+  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
+  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
+  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
+  if (!partida.liga || partida.liga.organizadorId !== sessao.userId) return null
+
+  return {
+    auth: sessao,
+    candidatura: {
+      id: sessao.userId,
+      nome: sessao.nome || 'Organizador',
+      email: sessao.email,
+      status: sessao.status,
+      arbitroId: null,
+    },
     partida,
   }
 }

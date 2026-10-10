@@ -47,3 +47,19 @@ export function contarOrigens(origens: OrigemPonto[]) {
     ataque: origens.filter((origem) => origem === 'attack').length,
   }
 }
+
+export function resumirPontos(eventos: Array<{ type: string; text?: string | null }>) {
+  let atribuidos = 0
+  let semAtleta = 0
+  for (const evento of eventos) {
+    if (evento.type === 'attack' || evento.type === 'block' || evento.type === 'ace') atribuidos += 1
+    else if (evento.type === 'point' || ehPontoSemJogador(String(evento.text ?? ''))) semAtleta += 1
+  }
+  return { atribuidos, semAtleta }
+}
+
+export function textoResumoScout(resumo: { atribuidos: number; semAtleta: number }) {
+  const atribuido = `${resumo.atribuidos} ponto(s) atribuído(s) a atletas`
+  if (resumo.semAtleta === 0) return atribuido
+  return `${atribuido} · ${resumo.semAtleta} sem atleta`
+}

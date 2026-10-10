@@ -65,6 +65,7 @@ const linhas = [1, 2, 3, 4].map((equipeId) => ({
   setsContra: equipeId === 1 || equipeId === 3 ? 0 : 2,
   pontosPro: 0,
   pontosContra: 0,
+  punicoes: 0,
 }))
 const partidas: PartidaClassificacao[] = [
   { equipeAId: 1, equipeBId: 2, setsPorA: 2, setsPorB: 0, pontosPorA: 42, pontosPorB: 30, status: 'ENCERRADA', fase: 'GRUPOS' },

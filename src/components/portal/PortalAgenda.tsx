@@ -7,6 +7,7 @@ import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import type { GruposPartidaPublica, PartidaPublica } from '@/lib/partida-publica'
 import { queryCategoria } from '@/components/portal/SeletorCategoria'
+import { manterPaginaAberta } from '@/lib/pagina-aberta'
 
 type TemMais = { aoVivo: boolean; proximos: boolean; encerradas: boolean }
 type Parte = 'aoVivo' | 'proximos' | 'encerradas'
@@ -23,12 +24,6 @@ const consultaParte: Record<Parte, string> = {
   aoVivo: 'ao-vivo',
   proximos: 'proximos',
   encerradas: 'encerradas',
-}
-
-function manterFaixa<T extends { id: number }>(atual: T[], novas: T[], temMais: boolean) {
-  if (!temMais || novas.length >= atual.length) return novas
-  const porId = new Map(novas.map((partida) => [partida.id, partida]))
-  return atual.map((partida) => porId.get(partida.id) ?? partida)
 }
 
 export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, categoriaId = null }: Props) {
@@ -74,9 +69,9 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, ca
         encerradas: Boolean(json.data?.temMais?.encerradas),
       }
       setGrupos((corrente) => ({
-        aoVivo: manterFaixa(corrente.aoVivo, proximo.aoVivo, mais.aoVivo),
-        proximos: manterFaixa(corrente.proximos, proximo.proximos, mais.proximos),
-        encerradas: manterFaixa(corrente.encerradas, proximo.encerradas, mais.encerradas),
+        aoVivo: manterPaginaAberta(corrente.aoVivo, proximo.aoVivo, mais.aoVivo),
+        proximos: manterPaginaAberta(corrente.proximos, proximo.proximos, mais.proximos),
+        encerradas: manterPaginaAberta(corrente.encerradas, proximo.encerradas, mais.encerradas),
         analise: [],
         outras: [],
       }))

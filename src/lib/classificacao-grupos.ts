@@ -11,6 +11,7 @@ type LinhaComEquipe = {
   setsContra?: number | null
   pontosPro?: number | null
   pontosContra?: number | null
+  punicoes?: number | null
   categoriaCampeonatoId?: string | null
   categoria?: string | null
 }
@@ -59,6 +60,7 @@ export async function montarTabelasDeGrupo<T extends LinhaComEquipe>(ligaId: num
     setsContra: Number(linha.setsContra ?? 0),
     pontosPro: Number(linha.pontosPro ?? 0),
     pontosContra: Number(linha.pontosContra ?? 0),
+    punicoes: Number(linha.punicoes ?? 0),
   }))
   const ranque = classificarPorGrupos({
     linhas: acumulados,

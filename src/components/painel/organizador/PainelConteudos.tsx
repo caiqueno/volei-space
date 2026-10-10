@@ -12,6 +12,8 @@ import { AcessoArbitroJogo, type LinkDoJuiz } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import { faseDeGruposEncerrada } from '@/lib/configuracao-categoria-edicao'
+import { manterPaginaAberta } from '@/lib/pagina-aberta'
+import { rotuloArbitroResponsavel } from '@/lib/arbitro-responsavel'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
@@ -240,6 +242,7 @@ type PartidaOrganizacao = {
   equipeB?: { nome?: string | null } | null
   liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
   escala?: Array<{ arbitroId?: number | null; cargo?: string | null; arbitro?: { nome?: string | null; email?: string | null } | null }>
+  acesso?: { ultimoAcessoEm?: string | null } | Array<{ ultimoAcessoEm?: string | null }> | null
 }
 
 const STATUS_JOGO: Record<string, string> = {
@@ -254,12 +257,9 @@ function ligaDaPartida(partida: PartidaOrganizacao) {
   return Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
 }
 
-// A releitura traz placar e status novos. Se ela vier mais curta porque uma
-// consulta antiga ainda estava no ar, os jogos que o usuário já abriu ficam.
-function manterPaginaAberta(atual: PartidaOrganizacao[], novas: PartidaOrganizacao[], temMais: boolean) {
-  if (!temMais || novas.length >= atual.length) return novas
-  const porId = new Map(novas.map((partida) => [partida.id, partida]))
-  return atual.map((partida) => porId.get(partida.id) ?? partida)
+function arbitroDoLink(partida: PartidaOrganizacao) {
+  const acesso = Array.isArray(partida.acesso) ? partida.acesso[0] : partida.acesso
+  return Boolean(acesso?.ultimoAcessoEm)
 }
 
 export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void; ativo?: boolean }) {
@@ -390,7 +390,10 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                   const status = String(partida.status || 'AGENDADA').toUpperCase()
                   const quando = partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'A definir'
                   const emJogo = status === 'EM_ANDAMENTO'
-                  const nomeArbitro = partida.escala?.find((item) => item.cargo === 'PRIMEIRO_ARBITRO')?.arbitro?.nome || partida.escala?.[0]?.arbitro?.nome || 'Não registrado'
+                  const nomeArbitro = rotuloArbitroResponsavel([
+                    partida.escala?.find((item) => item.cargo === 'PRIMEIRO_ARBITRO')?.arbitro?.nome,
+                    partida.escala?.[0]?.arbitro?.nome,
+                  ], arbitroDoLink(partida))
                   return (
                     <tr key={partida.id} className="border-t border-white/10">
                       <td data-label="Rodada" className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
@@ -404,7 +407,8 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                       <td data-label="Árbitro" className="px-3 py-3">{nomeArbitro}</td>
                       <td data-label="Súmula" className="px-3 py-3">
                         <div className="flex flex-col items-start gap-1">
-                          <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
+                          <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}/lancar`}>Lançar súmula</a>
+                          <a className="font-bold text-white/80" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
                           <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Link público</a>
                           <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Resumo da partida</a>
                         </div>

@@ -33,13 +33,14 @@ export async function GET(req: NextRequest) {
 
   let consulta = supabase
     .from('Partida')
-    .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaToken,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
+    .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaToken,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email)),acesso:AcessoArbitroJogo!AcessoArbitroJogo_partidaId_fkey(ultimoAcessoEm,ativo,revogadoEm)')
     .eq('ligaId', ligaId)
   if (categoria.id) consulta = consulta.eq('categoriaCampeonatoId', categoria.id)
   if (status) consulta = consulta.eq('status', status)
 
   const { data, error: partidasErr } = await consulta
-    .order('dataHora', { ascending: true })
+    .order('dataHora', { ascending: true, nullsFirst: false })
+    .order('id', { ascending: true })
     .range(offset, offset + limite)
 
   if (partidasErr) return error('Erro ao carregar partidas', 500, partidasErr.message)
