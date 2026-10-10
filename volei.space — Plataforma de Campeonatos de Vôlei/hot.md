@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O menu do painel não cobre a página e Sair fica abaixo de Rankings. Sets e classificação seguem legíveis para o anon em 20261010141000, ainda sem aplicar.
+  A presença do árbitro deixa o upsert. Produção não tem unicidade em partida e atleta nem default no id de SumulaPresenca. O menu do painel não cobre a página.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a confirmação de atleta deixa de usar `upsert` em `SumulaPresenca`. Produção só tem chave primária em `id`, sem `default`, e a sequence existe sem estar ligada à coluna. O PostgREST respondia 400 (`42P10`) e a rota devolvia 500. `updatedAt` e `tokenSumula` não são colunas desta gravação. Nenhuma migration foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o menu do painel deixa de cobrir a página. A faixa inferior só aparece abaixo de 1024px, numa linha só, e a guia de 292px fica ao lado do conteúdo. Sair é o último item, abaixo de Rankings, na mesma coluna. Em tela baixa a lista rola dentro da guia. Fonte: [[09-UI-UX]].
 
@@ -57,7 +59,7 @@ Microinterações só visuais em `src/app/micro-interactions.css`: entrada de te
 
 Em 10 de outubro de 2026 a leitura pública de `SetPartida` e `ClassificacaoEntrada` fecha na migration `202610100002_fechar_leitura_publica_placar.sql`, ainda não aplicada. O prefixo `202610100001` continua no número da camisa. Ela liga o RLS, remove as policies `USING (true)`, revoga `anon` e `authenticated` e repete o revoke dos default privileges para `postgres` e, se o papel puder, para `supabase_admin`. Placar e tabela continuam nas APIs com `service_role`. O navegador consulta essas APIs a cada 4 segundos. O aviso do Realtime nessas duas tabelas para quando a migration entrar. `Partida` segue com SELECT das colunas de placar. A função `finalizar_inscricao_equipe_rascunho` volta a ler `inscricaoAprovacaoAutomatica` só depois dessa migration. Até lá o SQL já instalado grava `APROVADA`. O `POST /api/inscricoes-campeonato` já respeita a flag, e o rascunho não força mais `APROVADA` por cima do retorno.
 
-A migration `20261010015632_indices_consultas_quentes.sql` só cria índice, se ainda não existir, nas consultas de campeonato, equipe, atleta, partida e súmula. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` passam a ser a primeira coluna de um índice. Os compostos cobrem fase e rodada, status e horário, elenco por equipe, e ocorrência por partida e set. Pontos e presença já estavam cobertos pela unicidade. O `@@index` está no Prisma; a vitrine com `simulacao = false` fica só no SQL. Nada foi aplicado em produção nem em desenvolvimento. Fonte: [[06-BANCO-DE-DADOS]].
+A migration `20261010015632_indices_consultas_quentes.sql` só cria índice, se ainda não existir, nas consultas de campeonato, equipe, atleta, partida e súmula. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` passam a ser a primeira coluna de um índice. Os compostos cobrem fase e rodada, status e horário, elenco por equipe, e ocorrência por partida e set. O comentário antigo dizia que a presença já tinha unicidade em `(partidaId, jogadorId)`. Em produção essa constraint não existe. O `@@index` está no Prisma; a vitrine com `simulacao = false` fica só no SQL. Fonte: [[06-BANCO-DE-DADOS]].
 
 A súmula de lançamento ganha microinterações só visuais: ACE, toque no atleta, bloqueio B, troca de set e abertura/fechamento do modal de substituição. São opacidade e transform em `sumula-micro.css`, desligadas com `prefers-reduced-motion`. O lance entra na hora. O `+1` continua com a bola. Fonte: [[09-UI-UX]], [[modulos/SUMULA-DIGITAL]].
 

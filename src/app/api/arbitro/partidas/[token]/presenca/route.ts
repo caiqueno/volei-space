@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
+import { gravarPresenca, registrarOcorrencia } from '@/lib/sumula-presenca'
 
 const bodySchema = z.object({
   jogadorId: z.number().int().positive(),
@@ -28,20 +29,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const atleta = atletas.find((jogador: { id: number }) => Number(jogador.id) === parsed.data.jogadorId)
   if (!atleta) return error('Este atleta não joga esta partida.', 422)
 
-  const { data, error: presencaErr } = await supabase
-    .from('SumulaPresenca')
-    .upsert({
-      partidaId: access.partida.id,
-      jogadorId: atleta.id,
-      equipeId: atleta.equipeId,
-      presente: parsed.data.presente,
-    }, { onConflict: 'partidaId,jogadorId' })
-    .select('id,jogadorId,equipeId,presente,numero')
-    .single()
+  const { data, error: presencaErr } = await gravarPresenca(supabase, {
+    partidaId: access.partida.id,
+    jogadorId: atleta.id,
+    equipeId: atleta.equipeId,
+    presente: parsed.data.presente,
+  })
 
-  if (presencaErr || !data) return error('Não foi possível salvar a presença.', 500)
+  if (presencaErr || !data) {
+    console.error('[presenca] falha ao gravar', presencaErr)
+    return error('Não foi possível salvar a presença.', 500)
+  }
 
-  await supabase.from('OcorrenciaPartida').insert({
+  await registrarOcorrencia(supabase, {
     partidaId: access.partida.id,
     tipo: 'OBSERVACAO',
     jogadorId: atleta.id,
