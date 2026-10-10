@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | W.O. configurável
+
+- pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Placar e punição do W.O. são opcionais. Sem eles, a tabela segue a vitória de margem 2 e zero sets. `20261010150000_wo_configuravel.sql` não foi aplicada.
+
 ## [2026-10-10] fix | sets por fase do mata-mata e pódio público
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `modulos/PARAMETRIZACAO`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`

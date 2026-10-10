@@ -43,6 +43,11 @@ model Liga {
   tieBreakUltimoSet               Boolean   @default(false)
   pontosUltimoSet                 Int?
   criteriosClassificacao          String?
+  woSetsVencedor                  Int?
+  woSetsPerdedor                  Int?
+  woPontosSetVencedor             Int?
+  woPontosSetPerdedor             Int?
+  woPunicaoPontos                 Int?      @default(0)
   pontuacaoResultado              Json?
   classificadosPorGrupo           Int?
   melhoresClassificadosGerais     Int       @default(0)
@@ -768,6 +773,11 @@ model CategoriaConfiguracao {
   terceiroSetObrigatorio          Boolean   @default(false)
   diferencaMinimaSet              Int       @default(2)
   criteriosClassificacao          String    @default("[\"PONTOS\",\"VITORIAS\",\"SALDO_SETS\",\"SALDO_PONTOS\"]")
+  woSetsVencedor                  Int?
+  woSetsPerdedor                  Int?
+  woPontosSetVencedor             Int?
+  woPontosSetPerdedor             Int?
+  woPunicaoPontos                 Int?      @default(0)
   pontuacaoResultado              Json?
   pontosVencedorMargem1           Int       @default(2)
   pontosPerdedorMargem1           Int       @default(1)

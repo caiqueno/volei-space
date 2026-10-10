@@ -1,5 +1,6 @@
 import { setEstaEncerrado, type RegraSet } from '@/lib/set-encerrado'
 import { DEFAULT_CRITERIOS_CLASSIFICACAO } from '@/lib/championship-setup-defaults'
+import { placarDoWo, woConfigurado, type WoConfig } from '@/lib/wo'
 
 /**
  * Cálculo puro da tabela. A função SQL `recalcular_classificacao_liga` que
@@ -68,6 +69,7 @@ export type RegrasCategoria = {
   faixas?: Partial<FaixasPontos> | null
   criterios?: string[] | string | null
   set?: Partial<RegraSet> | null
+  wo?: WoConfig | null
 }
 
 export type LinhaClassificacao = {
@@ -83,6 +85,7 @@ export type LinhaClassificacao = {
   setsContra: number
   pontosPro: number
   pontosContra: number
+  punicoes: number
 }
 
 type Acumulado = Omit<LinhaClassificacao, 'posicao'>
@@ -145,7 +148,7 @@ export function calcularClassificacao(input: {
     const categoriaId = categoriaEfetiva(partida, timePorId)
     if (!timesDaCategoria(partida, categoriaId, timePorId)) continue
     const regra = regraDaCategoria(input.regras, categoriaId)
-    aplicarPartidaEncerrada(tabela, partida, regra.faixas)
+    aplicarPartidaEncerrada(tabela, partida, regra.faixas, regra.wo)
   }
 
   for (const partida of input.partidas) {
@@ -180,15 +183,19 @@ export function calcularClassificacao(input: {
   ))
 }
 
-function aplicarPartidaEncerrada(tabela: Map<number, Acumulado>, partida: PartidaClassificacao, faixas: FaixasPontos) {
-  const placar = placarOficial(partida)
+function aplicarPartidaEncerrada(tabela: Map<number, Acumulado>, partida: PartidaClassificacao, faixas: FaixasPontos, wo?: WoConfig | null) {
   const status = String(partida.status ?? '').trim().toUpperCase()
+  const woAplicado = status === 'WO' && partida.vencedorId != null ? placarDoWo(wo, Number(partida.vencedorId) === Number(partida.equipeAId)) : null
+  const placar = woAplicado && woConfigurado(wo)
+    ? { setsA: woAplicado.setsA, setsB: woAplicado.setsB, pontosA: woAplicado.pontosA, pontosB: woAplicado.pontosB }
+    : placarOficial(partida)
   if (placar.setsA === placar.setsB) {
     if (status !== 'WO' || partida.vencedorId == null) return
     const vencedorId = Number(partida.vencedorId)
     const perdedorId = vencedorId === Number(partida.equipeAId) ? Number(partida.equipeBId) : Number(partida.equipeAId)
-    somarLado(tabela, vencedorId, { jogos: 1, vitorias: 1, derrotas: 0, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0, pontos: faixas.pontosVencedorMargem2 })
-    somarLado(tabela, perdedorId, { jogos: 1, vitorias: 0, derrotas: 1, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0, pontos: faixas.pontosPerdedorMargem2 })
+    const punicao = woAplicado?.punicaoNoPerdedor ?? 0
+    somarLado(tabela, vencedorId, { jogos: 1, vitorias: 1, derrotas: 0, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0, pontos: faixas.pontosVencedorMargem2, punicoes: 0 })
+    somarLado(tabela, perdedorId, { jogos: 1, vitorias: 0, derrotas: 1, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0, pontos: faixas.pontosPerdedorMargem2 - punicao, punicoes: punicao })
     return
   }
 
@@ -197,6 +204,10 @@ function aplicarPartidaEncerrada(tabela: Map<number, Acumulado>, partida: Partid
     lado(Number(partida.equipeBId), placar.setsB, placar.setsA, placar.pontosB, placar.pontosA, faixas),
   ]
   for (const item of lados) somarLado(tabela, item.equipeId, item)
+  if (woAplicado && woAplicado.punicaoNoPerdedor > 0 && partida.vencedorId != null) {
+    const perdedorId = Number(partida.vencedorId) === Number(partida.equipeAId) ? Number(partida.equipeBId) : Number(partida.equipeAId)
+    somarLado(tabela, perdedorId, { jogos: 0, vitorias: 0, derrotas: 0, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0, pontos: -woAplicado.punicaoNoPerdedor, punicoes: woAplicado.punicaoNoPerdedor })
+  }
 }
 
 function aplicarSetsAoVivo(tabela: Map<number, Acumulado>, partida: PartidaClassificacao, regra: RegraSet) {
@@ -210,6 +221,7 @@ function aplicarSetsAoVivo(tabela: Map<number, Acumulado>, partida: PartidaClass
       pontosPro: Number(set.pontosA),
       pontosContra: Number(set.pontosB),
       pontos: 0,
+      punicoes: 0,
     })
     somarLado(tabela, Number(partida.equipeBId), {
       jogos: 0, vitorias: 0, derrotas: 0,
@@ -218,6 +230,7 @@ function aplicarSetsAoVivo(tabela: Map<number, Acumulado>, partida: PartidaClass
       pontosPro: Number(set.pontosB),
       pontosContra: Number(set.pontosA),
       pontos: 0,
+      punicoes: 0,
     })
   }
 }
@@ -261,6 +274,7 @@ function lado(equipeId: number, setsPro: number, setsContra: number, pontosPro: 
     pontosPro,
     pontosContra,
     pontos: pontosDaMargem(setsPro, setsContra, faixas),
+    punicoes: 0,
   }
 }
 
@@ -275,6 +289,7 @@ function somarLado(tabela: Map<number, Acumulado>, equipeId: number, delta: Omit
   linha.pontosPro += delta.pontosPro
   linha.pontosContra += delta.pontosContra
   linha.pontos += delta.pontos
+  linha.punicoes += delta.punicoes
 }
 
 function comparar(esquerda: Acumulado, direita: Acumulado, criterios: string[]) {
@@ -325,6 +340,7 @@ function regraDaCategoria(regras: Record<string, RegrasCategoria | null | undefi
     faixas: { ...FAIXAS_PADRAO, ...(fonte.faixas ?? {}) },
     criterios: normalizarCriterios(fonte.criterios),
     set: { ...REGRA_SET_PADRAO, ...(fonte.set ?? {}) },
+    wo: fonte.wo ?? null,
   }
 }
 
@@ -341,6 +357,7 @@ function linhaZerada(time: { equipeId: number; categoriaCampeonatoId: string | n
     setsContra: 0,
     pontosPro: 0,
     pontosContra: 0,
+    punicoes: 0,
   }
 }
 
