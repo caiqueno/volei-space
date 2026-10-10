@@ -13,6 +13,7 @@ import {
 } from '@/lib/championship-setup-access'
 import { setupInscricoesSchema } from '@/lib/schemas'
 import { categoryIdFromRequest, loadCategorySection, saveCategorySection } from '@/lib/category-setup-delegate'
+import { separarElegibilidade } from '@/lib/elegibilidade-categoria'
 import { CategoryScopeError, getCategoryConfiguration } from '@/lib/category-scope'
 import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-defaults'
 import { validateQrPhotoNameDependency } from '@/lib/championship-validation'
@@ -110,7 +111,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     section: 'inscricoes',
     intent,
     liga,
-    patch: payload,
+    patch: separarElegibilidade(payload).resto,
     columns: COLUMNS,
     errorMessage: 'Erro ao salvar as inscrições do campeonato.',
   })

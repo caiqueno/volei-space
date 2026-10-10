@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  supabase/migrations é a fonte. O W.O. é 20261010139000. 20261010139500 fica antes da RLS. A leitura ao vivo volta em 20261010141000, ainda sem aplicar.
+  20261010139700 acrescenta gênero, idade e sexo, todos nulos, e não foi aplicada. A leitura ao vivo volta em 20261010141000, ainda sem aplicar.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -52,6 +52,10 @@ As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produç
 `20261010137000_sumula_transacional.sql` também não foi aplicada. O prefixo fica depois de `20261010136000` e antes de `20261010138000`. Ela cria `gravar_sumula_partida` e `gravar_classificacao_calculada`. A primeira apaga e reinsere sets, presenças, ocorrências e destaques e atualiza o placar na mesma transação, com `pg_advisory_xact_lock` da liga e depois da partida. A segunda grava as linhas de classificação que o servidor já calculou, com a mesma trava da liga, inclusive `punicoes`. Não recria `recalcular_classificacao_liga`. `REVOKE` de `public` e, se o papel existir, de `anon` e `authenticated`. `GRANT` só para `service_role`, se o papel existir. Não apaga linha fora da execução da função.
 
 `20261010138000_confronto_categoria_vencedor.sql` também não foi aplicada. O prefixo fica depois de `20261010137000` e antes de `20261010139000`. Ela só faz `CREATE OR REPLACE` de `criar_confronto_categoria`: WO com sets iguais passa a valer se `vencedorId` for uma das duas equipes. O `GRANT` é só para `service_role`. Não apaga linha.
+
+`20261010139700_elegibilidade_categoria.sql` também não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`. Ela acrescenta `genero`, `idadeMinima` e `idadeMaxima` em `CategoriaConfiguracao`, e `sexo` em `Jogador` e `InscricaoEquipeJogadorRascunho`. Tudo nasce nulo. Não cria tabela, não apaga linha e não concede a `anon` nem a `authenticated`. O aplicativo não manda esses campos para `salvar_configuracao_categoria`. Se a coluna não existir, a inscrição segue sem a regra.
+
+Em 10 de outubro de 2026 a leitura de `information_schema` e de `pg_proc` no projeto `mqbkwbqpnhsqaemavive` mostrou o schema vivo à frente do livro `supabase_migrations.schema_migrations`, que para em `20261010083821`. Já existem as colunas de W.O., os sets da final, da semifinal e do 3º lugar, `formularioInscricaoConfig`, `ClassificacaoEntrada.punicoes` e as funções `finalizar_inscricao_equipe_rascunho`, `validar_jogador_formulario_categoria`, `gravar_sumula_partida`, `gravar_classificacao_calculada`, `recalcular_classificacao_categoria` e `salvar_configuracao_categoria`. Não existem `SuspensaoAtleta`, `Jogador.sexo` nem `CategoriaConfiguracao.genero`, `idadeMinima` e `idadeMaxima`. A súmula, a inscrição e a classificação do código mergeado não selecionam esses objetos ausentes.
 
 `20261010139000_wo_configuravel.sql` também não foi aplicada. O prefixo antigo era `20261010150000`; o SQL não mudou. Este arquivo entra depois de `20261010138000` e antes de `20261010139500`, de `20261010140000` e de `20261010141000`. Ela não cria tabela nem concede leitura a `anon`. Acrescenta `woSetsVencedor`, `woSetsPerdedor`, `woPontosSetVencedor`, `woPontosSetPerdedor` e `woPunicaoPontos` em `Liga` e `CategoriaConfiguracao`, todos opcionais. O placar nulo preserva o W.O. atual. A punição nasce 0. A função `recalcular_classificacao_categoria` passa a ler o W.O. e a gravar `punicoes`. O `CREATE OR REPLACE` de `salvar_configuracao_categoria` já inclui os sets da final, da semifinal e do 3º lugar. Não apaga linha. O recálculo do aplicativo continua em `src/lib/classificacao.ts` e não chama essa função.
 
