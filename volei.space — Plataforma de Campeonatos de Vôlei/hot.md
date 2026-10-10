@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sets da final, semifinal e 3º lugar e o pódio público do mata-mata. 20261010190000 ainda não foi aplicada.
+  Sets da final, semifinal e 3º lugar e o pódio público do mata-mata. 20261010135000 ainda não foi aplicada. A de RLS continua a última pelo prefixo.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -15,7 +15,7 @@ updated: 2026-10-10
 
 ## Foco atual
 
-Em 10 de outubro de 2026 a quantidade de sets deixa de ser só `Liga.setsPorPartida`. Final, semifinal e 3º lugar têm campo próprio, nulo para herdar o campeonato. A súmula, a validação e o lançamento usam essa quantidade, e o tie-break fica no último set dela. O portal (`/portal?ligaId=`) e a classificação pública mostram pódio, final, 3º lugar e chave quando existe mata-mata, mesmo antes de `FINALIZADO`. A tabela de pontos continua só com grupos. `20261010190000_sets_por_fase_mata_mata.sql` não foi aplicada. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[modulos/PARAMETRIZACAO]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 a quantidade de sets deixa de ser só `Liga.setsPorPartida`. Final, semifinal e 3º lugar têm campo próprio, nulo para herdar o campeonato. A súmula, a validação e o lançamento usam essa quantidade, e o tie-break fica no último set dela. O portal (`/portal?ligaId=`) e a classificação pública mostram pódio, final, 3º lugar e chave quando existe mata-mata, mesmo antes de `FINALIZADO`. A tabela de pontos continua só com grupos. `20261010135000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica antes da migration de RLS. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[modulos/PARAMETRIZACAO]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a foto do atleta deixou de bloquear a inscrição. O link da vaga, o rascunho, a inscrição rápida e o capitão mostram o campo como opcional e aceitam salvar e concluir sem imagem. O upload segue gravando `fotoUrl` ou `fotoRostoUrl` quando a foto é enviada. O campo continua oculto só se a configuração estiver `disabled`. A função instalada ainda pode recusar a conclusão; `20261010130000_foto_atleta_opcional.sql` tira essa recusa de `finalizar_inscricao_equipe_rascunho` e de `validar_jogador_formulario_categoria` e não foi aplicada. Ela deve entrar depois de `202610100002`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 

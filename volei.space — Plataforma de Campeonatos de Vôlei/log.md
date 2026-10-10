@@ -16,7 +16,7 @@ updated: 2026-10-10
 ## [2026-10-10] fix | sets por fase do mata-mata e pódio público
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `modulos/PARAMETRIZACAO`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
-- A final, a semifinal e o 3º lugar podem ter quantidade de sets própria. O portal e a classificação mostram pódio, final, 3º lugar e chave. `20261010190000_sets_por_fase_mata_mata.sql` não foi aplicada.
+- A final, a semifinal e o 3º lugar podem ter quantidade de sets própria. O portal e a classificação mostram pódio, final, 3º lugar e chave. `20261010135000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica antes da migration de RLS.
 
 ## [2026-10-10] fix | foto do atleta opcional na inscrição
 

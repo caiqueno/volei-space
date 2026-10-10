@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  supabase/migrations é a fonte da verdade. 20261010190000 acrescenta sets da final, da semifinal e do 3º lugar e ainda não foi aplicada.
+  supabase/migrations é a fonte da verdade. 20261010135000 acrescenta sets da final, da semifinal e do 3º lugar e ainda não foi aplicada. A de RLS continua sendo a última pelo prefixo.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -49,7 +49,7 @@ As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produç
 
 `202610100002_fechar_leitura_publica_placar.sql` ainda não foi aplicada. Quando for, `SetPartida` e `ClassificacaoEntrada` passam a ter RLS sem policy para `anon` ou `authenticated`, e o `GRANT` de tabela inteira dessas duas some. `Partida` permanece como está. A mesma migration recria `finalizar_inscricao_equipe_rascunho` para gravar `APROVADA` só se `inscricaoAprovacaoAutomatica` for verdadeiro. O bloco de default privileges de `supabase_admin` pode terminar só com um aviso de privilégio insuficiente; isso não desfaz o revoke de `postgres` nem o das duas tabelas. Não rode `db push` da pasta inteira para aplicá-la.
 
-`20261010190000_sets_por_fase_mata_mata.sql` também não foi aplicada. Ela acrescenta `setsPorPartidaFinal`, `setsPorPartidaSemifinal` e `setsPorPartidaTerceiroLugar` em `Liga` e em `CategoriaConfiguracao`, nulas, com checagem de 1 a 5 só se a constraint ainda não existe. Recria `salvar_configuracao_categoria` e `replicar_configuracao_categorias` para aceitar esses três campos em eliminatórias. Um patch só deles não marca classificação nem calendário como dependentes. `REVOKE` de `public`, `anon` e `authenticated` e `GRANT` só para `service_role`. Não apaga linha. O código lê o padrão do campeonato enquanto as colunas não existem; gravar a quantidade da fase só funciona depois desta migration.
+`20261010135000_sets_por_fase_mata_mata.sql` também não foi aplicada. O prefixo fica antes de `20261010140000`, para a migration de RLS continuar sendo a última. Ela acrescenta `setsPorPartidaFinal`, `setsPorPartidaSemifinal` e `setsPorPartidaTerceiroLugar` em `Liga` e em `CategoriaConfiguracao`, nulas, com checagem de 1 a 5 só se a constraint ainda não existe. Recria `salvar_configuracao_categoria` e `replicar_configuracao_categorias` para aceitar esses três campos em eliminatórias. Um patch só deles não marca classificação nem calendário como dependentes. `REVOKE` de `public`, `anon` e `authenticated` e `GRANT` só para `service_role`. Não apaga linha. O código lê o padrão do campeonato enquanto as colunas não existem; gravar a quantidade da fase só funciona depois desta migration.
 
 `20261010130000_foto_atleta_opcional.sql` também não foi aplicada. Ela só faz `CREATE OR REPLACE` de `finalizar_inscricao_equipe_rascunho` e de `validar_jogador_formulario_categoria`: a foto ausente deixa de recusar a conclusão, e `Jogador.fotoUrl` continua sendo copiada quando o campo não está `disabled`. O corpo da finalização é o de `202610100002`, então esta entra depois daquela e antes de `20261010140000`. Não apaga linha e não concede a `anon` nem a `authenticated`.
 
