@@ -1,0 +1,209 @@
+/* Microinterações locais das páginas públicas.
+   Só transform e opacity, entre 160ms e 280ms.
+   prefers-reduced-motion desliga tudo. */
+
+.entrar {
+  animation: mi-entrar 220ms ease-out backwards;
+}
+
+.cartao {
+  transition: transform 180ms ease, opacity 160ms ease;
+}
+
+.cartao:hover {
+  transform: translateY(-3px);
+}
+
+.cartao:active {
+  transform: translateY(0) scale(0.985);
+  opacity: 0.92;
+}
+
+.toque {
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.toque:active {
+  opacity: 0.84;
+}
+
+.linha {
+  transition: transform 180ms ease;
+}
+
+.linha:hover {
+  transform: translateX(4px);
+}
+
+.linha:active {
+  transform: scale(0.992);
+}
+
+.lider {
+  position: relative;
+}
+
+.lider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 3px;
+  border-radius: 999px;
+  background: #ffb331;
+  transform-origin: center;
+  animation: mi-lider 240ms ease-out backwards;
+}
+
+.chave {
+  animation: mi-chave 240ms ease-out backwards;
+}
+
+.campeao {
+  position: relative;
+  isolation: isolate;
+}
+
+.campeao::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  z-index: -1;
+  border-radius: 1.25rem;
+  pointer-events: none;
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgba(255, 179, 49, 0.9),
+    0 0 28px rgba(255, 179, 49, 0.55);
+  opacity: 0.72;
+  animation: mi-brilho 260ms ease-out backwards;
+}
+
+.pop {
+  animation: mi-pop 220ms ease-out backwards;
+}
+
+.numero,
+:global(.timeline-item) strong.numero,
+:global(.luva-card) .numero,
+:global(.championship-card) .numero,
+:global(.public-panel) .numero {
+  font-family: var(--font-display), 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+:global(.luva-card).entrar,
+:global(.landing-tech-card).entrar,
+:global(.timeline-item).entrar {
+  animation: mi-entrar 220ms ease-out backwards;
+}
+
+:global(.luva-card).toque:active,
+:global(.landing-tech-card).toque:active,
+:global(.timeline-item).toque:active {
+  opacity: 0.9;
+  transform: translateY(0) scale(0.985);
+}
+
+@keyframes mi-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mi-lider {
+  from {
+    opacity: 0;
+    transform: scaleY(0.35);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mi-chave {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mi-brilho {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+}
+
+@keyframes mi-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrar,
+  .cartao,
+  .toque,
+  .linha,
+  .chave,
+  .pop,
+  .lider::before,
+  .campeao::after,
+  :global(.luva-card).entrar,
+  :global(.landing-tech-card).entrar,
+  :global(.timeline-item).entrar {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .entrar,
+  .chave,
+  .pop,
+  .lider::before,
+  :global(.luva-card).entrar,
+  :global(.landing-tech-card).entrar,
+  :global(.timeline-item).entrar {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .campeao::after {
+    opacity: 0.72 !important;
+    transform: none !important;
+  }
+
+  .cartao:hover,
+  .cartao:active,
+  .linha:hover,
+  .linha:active,
+  .toque:active,
+  :global(.luva-card).toque:active,
+  :global(.landing-tech-card).toque:active,
+  :global(.timeline-item).toque:active {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

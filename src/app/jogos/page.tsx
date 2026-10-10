@@ -10,7 +10,7 @@ import { PortalAgenda } from '@/components/portal/PortalAgenda'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
-import { FASES_ELIMINATORIAS, formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
+import { formatFaseMataMata, ordemFaseMataMata } from '@/lib/format-partida'
 import { formatCategoriaLabel } from '@/lib/equipe-categoria'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -18,6 +18,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { createPageMetadata } from '@/lib/seo'
+import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
   title: 'Jogos de vôlei',
@@ -189,7 +190,7 @@ function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
     <section>
       <h2 className="font-display text-2xl font-black text-white">{titulo}</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {primeiros.map((partida) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} />)}
+        {primeiros.map((partida, index) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} atraso={`${Math.min(index, 8) * 30}ms`} />)}
       </div>
       {resto.length > 0 && (
         <details className="mt-4">
@@ -206,7 +207,7 @@ function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/8 p-4 text-center shadow-sm backdrop-blur-xl">
-      <p className="type-stat">{value}</p>
+      <p className={`type-stat ${mi.numero}`}>{value}</p>
       <p className="type-kicker mt-1">{label}</p>
     </div>
   )
@@ -253,7 +254,6 @@ type TabelaTree = {
 }
 
 function buildGameTree(partidas: any[]): TabelaTree[] {
-  const knockoutFases = new Set<string>(FASES_ELIMINATORIAS.filter((fase) => fase !== 'NENHUMA'))
   const categoriasPorLiga = new Map<number, Set<string>>()
   for (const partida of partidas) {
     const ligaId = Number(partida.ligaId ?? 0)
@@ -275,10 +275,11 @@ function buildGameTree(partidas: any[]): TabelaTree[] {
       : nomeCampeonato
     const tabela = tabelas.get(key) ?? { key, nome, rodadas: [], fases: [] }
     const fase = String(partida.fase ?? '')
-    const destino = knockoutFases.has(fase) ? tabela.fases : tabela.rodadas
-    const roundKey = knockoutFases.has(fase) ? `${key}:${fase}` : `${key}:${partida.rodada}`
-    const roundTitle = knockoutFases.has(fase) ? formatEliminatoryPhase(fase) : `Rodada ${partida.rodada}`
-    const ordem = knockoutFases.has(fase) ? getRequiredEliminatoryTeams(fase) : Number(partida.rodada)
+    const faseLabel = formatFaseMataMata(fase)
+    const destino = faseLabel ? tabela.fases : tabela.rodadas
+    const roundKey = faseLabel ? `${key}:${fase}` : `${key}:${partida.rodada}`
+    const roundTitle = faseLabel ?? `Rodada ${partida.rodada}`
+    const ordem = faseLabel ? ordemFaseMataMata(fase) : Number(partida.rodada)
     const grupo = destino.find((item) => item.key === roundKey) ?? { key: roundKey, title: roundTitle, partidas: [], ordem }
     if (!destino.includes(grupo)) destino.push(grupo)
     grupo.partidas.push(partida)

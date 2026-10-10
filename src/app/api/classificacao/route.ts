@@ -13,9 +13,10 @@ export async function GET(req: NextRequest) {
     const ligaId = Number(searchParams.get('ligaId'))
     if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
 
+    const colunas = 'id,equipeId,ligaId,categoriaCampeonatoId,categoria,serie,posicao,pontos,jogos,vitorias,derrotas,setsPro,setsContra,pontosPro,pontosContra,punicoes,atualizadoEm'
     let q = supabaseAdmin
       .from('ClassificacaoEntrada')
-      .select('*, equipe:Equipe(*)')
+      .select(`${colunas}, equipe:Equipe(id,nome,corHex,logoUrl,categoria,categoriaCampeonatoId,slug)`)
       .eq('ligaId', ligaId)
       .order('posicao', { ascending: true })
       .limit(80)
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     const [{ data, error: err }, equipesResposta] = await Promise.all([q, equipes])
     if (err) throw err
-    const linhas = [...(data ?? [])]
+    const linhas: any[] = [...((data ?? []) as any[])]
     const presentes = new Set(linhas.map((linha) => Number(linha.equipeId)))
     let proxima = linhas.reduce((maior, linha) => Math.max(maior, Number(linha.posicao ?? 0)), 0)
     for (const equipe of equipesResposta.data ?? []) {

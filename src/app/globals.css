@@ -5959,7 +5959,7 @@ html body .admin-shell main img {
     0 22px 60px rgba(0, 0, 0, 0.24);
 }
 
-.referee-shell :is(p, span, label, li):not(.referee-kicker):not(.referee-status):not(.bg-luva-amber) {
+.referee-shell :is(p, span, label, li):not(.referee-kicker):not(.referee-status):not(.bg-luva-amber):not(.referee-feedback) {
   color: #d7e5f5;
   -webkit-text-fill-color: #d7e5f5;
 }
@@ -6138,6 +6138,39 @@ html body .admin-shell main a.admin-filter-pill.admin-filter-pill-active:visited
 html body .admin-shell main a.admin-filter-pill.admin-filter-pill-idle {
   color: #ffffff;
   -webkit-text-fill-color: #ffffff;
+}
+
+.referee-number {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+button.referee-number {
+  cursor: pointer;
+}
+
+button.referee-number:hover,
+button.referee-number:focus-visible {
+  border-color: rgba(255, 179, 49, 0.95) !important;
+  box-shadow: 0 0 0 3px rgba(255, 179, 49, 0.35);
+  outline: none;
+}
+
+button.referee-number.is-saved {
+  border-color: rgba(52, 211, 153, 0.95) !important;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.35);
+}
+
+.referee-feedback.is-error {
+  color: #fecaca !important;
+  -webkit-text-fill-color: #fecaca !important;
+}
+
+.referee-feedback.is-success {
+  color: #bbf7d0 !important;
+  -webkit-text-fill-color: #bbf7d0 !important;
 }
 
 .referee-player.is-validated {
@@ -8388,6 +8421,127 @@ html body .admin-shell main a.admin-filter-pill.admin-filter-pill-idle {
   opacity: 0.46;
 }
 
+.official-team-selector button.is-active {
+  border-color: #d4af37;
+  color: #d4af37;
+  background: rgba(212, 175, 55, 0.10);
+}
+
+.official-team-selector button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: min(100%, 220px);
+  min-height: 48px;
+  text-align: center;
+}
+
+.official-team-selector button small {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.official-team-selector button.is-confirmed:not(.is-active) small {
+  color: #86efac;
+}
+
+.official-lineup-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.official-lineup-actions .official-primary,
+.official-lineup-actions .official-secondary {
+  width: 100%;
+  margin-top: 0;
+  min-height: 48px;
+}
+
+.official-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border: 1px solid rgba(255, 179, 49, 0.55);
+  border-radius: 10px;
+  background: transparent;
+  color: #ffb331;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  padding: 12px 16px;
+}
+
+.official-court-net {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.official-toss-setup .official-secondary {
+  width: 100%;
+}
+
+.official-serve-locked {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 18px;
+  background: rgba(212, 175, 55, 0.10);
+  padding: 18px;
+}
+
+.official-serve-locked span {
+  color: #ffb331;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.official-serve-locked strong {
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.official-serve-locked p,
+.official-toss-setup p {
+  margin: 0;
+  color: #cbd5e1;
+  font-weight: 800;
+}
+
+@media (min-width: 720px) {
+  .official-lineup-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .official-team-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .official-team-selector button {
+    width: 100%;
+  }
+
+  .official-serve {
+    min-height: 120px;
+  }
+}
+
 .official-lineup-review {
   margin: 0 auto 18px;
   width: min(100%, 760px);
@@ -8632,6 +8786,18 @@ html body .admin-shell main a.admin-filter-pill.admin-filter-pill-idle {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.official-modal-note,
+.official-modal-empty {
+  margin: 0 0 14px;
+  color: #e2e8f0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.official-modal-empty {
+  color: #94a3b8;
 }
 
 .official-modal button {

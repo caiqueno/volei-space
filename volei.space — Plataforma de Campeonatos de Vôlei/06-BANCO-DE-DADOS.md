@@ -8,7 +8,7 @@ summary: >-
   supabase/migrations é a fonte da verdade do Postgres. O Prisma só descreve esse banco. O elenco TOURNAMENT-SEED está no script idempotente.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 # Modelo de dados
 
@@ -29,7 +29,7 @@ supabase migration repair --status applied \
   202610010001 202610010002 202610010003
 ```
 
-Rode o repair nos dois projetos. O `db push` seguinte aplica só o que ainda não está no histórico, nesta ordem: `202610090001` (EXECUTE de `PUBLIC` nos default privileges), `202610090002` (índices de chave estrangeira), `202610090003` (unicidade de classificação por liga e equipe) e `202610090004` (`default now()` em `Partida.atualizadoEm`). Nenhuma dessas quatro apaga linha.
+Rode o repair nos dois projetos. O `db push` seguinte aplica só o que ainda não está no histórico, nesta ordem: `202610090001` (EXECUTE de `PUBLIC` nos default privileges), `202610090002` (índices de chave estrangeira), `202610090003` (unicidade de classificação por liga e equipe), `202610090004` (`default now()` em `Partida.atualizadoEm`), `202610100001` (`SumulaPresenca.presente` anulável, para guardar o número da camisa antes da confirmação) e `20261010015632` (índices das consultas de campeonato, equipe, atleta, partida e súmula). Nenhuma dessas seis apaga linha. `20261010015632` não foi aplicada em produção nem em desenvolvimento.
 
 As tabelas base (`Liga`, `Equipe`, `Partida` e as outras que já existiam antes desta pasta) não nascem de um `CREATE TABLE` versionado. Um banco vazio não reproduz o produto só com `db push`. O histórico ordenado reproduz os deltas em cima dessa base.
 
@@ -39,17 +39,23 @@ A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authentic
 
 `Partida.atualizadoEm` não tinha default. O cliente do Supabase insere a partida sem essa coluna e o banco recusava o confronto de grupos e o mata-mata. A migration `202610090004_partida_atualizado_em_default.sql` define `default now()`. O prefixo `202610090001` continua sendo a revogação de EXECUTE. Ela está no repositório e ainda não foi aplicada em produção: aplique só esse arquivo se a coluna continuar sem default. Não reaplique a pasta inteira.
 
+`SumulaPresenca.numero` já é o número da camisa desta partida. `202610100001_sumula_presenca_presente_nulo.sql` só tira o `NOT NULL` de `presente`, para a linha poder existir antes da confirmação. O default de `presente` continua `true`. Não foi aplicada em produção.
+
 `revoke ... from anon, authenticated` não alcança a concessão que o Postgres dá a `PUBLIC` quando a função é criada. Por isso a chave publicável continuava chamando `/rest/v1/rpc/recalcular_classificacao_liga` e recalculando a tabela de qualquer campeonato sem sessão. A migration `202610060005_fechar_rpc_anonimo.sql` percorre as funções do schema `public` que não pertencem a extensão, revoga de `public`, `anon` e `authenticated`, e concede `execute` ao `service_role`. Função de gatilho não perde nada: o `EXECUTE` é conferido na criação do gatilho, não a cada disparo.
 
 O `alter default privileges in schema public` de `202610060004` também não tira o EXECUTE global de `PUBLIC`. A documentação do Postgres diz que o revoke limitado a um schema só desfaz um grant feito naquele schema. `202610090001_revogar_execute_public_default.sql` usa a forma sem schema, para o papel `postgres`, e mantém `EXECUTE` de função nova para `service_role`. Função criada no SQL Editor como `supabase_admin` não entra nesse default: o mesmo `revoke` precisa ser repetido para esse papel por quem puder alterá-lo. Essa migration ainda não foi aplicada nos bancos.
 
 As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produção, depois delas: `sumulaToken`, `Jogador` e `Equipe` respondem 401 à chave publicável, `PATCH` em `Partida` responde 401, as RPC respondem 401, e `Partida` (colunas de placar), `SetPartida` e `ClassificacaoEntrada` seguem legíveis para o Realtime.
 
+`202610100002_fechar_leitura_publica_placar.sql` ainda não foi aplicada. Quando for, `SetPartida` e `ClassificacaoEntrada` passam a ter RLS sem policy para `anon` ou `authenticated`, e o `GRANT` de tabela inteira dessas duas some. `Partida` permanece como está. A mesma migration recria `finalizar_inscricao_equipe_rascunho` para gravar `APROVADA` só se `inscricaoAprovacaoAutomatica` for verdadeiro. O bloco de default privileges de `supabase_admin` pode terminar só com um aviso de privilégio insuficiente; isso não desfaz o revoke de `postgres` nem o das duas tabelas. Não rode `db push` da pasta inteira para aplicá-la.
+
 A leitura do Realtime está em migration versionada. A policy de linha é `public_read_classificacao`, `public_read_sets` e `public_read_partidas` em `202609200020_producao-elenco-sumula-rls.sql`, e `luv_public_select_classificacao`, `luv_public_select_set_partida` e `luv_public_select_partida` em `202609200021_rls-producao-permissoes-campeonatos.sql`. Policy é filtro de linha. A coluna fica de fora no `GRANT` de `202610060004_fechar_acesso_anonimo.sql`: `ClassificacaoEntrada` e `SetPartida` inteiras, e `Partida` só com id, liga, equipes, categoria, rodada, status, data, local, sets, pontos e vencedor. `sumulaToken` e `sumulaTokenExpira` não entram. A publicação em `202610060003_classificacao_ao_vivo.sql` repete essa lista de colunas da `Partida`.
 
 `ClassificacaoEntrada.equipeId` deixou de ser único sozinho. A mesma equipe participa de mais de uma liga, e o recálculo sobrescrevia a linha da outra liga. A unicidade vigente é `(ligaId, equipeId)`, criada em `202609200010` e repetida sem apagar linha em `202610090003`. `ligaId` nulo continua distinto, então linha órfã antiga permanece.
 
 `202610090002` cria índice, se ainda não existir, nas chaves estrangeiras que a revisão apontou sem a coluna na frente de um índice: `Equipe.ligaId`, `Jogador.equipeId`, `Partida.equipeAId`, `Partida.equipeBId`, `SumulaPresenca.jogadorId` e `equipeId`, `OcorrenciaPartida.partidaId` e `jogadorId`, `DestaquesPartida.jogadorId`, `EscalaArbitro.arbitroId`, `Premiacao.ligaId`, `Midia.ligaId`, `Mensagem.ligaId`, `CandidaturaEquipe.ligaId` e `ClassificacaoEntrada.ligaId` e `equipeId`. `SetPartida.partidaId` já é a primeira coluna da unicidade `(partidaId, numero)`; não há segundo índice. O `@@index` correspondente está no Prisma.
+
+`20261010015632_indices_consultas_quentes.sql` acrescenta índices que essas chaves ainda não cobriam. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` não eram a primeira coluna de nenhum índice. Os compostos seguem o filtro e a ordem do código: campeonatos públicos (`simulacao = false`, com ou sem `status`, por `criadoEm`) e do organizador (`organizadorId`, `criadoEm`); categorias por `ligaId` e `ordem`; equipes ativas do campeonato por nome; atletas da equipe por número e nome, e os não banidos por `criadoEm`; partidas por `ligaId` + fase + rodada, por `ligaId` + status + horário, por status + horário e por `ligaId` + rodada + horário; ocorrências da súmula por partida e set, e por partida e tipo. A vitrine com `simulacao = false` fica só no SQL, porque o Prisma não expressa `WHERE`. O restante tem `@@index`. Pontos do set continuam na unicidade `(partidaId, numero)`. Presença da partida continua na unicidade `(partidaId, jogadorId)`. Destaque continua em `(partidaId, tipo)`. O único parcial `Partida_categoria_fase_slot_key` segue valendo para o mata-mata com categoria. Esta migration não foi aplicada em nenhum banco.
 
 `LinkInscricaoCampeonato` e `LinkInscricaoEvento` guardam o token de inscrição e a auditoria. As duas tabelas têm RLS ligada, sem política para `anon` ou `authenticated`, e só `service_role` as lê. `Equipe.seedKey` e `Jogador.seedKey` identificam a massa de teste.
 

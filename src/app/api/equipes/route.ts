@@ -2,12 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { equipeSchema } from '@/lib/schemas'
+import { verifyToken } from '@/lib/auth'
 import { exigirOrganizadorDaLiga, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
 
 const EQUIPE_COLUNAS = 'id,nome,slug,logoUrl,corHex,categoria,ligaId,categoriaCampeonatoId,statusEquipe'
 const LIGA_COLUNAS = 'id,nome,slug,nomeCurto,status'
-const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl'
-const EQUIPE_SELECT = `${EQUIPE_COLUNAS},liga:Liga(${LIGA_COLUNAS}),jogadores:Jogador(${JOGADOR_COLUNAS})`
+const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
+const STATUS_PUBLICOS = ['EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO']
+
+type EquipeLinha = {
+  id: number
+  nome: string | null
+  slug: string | null
+  logoUrl: string | null
+  corHex: string | null
+  categoria: string | null
+  ligaId: number
+  categoriaCampeonatoId: string | null
+  statusEquipe: string | null
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,45 +30,106 @@ export async function GET(req: NextRequest) {
     const categoria = searchParams.get('categoria')
     const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
     const busca = searchParams.get('q')?.trim()
-    const ligasDoOrganizador = await ligasVisiveisAoOrganizador(req)
+    const [admin, ligasDoOrganizador] = await Promise.all([
+      verifyToken(req),
+      ligasVisiveisAoOrganizador(req),
+    ])
     if (ligasDoOrganizador && ligaId && !ligasDoOrganizador.includes(Number(ligaId))) return success([])
 
     if (ligaId) {
+      if (!ligasDoOrganizador && !admin) {
+        const { data: liga, error: ligaErr } = await supabase
+          .from('Liga')
+          .select('id,status,simulacao')
+          .eq('id', Number(ligaId))
+          .maybeSingle()
+        if (ligaErr) throw ligaErr
+        if (!liga || liga.simulacao === true || !STATUS_PUBLICOS.includes(String(liga.status))) return success([])
+      }
+
       const { data: inscricoes, error: inscricoesError } = await supabase
         .from('InscricaoCampeonato')
-        .select(`equipe:Equipe(${EQUIPE_SELECT})`)
+        .select('equipeId')
         .eq('ligaId', Number(ligaId))
         .eq('status', 'APROVADA')
-
       if (inscricoesError) throw inscricoesError
 
-      const equipes = (inscricoes ?? [])
-        .map((inscricao: any) => inscricao.equipe)
-        .filter(Boolean)
-        .filter((equipe: any) => !categoriaCampeonatoId || equipe.categoriaCampeonatoId === categoriaCampeonatoId)
-        .filter((equipe: any) => Boolean(categoriaCampeonatoId) || !categoria || equipe.categoria === categoria)
-        .filter((equipe: any) => !busca || equipe.nome?.toLowerCase().includes(busca.toLowerCase()))
-        .sort((a: any, b: any) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      const ids = Array.from(new Set((inscricoes ?? []).map((item) => Number(item.equipeId)).filter((id) => Number.isInteger(id))))
+      if (ids.length === 0) return success([])
 
-      return success(equipes)
+      const { data, error: equipesErr } = await supabase.from('Equipe').select(EQUIPE_COLUNAS).in('id', ids)
+      if (equipesErr) throw equipesErr
+
+      const termo = busca?.toLowerCase()
+      const equipes = ((data ?? []) as EquipeLinha[])
+        .filter((equipe) => !categoriaCampeonatoId || equipe.categoriaCampeonatoId === categoriaCampeonatoId)
+        .filter((equipe) => Boolean(categoriaCampeonatoId) || !categoria || equipe.categoria === categoria)
+        .filter((equipe) => !termo || String(equipe.nome ?? '').toLowerCase().includes(termo))
+        .sort((a, b) => String(a.nome ?? '').localeCompare(String(b.nome ?? ''), 'pt-BR'))
+
+      return success(await anexarLigaEJogadores(equipes))
     }
 
-    let q = supabase
-      .from('Equipe')
-      .select(EQUIPE_SELECT)
-      .order('nome', { ascending: true })
-
-    if (ligasDoOrganizador) q = q.in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
+    let q = supabase.from('Equipe').select(EQUIPE_COLUNAS).order('nome', { ascending: true })
+    if (ligasDoOrganizador) {
+      q = q.in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
+    } else if (!admin) {
+      const { data: publicas, error: publicasErr } = await supabase
+        .from('Liga')
+        .select('id')
+        .eq('simulacao', false)
+        .in('status', STATUS_PUBLICOS)
+      if (publicasErr) throw publicasErr
+      const ids = (publicas ?? []).map((liga) => liga.id)
+      if (ids.length === 0) return success([])
+      q = q.in('ligaId', ids)
+    }
     if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
     else if (categoria) q = q.eq('categoria', categoria)
     if (busca) q = q.ilike('nome', `%${busca.replace(/[%_]/g, '')}%`)
 
     const { data, error: err } = await q
     if (err) throw err
-    return success(data)
-  } catch {
+    return success(await anexarLigaEJogadores((data ?? []) as EquipeLinha[]))
+  } catch (err) {
+    console.error('[equipes] erro ao buscar', err)
     return error('Erro ao buscar equipes', 500)
   }
+}
+
+async function anexarLigaEJogadores(equipes: EquipeLinha[]) {
+  if (equipes.length === 0) return []
+  const ligaIds = Array.from(new Set(equipes.map((equipe) => equipe.ligaId).filter((id) => Number.isInteger(id))))
+  const equipeIds = equipes.map((equipe) => equipe.id)
+  const [{ data: ligas, error: ligaErr }, { data: jogadores, error: jogadorErr }] = await Promise.all([
+    ligaIds.length
+      ? supabase.from('Liga').select(LIGA_COLUNAS).in('id', ligaIds)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from('Jogador').select(JOGADOR_COLUNAS).in('equipeId', equipeIds),
+  ])
+  if (ligaErr) throw ligaErr
+  if (jogadorErr) throw jogadorErr
+
+  const ligaPorId = new Map((ligas ?? []).map((liga) => [liga.id, liga]))
+  const jogadoresPorEquipe = new Map<number, Array<Record<string, unknown>>>()
+  for (const jogador of jogadores ?? []) {
+    const lista = jogadoresPorEquipe.get(jogador.equipeId) ?? []
+    lista.push({
+      id: jogador.id,
+      nome: jogador.nome,
+      numero: jogador.numero,
+      posicao: jogador.posicao,
+      fotoUrl: jogador.fotoUrl,
+      fotoRostoUrl: jogador.fotoRostoUrl,
+    })
+    jogadoresPorEquipe.set(jogador.equipeId, lista)
+  }
+
+  return equipes.map((equipe) => ({
+    ...equipe,
+    liga: ligaPorId.get(equipe.ligaId) ?? null,
+    jogadores: jogadoresPorEquipe.get(equipe.id) ?? [],
+  }))
 }
 
 export async function POST(req: NextRequest) {

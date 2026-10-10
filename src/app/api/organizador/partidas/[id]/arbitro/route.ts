@@ -83,14 +83,20 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       .from('EscalaArbitro')
       .update({ arbitroId: conta.arbitroId })
       .eq('id', escalaExistente.id)
-    if (updateErr) return error('Não foi possível atualizar o árbitro.', 500, updateErr.message)
+    if (updateErr) {
+      console.error('[arbitro] erro ao atualizar escala', updateErr)
+      return error('Não foi possível atualizar o árbitro.', 500)
+    }
   } else {
     const { error: insertErr } = await supabase.from('EscalaArbitro').insert({
       partidaId,
       arbitroId: conta.arbitroId,
       cargo: 'PRIMEIRO_ARBITRO',
     })
-    if (insertErr) return error('Não foi possível designar o árbitro.', 500, insertErr.message)
+    if (insertErr) {
+      console.error('[arbitro] erro ao designar', insertErr)
+      return error('Não foi possível designar o árbitro.', 500)
+    }
   }
 
   return success({ partidaId, arbitroId: conta.arbitroId, nome: conta.nome })

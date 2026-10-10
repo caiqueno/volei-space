@@ -41,7 +41,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     .eq('id', ligaId)
     .single()
 
-  if (ligaErr || !liga) return error('Campeonato não encontrado.', 404, ligaErr)
+  if (ligaErr || !liga) {
+    if (ligaErr) console.error('[calendario] campeonato não encontrado', ligaErr)
+    return error('Campeonato não encontrado.', 404)
+  }
   if (liga.organizadorId !== auth.userId) return error('Acesso negado para este campeonato.', 403)
   const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
   if (bloqueio) return bloqueio
@@ -53,7 +56,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     .eq('ligaId', ligaId)
     .in('id', ids)
 
-  if (matchesErr) return error('Erro ao validar partidas do calendário.', 500, matchesErr)
+  if (matchesErr) {
+    console.error('[calendario] erro ao validar partidas', matchesErr)
+    return error('Erro ao validar partidas do calendário.', 500)
+  }
   if ((currentMatches ?? []).length !== ids.length) return error('Uma ou mais partidas não pertencem a este campeonato.', 403)
 
   const currentById = new Map((currentMatches ?? []).map((partida: any) => [Number(partida.id), partida]))
@@ -81,7 +87,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     if (Object.keys(update).length > 0) {
       const { error: updateErr } = await supabase.from('Partida').update(update).eq('id', item.id).eq('ligaId', ligaId)
-      if (updateErr) return error('Erro ao atualizar partida do calendário.', 500, updateErr)
+      if (updateErr) {
+        console.error('[calendario] erro ao atualizar partida', updateErr)
+        return error('Erro ao atualizar partida do calendário.', 500)
+      }
       updated += 1
     }
 
@@ -92,23 +101,35 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         .eq('partidaId', item.id)
         .limit(1)
 
-      if (escalaFetchErr) return error('Erro ao buscar escala de arbitragem.', 500, escalaFetchErr)
+      if (escalaFetchErr) {
+        console.error('[calendario] erro ao buscar escala', escalaFetchErr)
+        return error('Erro ao buscar escala de arbitragem.', 500)
+      }
 
       if (escalaExistente?.length) {
         const { error: escalaUpdateErr } = await supabase
           .from('EscalaArbitro')
           .update({ arbitroId: item.arbitroId, cargo: 'PRIMEIRO_ARBITRO' })
           .eq('id', escalaExistente[0].id)
-        if (escalaUpdateErr) return error('Erro ao atualizar árbitro da partida.', 500, escalaUpdateErr)
+        if (escalaUpdateErr) {
+          console.error('[calendario] erro ao atualizar árbitro', escalaUpdateErr)
+          return error('Erro ao atualizar árbitro da partida.', 500)
+        }
       } else {
         const { error: escalaInsertErr } = await supabase
           .from('EscalaArbitro')
           .insert({ partidaId: item.id, arbitroId: item.arbitroId, cargo: 'PRIMEIRO_ARBITRO' })
-        if (escalaInsertErr) return error('Erro ao escalar árbitro da partida.', 500, escalaInsertErr)
+        if (escalaInsertErr) {
+          console.error('[calendario] erro ao escalar árbitro', escalaInsertErr)
+          return error('Erro ao escalar árbitro da partida.', 500)
+        }
       }
     } else if (item.arbitroId === null) {
       const { error: escalaDeleteErr } = await supabase.from('EscalaArbitro').delete().eq('partidaId', item.id)
-      if (escalaDeleteErr) return error('Erro ao remover árbitro da partida.', 500, escalaDeleteErr)
+      if (escalaDeleteErr) {
+        console.error('[calendario] erro ao remover árbitro', escalaDeleteErr)
+        return error('Erro ao remover árbitro da partida.', 500)
+      }
     }
   }
 

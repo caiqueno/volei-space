@@ -45,7 +45,10 @@ export async function requireOwnedLigaForSetup(
     .eq('id', ligaId)
     .single()
 
-  if (ligaErr || !data) return error('Campeonato não encontrado.', 404, ligaErr)
+  if (ligaErr || !data) {
+    if (ligaErr) console.error('[setup] campeonato não encontrado', ligaErr)
+    return error('Campeonato não encontrado.', 404)
+  }
   const liga = data as unknown as { organizadorId: string; [key: string]: unknown }
   if (liga.organizadorId !== auth.userId) return error('Acesso negado para este campeonato.', 403)
   return liga
@@ -86,11 +89,13 @@ export async function getStoredSectionStatus(ligaId: number, section: SetupSecti
 export function mapDatabaseError(err: unknown, fallbackMessage: string) {
   const code = (err as { code?: string } | null)?.code
   if (code === '23514') {
-    return error('Combinação de valores inválida para este campeonato. Revise as datas e os limites informados.', 422, err)
+    console.error('[setup] restrição de campeonato', err)
+    return error('Combinação de valores inválida para este campeonato. Revise as datas e os limites informados.', 422)
   }
   const message = String((err as { message?: string } | null)?.message ?? '')
   if (code === 'P0001' || message.includes('somente consulta')) {
-    return error('Este campeonato está finalizado e disponível apenas para consulta.', 409, err)
+    console.error('[setup] campeonato finalizado', err)
+    return error('Este campeonato está finalizado e disponível apenas para consulta.', 409)
   }
   if (code === '42501') {
     return error('Não foi possível gravar esta seção. A conexão do servidor não tem permissão de escrita.', 500)

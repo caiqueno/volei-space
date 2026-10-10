@@ -7,6 +7,8 @@ import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
   title: 'Campeonatos de vôlei',
@@ -36,7 +38,7 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
   if (isSupabaseConfigured) {
     let query = supabase
       .from('Liga')
-      .select('*')
+      .select(LIGA_COLUNAS_PUBLICAS as '*')
       .eq('simulacao', false)
       .order('criadoEm', { ascending: false })
 
@@ -59,7 +61,7 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
 
   return (
     <main className="luva-shell min-h-screen">
-      <section className="orange-wave">
+      <section className={`orange-wave ${mi.entrar}`}>
         <div className="mx-auto max-w-7xl px-4 py-14">
           <p className="luva-kicker">Campeonatos</p>
           <h1 className="type-page-title mt-3 max-w-4xl">Campeonatos publicados</h1>
@@ -73,7 +75,7 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
         <div className="championship-filter-bar flex flex-col gap-3 rounded-[1.5rem] border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="type-kicker text-luva-amber">Filtro</p>
-            <p className="type-lead mt-1">{campeonatos.length === 1 ? '1 campeonato nesta lista' : `${campeonatos.length} campeonatos nesta lista`}</p>
+            <p className={`type-lead mt-1 ${mi.numero}`}>{campeonatos.length === 1 ? '1 campeonato nesta lista' : `${campeonatos.length} campeonatos nesta lista`}</p>
           </div>
           <form action="/campeonatos" className="flex flex-col gap-2 sm:min-w-[280px] sm:flex-row">
             {status && <input type="hidden" name="status" value={status} />}
@@ -113,15 +115,15 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
               <span>Inscrições</span>
               <span>Ação</span>
             </div>
-            {campeonatos.map((liga) => (
-              <article key={liga.id} className="championship-list-row">
+            {campeonatos.map((liga, index) => (
+              <article key={liga.id} className={`championship-list-row ${mi.linha} ${mi.entrar}`} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
                 <div className="championship-list-main">
                   <h2>{liga.nome}</h2>
                   {liga.subtitulo && <small>{liga.subtitulo}</small>}
                 </div>
                 <span data-label="Status">{formatLigaStatus(liga.status)}</span>
                 <span className="championship-list-description" data-label="Descrição">{liga.descricao || 'Campeonato publicado na plataforma volei.space.'}</span>
-                <span data-label="Equipes">{liga.quantidadeEquipes ?? 'A definir'}</span>
+                <span className={mi.numero} data-label="Equipes">{liga.quantidadeEquipes ?? 'A definir'}</span>
                 <span data-label="Formato">{formatLigaFormato(liga.formato)}</span>
                 <span data-label="Inscrições">{liga.inscricoesAbertas === false ? 'Fechadas' : 'Abertas'}</span>
                 <Link href={`/campeonatos/${liga.slug}`} className="championship-list-link">

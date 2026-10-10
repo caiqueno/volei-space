@@ -1,8 +1,8 @@
 // Fonte da verdade do banco: supabase/migrations, na ordem do prefixo
 // numérico. Este arquivo descreve esse banco. Não existe prisma/migrations;
 // não use `prisma migrate` nem `prisma db push` para alterar o Postgres.
-// Índices parciais (seedKey, tokenInscricao) ficam só no SQL: o Prisma não
-// expressa a cláusula WHERE.
+// Índices parciais (seedKey, tokenInscricao, vitrine com simulacao = false)
+// ficam só no SQL: o Prisma não expressa a cláusula WHERE.
 
 generator client {
   provider = "prisma-client-js"
@@ -100,6 +100,7 @@ model Liga {
   seedKey String?
 
   @@index([organizadorId])
+  @@index([organizadorId, criadoEm])
 }
 
 // ─── Equipe ───────────────────────────────────────────────────────────────────
@@ -141,6 +142,7 @@ model Equipe {
   @@unique([nome, ligaId, categoria, serie])
   @@unique([categoriaCampeonatoId, nome])
   @@index([ligaId])
+  @@index([ligaId, statusEquipe, nome])
 }
 
 model InscricaoCampeonato {
@@ -269,6 +271,8 @@ model Jogador {
 
   @@unique([equipeId, chaveCadastro])
   @@index([equipeId])
+  @@index([equipeId, numero, nome])
+  @@index([equipeId, banido, criadoEm])
 }
 
 // ─── Árbitro ──────────────────────────────────────────────────────────────────
@@ -365,6 +369,11 @@ model Partida {
   @@index([ligaId, categoria, serie, rodada])
   @@index([equipeAId])
   @@index([equipeBId])
+  @@index([grupoId])
+  @@index([ligaId, fase, rodada])
+  @@index([ligaId, status, dataHora])
+  @@index([status, dataHora])
+  @@index([ligaId, rodada, dataHora])
 }
 
 // ─── Sets da Partida ──────────────────────────────────────────────────────────
@@ -387,8 +396,8 @@ model SumulaPresenca {
   partidaId Int
   jogadorId Int
   equipeId  Int
-  presente  Boolean @default(true)
-  numero    Int? // número de camisa usado nesta partida, quando diferente do cadastro do atleta
+  presente  Boolean? @default(true) // nulo = presença ainda não decidida; a linha pode existir só pelo número
+  numero    Int? // número de camisa desta partida; nulo usa o cadastro do atleta
   partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
   jogador   Jogador @relation(fields: [jogadorId], references: [id])
   equipe    Equipe  @relation(fields: [equipeId], references: [id])
@@ -412,6 +421,8 @@ model OcorrenciaPartida {
 
   @@index([partidaId])
   @@index([jogadorId])
+  @@index([partidaId, set])
+  @@index([partidaId, tipo])
 }
 
 // ─── Destaques por Partida ────────────────────────────────────────────────────
@@ -706,6 +717,7 @@ model CategoriaCampeonato {
 
   @@unique([ligaId, codigo])
   @@unique([ligaId, slug])
+  @@index([ligaId, ordem])
 }
 
 model ConviteVagaEquipe {
@@ -847,6 +859,7 @@ model GrupoEquipeCampeonato {
 
   @@unique([ligaId, equipeId])
   @@unique([grupoId, equipeId])
+  @@index([equipeId])
 }
 
 model LigaLocal {

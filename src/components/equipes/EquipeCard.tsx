@@ -1,4 +1,5 @@
 import { TeamIdentity } from './TeamIdentity'
+import mi from '@/styles/microinteracoes.module.css'
 
 type Equipe = {
   id: number
@@ -9,14 +10,14 @@ type Equipe = {
   quantidadeJogadores?: number | null
 }
 
-export function EquipeCard({ equipe }: { equipe: Equipe }) {
+export function EquipeCard({ equipe, atraso = '0ms' }: { equipe: Equipe; atraso?: string }) {
   const color = equipe.corHex ?? '#185FA5'
   const atletas = Number.isFinite(Number(equipe.quantidadeJogadores))
     ? Number(equipe.quantidadeJogadores)
     : equipe.jogadores?.length ?? 0
 
   return (
-    <article className="group luva-card overflow-hidden rounded-2xl p-5">
+    <article className={`group luva-card overflow-hidden rounded-2xl p-5 ${mi.entrar} ${mi.toque}`} style={{ animationDelay: atraso }}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <TeamIdentity nome={equipe.nome} cor={color} logoUrl={equipe.logoUrl} />
@@ -28,7 +29,7 @@ export function EquipeCard({ equipe }: { equipe: Equipe }) {
       <div className="mt-6">
         <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
           <span>Elenco</span>
-          <span>{Math.min(100, Math.round((atletas / 14) * 100))}%</span>
+          <span className={mi.numero}>{Math.min(100, Math.round((atletas / 14) * 100))}%</span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
           <span className="block h-full rounded-full" style={{ width: `${Math.min(100, (atletas / 14) * 100)}%`, backgroundColor: color }} />
