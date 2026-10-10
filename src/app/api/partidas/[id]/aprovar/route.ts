@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { exigirOrganizadorOuAdminDaPartida } from '@/lib/organizador-isolamento'
-import { regrasDaConfiguracao, validateCategoryResult } from '@/lib/category-match-rules'
+import { validateCategoryResult } from '@/lib/category-match-rules'
+import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
@@ -28,20 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       pontosA: Number(set.pontosA),
       pontosB: Number(set.pontosB),
     }))
-    const { data: liga } = await supabase
-      .from('Liga')
-      .select('setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato')
-      .eq('id', partida.ligaId)
-      .maybeSingle()
-    let regras = regrasDaConfiguracao(liga)
-    if (partida.categoriaCampeonatoId) {
-      const { data: categoria } = await supabase
-        .from('CategoriaConfiguracao')
-        .select('setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato')
-        .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId)
-        .maybeSingle()
-      if (categoria) regras = regrasDaConfiguracao(categoria)
-    }
+    const regras = await regrasEfetivasDaPartida(partida)
     const placarInvalido = validateCategoryResult(sets, regras)
     if (placarInvalido) return error(placarInvalido, 422)
 

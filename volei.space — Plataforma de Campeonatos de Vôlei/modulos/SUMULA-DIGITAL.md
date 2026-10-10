@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A papeleta confirmada e o encerramento aguardando oficialização sobrevivem ao recarregar. O MVP lista o número da partida. Avisos iguais não se repetem. Tokens novos da súmula são aleatórios.
+  A final pode ser melhor de 5 com grupos em melhor de 3. A quantidade e o tie-break do último set seguem a fase.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Sets da fase — implementado no código, migration pendente:** a validação da súmula, do andamento, do resultado manual e da aprovação usa a quantidade da fase (`FINAL`, `SEMIFINAL` ou `TERCEIRO_LUGAR`). As outras fases usam `setsPorPartida`. O último set dessa quantidade é o tie-break quando `tieBreakUltimoSet` está ligado. A tela de lançamento abre essa quantidade de sets e marca o tie-break no último. Um placar com set a mais responde 422 «Quantidade de sets inválida». Sem as colunas no banco, a leitura volta ao padrão do campeonato. Ver [[modulos/MATA-MATA]] e `20261010190000_sets_por_fase_mata_mata.sql`.
 
 **Conferência da papeleta — implementado:** antes de liberar a pontuação, a tela mostra a papeleta de um time por vez. Os botões do topo indicam Confirmada ou Pendente e há um comando para conferir o outro time. A pontuação continua bloqueada até as duas confirmações, com líbero inicial, saque inicial, banco e edição das posições. A quadra 2D com as duas equipes de frente permanece na pontuação e na escalação já confirmada. O saque do set 1 é escolha. Nos sets 2, 3 e 4 o sistema define quem não sacou no set anterior e não aceita outra escolha. No 5º set o saque sai de sorteio: a mesa registra o resultado ou o aplicativo sorteia. `PUT` e `POST` de `/api/sumula/{token}` recusam a gravação quando o saque persistido dos sets 2 a 4 quebra essa alternância. A marca `[[SAQUE:timestamp:teamA|teamB]]` acompanha a frase «começa sacando».
 

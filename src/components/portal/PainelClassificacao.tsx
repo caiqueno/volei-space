@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
+import { PainelChavePublica } from '@/components/portal/PainelChavePublica'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import mi from '@/styles/microinteracoes.module.css'
 
@@ -44,11 +45,21 @@ export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaI
     () => { if (pronto) void carregar().catch(() => setErro('Erro ao carregar dados')) },
   )
 
-  if (erro) return <p className="text-sm font-bold text-red-200">{erro}</p>
-  if (!pronto || !linhas) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
+  if (!pronto) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
+  const chave = <PainelChavePublica ligaId={ligaId} categoriaId={categoriaId} />
+  if (erro) {
+    return (
+      <div className="grid gap-3">
+        {chave}
+        <p className="text-sm font-bold text-red-200">{erro}</p>
+      </div>
+    )
+  }
+  if (!linhas) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
   if (linhas.length === 0) {
     return (
       <div className="grid gap-3">
+        {chave}
         <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
         <p className="text-sm font-semibold text-slate-300">{categoriaId ? 'Nenhuma equipe inscrita nesta categoria' : 'Nenhuma equipe inscrita neste campeonato'}</p>
       </div>
@@ -58,6 +69,7 @@ export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaI
 
   return (
     <div className="grid gap-3">
+      {chave}
       <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       <div>
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffb331]">Classificação</p>

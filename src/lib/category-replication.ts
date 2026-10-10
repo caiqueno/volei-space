@@ -40,6 +40,9 @@ export const REPLICATION_SECTION_SCHEMAS = {
     faseEliminatoria: z.enum(['NENHUMA', 'FINAL', 'SEMIFINAL', 'QUARTAS', 'OITAVAS', 'DEZESSEIS_AVOS']).nullable(),
     metodoChaveamento: z.enum(['RANKING_GERAL', 'CRUZAMENTO_GRUPOS', 'SORTEIO', 'MANUAL']).nullable(),
     eliminatoriaIdaVolta: z.boolean().nullable(), disputaTerceiroLugar: z.boolean().nullable(), goldenSet: z.boolean().nullable(),
+    setsPorPartidaFinal: positive.max(5).nullable().optional(),
+    setsPorPartidaSemifinal: positive.max(5).nullable().optional(),
+    setsPorPartidaTerceiroLugar: positive.max(5).nullable().optional(),
   }).strict(),
   calendario: z.object({ dataInicio: z.string().datetime({ offset: true }).nullable(), dataFim: z.string().datetime({ offset: true }).nullable() }).strict(),
   inscricoes: z.object({
@@ -127,7 +130,11 @@ export function createReplicationSnapshot(configuration: Readonly<Record<string,
     const schema = REPLICATION_SECTION_SCHEMAS[section]
     const fields: Record<string, unknown> = {}
     // Missing parameters clear the selected section rather than retaining stale target values.
-    for (const field of Object.keys(schema.shape)) fields[field] = configuration[field] ?? null
+    for (const field of Object.keys(schema.shape)) {
+      const value = configuration[field] ?? null
+      if ((field === 'setsPorPartidaFinal' || field === 'setsPorPartidaSemifinal' || field === 'setsPorPartidaTerceiroLugar') && value == null) continue
+      fields[field] = value
+    }
     snapshot[section] = schema.parse(fields)
   }
   return clone(snapshot) as ReplicationSnapshot

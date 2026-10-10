@@ -85,6 +85,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       eliminatoriaIdaVolta: liga.eliminatoriaIdaVolta,
       disputaTerceiroLugar: liga.disputaTerceiroLugar,
       goldenSet: liga.goldenSet,
+      setsPorPartidaFinal: (liga.setsPorPartidaFinal as number | null) ?? null,
+      setsPorPartidaSemifinal: (liga.setsPorPartidaSemifinal as number | null) ?? null,
+      setsPorPartidaTerceiroLugar: (liga.setsPorPartidaTerceiroLugar as number | null) ?? null,
     },
     calendar: {
       dataInicio: liga.dataInicio,

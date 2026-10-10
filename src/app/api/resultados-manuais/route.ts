@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
-import { regrasDaConfiguracao, validateCategoryResult } from '@/lib/category-match-rules'
+import { validateCategoryResult } from '@/lib/category-match-rules'
+import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: partida, error: partidaErr } = await supabase
       .from('Partida')
-      .select('id,ligaId,equipeAId,equipeBId,categoriaCampeonatoId,liga:Liga(id,organizadorId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato)')
+      .select('id,ligaId,fase,equipeAId,equipeBId,categoriaCampeonatoId,liga:Liga(id,organizadorId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato)')
       .eq('id', partidaId)
       .single()
 
@@ -88,15 +89,7 @@ export async function PATCH(req: NextRequest) {
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
 
-    let regras = regrasDaConfiguracao(liga)
-    if (partida.categoriaCampeonatoId) {
-      const { data: categoria } = await supabase
-        .from('CategoriaConfiguracao')
-        .select('setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato')
-        .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId)
-        .maybeSingle()
-      if (categoria) regras = regrasDaConfiguracao(categoria)
-    }
+    const regras = await regrasEfetivasDaPartida(partida)
     const placarInvalido = validateCategoryResult(normalizedSets, regras)
     if (placarInvalido) return error(placarInvalido, 422)
 

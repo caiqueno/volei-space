@@ -148,7 +148,7 @@ const EDITABLE_AFTER_START: Partial<Record<SetupSection, string[]>> = {
     'sumulaScoutsEnabled',
   ],
   classificacao: [],
-  eliminatorias: [],
+  eliminatorias: ['setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataFim'],
 }
 

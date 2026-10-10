@@ -364,12 +364,17 @@ function rememberFieldFailure(
   return { fields, issues }
 }
 
+const CAMPOS_QUE_PODEM_VOLTAR_A_HERDAR = new Set(['setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar'])
+
 function sectionPayload<T extends object>(current: T | null, pending: Partial<T> | null) {
   const source = { ...(current ?? {}), ...(pending ?? {}) } as Record<string, unknown>
   const body: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(source)) {
     if (key === 'id' || key === 'organizadorId' || key === 'setupStatus' || key === 'issues' || key === 'locais' || key === 'formato') continue
-    if (value == null || value === '') continue
+    if (value == null || value === '') {
+      if (CAMPOS_QUE_PODEM_VOLTAR_A_HERDAR.has(key) && pending && Object.prototype.hasOwnProperty.call(pending, key)) body[key] = null
+      continue
+    }
     body[key] = value
   }
   return body

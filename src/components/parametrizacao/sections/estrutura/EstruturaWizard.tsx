@@ -185,6 +185,9 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
                 <NumberInput value={data.diferencaMinimaSet} min={1} max={10} onChange={(v) => updateNow({ diferencaMinimaSet: v ?? 2 })} />
               </Field>
             </div>
+            {data.formato && data.formato !== 'PONTOS_CORRIDOS' && (
+              <FormAlert variant="info">Essa quantidade vale para a fase de grupos e para as fases do mata-mata sem regra própria. Final, semifinal e 3º lugar ficam em Eliminatórias.</FormAlert>
+            )}
             <CheckboxRow label="Usar tie-break no último set" checked={Boolean(data.tieBreakUltimoSet)} onChange={(v) => updateNow({ tieBreakUltimoSet: v })} />
             {data.tieBreakUltimoSet && (
               <Field label="Pontos do tie-break">

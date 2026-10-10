@@ -11,6 +11,7 @@ import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
 import { formatDateBr } from '@/lib/date-brazil'
 import { formatEliminatoryPhase } from '@/lib/eliminatorias'
+import { rotuloSetsDaFase } from '@/lib/sets-por-fase'
 import { SECTION_TITLES, textoResumoPrevia } from '@/lib/championship-setup-status'
 import type { ChampionshipPreviaDTO } from '@/types/championship-setup'
 
@@ -121,6 +122,9 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
             <SummaryCard title="Eliminatórias" section="eliminatorias" ligaId={ligaId}>
               <SummaryRow label="Fase inicial" value={formatEliminatoryPhase(previa.knockout.faseEliminatoria)} />
               <SummaryRow label="Formato" value={previa.knockout.eliminatoriaIdaVolta ? 'Ida e volta' : 'Jogo único'} />
+              {previa.knockout.faseEliminatoria && previa.knockout.faseEliminatoria !== 'NENHUMA' && (
+                <SummaryRow label="Sets da final" value={rotuloSetsDaFase(previa.knockout.setsPorPartidaFinal, previa.structure.setsPorPartida)} />
+              )}
             </SummaryCard>
 
             <SummaryCard title="Calendário e local" section="calendario" ligaId={ligaId}>

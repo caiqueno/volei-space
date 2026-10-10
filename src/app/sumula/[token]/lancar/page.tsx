@@ -11,6 +11,7 @@ import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, texto
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
+import { setsDaFase } from '@/lib/sets-por-fase'
 import {
   AlertCircle,
   Award,
@@ -201,7 +202,7 @@ export default function SumulaPage() {
         if (!data?.equipeA || !data?.equipeB) throw new Error('A partida não tem as duas equipes cadastradas.')
         const teamA = makeTeam('teamA', data.equipeA)
         const teamB = makeTeam('teamB', data.equipeB)
-        const loadedRules = getMatchRules(data.liga)
+        const loadedRules = getMatchRules(data.liga, data.fase)
         const savedSets = [...(data.sets ?? [])].sort((a: any, b: any) => a.numero - b.numero)
         const savedOccurrences = data.ocorrencias ?? []
         const savedPresence = data.presencas ?? []
@@ -288,7 +289,7 @@ export default function SumulaPage() {
     const vencedora = setsWon.teamA > setsWon.teamB ? teamA : teamB
     return [...vencedora.players, ...vencedora.reserves]
   }, [teamA, teamB, setsWon])
-  const matchRules = useMemo(() => getMatchRules(partida?.liga), [partida?.liga])
+  const matchRules = useMemo(() => getMatchRules(partida?.liga, partida?.fase), [partida?.liga, partida?.fase])
 
   function getMatchNumber(teamId: TeamId, number: string) {
     const team = teamId === 'teamA' ? teamA : teamB
@@ -1195,7 +1196,7 @@ export default function SumulaPage() {
           <div className="official-live-card">
             <div className="official-live-status">
               <span><i /> Partida ao vivo</span>
-              <em key={currentSet} className="sumula-micro-set">Set {currentSet}</em>
+              <em key={currentSet} className="sumula-micro-set">Set {currentSet}{currentSet === matchRules.setsPerMatch && matchRules.lastSetPoints !== matchRules.pointsPerSet ? ' · tie-break' : ''}</em>
             </div>
             <strong>{leftTeam.name} <small>vs</small> {rightTeam.name}</strong>
             <div className="official-live-score">
@@ -1204,7 +1205,7 @@ export default function SumulaPage() {
               <b>{currentScore[rightTeamId]}</b>
             </div>
             <div className="official-live-sets">
-              <span>Sets</span>
+              <span>Sets · melhor de {matchRules.setsPerMatch}</span>
               <strong>{setsWon[leftTeamId]} x {setsWon[rightTeamId]}</strong>
             </div>
             <div className="official-live-captains">
@@ -3809,10 +3810,16 @@ function canCloseSetByRules(score: { teamA: number; teamB: number }, pointsPerSe
   return Math.max(score.teamA, score.teamB) >= pointsPerSet && Math.abs(score.teamA - score.teamB) >= 2
 }
 
-function getMatchRules(liga: any): MatchRules {
+function getMatchRules(liga: any, fase?: string | null): MatchRules {
   const source = Array.isArray(liga) ? liga[0] : liga
   const pointsPerSet = readPositiveNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet'], 21)
-  const setsPerMatch = readPositiveNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets'], 3)
+  const setsBase = readPositiveNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets'], 3)
+  const setsPerMatch = setsDaFase({
+    setsPorPartida: setsBase,
+    setsPorPartidaFinal: source?.setsPorPartidaFinal,
+    setsPorPartidaSemifinal: source?.setsPorPartidaSemifinal,
+    setsPorPartidaTerceiroLugar: source?.setsPorPartidaTerceiroLugar,
+  }, fase)
   const tieBreakEnabled = readBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set'], false)
   const lastSetPoints = tieBreakEnabled
     ? readPositiveNumber(source, ['pontosUltimoSet', 'pontos_ultimo_set'], 15)
