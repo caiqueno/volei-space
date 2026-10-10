@@ -1,8 +1,9 @@
 import type { FieldRequirement } from '@/lib/schemas'
 
 // Default de formularioInscricaoConfig para campeonato e categoria novos,
-// e para quem ainda não gravou o JSON. A inscrição trata data de nascimento
-// e documento do atleta como opcionais mesmo se um JSON antigo disser required.
+// e para quem ainda não gravou o JSON. Na inscrição, data de nascimento e
+// documento seguem o valor gravado: não coletar, opcional ou obrigatório.
+// Sem a chave, os dois ficam opcionais.
 //
 // Exceção deliberada: atleta.foto nasce 'required' no JSON (o schema atual
 // permite fotoRostoUrl vazio) porque qrCodeEnabled também nasce `true` por

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O organizador grava a súmula do próprio campeonato. O MVP pede confirmação. A chave do mata-mata nasce dos grupos. Este lote não tem migration.
+  A inscrição rápida segue não coletar, opcional e obrigatório da categoria. 20261010138500 não foi aplicada e fica antes da migration de RLS.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a inscrição rápida deixa de ler só `Liga.formularioInscricaoConfig`. O rascunho, a vaga e o link da categoria usam o formulário gravado na categoria. Não coletar esconde data de nascimento e documento. Opcional aceita vazio. Obrigatório bloqueia o atleta e a conclusão. Sem a chave, os dois ficam opcionais. A foto continua opcional, salvo quando está desligada. Um campeonato com uma categoria espelha o JSON na liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica antes da migration de RLS. Fonte: [[modulos/INSCRICOES]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o W.O. aceita placar e punição opcionais em `Liga` e `CategoriaConfiguracao`. Sem `woSetsVencedor`, a classificação continua com vitória, zero sets e a faixa de margem de 2 ou mais. A punição zero não tira ponto. `20261010150000_wo_configuravel.sql` recria `recalcular_classificacao_categoria` com o W.O. e preenche `punicoes`. Não foi aplicada. Fonte: [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 

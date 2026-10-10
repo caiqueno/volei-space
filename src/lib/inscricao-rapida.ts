@@ -25,6 +25,31 @@ function campoOpcionalNaInscricao(valor: FieldRequirement | undefined, padrao: F
   return (valor ?? padrao) === 'disabled' ? 'disabled' : 'optional'
 }
 
+function campoConfigurado(valor: FieldRequirement | undefined, padrao: FieldRequirement): FieldRequirement {
+  const escolhido = valor ?? padrao
+  if (escolhido === 'disabled' || escolhido === 'optional' || escolhido === 'required') return escolhido
+  return padrao
+}
+
+function grupoDeFormulario(valor: unknown) {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return {}
+  return valor as Record<string, unknown>
+}
+
+/** A categoria gravada na parametrização prevalece. Chave ausente herda o campeonato. */
+export function formularioDaInscricao(liga: unknown, categoria: unknown) {
+  const base = grupoDeFormulario(liga)
+  const sobre = grupoDeFormulario(categoria)
+  if (Object.keys(sobre).length === 0) return liga ?? {}
+  return {
+    ...base,
+    ...sobre,
+    equipe: { ...grupoDeFormulario(base.equipe), ...grupoDeFormulario(sobre.equipe) },
+    lider: { ...grupoDeFormulario(base.lider), ...grupoDeFormulario(sobre.lider) },
+    atleta: { ...grupoDeFormulario(base.atleta), ...grupoDeFormulario(sobre.atleta) },
+  }
+}
+
 export function resolveFormularioRapidaConfig(raw: unknown): ResolvedFormularioRapidaConfig {
   const defaults = getDefaultFormularioInscricaoConfig()
   const parsed = formularioInscricaoConfigSchema.safeParse(raw ?? {})
@@ -36,12 +61,12 @@ export function resolveFormularioRapidaConfig(raw: unknown): ResolvedFormularioR
     atleta: {
       numeroCamisa: data.atleta?.numeroCamisa ?? defaults.atleta.numeroCamisa,
       posicao: data.atleta?.posicao ?? defaults.atleta.posicao,
-      // Foto, nascimento e documento são opcionais na inscrição, mesmo se o
-      // formulário gravou required (QR na foto, ou o default antigo da liga).
-      foto: campoOpcionalNaInscricao(data.atleta?.foto, defaults.atleta.foto),
+      // A foto nasce required no JSON por causa do QR. A inscrição só oculta
+      // quando está disabled; required antigo não bloqueia o cadastro.
+      foto: campoOpcionalNaInscricao(data.atleta?.foto, 'optional'),
       cpf: data.atleta?.cpf ?? defaults.atleta.cpf,
-      dataNascimento: campoOpcionalNaInscricao(data.atleta?.dataNascimento, defaults.atleta.dataNascimento),
-      documento: campoOpcionalNaInscricao(data.atleta?.documento, defaults.atleta.documento),
+      dataNascimento: campoConfigurado(data.atleta?.dataNascimento, 'optional'),
+      documento: campoConfigurado(data.atleta?.documento, 'optional'),
     },
   }
 }
@@ -51,6 +76,13 @@ export function isFieldEnabled(req: FieldRequirement) {
 }
 export function isFieldRequired(req: FieldRequirement) {
   return req === 'required'
+}
+
+export function pendenciasDoAtleta(atleta: { dataNascimento?: string | null; documentoNumero?: string | null }, config: ResolvedFormularioRapidaConfig) {
+  const pendencias: string[] = []
+  if (isFieldRequired(config.atleta.dataNascimento) && !atleta.dataNascimento?.trim()) pendencias.push('Data de nascimento é obrigatória.')
+  if (isFieldRequired(config.atleta.documento) && !atleta.documentoNumero?.trim()) pendencias.push('Documento é obrigatório.')
+  return pendencias
 }
 
 // Liga.categoriasConfig é uma taxonomia livre digitada pelo organizador

@@ -35,6 +35,7 @@ const CAMPOS_LIGA = new Set([
   'setsPorPartidaFinal',
   'setsPorPartidaSemifinal',
   'setsPorPartidaTerceiroLugar',
+  'formularioInscricaoConfig',
 ])
 
 export type JogoDaCategoria = {

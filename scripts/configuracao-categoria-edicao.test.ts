@@ -80,6 +80,12 @@ assert.deepEqual(camposParaEspelharNaLiga({ setsPorPartidaFinal: 5, setsPorParti
   setsPorPartidaFinal: 5,
   setsPorPartidaSemifinal: null,
 })
+assert.deepEqual(camposParaEspelharNaLiga({
+  formularioInscricaoConfig: { atleta: { dataNascimento: 'disabled', documento: 'optional' } },
+  terceiroSetObrigatorio: true,
+}), {
+  formularioInscricaoConfig: { atleta: { dataNascimento: 'disabled', documento: 'optional' } },
+})
 
 const secoes = proximoEstadoSecoes({
   secoes: [
