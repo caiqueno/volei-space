@@ -185,6 +185,10 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
               <Field label="Substituições por set" hint="Em branco, cada equipe continua com 8 substituições por set. A troca de líbero não entra nessa conta.">
                 <NumberInput value={data.limiteSubstituicoesPorSet} min={1} max={30} placeholder="8" onChange={(v) => updateNow({ limiteSubstituicoesPorSet: v })} />
               </Field>
+            </div>
+            <CheckboxRow label="Avisar rodízio ilegal" checked={data.alertaRodizioIlegal === true} onChange={(v) => updateNow({ alertaRodizioIlegal: v })} />
+            <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula não mostra aviso e não impede o ponto.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Pontos por set">
                 <NumberInput value={data.pontosPorSet} min={1} max={99} onChange={(v) => updateNow({ pontosPorSet: v })} />
               </Field>

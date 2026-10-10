@@ -88,6 +88,8 @@ export interface EstruturaSectionDTO extends SectionPatchMeta {
   setsPorPartida: number | null
   /** Null ou ausente mantém 8 substituições por set. */
   limiteSubstituicoesPorSet?: number | null
+  /** Só true mostra o aviso. Ausente ou false não altera a súmula. */
+  alertaRodizioIlegal?: boolean
   pontosPorSet: number | null
   diferencaMinimaSet: number
   tieBreakUltimoSet: boolean

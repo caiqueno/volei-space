@@ -19,9 +19,10 @@ import { colunaElegibilidadeAusente, mensagemFaixaIdade, separarElegibilidade } 
 import { criteriosPersistiveis, erroRecusaQuociente } from '@/lib/classificacao'
 import { colunaDeSetsQuartasOitavasAusente, semSetsQuartasOitavas, soSetsQuartasOitavas } from '@/lib/sets-por-fase'
 import { colunaDeLimiteSubstituicoesAusente, semLimiteSubstituicoes, soLimiteSubstituicoes } from '@/lib/sumula-regras'
+import { colunaDeAlertaRodizioAusente, semAlertaRodizio, soAlertaRodizio } from '@/lib/rodizio-sumula'
 
 const ALLOWED: Record<string, string[]> = {
-  estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled', 'limiteSubstituicoesPorSet'],
+  estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled', 'limiteSubstituicoesPorSet', 'alertaRodizioIlegal'],
   classificacao: ['criteriosClassificacao', 'classificadosPorGrupo', 'melhoresClassificadosGerais', 'pontosVencedorMargem1', 'pontosPerdedorMargem1', 'pontosVencedorMargem2', 'pontosPerdedorMargem2', 'woSetsVencedor', 'woSetsPerdedor', 'woPontosSetVencedor', 'woPontosSetPerdedor', 'woPunicaoPontos'],
   eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaQuartas', 'setsPorPartidaOitavas', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataInicio', 'dataFim'],
@@ -71,7 +72,8 @@ export async function saveCategorySection(args: {
     const patchRpc = separado.resto
     const setsNovos = soSetsQuartasOitavas(patchRpc)
     const limiteNovo = soLimiteSubstituicoes(patchRpc)
-    let patchEfetivo = semLimiteSubstituicoes(semSetsQuartasOitavas(patchRpc))
+    const alertaNovo = soAlertaRodizio(patchRpc)
+    let patchEfetivo = semAlertaRodizio(semLimiteSubstituicoes(semSetsQuartasOitavas(patchRpc)))
     if (SECOES_COM_TRAVA.has(args.section)) {
       const jogos = await jogosDaCategoria(categoryId)
       if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
@@ -116,9 +118,11 @@ export async function saveCategorySection(args: {
         if (comSets instanceof Response) return comSets
         const comLimite = await gravarLimiteSubstituicoes(args.ligaId, categoryId, limiteNovo, comSets)
         if (comLimite instanceof Response) return comLimite
-        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comLimite)
+        const comAlerta = await gravarAlertaRodizio(args.ligaId, categoryId, alertaNovo, comLimite)
+        if (comAlerta instanceof Response) return comAlerta
+        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comAlerta)
         if (comElegibilidade instanceof Response) return comElegibilidade
-        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo })
+        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo })
         return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
       }
       const message = /Versao alterada/i.test(rpcError.message)
@@ -131,9 +135,11 @@ export async function saveCategorySection(args: {
     if (comSets instanceof Response) return comSets
     const comLimite = await gravarLimiteSubstituicoes(args.ligaId, categoryId, limiteNovo, comSets)
     if (comLimite instanceof Response) return comLimite
-    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comLimite)
+    const comAlerta = await gravarAlertaRodizio(args.ligaId, categoryId, alertaNovo, comLimite)
+    if (comAlerta instanceof Response) return comAlerta
+    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comAlerta)
     if (comElegibilidade instanceof Response) return comElegibilidade
-    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo })
+    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo })
     return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
   } catch (cause) {
     if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
@@ -320,6 +326,29 @@ async function gravarLimiteSubstituicoes(
   return error('Não foi possível gravar o limite de substituições.', 422)
 }
 
+async function gravarAlertaRodizio(
+  ligaId: number,
+  categoryId: string,
+  campos: Record<string, unknown>,
+  salva: Record<string, unknown>,
+) {
+  if (Object.keys(campos).length === 0) return salva
+  const { data, error: updateErro } = await db
+    .from('CategoriaConfiguracao')
+    .update(campos)
+    .eq('categoriaCampeonatoId', categoryId)
+    .eq('ligaId', ligaId)
+    .select('*')
+    .maybeSingle()
+  if (!updateErro && data) return data
+  if (colunaDeAlertaRodizioAusente(updateErro)) {
+    console.error('[setup] alerta de rodízio ainda não existe nesta base; a súmula segue sem aviso')
+    return salva
+  }
+  console.error('[setup] erro ao gravar alerta de rodízio', updateErro)
+  return error('Não foi possível gravar o alerta de rodízio.', 422)
+}
+
 async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
   const campos = camposParaEspelharNaLiga(patch)
   if (Object.keys(campos).length === 0) return
@@ -344,6 +373,7 @@ function enxugarEspelhoDaLiga(corpo: Record<string, unknown>, erro: { message?: 
   let atual = corpo
   if (colunaDeSetsQuartasOitavasAusente(erro)) atual = semSetsQuartasOitavas(atual)
   if (colunaDeLimiteSubstituicoesAusente(erro)) atual = semLimiteSubstituicoes(atual)
+  if (colunaDeAlertaRodizioAusente(erro)) atual = semAlertaRodizio(atual)
   return atual
 }
 

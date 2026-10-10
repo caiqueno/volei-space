@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O limite de substituições continua 8 enquanto o campo estiver vazio. Um número de 1 a 30 só vale quando o organizador grava.
+  O aviso de rodízio ilegal só aparece quando o organizador liga a opção. Desligado, a súmula não avisa e não impede o ponto.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o aviso de rodízio ilegal só entra na súmula quando `alertaRodizioIlegal` está true. Desligado, ausente ou sem a coluna, o ponto segue e nenhum aviso aparece. O aviso não recusa o lance. `20261010139960_alerta_rodizio.sql` não foi aplicada. O prefixo fica depois de `20261010139950` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o organizador pode gravar o limite de substituições por set, de 1 a 30. Vazio continua 8. A troca de líbero não entra na conta e o par fecha na volta. Sem a coluna, a súmula segue com 8. `20261010139950_limite_substituicoes.sql` não foi aplicada. O prefixo fica depois de `20261010139900` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 

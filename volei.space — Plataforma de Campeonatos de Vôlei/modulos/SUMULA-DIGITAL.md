@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O limite de substituições continua 8 enquanto o campo estiver vazio. Quartas e oitavas herdam os sets do campeonato.
+  O aviso de rodízio só aparece com a opção ligada. O limite de substituições continua 8 enquanto o campo estiver vazio.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -17,6 +17,8 @@ updated: 2026-10-10
 **Sanções — implementado:** advertência, penalidade, expulsão e desqualificação entram na ocorrência da súmula. No mesmo jogo a sequência sobe sozinha; uma sanção mais grave pode ser aplicada direto. A segunda advertência precisa ser gravada como penalidade. Expulsão, desqualificação e cada duas advertências suspendem o atleta na partida seguinte da categoria. A súmula recusa a presença dele. Penalidade pesa 1 na coluna `punicoes`, expulsão pesa 1 e desqualificação pesa 2. Advertência pesa 0. O peso não tira ponto de campeonato. O cartão amarelo antigo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A decisão de cumprimento lê as ocorrências e não grava essa tabela.
 
 **Regras da categoria — implementado no código:** lançamento, andamento, validação e o placar recalculado leem `CategoriaConfiguracao` da partida (`setsPorPartida`, pontos, tie-break, `terceiroSetObrigatorio`, formato e a quantidade da fase). A `Liga` não entra nessa leitura quando a partida tem categoria. `terceiroSetObrigatorio` não é coluna da `Liga`; sem categoria, ele fica desligado e o tie-break usa o valor da `Liga` (o default dela é desligado; o da categoria é ligado). A tela `/sumula/{token}/lancar` usa a mesma função. Com terceiro set obrigatório ou quantidade fixa, ela não encerra em 2×0. Resultado manual e aprovação seguem o mesmo carregamento.
+
+**Aviso de rodízio — implementado no código, migration pendente:** no side-out, se `alertaRodizioIlegal` estiver true e a ordem de quem permaneceu em quadra mudou desde o ponto anterior, a súmula mostra um aviso. O ponto é registrado do mesmo jeito. Substituição que troca um número e mantém a ordem dos demais não avisa. Com a opção desligada, ausente ou sem a coluna, não há aviso e o lance não é recusado. `20261010139960_alerta_rodizio.sql` não foi aplicada.
 
 **Limite de substituições — implementado no código, migration pendente:** cada equipe continua com 8 substituições por set quando `limiteSubstituicoesPorSet` está vazio, ausente ou fora de 1 a 30. Um inteiro nesse intervalo passa a valer na súmula e na validação do servidor. A troca de líbero não entra na conta e não cria par. O par fecha na volta. `20261010139950_limite_substituicoes.sql` não foi aplicada. Sem a coluna, a leitura da súmula não pede esse campo no segundo pedido e o limite permanece 8.
 

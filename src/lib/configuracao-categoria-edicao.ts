@@ -38,6 +38,7 @@ const CAMPOS_LIGA = new Set([
   'setsPorPartidaOitavas',
   'setsPorPartidaTerceiroLugar',
   'limiteSubstituicoesPorSet',
+  'alertaRodizioIlegal',
   'formularioInscricaoConfig',
 ])
 
@@ -110,9 +111,11 @@ export function secoesDependentes(secao: string, patch: Record<string, unknown>)
   return []
 }
 
+const CAMPOS_ESTRUTURA_QUE_NAO_TRAVAM = new Set(['limiteSubstituicoesPorSet', 'alertaRodizioIlegal'])
+
 export function patchSoDeLimiteDeSubstituicoes(patch: Record<string, unknown>) {
   const chaves = Object.keys(patch)
-  return chaves.length > 0 && chaves.every((chave) => chave === 'limiteSubstituicoesPorSet')
+  return chaves.length > 0 && chaves.every((chave) => CAMPOS_ESTRUTURA_QUE_NAO_TRAVAM.has(chave))
 }
 
 const FASE_DO_CAMPO_DE_SETS: Record<(typeof CAMPOS_SETS_POR_FASE)[number], string> = {
