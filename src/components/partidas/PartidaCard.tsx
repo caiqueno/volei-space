@@ -1,6 +1,7 @@
 import { CalendarClock, ClipboardList, ExternalLink, MapPin, Radio } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { rotuloConfronto, textoLocalAusente } from '@/lib/format-partida'
 
 type Set = { numero: number; pontosA: number; pontosB: number }
 type Equipe = { id: number; nome: string; corHex: string | null }
@@ -37,6 +38,10 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { p
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
   const mostraPlacar = emAndamento || encerrada
   const setAtual = emAndamento ? [...(partida.sets ?? [])].sort((a, b) => a.numero - b.numero).at(-1) : null
+  const dataAusente = !partida.dataHora || Number.isNaN(new Date(partida.dataHora).getTime())
+  const localAusente = textoLocalAusente(partida.localNome)
+  const mostraData = !(encerrada && dataAusente)
+  const mostraLocal = Boolean(partida.localNome) && !(encerrada && localAusente)
   const dataFmt = formatMatchDate(partida.dataHora)
   const liveLabel = encerrada ? 'Resumo da partida' : emAndamento ? 'Acompanhar ao vivo' : 'Link público'
   const sumulaHref = `/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`
@@ -47,7 +52,7 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { p
       <div className="mb-5 flex items-start justify-between gap-3">
         <span className="min-w-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
           {partida.liga?.nome && <span className="mb-1 block normal-case tracking-normal text-slate-400">{partida.liga.nome}</span>}
-          {roundLabel ?? `Rodada ${partida.rodada}`}{partida.fase ? ` · ${partida.fase}` : ''}
+          <span className="normal-case tracking-normal">{rotuloConfronto(partida, roundLabel)}</span>
         </span>
         <span className="shrink-0"><Badge variant={badge.variant}>{badge.label}</Badge></span>
       </div>
@@ -82,20 +87,24 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { p
         <TeamBlock equipe={partida.equipeB} />
       </div>
 
-      <div className="mt-auto grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs font-bold text-slate-500">
-        <p className="flex min-w-0 items-center gap-2">
-          <CalendarClock size={14} className="shrink-0 text-luva-amber" />
-          <span className="min-w-0 truncate">{dataFmt}</span>
-        </p>
-        {partida.localNome && (
-          <p className="flex min-w-0 items-center gap-2">
-            <MapPin size={14} className="shrink-0 text-luva-amber" />
-            <span className="min-w-0 truncate">{partida.localNome}</span>
-          </p>
-        )}
-      </div>
+      {(mostraData || mostraLocal) && (
+        <div className="mt-auto grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs font-bold text-slate-500">
+          {mostraData && (
+            <p className="flex min-w-0 items-center gap-2">
+              <CalendarClock size={14} className="shrink-0 text-luva-amber" />
+              <span className="min-w-0 truncate">{dataFmt}</span>
+            </p>
+          )}
+          {mostraLocal && (
+            <p className="flex min-w-0 items-center gap-2">
+              <MapPin size={14} className="shrink-0 text-luva-amber" />
+              <span className="min-w-0 truncate">{partida.localNome}</span>
+            </p>
+          )}
+        </div>
+      )}
 
-      <div className="mt-3 grid gap-2">
+      <div className={`${mostraData || mostraLocal ? 'mt-3' : 'mt-auto'} grid gap-2`}>
         {showSumulaLink && (
           <a href={sumulaHref} target="_blank" rel="noreferrer" className="match-public-action is-sumula">
             <ClipboardList size={15} />
