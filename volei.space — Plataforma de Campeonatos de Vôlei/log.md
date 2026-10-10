@@ -13,6 +13,12 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | base visual Noite de final
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Tokens `--vs-*` passam a ser a paleta única. `--luva-*`, `--landing-*` e `--dark-*` viram aliases. Barlow Condensed e Manrope carregam só por `next/font`.
+- `globals.css` deixa de redefinir utilitários Tailwind e de usar `!important` nos passes de override. Lógica, rotas, API e banco não mudam. As regras novas da papeleta e do número da camisa entram junto.
+
 ## [2026-10-10] fix | senha idempotente na importação Winners
 
 - pages_updated=`hot`, `log`

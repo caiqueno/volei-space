@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A importação Winners mantém a senha de organizador já ativo. A substituição fecha o par na volta. O credenciamento grava o número da camisa.
+  Base visual com tokens --vs-*. A importação Winners mantém a senha do organizador ativo. A substituição fecha o par na volta.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Base visual «Noite de final», sem mudar telas, rotas, API ou banco. Tokens `--vs-*` em `globals.css` e `tailwind.config.ts`. Fontes só por `next/font`: Barlow Condensed 600/700 e Manrope 400–700. Saiu o `@import` duplicado da Manrope, a redefinição de utilitários Tailwind e os `!important` dos passes de override. `--luva-*`, `--landing-*` e `--dark-*` ficam como aliases. O seletor do árbitro exclui `.referee-feedback`, e a papeleta ganha as regras novas de linha, saque e número. Fonte: [[09-UI-UX]].
 
 `scripts/import-winners.mjs` deixa de redefinir a senha em toda execução. Se o organizador já está `ATIVA`, o script entra com `ORGANIZADOR_SENHA` e não chama `POST /api/admin/organizadores`. A senha temporária só entra ao criar a conta. `--reset-senha` força a troca. Conta existente fora de `ATIVA` também fica sem troca, até essa flag. O teste `scripts/import-winners.test.mjs` usa chamadas falsas e não abre banco. O script não foi executado contra produção.
 
