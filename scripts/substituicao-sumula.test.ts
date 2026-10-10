@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
 import {
   aplicarSubstituicao,
   controleVazio,
   mensagemFalhaSubstituicao,
   reservasElegiveis,
   textoAvisoSubstituicao,
+  limiteDeSubstituicoes,
   validarSubstituicoes,
 } from '../src/lib/sumula-regras'
 
@@ -145,6 +148,38 @@ for (let indice = 0; indice < 8; indice += 1) {
 }
 assert.equal(aplicarSubstituicao(cheio, '9', '30').falha, 'limite')
 assert.equal(reservasElegiveis(cheio, '1', ['30']).aviso?.tipo, 'limite')
-assert.match(mensagemFalhaSubstituicao('limite', 3), /set 3/)
+assert.match(mensagemFalhaSubstituicao('limite', 3), /limite de 8/)
+assert.match(textoAvisoSubstituicao({ tipo: 'limite' }), /Limite de 8/)
+
+let curto = controleVazio()
+for (let indice = 0; indice < 6; indice += 1) {
+  const resultado = aplicarSubstituicao(curto, String(indice + 1), String(indice + 20), 6)
+  assert.equal(resultado.falha, null)
+  curto = resultado.controle
+}
+assert.equal(aplicarSubstituicao(curto, '9', '30', 6).falha, 'limite')
+assert.equal(aplicarSubstituicao(curto, '9', '30').falha, null, 'sem limite informado, a 7ª ainda cabe nas 8')
+assert.equal(reservasElegiveis(curto, '1', ['30'], 6).aviso?.tipo, 'limite')
+assert.match(mensagemFalhaSubstituicao('limite', 2, 6), /limite de 6/)
+assert.equal(limiteDeSubstituicoes(null), 8)
+assert.equal(limiteDeSubstituicoes(undefined), 8)
+assert.equal(limiteDeSubstituicoes(0), 8)
+assert.equal(limiteDeSubstituicoes(31), 8)
+assert.equal(limiteDeSubstituicoes(6), 6)
+const seis = Array.from({ length: 6 }, (_, indice) => substituicao(1, 'Alpha', indice + 1, indice + 20))
+assert.equal(validarSubstituicoes({ equipes, ocorrencias: seis, limite: 6 }), null)
+assert.match(validarSubstituicoes({ equipes, ocorrencias: [...seis, substituicao(1, 'Alpha', 7, 27)], limite: 6 }) ?? '', /limite de 6/)
+assert.equal(validarSubstituicoes({ equipes, ocorrencias: [...seis, substituicao(1, 'Alpha', 7, 27)] }), null)
+
+const sqlLimite = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010139950_limite_substituicoes.sql'), 'utf8')
+assert.match(sqlLimite, /add column if not exists "limiteSubstituicoesPorSet"/)
+assert.match(sqlLimite, /Liga_limite_substituicoes_check/)
+assert.doesNotMatch(sqlLimite, /\bgrant\b/i)
+assert.doesNotMatch(sqlLimite, /create\s+table/i)
+const leitura = fs.readFileSync(path.join(process.cwd(), 'src/lib/regras-da-partida.ts'), 'utf8')
+const comLimite = leitura.indexOf('${CAMPO_LIMITE}')
+const semLimite = leitura.indexOf('select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA}`)', comLimite)
+const soFase = leitura.indexOf('select(`${campos},${CAMPOS_FASE}`)', semLimite + 1)
+assert.ok(comLimite > 0 && semLimite > comLimite && soFase > semLimite, 'coluna ausente não pode derrubar a leitura de sets já gravada')
 
 console.log('Substituição por set: par fecha na volta, reserva elegível e líbero fora da cota.')

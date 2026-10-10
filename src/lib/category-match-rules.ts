@@ -14,6 +14,7 @@ export type CategoryMatchRules = SetsPorFase & {
   terceiroSetObrigatorio?: boolean
   tieBreakUltimoSet?: boolean
   pontosUltimoSet?: number
+  limiteSubstituicoesPorSet?: number | null
 }
 
 export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null): CategoryMatchRules {
@@ -66,6 +67,7 @@ export function montarFonteDeRegras(input: {
       setsPorPartidaQuartas: categoria.setsPorPartidaQuartas ?? null,
       setsPorPartidaOitavas: categoria.setsPorPartidaOitavas ?? null,
       setsPorPartidaTerceiroLugar: categoria.setsPorPartidaTerceiroLugar ?? null,
+      limiteSubstituicoesPorSet: categoria.limiteSubstituicoesPorSet ?? null,
     }
   }
   const liga = input.liga ?? {}
@@ -81,6 +83,7 @@ export function montarFonteDeRegras(input: {
     setsPorPartidaQuartas: liga.setsPorPartidaQuartas ?? null,
     setsPorPartidaOitavas: liga.setsPorPartidaOitavas ?? null,
     setsPorPartidaTerceiroLugar: liga.setsPorPartidaTerceiroLugar ?? null,
+    limiteSubstituicoesPorSet: liga.limiteSubstituicoesPorSet ?? null,
   }
 }
 

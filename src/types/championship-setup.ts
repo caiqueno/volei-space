@@ -86,6 +86,8 @@ export interface EstruturaSectionDTO extends SectionPatchMeta {
   turnoReturno: boolean
   setsFormato: 'MELHOR_DE' | 'QUANTIDADE_FIXA'
   setsPorPartida: number | null
+  /** Null ou ausente mantém 8 substituições por set. */
+  limiteSubstituicoesPorSet?: number | null
   pontosPorSet: number | null
   diferencaMinimaSet: number
   tieBreakUltimoSet: boolean

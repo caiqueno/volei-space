@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | limite de substituições
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O campo vazio mantém 8 substituições por set. `20261010139950_limite_substituicoes.sql` não foi aplicada. Sem a coluna, a súmula não muda.
+
 ## [2026-10-10] feat | sets de quartas e oitavas
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
