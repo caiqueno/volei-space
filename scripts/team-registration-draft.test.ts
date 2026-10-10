@@ -9,6 +9,8 @@ import {
   type RegistrationDraft,
   type RegistrationLeague,
 } from '../src/lib/team-registration-draft'
+import { resolveFormularioRapidaConfig } from '../src/lib/inscricao-rapida'
+import { criarJogadorInscricaoRascunhoSchema, jogadorSchema, playerInscricaoSchema } from '../src/lib/schemas'
 
 const now = new Date('2026-09-18T12:00:00.000Z')
 
@@ -113,9 +115,65 @@ function testPersistenceApiContract() {
   assert.match(domain, /query\.eq\('equipeId', context\.draft\.equipeId as number\)/)
 }
 
+function testFotoAtletaOpcional() {
+  const exigida = resolveFormularioRapidaConfig({ atleta: { foto: 'required', dataNascimento: 'required' } })
+  assert.equal(exigida.atleta.foto, 'optional', 'config required vira opcional na inscrição')
+  assert.equal(exigida.atleta.dataNascimento, 'required', 'nascimento continua obrigatório')
+  assert.equal(resolveFormularioRapidaConfig({ atleta: { foto: 'disabled' } }).atleta.foto, 'disabled')
+  assert.equal(resolveFormularioRapidaConfig(null).atleta.foto, 'optional')
+  assert.equal(resolveFormularioRapidaConfig({ atleta: { foto: 'optional' } }).atleta.foto, 'optional')
+
+  for (const fotoUrl of [undefined, null, '', 'https://cdn.example/atleta.webp']) {
+    const parsed = criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana', fotoUrl })
+    assert.equal(parsed.success, true, `fotoUrl ${String(fotoUrl)} deve passar`)
+  }
+  assert.equal(criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana' }).success, true)
+  assert.equal(criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana', fotoUrl: 'nao-e-url' }).success, false)
+  assert.equal(jogadorSchema.safeParse({ nome: 'Ana', equipeId: 1 }).success, true)
+  assert.equal(jogadorSchema.safeParse({ nome: 'Ana', equipeId: 1, fotoUrl: null }).success, true)
+  assert.equal(jogadorSchema.safeParse({ nome: 'Ana', equipeId: 1, fotoUrl: 'https://cdn.example/a.jpg' }).success, true)
+
+  const atleta = {
+    nome: 'Ana',
+    dataNascimento: '1990-01-02',
+    email: 'ana@example.com',
+    celular: '11999999999',
+    telefoneEmergencia: '11988888888',
+    documentoNumero: '123',
+  }
+  assert.equal(playerInscricaoSchema.safeParse(atleta).success, true)
+  assert.equal(playerInscricaoSchema.safeParse({ ...atleta, fotoRostoUrl: null }).success, true)
+  assert.equal(playerInscricaoSchema.safeParse({ ...atleta, fotoRostoUrl: 'https://cdn.example/rosto.jpg' }).success, true)
+
+  const domain = fs.readFileSync(path.join(process.cwd(), 'src/lib/team-registration-draft.ts'), 'utf8')
+  const form = fs.readFileSync(path.join(process.cwd(), 'src/components/inscricao-rapida/FormularioInscricaoRapida.tsx'), 'utf8')
+  const capitao = fs.readFileSync(path.join(process.cwd(), 'src/app/capitao/page.tsx'), 'utf8')
+  const capitaoApi = fs.readFileSync(path.join(process.cwd(), 'src/app/api/capitao/jogadores/route.ts'), 'utf8')
+  const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010130000_foto_atleta_opcional.sql'), 'utf8')
+
+  assert.match(domain, /fotoUrl: input\.fotoUrl \|\| null/)
+  assert.doesNotMatch(domain, /Foto do jogador é obrigatória/)
+  assert.doesNotMatch(domain, /foto é obrigatória/)
+  assert.match(form, /Foto \(opcional\)/)
+  assert.match(form, /handleJogadorFotoUpload/)
+  assert.doesNotMatch(form, /fotoRequired/)
+  assert.match(capitao, /Foto do atleta \(opcional\)/)
+  assert.match(capitaoApi, /fotoRostoUrl: z\.string\(\)\.url\(\)\.optional\(\)\.nullable\(\)/)
+  assert.match(capitaoApi, /fotoUrl: data\.fotoRostoUrl \|\| null/)
+  assert.match(sql, /create or replace function public\.finalizar_inscricao_equipe_rascunho/)
+  assert.match(sql, /create or replace function public\.validar_jogador_formulario_categoria/)
+  assert.doesNotMatch(sql, /Foto do jogador e obrigatoria/)
+  assert.doesNotMatch(sql, /field_name='foto'/)
+  assert.match(sql, /v_jogador\."fotoUrl"/)
+  assert.match(sql, /grant execute on function public\.finalizar_inscricao_equipe_rascunho\(uuid, text\) to service_role/)
+  assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+anon\b/i)
+  assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+authenticated\b/i)
+}
+
 testRegistrationWindow()
 testEditRules()
 testMigrationContract()
 testPersistenceApiContract()
+testFotoAtletaOpcional()
 
 console.log('team-registration-draft tests: ok')

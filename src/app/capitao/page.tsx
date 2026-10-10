@@ -607,7 +607,7 @@ export default function CapitaoPage() {
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center transition hover:border-luva-amber/50">
                   <Camera size={22} className="text-luva-amber" />
-                  <span className="mt-2 text-sm font-black text-white">Foto do atleta</span>
+                  <span className="mt-2 text-sm font-black text-white">Foto do atleta (opcional)</span>
                   <span className="mt-1 text-xs font-semibold text-slate-300">Imagem até 4 MB</span>
                   <input className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => uploadAtletaFiles(event.target.files, 'foto')} />
                 </label>

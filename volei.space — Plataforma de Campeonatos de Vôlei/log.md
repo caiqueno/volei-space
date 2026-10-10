@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | foto do atleta opcional na inscrição
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Link da vaga, rascunho, inscrição rápida e capitão não exigem foto. O upload continua quando a imagem é enviada. `20261010130000_foto_atleta_opcional.sql` não foi aplicada.
+
 ## [2026-10-10] fix | fase do mata-mata, rodadas do turno e contraste do card
 
 - pages_updated=`modulos/PARTIDAS`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/EQUIPES-E-ATLETAS`, `09-UI-UX`, `hot`, `log`

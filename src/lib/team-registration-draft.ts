@@ -349,11 +349,9 @@ function assertRosterPlayer(input: Record<string, unknown>, context: Awaited<Ret
     throw new RegistrationDraftError('Já existe um jogador ativo com esse número nesta equipe.', 409)
   }
 
-  const foto = input.fotoUrl !== undefined ? input.fotoUrl : current?.fotoUrl
   const nascimento = input.dataNascimento !== undefined ? input.dataNascimento : current?.dataNascimento
   const documentoTipo = input.documentoTipo !== undefined ? input.documentoTipo : current?.documentoTipo
   const documentoNumero = input.documentoNumero !== undefined ? input.documentoNumero : current?.documentoNumero
-  if (isFieldRequired(config.atleta.foto) && !foto) throw new RegistrationDraftError('Foto do jogador é obrigatória.', 422)
   if (isFieldRequired(config.atleta.dataNascimento) && !nascimento) throw new RegistrationDraftError('Data de nascimento do jogador é obrigatória.', 422)
   if (isFieldRequired(config.atleta.documento) && (!documentoTipo || !documentoNumero)) {
     throw new RegistrationDraftError('Documento do jogador é obrigatório.', 422)
@@ -425,7 +423,6 @@ function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDra
     const label = `Jogador ${index + 1} (${player.nome || 'sem nome'})`
     if (isFieldRequired(config.atleta.numeroCamisa) && player.numero == null) issues.push(`${label}: número da camisa é obrigatório.`)
     if (isFieldRequired(config.atleta.posicao) && !player.posicao) issues.push(`${label}: posição é obrigatória.`)
-    if (isFieldRequired(config.atleta.foto) && !player.fotoUrl) issues.push(`${label}: foto é obrigatória.`)
     if (isFieldRequired(config.atleta.cpf) && !player.cpf) issues.push(`${label}: CPF é obrigatório.`)
     if (isFieldRequired(config.atleta.dataNascimento) && !player.dataNascimento) issues.push(`${label}: data de nascimento é obrigatória.`)
     if (isFieldRequired(config.atleta.documento) && (!player.documentoTipo || !player.documentoNumero)) issues.push(`${label}: documento é obrigatório.`)

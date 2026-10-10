@@ -5,12 +5,14 @@ category: modulo
 tags: [inscricoes]
 sources: [repo:athrios/volei-space/docs/requisitos/INSCRICOES-POR-EQUIPE.md]
 summary: >-
-  Cada vaga parametrizada tem um link próprio em ConviteVagaEquipe. O rascunho continua depois do refresh.
+  A foto do atleta é opcional no link, no rascunho, na inscrição rápida e no capitão. A migration 20261010130000 ainda não foi aplicada.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Inscrições por equipe
+
+**Conferência de 10 de outubro de 2026, foto do atleta:** a foto é opcional no link da vaga, no rascunho, na inscrição rápida e no painel do capitão. O rótulo é «Foto (opcional)». Salvar e concluir seguem sem imagem. Se a imagem for enviada, `fotoUrl` e `fotoRostoUrl` continuam gravados. O campo some só quando a configuração está `disabled`. O padrão do wizard e o QR ainda podem gravar `atleta.foto = required`; a inscrição ignora essa exigência. `20261010130000_foto_atleta_opcional.sql` recria `finalizar_inscricao_equipe_rascunho` e `validar_jogador_formulario_categoria` sem recusar foto ausente e ainda não foi aplicada. Até lá, o SQL já instalado pode responder «Foto do jogador e obrigatoria.» na conclusão.
 
 **Conferência de 10 de outubro de 2026:** `POST /api/inscricoes-campeonato` grava `APROVADA` só quando `Liga.inscricaoAprovacaoAutomatica` é verdadeiro. Caso contrário a inscrição fica `SOLICITADA`, e a vaga só é contada na aprovação. Uma linha que já está `APROVADA` não é rebaixada. O JavaScript do rascunho não força mais `APROVADA` por cima do retorno da função. A função instalada em `202610060002` ainda grava `APROVADA` sempre. `202610100002_fechar_leitura_publica_placar.sql` devolve o `case` da flag e ainda não foi aplicada: até lá, concluir pelo link continua nascendo `APROVADA` no banco.
 
