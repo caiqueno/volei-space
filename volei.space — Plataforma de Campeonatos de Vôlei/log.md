@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | barra de placar em duas metades abaixo da quadra
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- Os controles do set ficam lado a lado, alinhados com a quadra. O `+1`, o desfazer, os cartões e o tempo permanecem. Sem migration e sem mudança na gravação de pontos.
+
 ## [2026-10-10] fix | papeleta vazia em cada set e lista pela camisa
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`

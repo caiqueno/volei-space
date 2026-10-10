@@ -16855,3 +16855,151 @@ h1, h2, h3, h4,
     display: none;
   }
 }
+
+/* Barra de placar abaixo da quadra: duas metades, cada uma no lado do time. */
+html body .official-score-bar {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+html body .official-score-bar-halves {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+html body .official-score-bar .official-compact-team-control {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  position: static;
+  grid-template-columns: none;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(5, 12, 26, .94);
+}
+
+html body .official-score-bar .official-compact-team-control.is-teamA {
+  border-color: rgba(255, 179, 49, .5);
+}
+
+html body .official-score-bar .official-compact-team-control.is-teamB {
+  border-color: rgba(56, 189, 248, .5);
+}
+
+html body .official-score-bar-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+html body .official-score-bar-points {
+  display: grid;
+  justify-items: center;
+  min-width: 72px;
+}
+
+html body .official-score-bar-points .official-compact-score-team-name {
+  max-width: 9rem;
+  font-size: 11px;
+  text-align: center;
+}
+
+html body .official-score-bar-points strong {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 0.95;
+  color: #f8fafc;
+}
+
+html body .official-score-bar .official-point-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+}
+
+html body .official-score-bar .official-compact-point-action {
+  width: 100%;
+  min-height: 72px;
+  font-size: 2rem;
+  border-radius: 14px;
+}
+
+html body .official-score-bar .official-compact-point-action.is-teamA,
+html body .official-score-bar .official-compact-point-action.is-teamA:hover,
+html body .official-score-bar .official-compact-point-action.is-teamA:focus-visible {
+  background: var(--vs-gold);
+  border-color: var(--vs-gold);
+  color: #1c1404;
+}
+
+html body .official-score-bar .official-compact-point-action.is-teamB,
+html body .official-score-bar .official-compact-point-action.is-teamB:hover,
+html body .official-score-bar .official-compact-point-action.is-teamB:focus-visible {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #082f49;
+}
+
+html body .official-score-bar .official-score-undo {
+  width: 52px;
+  height: 52px;
+  min-height: 52px;
+  flex: 0 0 auto;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+html body .official-score-bar .official-compact-icon-action.is-ace {
+  width: auto;
+  min-width: 52px;
+  min-height: 52px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+}
+
+html body .official-score-bar-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+html body .official-score-bar .official-compact-timeout-action {
+  width: auto;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+html body .official-score-bar-set {
+  margin: 0;
+  text-align: center;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+html body .official-score-bar + .official-point-history,
+html body .official-match-board + .official-point-history,
+html body .official-point-history {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  html body .official-score-bar-halves {
+    grid-template-columns: 1fr;
+  }
+
+  html body .official-score-bar .official-compact-point-action {
+    min-height: 64px;
+    font-size: 1.7rem;
+  }
+}

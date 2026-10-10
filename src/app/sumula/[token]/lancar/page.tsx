@@ -39,7 +39,6 @@ import {
   Pencil,
   RefreshCw,
   Repeat2,
-  RotateCcw,
   Save,
   Send,
   ShieldAlert,
@@ -2346,109 +2345,34 @@ function PontuacaoTab(props: {
         <div className="official-facing-net" aria-hidden="true"><span>Rede</span></div>
         <RosterClickers key={rightTeamId} teamId={rightTeamId} mirrored={true} team={rightTeam} lineup={rightLineup} servingTeam={props.servingTeamId === rightTeamId} serverIndex={rightServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} encerrada={props.encerrada} onAttack={(number) => props.onAttack(rightTeamId, number)} onBlock={(number) => props.onBlock(rightTeamId, number)} onSubstitution={props.onSubstitution} />
       </div>
-      <div className="official-score-layout is-facing">
-        <div className="official-team-score-group is-team-a">
-          <CompactTeamControl
-            teamId={leftTeamId}
-            team={leftTeam}
-            score={props.currentScore[leftTeamId]}
-            serving={props.servingTeamId === leftTeamId}
-            onAce={props.onAce}
-            onPoint={() => props.onPoint(leftTeamId)}
-            onUndo={() => props.onUndoTeamPoint(leftTeamId)}
-            onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
-            timeoutsUsed={leftTimeoutsUsed}
-            limite={props.rules.timeoutLimit}
-            temposSeparados={props.rules.temposSeparados}
-            temposEquipeUsados={leftTemposEquipe}
-            onTimeout={() => props.onTimeout(leftTeamId)}
-            onTempoEquipe={() => props.onTempoEquipe(leftTeamId)}
-            tempoMedico={props.rules.tempoMedico}
-            onTempoMedico={() => props.onTempoMedico(leftTeamId)}
-            events={props.events}
-            encerrada={props.encerrada}
-          />
-        </div>
-        <div className="official-score-between">
-          <div className="official-compact-set-score" aria-label="Placar de sets">
-            <span>{props.setsWon[leftTeamId]}</span>
-            <small>sets</small>
-            <span>{props.setsWon[rightTeamId]}</span>
-          </div>
-        </div>
-        <div className="official-team-score-group is-team-b">
-          <CompactTeamControl
-            teamId={rightTeamId}
-            team={rightTeam}
-            score={props.currentScore[rightTeamId]}
-            serving={props.servingTeamId === rightTeamId}
-            onAce={props.onAce}
-            onPoint={() => props.onPoint(rightTeamId)}
-            onUndo={() => props.onUndoTeamPoint(rightTeamId)}
-            onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
-            timeoutsUsed={rightTimeoutsUsed}
-            limite={props.rules.timeoutLimit}
-            temposSeparados={props.rules.temposSeparados}
-            temposEquipeUsados={rightTemposEquipe}
-            onTimeout={() => props.onTimeout(rightTeamId)}
-            onTempoEquipe={() => props.onTempoEquipe(rightTeamId)}
-            tempoMedico={props.rules.tempoMedico}
-            onTempoMedico={() => props.onTempoMedico(rightTeamId)}
-            events={props.events}
-            encerrada={props.encerrada}
-          />
-        </div>
-      </div>
+      <BarraPlacar
+        currentSet={props.currentSet}
+        leftTeamId={leftTeamId}
+        rightTeamId={rightTeamId}
+        leftTeam={leftTeam}
+        rightTeam={rightTeam}
+        currentScore={props.currentScore}
+        servingTeamId={props.servingTeamId}
+        onAce={props.onAce}
+        onPoint={props.onPoint}
+        onUndoTeamPoint={props.onUndoTeamPoint}
+        onCard={(teamId, tipo) => setCardModal({ teamId, tipo })}
+        leftTimeoutsUsed={leftTimeoutsUsed}
+        rightTimeoutsUsed={rightTimeoutsUsed}
+        timeoutLimit={props.rules.timeoutLimit}
+        temposSeparados={props.rules.temposSeparados}
+        leftTemposEquipe={leftTemposEquipe}
+        rightTemposEquipe={rightTemposEquipe}
+        onTimeout={props.onTimeout}
+        onTempoEquipe={props.onTempoEquipe}
+        tempoMedico={props.rules.tempoMedico}
+        onTempoMedico={props.onTempoMedico}
+        events={props.events}
+        encerrada={props.encerrada}
+      />
       </>
       ) : (
       <div className="official-match-board">
-        <div className="official-match-controls">
-          <CompactTeamControl
-            teamId={leftTeamId}
-            team={leftTeam}
-            score={props.currentScore[leftTeamId]}
-            serving={props.servingTeamId === leftTeamId}
-            onAce={props.onAce}
-            onPoint={() => props.onPoint(leftTeamId)}
-            onUndo={() => props.onUndoTeamPoint(leftTeamId)}
-            onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
-            timeoutsUsed={leftTimeoutsUsed}
-            limite={props.rules.timeoutLimit}
-            temposSeparados={props.rules.temposSeparados}
-            temposEquipeUsados={leftTemposEquipe}
-            onTimeout={() => props.onTimeout(leftTeamId)}
-            onTempoEquipe={() => props.onTempoEquipe(leftTeamId)}
-            tempoMedico={props.rules.tempoMedico}
-            onTempoMedico={() => props.onTempoMedico(leftTeamId)}
-            events={props.events}
-            encerrada={props.encerrada}
-          />
-          <div className="official-compact-set-score" aria-label="Placar de sets">
-            <span>{props.setsWon[leftTeamId]}</span>
-            <small>sets</small>
-            <span>{props.setsWon[rightTeamId]}</span>
-          </div>
-          <CompactTeamControl
-            teamId={rightTeamId}
-            team={rightTeam}
-            score={props.currentScore[rightTeamId]}
-            serving={props.servingTeamId === rightTeamId}
-            onAce={props.onAce}
-            onPoint={() => props.onPoint(rightTeamId)}
-            onUndo={() => props.onUndoTeamPoint(rightTeamId)}
-            onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
-            timeoutsUsed={rightTimeoutsUsed}
-            limite={props.rules.timeoutLimit}
-            temposSeparados={props.rules.temposSeparados}
-            temposEquipeUsados={rightTemposEquipe}
-            onTimeout={() => props.onTimeout(rightTeamId)}
-            onTempoEquipe={() => props.onTempoEquipe(rightTeamId)}
-            tempoMedico={props.rules.tempoMedico}
-            onTempoMedico={() => props.onTempoMedico(rightTeamId)}
-            events={props.events}
-            encerrada={props.encerrada}
-          />
-        </div>
         <QuadraVolei
           modo="jogo"
           encerrada={props.encerrada}
@@ -2460,6 +2384,31 @@ function PontuacaoTab(props: {
           onBloqueio={(teamId, numero) => props.onBlock(teamId, numero)}
           onAce={() => props.onAce()}
           onSubstituicao={props.onSubstitution}
+        />
+        <BarraPlacar
+          currentSet={props.currentSet}
+          leftTeamId={leftTeamId}
+          rightTeamId={rightTeamId}
+          leftTeam={leftTeam}
+          rightTeam={rightTeam}
+          currentScore={props.currentScore}
+          servingTeamId={props.servingTeamId}
+          onAce={props.onAce}
+          onPoint={props.onPoint}
+          onUndoTeamPoint={props.onUndoTeamPoint}
+          onCard={(teamId, tipo) => setCardModal({ teamId, tipo })}
+          leftTimeoutsUsed={leftTimeoutsUsed}
+          rightTimeoutsUsed={rightTimeoutsUsed}
+          timeoutLimit={props.rules.timeoutLimit}
+          temposSeparados={props.rules.temposSeparados}
+          leftTemposEquipe={leftTemposEquipe}
+          rightTemposEquipe={rightTemposEquipe}
+          onTimeout={props.onTimeout}
+          onTempoEquipe={props.onTempoEquipe}
+          tempoMedico={props.rules.tempoMedico}
+          onTempoMedico={props.onTempoMedico}
+          events={props.events}
+          encerrada={props.encerrada}
         />
       </div>
       )}
@@ -3286,6 +3235,88 @@ function limparPulso(event: { target: EventTarget | null; currentTarget: EventTa
   setPulso(null)
 }
 
+function BarraPlacar({
+  currentSet,
+  leftTeamId,
+  rightTeamId,
+  leftTeam,
+  rightTeam,
+  currentScore,
+  servingTeamId,
+  onAce,
+  onPoint,
+  onUndoTeamPoint,
+  onCard,
+  leftTimeoutsUsed,
+  rightTimeoutsUsed,
+  timeoutLimit,
+  temposSeparados,
+  leftTemposEquipe,
+  rightTemposEquipe,
+  onTimeout,
+  onTempoEquipe,
+  tempoMedico,
+  onTempoMedico,
+  events,
+  encerrada,
+}: {
+  currentSet: number
+  leftTeamId: TeamId
+  rightTeamId: TeamId
+  leftTeam: Team
+  rightTeam: Team
+  currentScore: { teamA: number; teamB: number }
+  servingTeamId: TeamId
+  onAce: () => void
+  onPoint: (teamId: TeamId) => void
+  onUndoTeamPoint: (teamId: TeamId) => void
+  onCard: (teamId: TeamId, tipo: 'Cartão amarelo' | 'Cartão vermelho') => void
+  leftTimeoutsUsed: number
+  rightTimeoutsUsed: number
+  timeoutLimit: number
+  temposSeparados: boolean
+  leftTemposEquipe: number
+  rightTemposEquipe: number
+  onTimeout: (teamId: TeamId) => void
+  onTempoEquipe: (teamId: TeamId) => void
+  tempoMedico: boolean
+  onTempoMedico: (teamId: TeamId) => void
+  events: MatchEvent[]
+  encerrada?: boolean
+}) {
+  const lado = (teamId: TeamId, team: Team, timeoutsUsed: number, temposEquipe: number) => (
+    <CompactTeamControl
+      teamId={teamId}
+      team={team}
+      score={currentScore[teamId]}
+      serving={servingTeamId === teamId}
+      onAce={onAce}
+      onPoint={() => onPoint(teamId)}
+      onUndo={() => onUndoTeamPoint(teamId)}
+      onCard={(tipo) => onCard(teamId, tipo)}
+      timeoutsUsed={timeoutsUsed}
+      limite={timeoutLimit}
+      temposSeparados={temposSeparados}
+      temposEquipeUsados={temposEquipe}
+      onTimeout={() => onTimeout(teamId)}
+      onTempoEquipe={() => onTempoEquipe(teamId)}
+      tempoMedico={tempoMedico}
+      onTempoMedico={() => onTempoMedico(teamId)}
+      events={events}
+      encerrada={encerrada}
+    />
+  )
+  return (
+    <div className="official-score-bar" aria-label="Controles de placar">
+      <div className="official-score-bar-halves">
+        {lado(leftTeamId, leftTeam, leftTimeoutsUsed, leftTemposEquipe)}
+        {lado(rightTeamId, rightTeam, rightTimeoutsUsed, rightTemposEquipe)}
+      </div>
+      <p className="official-score-bar-set">SET {currentSet} · {currentScore[leftTeamId]} x {currentScore[rightTeamId]}</p>
+    </div>
+  )
+}
+
 function CompactTeamControl({
   teamId,
   team,
@@ -3331,40 +3362,42 @@ function CompactTeamControl({
   const jogador = ultimo ? lerJogadorPonto(ultimo.text) : null
   return (
     <div className={`official-compact-team-control is-${teamId} ${serving ? 'is-serving' : ''}`}>
-      <div className="official-card-actions" aria-label={`Cartões para ${team.name}`}>
-        <button className="official-card-icon is-yellow" type="button" onClick={() => onCard('Cartão amarelo')} aria-label={`Cartão amarelo para ${team.name}`}><img src="/images/cartao-amarelo.png" alt="" /></button>
-        <button className="official-card-icon is-red" type="button" onClick={() => onCard('Cartão vermelho')} aria-label={`Cartão vermelho para ${team.name}`}><img src="/images/vermelho.png" alt="" /></button>
+      <div className="official-score-bar-top">
+        <div className="official-score-bar-points">
+          <span className="official-compact-score-team-name">{team.name}</span>
+          <strong>{score.toString().padStart(2, '0')}</strong>
+        </div>
+        {serving && !encerrada ? (
+          <button className={`official-compact-icon-action is-ace${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
+        ) : null}
+        {!encerrada && (
+          <div className="official-point-actions">
+            <VolleyballBurst>
+              <button className={`official-compact-point-action is-${teamId} vs-press vs-focus`} type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
+            </VolleyballBurst>
+          </div>
+        )}
+        <button className="official-compact-icon-action official-score-undo" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}>↺</button>
       </div>
-      <span className="official-compact-score-team-name">{team.name}</span>
-      <strong>{score.toString().padStart(2, '0')}</strong>
-      {serving && !encerrada ? (
-        <button className={`official-compact-icon-action is-ace${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
-      ) : (
-        <i aria-hidden="true" />
-      )}
-      <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= limite} aria-label={`Registrar tempo para ${team.name}`}>
-        <Clock size={15} />
-        {timeoutsUsed}/{limite}
-      </button>
-      {temposSeparados ? (
-        <button className="official-compact-timeout-action" type="button" onClick={onTempoEquipe} disabled={encerrada || temposEquipeUsados >= limite} aria-label={`Registrar tempo de equipe para ${team.name}`}>
-          <Clock size={15} />
-          {temposEquipeUsados}/{limite}
+      <div className="official-score-bar-bottom">
+        <div className="official-card-actions" aria-label={`Cartões para ${team.name}`}>
+          <button className="official-card-icon is-yellow" type="button" onClick={() => onCard('Cartão amarelo')} aria-label={`Cartão amarelo para ${team.name}`}><img src="/images/cartao-amarelo.png" alt="" /></button>
+          <button className="official-card-icon is-red" type="button" onClick={() => onCard('Cartão vermelho')} aria-label={`Cartão vermelho para ${team.name}`}><img src="/images/vermelho.png" alt="" /></button>
+        </div>
+        <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= limite} aria-label={`Registrar tempo para ${team.name}`}>
+          Tempo {timeoutsUsed}/{limite}
         </button>
-      ) : null}
-      {tempoMedico ? (
-        <button className="official-compact-timeout-action" type="button" onClick={onTempoMedico} disabled={encerrada} aria-label={`Registrar tempo médico para ${team.name}`}>
-          Médico
-        </button>
-      ) : null}
-      {!encerrada && (
-      <div className="official-point-actions">
-        <VolleyballBurst>
-          <button className="official-compact-point-action vs-press vs-focus" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
-        </VolleyballBurst>
+        {temposSeparados ? (
+          <button className="official-compact-timeout-action" type="button" onClick={onTempoEquipe} disabled={encerrada || temposEquipeUsados >= limite} aria-label={`Registrar tempo de equipe para ${team.name}`}>
+            Equipe {temposEquipeUsados}/{limite}
+          </button>
+        ) : null}
+        {tempoMedico ? (
+          <button className="official-compact-timeout-action" type="button" onClick={onTempoMedico} disabled={encerrada} aria-label={`Registrar tempo médico para ${team.name}`}>
+            Médico
+          </button>
+        ) : null}
       </div>
-      )}
-      <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (
         <p className="official-last-point">
           <strong>{rotulo}</strong>

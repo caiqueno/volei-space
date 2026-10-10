@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A camisa repetida fica com o atleta editado e o anterior fica sem número. Cada set abre a papeleta vazia, e a lista segue a camisa da súmula. Sem migration.
+  A barra abaixo da quadra divide o placar em duas metades, no lado de cada time. O +1, o desfazer, os cartões e o tempo ficam nessa faixa. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -69,6 +69,8 @@ updated: 2026-10-10
 **Avisos da súmula — implementado:** cada aviso entra e some sozinho em 3 segundos. A mesma frase não entra de novo: o aviso que já está na fila só reinicia o tempo. A fila guarda no máximo dois; o mais novo empurra o mais antigo. O temporizador é cancelado ao sair da tela. Com `prefers-reduced-motion: reduce` não há deslocamento. Na pontuação o aviso fica acima da faixa do placar e do `+1`. A demonstração (`token-demo-…`) não chama `POST /api/arbitro/partidas/{token}/iniciar`, porque esse caminho não tem o atalho do GET e do PUT da súmula. Sem sessão a rota responde 401; com sessão e sem a partida, 404. A pontuação da demonstração segue na tela, com status local `EM_ANDAMENTO`. Se uma partida real não sincronizar o início, o aviso é «Pontuação liberada localmente. Não foi possível sincronizar o início agora.»
 
 **Troca de lado ao encerrar o set — implementado:** confirmar o fim de um set que não encerra a partida inverte os lados da quadra e grava a mesma anotação do botão Inverter, «Equipes inverteram os lados da quadra.». Reabrir a súmula conta essas anotações e restaura o lado. A partida encerrada não inverte de novo. O saque do set seguinte usa a quantidade da fase: alterna até o penúltimo e o último fica no sorteio. O rótulo do set reusa o pulso `sumula-micro-set`.
+
+**Barra de placar — implementado no código, sem merge:** abaixo da quadra, os controles dos dois times ficam lado a lado, cada metade no lado da equipe na quadra, inclusive quando os lados estão invertidos. Em cada metade, em cima ficam o placar, o `+1` grande na cor do time e o desfazer `↺`; embaixo, os cartões amarelo e vermelho e o tempo `Tempo 0/2`. `SET X · a x b` fica centralizado abaixo das duas metades. Últimos pontos ocupa a largura toda. No celular estreito as metades empilham. O ACE do sacador, o ataque e o bloqueio na quadra continuam como estavam. A gravação do ponto não muda. Não há migration.
 
 **Ponto pelo +1 — implementado:** na faixa de placar de cada equipe há um único botão `+1`. Ele soma o ponto na hora, sem modal, sem atleta e sem ação. O evento fica com `jogadorId` vazio, tipo `point`, e o histórico mostra Sem jogador. A estatística individual não recebe esse ponto. O botão separado «Sem jogador» saiu. O modal que o `+1` antigo abria — saque, bloqueio ou ataque e o atleta em quadra — também saiu, porque só esse botão o abria. ACE, o toque no atleta (ataque), o `B` da rede (bloqueio) e as mesmas ações na quadra 3D continuam gravando `ace`, `attack` ou `block` com o `jogadorId`. Essas frases seguem no histórico e nos lances de `/partidas/{id}/ao-vivo`. O ponto automático do cartão vermelho continua separado. Tentativas que não marcam ponto ainda não são lançadas.
 

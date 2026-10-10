@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Cada set abre a papeleta vazia. A lista da posição e o líbero seguem a camisa da súmula. Sem migration.
+  A barra abaixo da quadra divide o placar em duas metades, no lado de cada time. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a barra de controles abaixo da quadra deixa de empilhar os dois times em faixas horizontais. Cada metade fica no lado da equipe, também com a quadra invertida. Em cima ficam o placar, o `+1` grande na cor do time e o desfazer. Embaixo ficam os cartões e o tempo. `SET X · a x b` fica no centro, e Últimos pontos ocupa a largura toda. No celular estreito as metades empilham. A quadra e a gravação do ponto não mudam. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a papeleta da súmula abre vazia em todos os sets. Encerrar o set zera as seis posições dos dois times; a formação anterior não permanece na tela. Ao tocar numa posição, a lista de atletas sai pela camisa da súmula, do menor número ao maior. Sem número e `-1` ficam por último, e o nome desempata. O seletor de líbero usa a mesma ordem. Formação já gravada naquele set volta ao reabrir. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
