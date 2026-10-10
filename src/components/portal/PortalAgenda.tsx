@@ -7,6 +7,7 @@ import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import type { GruposPartidaPublica, PartidaPublica } from '@/lib/partida-publica'
 import { queryCategoria } from '@/components/portal/SeletorCategoria'
+import { ordenarJogos } from '@/lib/data-hora'
 import { manterPaginaAberta } from '@/lib/pagina-aberta'
 
 type TemMais = { aoVivo: boolean; proximos: boolean; encerradas: boolean }
@@ -69,9 +70,9 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, ca
         encerradas: Boolean(json.data?.temMais?.encerradas),
       }
       setGrupos((corrente) => ({
-        aoVivo: manterPaginaAberta(corrente.aoVivo, proximo.aoVivo, mais.aoVivo),
-        proximos: manterPaginaAberta(corrente.proximos, proximo.proximos, mais.proximos),
-        encerradas: manterPaginaAberta(corrente.encerradas, proximo.encerradas, mais.encerradas),
+        aoVivo: ordenarJogos(manterPaginaAberta(corrente.aoVivo, proximo.aoVivo, mais.aoVivo)),
+        proximos: ordenarJogos(manterPaginaAberta(corrente.proximos, proximo.proximos, mais.proximos)),
+        encerradas: ordenarJogos(manterPaginaAberta(corrente.encerradas, proximo.encerradas, mais.encerradas)),
         analise: [],
         outras: [],
       }))
@@ -105,7 +106,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, ca
       const novas = (json.data?.[parte] ?? []) as PartidaPublica[]
       setGrupos((atual) => {
         const ids = new Set(atual[parte].map((partida) => partida.id))
-        return { ...atual, [parte]: [...atual[parte], ...novas.filter((partida) => !ids.has(partida.id))] }
+        return { ...atual, [parte]: ordenarJogos([...atual[parte], ...novas.filter((partida) => !ids.has(partida.id))]) }
       })
       setTemMais((atual) => ({ ...atual, [parte]: Boolean(json.data?.temMais?.[parte]) }))
       setFalha(false)

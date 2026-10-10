@@ -40,7 +40,9 @@ export async function GET(req: NextRequest) {
     .from('Partida')
     .select('*, liga:Liga(id,nome,slug,setsPorPartida,pontosPorSet), equipeA:Equipe!Partida_equipeAId_fkey(id,nome,slug), equipeB:Equipe!Partida_equipeBId_fkey(id,nome,slug), sets:SetPartida(*)')
     .in('ligaId', filteredLigaIds)
-    .order('dataHora', { ascending: false })
+    .order('dataHora', { ascending: true, nullsFirst: false })
+    .order('rodada', { ascending: true })
+    .order('id', { ascending: true })
     .limit(80)
 
   if (status) query = query.eq('status', status)

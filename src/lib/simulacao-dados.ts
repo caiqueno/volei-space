@@ -572,7 +572,9 @@ export async function painelSimulacao() {
     .from('Partida')
     .select('id,ligaId,status,rodada,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaToken,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome),escala:EscalaArbitro(arbitroId,cargo,arbitro:Arbitro(nome)),candidaturasArbitro:CandidaturaPartidaArbitro(status),sets:SetPartida(numero,pontosA,pontosB),ocorrencias:OcorrenciaPartida(id,tipo,descricao,set)')
     .in('ligaId', ids)
-    .order('dataHora', { ascending: true })
+    .order('dataHora', { ascending: true, nullsFirst: false })
+    .order('rodada', { ascending: true })
+    .order('id', { ascending: true })
   if (error) throw new Error(error.message)
 
   const linhas = partidas ?? []

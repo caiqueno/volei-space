@@ -9,6 +9,7 @@ import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { numeroNaPartida, presencaFoiDecidida, proximoAtletaNoElenco, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { jogoJaIniciado } from '@/lib/arbitro-responsavel'
+import { formatarDataPartida } from '@/lib/format-partida'
 
 export default function OperacaoArbitroPage() {
   const { token } = useParams<{ token: string }>()
@@ -350,7 +351,7 @@ export default function OperacaoArbitroPage() {
             <div className="referee-score-card rounded-3xl border px-6 py-5 text-center">
               <p className="text-xs font-black uppercase tracking-wide">Rodada {partida.rodada}</p>
               <p className="mt-2 text-4xl font-black">VS</p>
-              <p className="mt-2 text-xs font-bold">{partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR') : 'Sem horario definido'}</p>
+              <p className="mt-2 text-xs font-bold">{formatarDataPartida(partida.dataHora) ?? 'Sem horario definido'}</p>
             </div>
             <TeamBox team={partida.equipeB} align="right" />
           </div>

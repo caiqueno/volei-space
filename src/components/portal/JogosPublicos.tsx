@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { idsForaDaVitrine } from '@/lib/campeonatos-publicos'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
+import { dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -68,7 +69,7 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
   const inicio = (numeroPagina - 1) * TAMANHO
   const [totalResposta, listaResposta] = await Promise.all([
     contagem,
-    lista.order('dataHora', { ascending: false }).range(inicio, inicio + TAMANHO - 1),
+    lista.order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).range(inicio, inicio + TAMANHO - 1),
   ])
 
   if (totalResposta.error || listaResposta.error) {
@@ -79,12 +80,12 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
     )
   }
 
-  const partidas = ((listaResposta.data ?? []) as unknown as Linha[])
+  const partidas = ordenarJogos(((listaResposta.data ?? []) as unknown as Linha[])
     .map((partida) => {
       const liga = Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
-      return { ...partida, liga: liga ?? null, sets: Array.isArray(partida.sets) ? partida.sets : [] }
+      return { ...partida, liga: liga ?? null, dataHora: dataHoraUtc(partida.dataHora), sets: Array.isArray(partida.sets) ? partida.sets : [] }
     })
-    .filter((partida) => partida.equipeA?.id && partida.equipeB?.id && !campeonatoDeTeste(partida.liga) && partida.liga?.simulacao !== true)
+    .filter((partida) => partida.equipeA?.id && partida.equipeB?.id && !campeonatoDeTeste(partida.liga) && partida.liga?.simulacao !== true))
 
   const total = totalResposta.count ?? partidas.length
 

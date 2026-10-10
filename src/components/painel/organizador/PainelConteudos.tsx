@@ -12,6 +12,8 @@ import { AcessoArbitroJogo, type LinkDoJuiz } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import type { TabelaCategoria } from '@/lib/operacao-categoria'
+import { ordenarJogos } from '@/lib/data-hora'
+import { formatarDataPartida } from '@/lib/format-partida'
 import { manterPaginaAberta } from '@/lib/pagina-aberta'
 import { rotuloArbitroResponsavel } from '@/lib/arbitro-responsavel'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
@@ -279,7 +281,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
       if (visto !== versao.current) return
       const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
       const aindaTem = Boolean(jogos.data?.temMais)
-      setPartidas((atual) => manterPaginaAberta(atual, novas, aindaTem))
+      setPartidas((atual) => ordenarJogos(manterPaginaAberta(atual, novas, aindaTem)))
       setTemMais(aindaTem)
       setErro(null)
     } catch (falha) {
@@ -312,7 +314,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
     const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
     setPartidas((atual) => {
       const ids = new Set(atual.map((partida) => partida.id))
-      return [...atual, ...novas.filter((partida) => !ids.has(partida.id))]
+      return ordenarJogos([...atual, ...novas.filter((partida) => !ids.has(partida.id))])
     })
     setTemMais(Boolean(jogos.data?.temMais))
   }
@@ -350,15 +352,14 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
       {avisoRodada ? <p className="text-sm font-black text-emerald-300">{avisoRodada}</p> : null}
       {Array.from(grupos.entries()).map(([ligaId, grupo]) => (
         <CollapseBar key={ligaId} title={grupo.simulacao ? `${grupo.nome} · simulação` : grupo.nome}>
-          <div className="grid gap-6">
-            {rodadasDoGrupo(grupo.partidas).map(([rodada, jogosDaRodada]) => (
-              <div key={rodada}>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-black text-white">Rodada {rodada}</p>
-                  <button type="button" className="rounded-full border border-white/15 px-3 py-2 text-xs font-black text-white" onClick={() => void copiarRodada(jogosDaRodada, linksDoJuiz.current, setAvisoRodada)}>
-                    Copiar links da rodada
-                  </button>
-                </div>
+          <div className="grid gap-4">
+            <div className="flex flex-wrap gap-2">
+              {rodadasDoGrupo(grupo.partidas).map(([rodada, jogosDaRodada]) => (
+                <button key={rodada} type="button" className="rounded-full border border-white/15 px-3 py-2 text-xs font-black text-white" onClick={() => void copiarRodada(jogosDaRodada, linksDoJuiz.current, setAvisoRodada)}>
+                  Copiar links da rodada {rodada}
+                </button>
+              ))}
+            </div>
             <table data-stack className="w-full text-left text-sm text-white">
               <thead className="text-xs font-black uppercase tracking-wide text-white/60">
                 <tr>
@@ -373,9 +374,9 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                 </tr>
               </thead>
               <tbody>
-                {jogosDaRodada.map((partida) => {
+                {ordenarJogos(grupo.partidas).map((partida) => {
                   const status = String(partida.status || 'AGENDADA').toUpperCase()
-                  const quando = partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'A definir'
+                  const quando = formatarDataPartida(partida.dataHora) ?? 'A definir'
                   const emJogo = status === 'EM_ANDAMENTO'
                   const nomeArbitro = rotuloArbitroResponsavel([
                     partida.escala?.find((item) => item.cargo === 'PRIMEIRO_ARBITRO')?.arbitro?.nome,
@@ -412,8 +413,6 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                 })}
               </tbody>
             </table>
-              </div>
-            ))}
           </div>
         </CollapseBar>
       ))}

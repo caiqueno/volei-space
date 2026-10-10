@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error: partidasErr } = await consulta
     .order('dataHora', { ascending: true, nullsFirst: false })
+    .order('rodada', { ascending: true })
     .order('id', { ascending: true })
     .range(offset, offset + limite)
 

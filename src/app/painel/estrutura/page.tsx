@@ -21,6 +21,7 @@ import { ActionBar } from '@/components/ui/action-bar'
 import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { LinksCategoria } from '@/components/painel/organizador/LinksCategoria'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { dataHoraUtc } from '@/lib/data-hora'
 import { rotuloConfronto } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { SeletorCategoria } from '@/components/portal/SeletorCategoria'
@@ -902,7 +903,8 @@ function buildCalendarDrafts(partidas: Partida[]) {
 }
 
 function buildCalendarDraft(partida: Partida): CalendarDraft {
-  const date = partida.dataHora ? new Date(partida.dataHora) : null
+  const iso = dataHoraUtc(partida.dataHora)
+  const date = iso ? new Date(iso) : null
   const escala = partida.escala?.[0]
   return {
     data: date && !Number.isNaN(date.getTime()) ? formatDateInputInSaoPaulo(date) : '',

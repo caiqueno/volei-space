@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A inscrição rápida segue não coletar, opcional e obrigatório da categoria. 20261010138500 não foi aplicada e fica antes do W.O. e da RLS.
+  A inscrição rápida segue não coletar, opcional e obrigatório da categoria. 20261010138500 não foi aplicada e fica antes do W.O. e da RLS. Jogos sobem por data e hora; dataHora sem fuso sai em UTC.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,8 @@ updated: 2026-10-10
 ## Foco atual
 
 Em 10 de outubro de 2026 a inscrição rápida deixa de ler só `Liga.formularioInscricaoConfig`. O rascunho, a vaga e o link da categoria usam o formulário gravado na categoria. Não coletar esconde data de nascimento e documento. Opcional aceita vazio. Obrigatório bloqueia o atleta e a conclusão. Sem a chave, os dois ficam opcionais. A foto continua opcional, salvo quando está desligada. Um campeonato com uma categoria espelha o JSON na liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`, para a migration de RLS continuar sendo a última. Fonte: [[modulos/INSCRICOES]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 as listas de jogos passam a subir por data e hora, com desempate na rodada e no id. `/jogos` deixa a ordem decrescente. O texto de `dataHora` sem fuso é tratado como UTC na resposta (`2026-10-10T11:30:00` vira `2026-10-10T11:30:00.000Z`) e a tela mostra 08:30 em `America/Sao_Paulo`. Ver mais reordena o que já estava aberto. A vaga da chave não muda. Nenhuma linha foi reescrita. Fonte: [[modulos/PARTIDAS]].
 
 Em 10 de outubro de 2026 a chave, a classificação manual e a tabela passam a operar por categoria. `POST .../mata-mata` chama `criar_confronto_categoria`, exige a categoria dos times, lê a fase na `CategoriaConfiguracao` e só abre a primeira rodada com os grupos daquela categoria encerrados. A vaga é categoria, fase e rodada. `POST /api/classificacao/manual` chama `classificar_equipe_categoria` e grava `categoriaCampeonatoId`. A geração de grupos continua em `montarConfrontos` e não chama `substituir_estrutura_categoria`, porque essa função ainda numera as rodadas em sequência. Sem configuração da categoria, a geração responde 422. `GET /api/classificacao` e o portal devolvem um bloco por categoria; com dois ou mais grupos, cada bloco traz a tabela daquele grupo e o desempate por confronto direto. A equipe pública fica em id, nome, cor e logo. O painel recebe `groupStageFinished` e os classificados exigidos e mostra Avançar de Fase quando a categoria está pronta. `20261010138000_confronto_categoria_vencedor.sql` não foi aplicada. O prefixo fica depois de `20261010137000` (súmula transacional) e antes de `20261010140000`. Nada foi executado em banco real. Fonte: [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]], [[modulos/GRUPOS]], [[06-BANCO-DE-DADOS]].
 

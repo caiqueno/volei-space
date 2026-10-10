@@ -40,8 +40,9 @@ export async function GET(req: NextRequest) {
     let q = supabase
       .from('Partida')
       .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
+      .order('dataHora', { ascending: true, nullsFirst: false })
       .order('rodada', { ascending: true })
-      .order('dataHora', { ascending: true })
+      .order('id', { ascending: true })
 
     if (ligaId.valor) q = q.eq('ligaId', ligaId.valor)
     if (simulacaoIds.length) q = q.not('ligaId', 'in', `(${simulacaoIds.join(',')})`)
