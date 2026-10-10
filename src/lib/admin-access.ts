@@ -9,14 +9,24 @@ type AdminSession = {
   aud?: unknown
 }
 
+export const ADMIN_SESSION_SCOPE = 'admin'
+
 export function configuredAdminEmail() {
   const value = process.env.ADMIN_EMAIL?.trim().toLowerCase()
   return value || null
 }
 
+// Produção e preview da Vercel precisam da lista fechada. Sem a variável,
+// qualquer JWT com adminId viraria sessão. No `next dev` local a tabela Admin
+// continua valendo, como decidido em 29/09/2026.
+export function ambienteExigeEmailDeAdmin() {
+  if (process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview') return true
+  return process.env.NODE_ENV === 'production'
+}
+
 export function adminEmailAllowed(email: string) {
   const configured = configuredAdminEmail()
-  if (!configured) return false
+  if (!configured) return !ambienteExigeEmailDeAdmin()
   return email.trim().toLowerCase() === configured
 }
 
@@ -27,8 +37,8 @@ function audienciaAdmin(aud: unknown) {
 
 export function isAdminSession(payload: object) {
   const session = payload as AdminSession
-  if (session.scope === 'public-user') return false
-  if (session.purpose) return false
+  if (session.purpose != null && String(session.purpose).trim() !== '') return false
+  if (session.scope != null && session.scope !== ADMIN_SESSION_SCOPE) return false
   if (session.typ !== TOKEN_TYP.admin) return false
   if (!audienciaAdmin(session.aud)) return false
   if (session.adminId == null || session.adminId === '') return false

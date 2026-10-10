@@ -20,13 +20,14 @@ export async function POST(req: NextRequest) {
     const payload = await verifyPasswordResetToken(parsed.data.token)
     if (!payload) return error('Link inválido ou expirado', 400)
 
-    const { data: admin } = await supabase
+    const { data: admin, error: leituraErr } = await supabase
       .from('Admin')
       .select('id,senhaHash')
       .eq('id', payload.adminId)
       .eq('email', payload.email)
       .maybeSingle()
 
+    if (leituraErr) throw leituraErr
     const fingerprint = admin?.senhaHash ? fingerprintSenha(admin.senhaHash) : ''
     if (!admin?.senhaHash || !fingerprintsConferem(fingerprint, payload.senhaFingerprint)) {
       return error('Link inválido ou já utilizado', 400)

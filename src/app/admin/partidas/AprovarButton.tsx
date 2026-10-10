@@ -15,14 +15,12 @@ export function AprovarButton({ partidaId }: { partidaId: number }) {
     setLoading(true)
     try {
       const res = await fetch(`/api/partidas/${partidaId}/aprovar`, { method: 'POST' })
-      if (res.ok) {
-        router.refresh()
-      } else {
-        const j = await res.json()
-        setErro(j.error ?? 'Erro ao aprovar')
-      }
-    } catch {
-      setErro('Falha na conexão')
+      const json = await res.json().catch(() => null) as { error?: string } | null
+      if (!res.ok) throw new Error(json?.error ?? 'Erro ao aprovar')
+      router.refresh()
+    } catch (err) {
+      if (err instanceof TypeError) setErro('Falha na conexão')
+      else setErro(err instanceof Error ? err.message : 'Erro ao aprovar')
     } finally {
       setLoading(false)
     }

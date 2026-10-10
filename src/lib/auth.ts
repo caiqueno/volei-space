@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
-import { fingerprintSenha } from '@/lib/password-fingerprint'
+import { ADMIN_SESSION_SCOPE, configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
+import { fingerprintSenha, fingerprintsConferem } from '@/lib/password-fingerprint'
 import { assinarToken, lerToken } from '@/lib/token-verify'
 
 const COOKIE_NAME = 'luva_token'
 const SESSION_MAX_AGE = 60 * 60 * 8
 export const OFFICIAL_ADMIN_EMAIL = configuredAdminEmail() || ''
+
+export const passwordResetFingerprint = fingerprintSenha
+export const fingerprintsMatch = fingerprintsConferem
 
 export type JWTPayload = {
   adminId: number
@@ -37,6 +40,7 @@ type RequirePublicRoleOptions = {
 
 export type PasswordResetPayload = {
   purpose: 'password-reset'
+  scope: 'password-reset'
   adminId: number
   email: string
   senhaFingerprint: string
@@ -59,7 +63,7 @@ export function tokenCookieOptions(maxAge: number) {
 }
 
 export async function signToken(payload: JWTPayload): Promise<string> {
-  return assinarToken({ ...payload }, 'admin', '8h')
+  return assinarToken({ ...payload, scope: ADMIN_SESSION_SCOPE }, 'admin', '8h')
 }
 
 export async function signPublicToken(payload: PublicJWTPayload): Promise<string> {
@@ -117,6 +121,7 @@ export async function requirePublicRole(
 export async function signPasswordResetToken(input: { adminId: number; email: string; senhaHash: string }): Promise<string> {
   return assinarToken({
     purpose: 'password-reset',
+    scope: 'password-reset',
     adminId: input.adminId,
     email: input.email,
     senhaFingerprint: fingerprintSenha(input.senhaHash),
@@ -125,14 +130,15 @@ export async function signPasswordResetToken(input: { adminId: number; email: st
 
 export async function verifyPasswordResetToken(token: string): Promise<PasswordResetPayload | null> {
   const payload = await lerToken<PasswordResetPayload>(token, 'reset')
-  if (!payload || payload.purpose !== 'password-reset') return null
+  if (!payload || payload.purpose !== 'password-reset' || payload.scope !== 'password-reset') return null
   if (typeof payload.senhaFingerprint !== 'string' || !payload.senhaFingerprint) return null
-  if ('senhaHash' in payload) return null
+  if (payload.adminId == null || typeof payload.email !== 'string') return null
+  if ('senhaHash' in payload && (payload as { senhaHash?: unknown }).senhaHash != null) return null
   return payload
 }
 
 export async function signAccountActivationToken(payload: Omit<AccountActivationPayload, 'purpose'>): Promise<string> {
-  return assinarToken({ ...payload, purpose: 'account-activation' }, 'activation', '24h')
+  return assinarToken({ ...payload, purpose: 'account-activation', scope: 'account-activation' }, 'activation', '24h')
 }
 
 export async function verifyAccountActivationToken(token: string): Promise<AccountActivationPayload | null> {

@@ -26,26 +26,35 @@ export async function POST(req: NextRequest) {
     if (!consumirLimite(`forgot:email:${email}`, 3, JANELA_RECUPERACAO_MS).ok) {
       return error('Não foi possível solicitar recuperação agora. Tente mais tarde.', 429)
     }
-    const { data: admin } = await supabase
+    const { data: admin, error: dbErr } = await supabase
       .from('Admin')
       .select('id,email,nome,senhaHash')
       .eq('email', email)
       .maybeSingle()
 
-    if (admin) {
-      const token = await signPasswordResetToken({
-        adminId: admin.id,
-        email: admin.email,
-        senhaHash: admin.senhaHash,
-      })
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-      const resetUrl = `${baseUrl.replace(/\/$/, '')}/resetar-senha?token=${encodeURIComponent(token)}`
+    if (dbErr) {
+      console.error('[auth/forgot-password] erro ao consultar administrador', dbErr)
+      return error('Não foi possível solicitar recuperação agora', 500)
+    }
 
-      await sendEmail({
-        to: admin.email,
-        subject: 'Recuperação de senha - volei.space',
-        html: emailRecuperacaoSenha(admin.nome || 'Administrador', resetUrl),
-      })
+    if (admin?.senhaHash) {
+      try {
+        const token = await signPasswordResetToken({
+          adminId: admin.id,
+          email: admin.email,
+          senhaHash: admin.senhaHash,
+        })
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+        const resetUrl = `${baseUrl.replace(/\/$/, '')}/resetar-senha?token=${encodeURIComponent(token)}`
+
+        await sendEmail({
+          to: admin.email,
+          subject: 'Recuperação de senha - volei.space',
+          html: emailRecuperacaoSenha(admin.nome || 'Administrador', resetUrl),
+        })
+      } catch (emailErr) {
+        console.error('[auth/forgot-password] falha ao enviar e-mail', emailErr)
+      }
     }
 
     return success({ mensagem: 'Se o e-mail existir na plataforma, enviaremos um link de recuperação.' })

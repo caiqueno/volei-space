@@ -13,8 +13,12 @@ import { camposEditaveisDaPartida, equipesConferemComLiga } from '../src/lib/par
 process.env.JWT_SECRET = 'segredo-de-teste-volei-space'
 
 function testAdminFailClosed() {
-  const anterior = process.env.ADMIN_EMAIL
+  const anteriorEmail = process.env.ADMIN_EMAIL
+  const anteriorNode = process.env.NODE_ENV
+  const anteriorVercel = process.env.VERCEL_ENV
   delete process.env.ADMIN_EMAIL
+  delete process.env.VERCEL_ENV
+  process.env.NODE_ENV = 'production'
   assert.equal(adminEmailAllowed('admin@volei.space'), false)
   assert.equal(isAdminSession({ adminId: 1, email: 'admin@volei.space', typ: TOKEN_TYP.admin, aud: TOKEN_AUD.admin }), false)
   process.env.ADMIN_EMAIL = 'admin@volei.space'
@@ -22,13 +26,21 @@ function testAdminFailClosed() {
   assert.equal(adminEmailAllowed('outro@volei.space'), false)
   assert.equal(isAdminSession({ adminId: 1, email: 'admin@volei.space', typ: TOKEN_TYP.admin, aud: TOKEN_AUD.admin }), true)
   assert.equal(isAdminSession({ adminId: 1, email: 'admin@volei.space', typ: TOKEN_TYP.reset, aud: TOKEN_AUD.reset, purpose: 'password-reset' }), false)
-  if (anterior === undefined) delete process.env.ADMIN_EMAIL
-  else process.env.ADMIN_EMAIL = anterior
+  if (anteriorEmail === undefined) delete process.env.ADMIN_EMAIL
+  else process.env.ADMIN_EMAIL = anteriorEmail
+  if (anteriorNode === undefined) delete process.env.NODE_ENV
+  else process.env.NODE_ENV = anteriorNode
+  if (anteriorVercel === undefined) delete process.env.VERCEL_ENV
+  else process.env.VERCEL_ENV = anteriorVercel
 }
 
 function testWebhookSignature() {
   const anterior = process.env.INFINITEPAY_WEBHOOK_SECRET
+  const anteriorNode = process.env.NODE_ENV
+  const anteriorVercel = process.env.VERCEL_ENV
   delete process.env.INFINITEPAY_WEBHOOK_SECRET
+  delete process.env.VERCEL_ENV
+  process.env.NODE_ENV = 'production'
   assert.equal(validateWebhookSignature('{}', 'a'.repeat(64)), false)
   process.env.INFINITEPAY_WEBHOOK_SECRET = 'segredo-webhook'
   const corpo = '{"id":"pay_1"}'
@@ -39,6 +51,10 @@ function testWebhookSignature() {
   assert.equal(validateWebhookSignature(corpo, `${assinatura}aa`), false)
   if (anterior === undefined) delete process.env.INFINITEPAY_WEBHOOK_SECRET
   else process.env.INFINITEPAY_WEBHOOK_SECRET = anterior
+  if (anteriorNode === undefined) delete process.env.NODE_ENV
+  else process.env.NODE_ENV = anteriorNode
+  if (anteriorVercel === undefined) delete process.env.VERCEL_ENV
+  else process.env.VERCEL_ENV = anteriorVercel
 }
 
 function testExternalId() {
