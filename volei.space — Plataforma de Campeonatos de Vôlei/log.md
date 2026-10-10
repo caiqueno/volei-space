@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] lint | id da presença é identity
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- `SumulaPresenca.id` e `OcorrenciaPartida.id` são identity `BY DEFAULT`. O 500 da presença continua sendo a falta de unicidade em `(partidaId, jogadorId)`, não a falta de default.
+
 ## [2026-10-10] feat | vaga a definir no mata-mata
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
