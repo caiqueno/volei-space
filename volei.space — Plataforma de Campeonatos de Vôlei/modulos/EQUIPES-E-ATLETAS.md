@@ -5,12 +5,14 @@ category: modulo
 tags: [equipes]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O mesmo atleta não entra em duas equipes da categoria. O capitão recebe o mesmo aviso da inscrição.
+  O mesmo atleta não entra em duas equipes da categoria. /painel/elenco escolhe o campeonato.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Equipes e atletas
+
+**Elenco do painel — implementado:** `/painel/elenco` lista os campeonatos do organizador e abre o `ligaId` da consulta. Sem esse id, entra o primeiro campeonato que não é simulação. O seletor troca o campeonato e atualiza o endereço. A leitura continua em `GET /api/organizador/elenco`, restrita ao organizador da liga.
 
 **Implementado:** o capitão, ao incluir ou editar atleta, recebe a mesma recusa da inscrição quando documento, ou nome e nascimento, já estão em outra equipe da categoria. Entidades `Equipe` e `Jogador` em `prisma/schema.prisma`; APIs de equipes/jogadores, foto, QR e inscrição em `src/app/api`. Categorias/séries aparecem na equipe e na configuração do campeonato. A página pública `/equipes/[slug]` lista os jogos pelos sets (`setsPorA`/`setsPorB`). `Jogador.sexo` e o sexo do rascunho nascem nulos. A inscrição só envia o campo quando a categoria tem gênero. Se a coluna não existir, a gravação repete sem ele.
 
