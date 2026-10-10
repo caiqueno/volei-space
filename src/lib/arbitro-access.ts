@@ -23,8 +23,12 @@ export async function requireArbitroPartidaAccess(
   req: NextRequest,
   token: string,
 ): Promise<ArbitroPartidaAccess | NextResponse> {
-  const peloLink = await acessoPeloLink(req, token)
-  if (peloLink) return peloLink
+  // O id numérico não é token de AcessoArbitroJogo. Sem sessão, a resposta
+  // continua 401 antes de consultar o banco.
+  if (!/^\d+$/.test(token)) {
+    const peloLink = await acessoPeloLink(req, token)
+    if (peloLink) return peloLink
+  }
   const pelaSessao = await acessoPelaSessaoNaPartida(req, token)
   if (pelaSessao) return pelaSessao
   const peloOrganizador = await acessoPeloOrganizador(req, token)
