@@ -177,17 +177,36 @@ async function marcaDasPartidas(ligaId: number) {
 const COLUNAS_REGRAS = 'categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,pontosVencedorMargem1,pontosPerdedorMargem1,pontosVencedorMargem2,pontosPerdedorMargem2,criteriosClassificacao'
 const COLUNAS_WO = 'woSetsVencedor,woSetsPerdedor,woPontosSetVencedor,woPontosSetPerdedor,woPunicaoPontos'
 
-async function lerRegrasDaClassificacao(ligaId: number) {
+type RegraLida = {
+  categoriaCampeonatoId: string
+  setsPorPartida?: number | null
+  pontosPorSet?: number | null
+  tieBreakUltimoSet?: boolean | null
+  pontosUltimoSet?: number | null
+  diferencaMinimaSet?: number | null
+  pontosVencedorMargem1?: number | null
+  pontosPerdedorMargem1?: number | null
+  pontosVencedorMargem2?: number | null
+  pontosPerdedorMargem2?: number | null
+  criteriosClassificacao?: string[] | string | null
+  woSetsVencedor?: number | null
+  woSetsPerdedor?: number | null
+  woPontosSetVencedor?: number | null
+  woPontosSetPerdedor?: number | null
+  woPunicaoPontos?: number | null
+}
+
+async function lerRegrasDaClassificacao(ligaId: number): Promise<RegraLida[]> {
   const comWo = await supabaseAdmin
     .from('CategoriaConfiguracao')
     .select(`${COLUNAS_REGRAS},${COLUNAS_WO}`)
     .eq('ligaId', ligaId)
-  if (!comWo.error) return comWo.data ?? []
+  if (!comWo.error) return (comWo.data ?? []) as RegraLida[]
   const texto = `${comWo.error.code ?? ''} ${comWo.error.message ?? ''}`
   if (!/woSetsVencedor|woPunicaoPontos|42703|PGRST204/i.test(texto)) throw new Error(comWo.error.message)
   const base = await supabaseAdmin.from('CategoriaConfiguracao').select(COLUNAS_REGRAS).eq('ligaId', ligaId)
   if (base.error) throw new Error(base.error.message)
-  return base.data ?? []
+  return (base.data ?? []) as RegraLida[]
 }
 
 async function gravarClassificacaoUmaVez(ligaId: number) {

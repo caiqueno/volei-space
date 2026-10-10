@@ -159,6 +159,40 @@ async function ensureClassificationEntries(ligaId: number, equipes: EquipeRecord
 
 async function ensureSchedule(liga: LigaRecord, equipes: EquipeRecord[]) {
   if (equipes.length < 2) return
+  const ids = equipes.map((equipe) => equipe.id)
+  const { data: vinculos, error: vinculosErr } = await supabase
+    .from('GrupoEquipeCampeonato')
+    .select('equipeId,grupoId')
+    .eq('ligaId', liga.id)
+    .in('equipeId', ids)
+  if (vinculosErr) throw vinculosErr
+
+  const grupoDe = new Map<number, number>()
+  for (const vinculo of vinculos ?? []) grupoDe.set(Number(vinculo.equipeId), Number(vinculo.grupoId))
+  if (grupoDe.size > 0) {
+    const porGrupo = new Map<number, EquipeRecord[]>()
+    for (const equipe of equipes) {
+      const grupoId = grupoDe.get(equipe.id)
+      if (grupoId == null) continue
+      const lista = porGrupo.get(grupoId) ?? []
+      lista.push(equipe)
+      porGrupo.set(grupoId, lista)
+    }
+    for (const entrada of Array.from(porGrupo.entries())) {
+      await inserirCalendario(liga, entrada[1], { fase: 'GRUPOS', grupoId: entrada[0] })
+    }
+    return
+  }
+
+  await inserirCalendario(liga, equipes, { fase: 'GERAL', grupoId: null })
+}
+
+async function inserirCalendario(
+  liga: LigaRecord,
+  equipes: EquipeRecord[],
+  destino: { fase: 'GRUPOS' | 'GERAL'; grupoId: number | null },
+) {
+  if (equipes.length < 2) return
 
   const ids = new Set(equipes.map((equipe) => equipe.id))
   const { data: existing, error: existingErr } = await supabase
@@ -193,6 +227,8 @@ async function ensureSchedule(liga: LigaRecord, equipes: EquipeRecord[]) {
       serie: null,
       categoriaCampeonatoId: pair.a.categoriaCampeonatoId || pair.b.categoriaCampeonatoId || null,
       rodada: pair.rodada,
+      fase: destino.fase,
+      grupoId: destino.grupoId,
       status: 'AGENDADA',
       dataHora: dataHora.toISOString(),
       localNome: 'A definir',

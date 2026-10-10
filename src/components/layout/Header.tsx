@@ -180,15 +180,21 @@ export function Header() {
     }
   }, [])
 
+  if (pathname.startsWith('/arbitro') || pathname.startsWith('/sumula')) {
+    return (
+      <div className="sticky top-0 z-50 flex justify-end border-b border-white/10 bg-[#061426]/92 px-4 py-2">
+        <BotaoSair />
+      </div>
+    )
+  }
+
   if (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/cadastro') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/resetar-senha') ||
     pathname.startsWith('/trocar-senha') ||
-    pathname.startsWith('/inscricao') ||
-    pathname.startsWith('/sumula') ||
-    pathname.startsWith('/arbitro')
+    pathname.startsWith('/inscricao')
   ) {
     return null
   }
@@ -217,7 +223,7 @@ export function Header() {
           </nav>
 
           <div className="landing-header-actions">
-             <Link href="/login">Entre ou Cadastre-se</Link>
+             {session ? <BotaoSair /> : <Link href="/login">Entre ou Cadastre-se</Link>}
           </div>
         </div>
       </header>
@@ -268,16 +274,19 @@ export function Header() {
         </aside>
 
         <nav className="profile-mobile-nav">
-          {mobileLinks.map((link) => {
-            const Icon = link.icon ?? Home
-            const active = isActivePath(pathname, link.href)
-            return (
-              <Link key={link.href} href={link.href} className={`profile-mobile-link ${active ? 'is-active' : ''}`}>
-                <Icon size={18} />
-                <span>{link.short}</span>
-              </Link>
-            )
-          })}
+          <div className="profile-mobile-scroll">
+            {mobileLinks.map((link) => {
+              const Icon = link.icon ?? Home
+              const active = isActivePath(pathname, link.href)
+              return (
+                <Link key={link.href} href={link.href} className={`profile-mobile-link ${active ? 'is-active' : ''}`}>
+                  <Icon size={18} />
+                  <span>{link.short}</span>
+                </Link>
+              )
+            })}
+          </div>
+          <BotaoSair compacto />
         </nav>
       </>
     )
@@ -315,16 +324,16 @@ export function Header() {
                 </Link>
               )
             })}
-            {!telaDoPortal && (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {session ? <BotaoSair /> : !telaDoPortal ? (
                 <Link
                   href="/login"
                   className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-black text-slate-100 transition hover:border-luva-amber/70 hover:text-white"
                 >
                   Entrar
                 </Link>
-              </div>
-            )}
+              ) : null}
+            </div>
           </nav>
 
           {!semMotion && (
@@ -362,6 +371,7 @@ export function Header() {
                 </Link>
               )
             })}
+            {session ? <BotaoSair /> : null}
           </nav>
         )}
       </header>
@@ -384,6 +394,7 @@ export function Header() {
               </Link>
             )
           })}
+          {session ? <BotaoSair compacto /> : null}
         </nav>
       )}
     </>
@@ -474,6 +485,23 @@ function getProfileLabel(tipo: string) {
 
 function logout() {
   void encerrarSessaoPublica()
+}
+
+function BotaoSair({ compacto = false }: { compacto?: boolean }) {
+  if (compacto) {
+    return (
+      <button type="button" onClick={logout} className="profile-mobile-link profile-mobile-logout">
+        <LogOut size={18} />
+        <span>Sair</span>
+      </button>
+    )
+  }
+  return (
+    <button type="button" onClick={logout} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-black text-slate-100 transition hover:border-luva-amber/70 hover:text-white">
+      <LogOut size={16} />
+      Sair
+    </button>
+  )
 }
 
 function CabecalhoReservado() {

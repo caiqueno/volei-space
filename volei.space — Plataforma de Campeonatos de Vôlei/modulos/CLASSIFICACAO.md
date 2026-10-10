@@ -5,7 +5,7 @@ category: modulo
 tags: [classificacao]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  W.O. sem placar segue a faixa de margem 2. Com placar e punição gravados, a tabela usa esses números.
+  Com dois ou mais grupos, a tabela separa um bloco por grupo e desempata por confronto direto. W.O. sem placar segue a faixa de margem 2.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -18,7 +18,9 @@ updated: 2026-10-10
 
 **Divergência no banco:** a função `recalcular_classificacao_liga` que prevalece em `supabase-recalcular-classificacao-liga-atomico.sql` ainda pontua 4/3/1/0, mistura o mata-mata e não lê o set ao vivo. O servidor não chama mais essa RPC. `recalcular_classificacao_categoria` em `202610060003_classificacao_ao_vivo.sql` chega perto da regra, mas o set ao vivo só credita o vencedor e WO fica de fora. A trava `pg_advisory_xact_lock` precisa voltar em volta do cálculo novo. `calcular_pontos_resultado` ainda casa o placar exato.
 
-**Aprovado, pendente:** confronto direto não faz parte dos critérios reconhecidos. Isolar a tabela por `categoriaCampeonatoId` no SQL continua dependendo da função de categoria. A consulta do aplicativo já filtra; as funções SQL não foram alteradas nesta entrega.
+**Confronto direto — implementado na leitura:** quando a categoria tem dois ou mais grupos, `GET /api/classificacao` e `GET /api/portal/classificacao` devolvem `grupos` além de `linhas`. Cada bloco reordena as equipes daquele grupo. Empate nos critérios anteriores ao confronto direto usa os jogos encerrados só entre os empatados. A posição gravada em `ClassificacaoEntrada` continua global e não inclui esse critério, para não mudar a tabela de quem não tem grupos. A função SQL ainda ignora `CONFRONTO_DIRETO`.
+
+**Aprovado, pendente:** isolar a tabela por `categoriaCampeonatoId` no SQL continua dependendo da função de categoria. A consulta do aplicativo já filtra; as funções SQL não foram alteradas nesta entrega.
 
 Resultado manual, aprovação histórica, súmula e correção precisam produzir tabela coerente. Classificação de fase de grupos e eliminatórias requer escopo correto; não misturar jogos de campeonatos ou fases. Ver [[modulos/SUMULA-DIGITAL]] e [[06-BANCO-DE-DADOS]].
 

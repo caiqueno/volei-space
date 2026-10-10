@@ -18,6 +18,8 @@ import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
+import { ConsultaElenco } from '@/components/elenco/ConsultaElenco'
+import { listarElenco } from '@/lib/elenco-servidor'
 import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
 import { escolherCategoria } from '@/lib/isolamento-categoria'
 import mi from '@/styles/microinteracoes.module.css'
@@ -94,12 +96,13 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
     .eq('status', 'APROVADA')
     .order('criadaEm', { ascending: true })
   if (categoriaId) equipesConsulta = equipesConsulta.eq('equipe.categoriaCampeonatoId', categoriaId)
-  const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }, bracket, podium] = await Promise.all([
+  const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }, bracket, podium, elenco] = await Promise.all([
     supabase.from('InscricaoCampeonato').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id).eq('status', 'APROVADA'),
     jogosConsulta,
     equipesConsulta,
     faseChave ? getMataMataBracket(liga.id, faseChave, false, categoriaId) : Promise.resolve(chaveVazia),
     finalizado ? getChampionshipPodium(liga.id, categoriaId) : Promise.resolve([] as PodiumTeam[]),
+    listarElenco(liga.id, categoriaId).catch(() => []),
   ])
   const aprovadasNaCategoria = equipesConfirmadas?.length ?? 0
   const sufixoCategoria = categoriaId ? `&categoria=${encodeURIComponent(categoriaId)}` : ''
@@ -150,6 +153,16 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
         podium={podium}
         finalizado={finalizado}
       />
+
+      <section className="mx-auto max-w-7xl px-4 pb-8">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`}>
+          <p className="luva-kicker">Elenco</p>
+          <h2 className="mt-2 font-display text-3xl font-black text-white">Jogadores e grupos</h2>
+          <div className="mt-5">
+            <ConsultaElenco linhas={elenco} />
+          </div>
+        </article>
+      </section>
 
       {Boolean(equipesConfirmadas?.length) && (
         <section className="mx-auto max-w-7xl px-4 pb-8">

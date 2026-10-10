@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/INSCRICOES`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - Não coletar, opcional e obrigatório de nascimento e documento passam a valer no formulário público. A categoria prevalece sobre a liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada.
 
+## [2026-10-10] feat | jogos só dentro do grupo, tabelas separadas e elenco
+
+- pages_updated=`modulos/GRUPOS`, `modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
+- O gerador e a criação manual recusam jogo de grupo entre grupos diferentes. A classificação separa os grupos e usa confronto direto. A chave automática usa esse ranque. O elenco é consulta. Nenhuma migration foi aplicada e os jogos já gravados não foram alterados.
+
 ## [2026-10-10] feat | W.O. configurável
 
 - pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`

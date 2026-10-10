@@ -13,6 +13,7 @@ import { jogoImpedeEdicaoDaCategoria, partidaRemovivelAoRecriarGrupos } from '@/
 import { categoriaDaUrl, equipesDaCategoria, escopoDaGeracao } from '@/lib/isolamento-categoria'
 import { gerarSumulaToken } from '@/lib/sumula-token'
 import { montarConfrontos } from '@/lib/rodadas'
+import { mensagemParesForaDoGrupo } from '@/lib/grupos-fase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -185,6 +186,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (equipes.length < 2) return error('A estrutura desta categoria precisa de pelo menos 2 equipes aprovadas.', 400)
 
     const groups = normalizeGroups(body.grupos, nomesGrupos, equipes)
+    if (!groups) return error('A quantidade de grupos não confere com a distribuição enviada.', 422)
     const validation = validateGroups(groups, equipes, classificadosPorGrupo, regras?.faseEliminatoria ?? liga.faseEliminatoria, regras?.formato ?? liga.formato)
     if (validation) return error(validation, 422)
 
@@ -263,12 +265,25 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const partidas = buildGroupMatches(ligaId, groups, createdByName, equipes, turnoReturno, dataInicial, horarioPadrao, localPadrao, categoriaCampeonatoId)
+    const foraDoGrupo = mensagemParesForaDoGrupo(groups, partidas)
+    if (foraDoGrupo) return error(foraDoGrupo, 422)
     if (partidas.length > 0) {
       const { error: insertPartidasErr } = await supabase.from('Partida').insert(partidas)
       if (insertPartidasErr) {
         console.error('[estrutura] erro ao gerar confrontos', insertPartidasErr)
         return error('Erro ao gerar confrontos.', 500)
       }
+    }
+
+    const { error: configErr } = await supabase
+      .from('CategoriaConfiguracao')
+      .update({ quantidadeGrupos: groups.length })
+      .eq('ligaId', ligaId)
+      .eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    if (configErr) console.error('[estrutura] quantidade de grupos da categoria não foi gravada', configErr)
+    if (categorias.length === 1) {
+      const { error: ligaErr } = await supabase.from('Liga').update({ quantidadeGrupos: groups.length }).eq('id', ligaId)
+      if (ligaErr) console.error('[estrutura] quantidade de grupos do campeonato não foi gravada', ligaErr)
     }
 
     return success({
@@ -368,8 +383,9 @@ function normalizeGroupNames(value: unknown, quantidadeGrupos: number) {
   return Array.from({ length: quantidadeGrupos }, (_, index) => names[index] || `Grupo ${String.fromCharCode(65 + index)}`)
 }
 
-function normalizeGroups(value: unknown, nomesGrupos: string[], equipes: EquipeRecord[]): Required<GrupoInput>[] {
+function normalizeGroups(value: unknown, nomesGrupos: string[], equipes: EquipeRecord[]): Required<GrupoInput>[] | null {
   if (Array.isArray(value) && value.length > 0) {
+    if (value.length !== nomesGrupos.length) return null
     return nomesGrupos.map((nome, index) => {
       const group = value[index] as GrupoInput | undefined
       return {
