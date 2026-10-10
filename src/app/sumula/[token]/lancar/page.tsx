@@ -12,7 +12,7 @@ import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
-import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
+import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -99,6 +99,7 @@ type MatchRules = {
   setsToWin: number
   lastSetPoints: number
   exigeTodosOsSets: boolean
+  substitutionLimit: number
 }
 
 type SetEndPrompt = {
@@ -253,7 +254,7 @@ export default function SumulaPage() {
         setTimeoutsUsedA(restoredTimeouts.teamA)
         setTimeoutsUsedB(restoredTimeouts.teamB)
         const numerosDaPartida = restoreMatchNumberOverrides(teamA, teamB, savedPresence)
-        setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida))
+        setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida, loadedRules.substitutionLimit))
         const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
         if (destaqueMvp?.jogadorId) setMvpId(String(destaqueMvp.jogadorId))
         setSidesInverted(countSavedSideInversions(savedOccurrences) % 2 === 1)
@@ -835,7 +836,7 @@ export default function SumulaPage() {
   function listaDeSubstituicao(teamId: TeamId, outNumber: string) {
     const currentBench = teamId === 'teamA' ? benchA : benchB
     const controle = controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()
-    return reservasElegiveis(controle, outNumber, currentBench)
+    return reservasElegiveis(controle, outNumber, currentBench, matchRules.substitutionLimit)
   }
 
   function avisoDoModal() {
@@ -843,7 +844,7 @@ export default function SumulaPage() {
     const lista = listaDeSubstituicao(subModal.teamId, subModal.outNumber)
     if (!lista.aviso) return null
     const teamId = subModal.teamId
-    return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero))
+    return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit)
   }
 
   function executeSubstitution(inNumber: string) {
@@ -862,9 +863,9 @@ export default function SumulaPage() {
       return
     }
     const controleAtual = controleSubstituicao[currentSet]?.[subModal.teamId] ?? controleVazio()
-    const proximoControle = isLiberoExchange ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber)
+    const proximoControle = isLiberoExchange ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber, matchRules.substitutionLimit)
     if (proximoControle?.falha) {
-      addToast(mensagemFalhaSubstituicao(proximoControle.falha, currentSet))
+      addToast(mensagemFalhaSubstituicao(proximoControle.falha, currentSet, matchRules.substitutionLimit))
       return
     }
 
@@ -3696,6 +3697,7 @@ function restoreControleSubstituicao(
   teamA: Team,
   teamB: Team,
   overrides: Record<TeamId, Record<number, string>>,
+  limite: number = LIMITE_SUBSTITUICOES_POR_SET,
 ) {
   const controle: Record<number, Record<TeamId, ControleSubstituicao>> = {}
   for (const occurrence of savedOccurrences) {
@@ -3713,8 +3715,8 @@ function restoreControleSubstituicao(
     const troca = numerosDaTroca(text)
     const atual = controle[setNumber]?.[teamId] ?? controleVazio()
     const proximo = troca
-      ? aplicarSubstituicao(atual, numeroDoElenco(team, troca[0], overrides[teamId]), numeroDoElenco(team, troca[1], overrides[teamId]))
-      : atual.usadas >= LIMITE_SUBSTITUICOES_POR_SET
+      ? aplicarSubstituicao(atual, numeroDoElenco(team, troca[0], overrides[teamId]), numeroDoElenco(team, troca[1], overrides[teamId]), limite)
+      : atual.usadas >= limiteDeSubstituicoes(limite)
         ? null
         : { controle: { usadas: atual.usadas + 1, pares: atual.pares }, falha: null }
     if (!proximo || proximo.falha) continue
@@ -3867,7 +3869,7 @@ function canCloseSetByRules(score: { teamA: number; teamB: number }, pointsPerSe
 
 function getMatchRules(liga: any, fase?: string | null): MatchRules {
   const source = Array.isArray(liga) ? liga[0] : liga
-  return regrasVisiveis({
+  const regras = regrasVisiveis({
     setsPorPartida: readOptionalNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets']),
     pontosPorSet: readOptionalNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet']),
     tieBreakUltimoSet: readOptionalBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set']),
@@ -3880,6 +3882,7 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     setsPorPartidaOitavas: source?.setsPorPartidaOitavas,
     setsPorPartidaTerceiroLugar: source?.setsPorPartidaTerceiroLugar,
   }, fase)
+  return { ...regras, substitutionLimit: limiteDeSubstituicoes(source?.limiteSubstituicoesPorSet) }
 }
 
 function pointsForSet(rules: MatchRules, setNumber: number) {

@@ -37,6 +37,7 @@ const CAMPOS_LIGA = new Set([
   'setsPorPartidaQuartas',
   'setsPorPartidaOitavas',
   'setsPorPartidaTerceiroLugar',
+  'limiteSubstituicoesPorSet',
   'formularioInscricaoConfig',
 ])
 
@@ -109,6 +110,11 @@ export function secoesDependentes(secao: string, patch: Record<string, unknown>)
   return []
 }
 
+export function patchSoDeLimiteDeSubstituicoes(patch: Record<string, unknown>) {
+  const chaves = Object.keys(patch)
+  return chaves.length > 0 && chaves.every((chave) => chave === 'limiteSubstituicoesPorSet')
+}
+
 const FASE_DO_CAMPO_DE_SETS: Record<(typeof CAMPOS_SETS_POR_FASE)[number], string> = {
   setsPorPartidaFinal: 'FINAL',
   setsPorPartidaSemifinal: 'SEMIFINAL',
@@ -132,6 +138,7 @@ export function patchSoDeSetsPorFase(patch: Record<string, unknown>) {
 
 /** A quantidade de sets de uma fase do mata-mata continua editável depois que a fase de grupos começa. Trava só a fase que já tem jogo iniciado. */
 export function motivoBloqueioEdicao(secao: string, patch: Record<string, unknown>, jogos: JogoDaCategoria[]) {
+  if (secao === 'estrutura' && patchSoDeLimiteDeSubstituicoes(patch)) return null
   if (secao === 'eliminatorias' && patchSoDeSetsPorFase(patch)) {
     for (const chave of Object.keys(patch) as Array<(typeof CAMPOS_SETS_POR_FASE)[number]>) {
       const fase = FASE_DO_CAMPO_DE_SETS[chave]

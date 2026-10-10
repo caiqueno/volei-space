@@ -145,6 +145,7 @@ const EDITABLE_AFTER_START: Partial<Record<SetupSection, string[]>> = {
     'diferencaMinimaSet',
     'tieBreakUltimoSet',
     'pontosUltimoSet',
+    'limiteSubstituicoesPorSet',
     'sumulaScoutsEnabled',
   ],
   classificacao: [],
