@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  supabase/migrations é a fonte. O W.O. é 20261010139000. 20261010139500 fica antes da RLS. A leitura ao vivo volta em 20261010141000, ainda sem aplicar.
+  SumulaPresenca em produção não tem unicidade de partida e atleta nem default no id. supabase/migrations continua sendo a fonte. Nenhuma migration nova foi aplicada.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
