@@ -5,8 +5,8 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Interface, tokens Noite de final e microinterações públicas leves.
-status: implementado
+  Interface, tokens Noite de final e microinterações de 150–280ms.
+status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
@@ -23,6 +23,8 @@ O painel oferece primeiro acesso, perfil/organização, campeonatos e central de
 Carregando, vazio, erro, rascunho salvo, seção bloqueada, link gerado, inscrição concluída, set em andamento, súmula oficializada e janela de correção. A UI não deve dizer «aprovada manualmente» no fluxo novo de equipe.
 
 **Fonte de estilos atuais:** tokens em `src/app/globals.css` (`--vs-*`) e `tailwind.config.ts` (`vs.*`, com `luva.*` como alias). Direção visual aprovada, «Noite de final»: fundo `#070D1A`, superfície `#0F1A2E`, superfície elevada `#16243D`, borda `#22324F`, texto `#F5F7FB`, texto secundário `#9AA8C1`, dourado `#FFB331` (hover `#FFC65C`, texto sobre dourado `#1A1205`), azul `#3B82F6` para foco, vitória `#22C55E`, derrota `#EF4444`, ao vivo `#FF4D6D`. Barlow Condensed 600/700 entra em títulos, placares e números; Manrope 400–700 no texto. As duas famílias vêm só de `next/font`. `--luva-*`, `--landing-*` e `--dark-*` continuam como aliases temporários dos tokens novos. Utilitários Tailwind não são redefinidos. Esta etapa troca a base; o redesenho tela a tela ainda não começou. O movimento reutilizável fica em `src/styles/vs-motion.css` (`--vs-motion-*`, `.vs-press`, `.vs-tap`, `.vs-tap-play`, `.vs-hover`, `.vs-focus`) e no componente `VolleyballBurst` (`children`, `enabled`). Só transform e opacity; `prefers-reduced-motion` desliga. O +1 da súmula usa `.vs-press`, `.vs-focus` e `VolleyballBurst`. A bola não espera o registro do ponto. ACE, atleta, bloqueio, set, modal, navegação e o restante das telas ainda não usam essa base. Decisões de fluxo: [[04-FLUXOS]], [[modulos/PARAMETRIZACAO]], [[modulos/INSCRICOES]] e [[modulos/SUMULA-DIGITAL]].
+
+Microinterações locais, só com `transform` e `opacity`, entre 150 e 250ms, em `src/app/micro-interactions.css`. A troca de rota entra com um deslocamento curto nas telas fora da lista abaixo. Botões e links de ação sobem 1px no hover e no foco e encolhem no clique. O menu do cabeçalho, abaixo de 1024px, abre e fecha nas telas que não estão nessa lista; o ícone gira as barras. Nos documentos legais, a aba ativa cresce um traço dourado e o texto do documento aparece em seguida. O aviso da parametrização entra e sai. O spinner de página e a barra de demora aparecem com fade. `prefers-reduced-motion: reduce` desliga essas animações. Não entram nesta leva a súmula, as páginas públicas (início, portal, jogos, classificação, rankings, galeria, campeonatos, ao vivo, partidas, equipes e mata-mata), o pódio, o painel e as telas de identificação. Os keyframes que já estavam em `globals.css` não foram alterados.
 
 Microinterações das páginas públicas ficam em `src/styles/microinteracoes.module.css`, sem alterar os utilitários da base. Entrada de cards, hover e toque, faixa do líder, revelação do chaveamento e brilho do campeão usam só `transform` e `opacity`, entre 160ms e 280ms. `prefers-reduced-motion: reduce` desliga essa camada. O pódio e o cartão de campeão do mata-mata ganham um brilho dourado curto. Números tocados usam Barlow Condensed (`--font-display`). Súmula, menu, toasts, indicador de demora e loading global ficam de fora.
 

@@ -6,7 +6,7 @@ type Props = {
 export default function LoadingSpinner({ size = 96, className = '' }: Props) {
   return (
     <div
-      className={`loading-spinner ${className}`}
+      className={`loading-spinner vs-motion-fade ${className}`}
       style={{ fontSize: size / 16 }}
       role="status"
       aria-label="Carregando"
