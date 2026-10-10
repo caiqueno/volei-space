@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | CSP de desenvolvimento e teste do pulso da súmula
+
+- pages_updated=`hot`, `log`
+- No `next dev`, o `script-src` aceita `'unsafe-eval'` para a página hidratar. Em produção continua `'self' 'unsafe-inline'`. O Playwright da súmula demo confere ACE, toque e bloqueio no atleta e que `prefers-reduced-motion` zera o pulso já existente em `sumula-micro.css`.
+
 ## [2026-10-10] decisao | microinterações visuais
 
 - pages_updated=`09-UI-UX`, `hot`, `log`
