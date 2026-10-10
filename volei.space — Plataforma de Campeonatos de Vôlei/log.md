@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] decisao | número da camisa no credenciamento
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O número editado no credenciamento fica em `SumulaPresenca.numero`, por partida, e não no cadastro `Jogador.numero`. `202610100001` torna `presente` anulável para a linha existir antes da confirmação. Não foi aplicada em produção.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 

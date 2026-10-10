@@ -7780,7 +7780,7 @@ html body .admin-shell main img {
   -webkit-text-fill-color: #ffffff !important;
 }
 
-.referee-shell :is(p, span, label, li):not(.referee-kicker):not(.referee-status):not(.bg-luva-amber) {
+.referee-shell :is(p, span, label, li):not(.referee-kicker):not(.referee-status):not(.bg-luva-amber):not(.referee-feedback) {
   color: #d7e5f5 !important;
   -webkit-text-fill-color: #d7e5f5 !important;
 }
@@ -7959,6 +7959,39 @@ html body .admin-shell main a.admin-filter-pill.admin-filter-pill-active:visited
 html body .admin-shell main a.admin-filter-pill.admin-filter-pill-idle {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+}
+
+.referee-number {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+button.referee-number {
+  cursor: pointer;
+}
+
+button.referee-number:hover,
+button.referee-number:focus-visible {
+  border-color: rgba(255, 179, 49, 0.95) !important;
+  box-shadow: 0 0 0 3px rgba(255, 179, 49, 0.35);
+  outline: none;
+}
+
+button.referee-number.is-saved {
+  border-color: rgba(52, 211, 153, 0.95) !important;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.35);
+}
+
+.referee-feedback.is-error {
+  color: #fecaca !important;
+  -webkit-text-fill-color: #fecaca !important;
+}
+
+.referee-feedback.is-success {
+  color: #bbf7d0 !important;
+  -webkit-text-fill-color: #bbf7d0 !important;
 }
 
 .referee-player.is-validated {
