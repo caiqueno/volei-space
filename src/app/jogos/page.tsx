@@ -18,6 +18,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { createPageMetadata } from '@/lib/seo'
+import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
   title: 'Jogos de vôlei',
@@ -189,7 +190,7 @@ function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
     <section>
       <h2 className="font-display text-2xl font-black text-white">{titulo}</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {primeiros.map((partida) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} />)}
+        {primeiros.map((partida, index) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} atraso={`${Math.min(index, 8) * 30}ms`} />)}
       </div>
       {resto.length > 0 && (
         <details className="mt-4">
@@ -206,7 +207,7 @@ function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/8 p-4 text-center shadow-sm backdrop-blur-xl">
-      <p className="type-stat">{value}</p>
+      <p className={`type-stat ${mi.numero}`}>{value}</p>
       <p className="type-kicker mt-1">{label}</p>
     </div>
   )

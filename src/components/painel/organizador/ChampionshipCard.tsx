@@ -7,6 +7,7 @@ import { CalendarDays, MapPin, Trophy } from 'lucide-react'
 import { formatDateBr } from '@/lib/date-brazil'
 import { formatCategoriaLabel } from '@/lib/equipe-categoria'
 import type { LigaCarouselItem } from './types'
+import mi from '@/styles/microinteracoes.module.css'
 
 const MAX_VISIBLE_BADGES = 3
 
@@ -31,11 +32,11 @@ export function ChampionshipCard({ liga }: { liga: LigaCarouselItem }) {
   return (
     <Link
       href={`/painel/parametrizacao?ligaId=${liga.id}`}
-      className="group flex h-full w-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#071426] transition hover:border-luva-amber/40"
+      className={`group flex h-full w-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#071426] hover:border-luva-amber/40 ${mi.entrar} ${mi.cartao}`}
     >
       <div className="relative h-[33%] min-h-[110px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-[#0b1c33] to-[#050914]">
         {liga.capaUrl ? (
-          <img src={liga.capaUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          <img src={liga.capaUrl} alt="" className="h-full w-full object-cover transition duration-200 group-hover:scale-105" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-white/15">
             <Trophy size={40} />

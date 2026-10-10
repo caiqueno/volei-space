@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
+import mi from '@/styles/microinteracoes.module.css'
 
 type Linha = {
   posicao: number
@@ -48,12 +49,12 @@ export function PainelClassificacao({ ligaId }: { ligaId: number }) {
     <div>
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffb331]">Classificação</p>
       <ol className="mt-3 grid gap-2">
-        {linhas.map((linha) => (
-          <li key={`${linha.posicao}-${linha.equipe}`} className="rounded-2xl bg-white/5 px-4 py-3 text-sm font-black text-white">
+        {linhas.map((linha, index) => (
+          <li key={`${linha.posicao}-${linha.equipe}`} className={`rounded-2xl bg-white/5 px-4 py-3 text-sm font-black text-white ${mi.linha} ${mi.entrar} ${linha.posicao === 1 ? mi.lider : ''}`} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
             <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-              <span>{linha.posicao}º</span>
+              <span className={mi.numero}>{linha.posicao}º</span>
               <span className="min-w-0 truncate">{linha.equipe}</span>
-              <span className="text-[#ffb331]">{linha.pontos} pts</span>
+              <span className={`text-[#ffb331] ${mi.numero}`}>{linha.pontos} pts</span>
             </div>
             <p className="mt-1 text-xs font-bold text-white/70">
               J {linha.jogos ?? 0} · V {linha.vitorias ?? 0} · D {linha.derrotas ?? 0} · Sets {linha.setsPro ?? 0}

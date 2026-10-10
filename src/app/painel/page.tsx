@@ -17,6 +17,7 @@ import {
 import { CandidateEditForm, type CandidateEditSection } from '@/components/candidate/CandidateEditForm'
 import { OrganizadorHome } from '@/components/painel/organizador/OrganizadorHome'
 import { encerrarSessaoPublica, lerSessaoPublica } from '@/lib/sessao-publica'
+import mi from '@/styles/microinteracoes.module.css'
 
 type Session = {
   tipo: string
@@ -193,7 +194,7 @@ export default function PainelPage() {
   if (session?.tipo === 'equipe') {
     return (
       <main className="luva-shell public-dashboard min-h-screen px-4 py-12">
-        <section className="public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
+        <section className={`public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center ${mi.entrar} ${mi.cartao}`}>
           <p className="luva-kicker">Painel da equipe</p>
           <h1 className="type-page-title mt-3">O painel da equipe fica em outra página</h1>
           <p className="type-lead mx-auto mt-3 max-w-xl">
@@ -211,13 +212,13 @@ export default function PainelPage() {
   if (!session || !content) {
     return (
       <main className="luva-shell public-dashboard min-h-screen px-4 py-12">
-        <section className="public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center">
+        <section className={`public-panel mx-auto max-w-3xl rounded-[2rem] border p-8 text-center ${mi.entrar} ${mi.cartao}`}>
           <p className="luva-kicker">Acesso restrito</p>
           <h1 className="type-page-title mt-3">Entre para acessar o painel</h1>
           <p className="type-lead mx-auto mt-3 max-w-xl">
             Use o e-mail e a senha do cadastro.
           </p>
-          <Link href="/login" className="public-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black transition">
+          <Link href="/login" className={`public-primary-action mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-black ${mi.toque}`}>
             Entrar
             <ArrowRight size={17} />
           </Link>
@@ -258,7 +259,7 @@ export default function PainelPage() {
             </div>
           </div>
 
-          {!released && <aside className="public-panel motion-in-delay rounded-[2rem] border p-5 backdrop-blur-2xl">
+          {!released && <aside className={`public-panel motion-in-delay rounded-[2rem] border p-5 backdrop-blur-2xl ${mi.cartao}`}>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">Status da candidatura</p>
             <div className="public-status-box mt-4 rounded-2xl border p-4">
               <p className="font-display text-2xl font-black text-white">{statusTitle}</p>
@@ -270,10 +271,11 @@ export default function PainelPage() {
       </section>
 
       {!released && <section className="mx-auto grid max-w-7xl gap-4 px-4 py-10 md:grid-cols-2 lg:grid-cols-4">
-        {content.cards.map((card) => (
+        {content.cards.map((card, index) => (
           <PanelCard
             key={card.title}
             {...normalizeCardForStatus(card, released)}
+            atraso={`${Math.min(index, 6) * 40}ms`}
             onEdit={!released && card.editSection ? () => setEditSection(card.editSection!) : undefined}
           />
         ))}
@@ -286,8 +288,8 @@ export default function PainelPage() {
             <h2 className="mt-3 font-display text-3xl font-black text-white">{content.title}</h2>
             <div className="mt-5 space-y-3">
               {content.steps.map((item, index) => (
-                <div key={item} className="public-step-item flex items-center gap-3 rounded-2xl border p-3">
-                  <span className="public-step-number flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black">{index + 1}</span>
+                <div key={item} className={`public-step-item flex items-center gap-3 rounded-2xl border p-3 ${mi.linha}`}>
+                  <span className={`public-step-number flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${mi.numero}`}>{index + 1}</span>
                   <p className="text-sm font-black text-slate-100">{item}</p>
                 </div>
               ))}
@@ -329,9 +331,10 @@ function PanelCard({
   status,
   editLabel,
   onEdit,
-}: PanelCardData & { onEdit?: () => void }) {
+  atraso = '0ms',
+}: PanelCardData & { onEdit?: () => void; atraso?: string }) {
   return (
-    <article className="public-panel public-card rounded-[1.5rem] border p-5">
+    <article className={`public-panel public-card rounded-[1.5rem] border p-5 ${mi.entrar} ${mi.cartao}`} style={{ animationDelay: atraso }}>
       <div className="flex items-start justify-between gap-3">
         <span className="public-card-icon flex h-11 w-11 items-center justify-center rounded-2xl">
           <Icon size={22} />
