@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `hot`, `log`
 - A mesma pessoa não entra em duas equipes da categoria. Documento tem prioridade; sem ele, nome e nascimento. A própria equipe não é bloqueada. Sem migration. Falha de leitura não interrompe a inscrição.
 
+## [2026-10-10] fix | presença do árbitro sem upsert
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- `POST /api/arbitro/partidas/{token}/presenca` respondia 500 porque o `upsert` em `(partidaId, jogadorId)` não tem constraint em produção. O Postgres registra `42P10`. O código passa a ler e atualizar, ou inserir com `id` explícito. Nenhuma migration foi aplicada.
+
 ## [2026-10-10] feat | gênero e idade da categoria
 
 - pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
