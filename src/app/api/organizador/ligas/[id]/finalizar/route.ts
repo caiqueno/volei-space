@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole, verifyToken } from '@/lib/auth'
+import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { isCampeonatoFinalizado, STATUS_CAMPEONATO_FINALIZADO } from '@/lib/championship-finalization'
+import { avaliarFinalizacao } from '@/lib/finalizacao-regras'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: liga, error: ligaErr } = await supabase
     .from('Liga')
-    .select('id,organizadorId,status')
+    .select('id,organizadorId,status,formato,faseEliminatoria,disputaTerceiroLugar')
     .eq('id', ligaId)
     .single()
 
@@ -30,6 +32,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     autor = String(admin.email ?? 'admin')
   }
+
+  try {
+    await recalculateLeagueClassification(ligaId)
+  } catch (err) {
+    console.error('[finalizar] classificação não recalculada', err)
+    return error('Não foi possível recalcular a classificação antes de finalizar.', 500)
+  }
+
+  const [{ data: partidas, error: partidasErr }, { data: classificacao, error: classificacaoErr }, { data: categorias, error: categoriasErr }] = await Promise.all([
+    supabase.from('Partida').select('fase,status,vencedorId,equipeAId,equipeBId,setsPorA,setsPorB,categoriaCampeonatoId').eq('ligaId', ligaId),
+    supabase.from('ClassificacaoEntrada').select('equipeId,posicao,jogos,categoriaCampeonatoId').eq('ligaId', ligaId),
+    supabase.from('CategoriaConfiguracao').select('categoriaCampeonatoId,formato,faseEliminatoria,disputaTerceiroLugar').eq('ligaId', ligaId),
+  ])
+  if (partidasErr || classificacaoErr || categoriasErr) return error('Não foi possível conferir o campeão antes de finalizar.', 500)
+
+  const avaliacao = avaliarFinalizacao({
+    liga,
+    categorias: categorias ?? [],
+    partidas: partidas ?? [],
+    classificacao: classificacao ?? [],
+  })
+  if (!avaliacao.ok) return error(avaliacao.mensagem, 409)
 
   const finalizadoEm = new Date().toISOString()
   const { data, error: updateErr } = await supabase

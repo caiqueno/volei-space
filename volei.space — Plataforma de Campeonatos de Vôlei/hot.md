@@ -5,8 +5,8 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sessão com audiência, webhook e leitura de atleta fecharam junto da API. Build, seed e migrations seguem na main.
-status: implementado
+  A simulação chega ao campeão e a sessão segue fechada. Build, seed e migrations seguem na main.
+status: misto
 created: 2026-09-25
 updated: 2026-10-09
 ---
@@ -14,6 +14,8 @@ updated: 2026-10-09
 # Hot
 
 ## Foco atual
+
+Em 9 de outubro de 2026 a lógica de servidor do campeonato foi revista até o campeão, sem UI, sem Prisma e sem migration. `recalculateLeagueClassification` grava `src/lib/classificacao.ts`: faixa de 1 set ou de 2 ou mais, fase de grupos apenas, set já fechado no saldo dos dois lados e WO. A RPC `recalcular_classificacao_liga` da migration atômica ficou de fora porque ainda usa 4/3/1/0 e mistura o mata-mata; o banco precisa repetir essa regra dentro do `pg_advisory_xact_lock`. Os classificados do chaveamento legado incluem os melhores gerais, e a final (e o 3º lugar, quando ligado) precisa estar decidida para `POST .../finalizar`. A súmula oficial aceita correção por 30 minutos, sem renovar `sumulaAprovadaEm`, recusa a 9ª substituição e, se a gravação quebra, tenta restaurar o conteúdo anterior. A simulação em `scripts/campeonato-completo.test.ts` cria grupos, joga, classifica, avança a chave e aponta o campeão. Não houve chamada a produção. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]].
 
 A suíte de 10 de outubro de 2026 cobre o contrato da API e o Playwright sem banco remoto. Os scripts usam `scripts/with-ts-node.mjs`. O CI de testes sobe Postgres 16 só no job e gera o client Prisma antes de `npm test`.
 

@@ -13,6 +13,11 @@ updated: 2026-10-09
 
 # Log
 
+## [2026-10-10] fix | fluxo até o campeão
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- O cálculo da tabela saiu da RPC antiga e foi para `src/lib/classificacao.ts`. A chave legado considera os melhores gerais. Finalizar exige campeão. A súmula corrige por 30 minutos, limita 8 substituições por equipe e set, e a gravação tenta restaurar o conteúdo se quebra no meio. A função SQL atômica continua divergente e não foi alterada. Aprovar partida segue aceitando administrador ou organizador dono, e confere o placar da categoria.
+
 ## [2026-10-10] test | suíte de contrato e Playwright
 
 - pages_updated=`hot`, `log`

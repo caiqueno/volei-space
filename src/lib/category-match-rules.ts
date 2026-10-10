@@ -7,6 +7,17 @@
 export type CategorySet = { numero: number; pontosA: number; pontosB: number }
 export type CategoryMatchRules = { setsPorPartida: number; pontosPorSet: number; setsFormato?: string; terceiroSetObrigatorio?: boolean; tieBreakUltimoSet?: boolean; pontosUltimoSet?: number }
 
+export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null): CategoryMatchRules {
+  return {
+    setsPorPartida: Number(source?.setsPorPartida) > 0 ? Number(source?.setsPorPartida) : 3,
+    pontosPorSet: Number(source?.pontosPorSet) > 0 ? Number(source?.pontosPorSet) : 21,
+    tieBreakUltimoSet: source?.tieBreakUltimoSet === true,
+    pontosUltimoSet: Number(source?.pontosUltimoSet) > 0 ? Number(source?.pontosUltimoSet) : 15,
+    setsFormato: typeof source?.setsFormato === 'string' ? source.setsFormato : undefined,
+    terceiroSetObrigatorio: source?.terceiroSetObrigatorio === true,
+  }
+}
+
 /**
  * Aceita ou recusa um placar já montado.
  * @param sets lista de sets com número e pontos dos dois lados

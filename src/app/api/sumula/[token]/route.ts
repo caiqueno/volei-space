@@ -7,6 +7,7 @@ import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-acc
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 
 const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
@@ -48,8 +49,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     const partida = access.partida
     const publico = `/partidas/${partida.id}/ao-vivo`
-    if (partida.sumulaAprovadaEm) {
-      return success({ submetida: true, oficial: true, jaOficial: true, status: 'ENCERRADA', publico })
+    const agora = new Date()
+    if (partida.sumulaAprovadaEm && !correcaoPeloLinkPermitida(partida.sumulaAprovadaEm, agora)) {
+      return error('O prazo de 30 minutos para corrigir esta súmula pelo link já encerrou. Depois disso, só o organizador do campeonato pode corrigir.', 403)
     }
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
@@ -91,6 +93,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const vencedorId = setsPorA > setsPorB ? partida.equipeAId : setsPorB > setsPorA ? partida.equipeBId : null
     if (!vencedorId) return error('A partida precisa ter um vencedor antes de enviar a súmula.', 422)
 
+    const instante = agora.toISOString()
+    const correcao = Boolean(partida.sumulaAprovadaEm)
     await gravarSumulaComRestauracao({
       partidaId: partida.id,
       sets,
@@ -105,8 +109,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         pontosPorA,
         pontosPorB,
         vencedorId,
-        sumulaSubmetidaEm: new Date().toISOString(),
-        sumulaAprovadaEm: new Date().toISOString(),
+        sumulaSubmetidaEm: partida.sumulaSubmetidaEm ?? instante,
+        ...(correcao ? {} : { sumulaAprovadaEm: instante }),
       },
     })
     await concluirPublicacao(partida.ligaId)
@@ -315,7 +319,16 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
     }
   }
 
-  return null
+  const equipeA = valorUnico(partida.equipeA)
+  const equipeB = valorUnico(partida.equipeB)
+  return validarSubstituicoes({
+    ocorrencias: payload.ocorrencias,
+    equipes: [
+      { id: equipeAId, nome: equipeA?.nome },
+      { id: equipeBId, nome: equipeB?.nome },
+    ],
+    jogadorEquipe: jogadoresPorId,
+  })
 }
 
 function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB: number }>, liga: any) {
