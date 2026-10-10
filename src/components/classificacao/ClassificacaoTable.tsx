@@ -32,8 +32,10 @@ type Props = {
   dados: Entrada[]
   groups?: ClassificacaoGroup[]
   ligaId?: number | null
+  categoriaCampeonatoId?: string | null
   organizadorId?: string | null
   requiredClassified?: number
+  automaticClassifiedIds?: number[]
   automaticLimit?: number
   initialManualClassifiedIds?: number[]
   organizerMode?: boolean
@@ -45,8 +47,10 @@ export function ClassificacaoTable({
   dados,
   groups,
   ligaId,
+  categoriaCampeonatoId = null,
   organizadorId,
   requiredClassified = 4,
+  automaticClassifiedIds,
   automaticLimit = 4,
   initialManualClassifiedIds = [],
   organizerMode = false,
@@ -63,13 +67,14 @@ export function ClassificacaoTable({
   }, [automaticLimit, dados, groups])
 
   const automaticIds = useMemo(() => {
+    if (automaticClassifiedIds) return new Set(automaticClassifiedIds)
     const ids = new Set<number>()
     tableGroups.forEach((group) => {
       const limit = Math.max(0, Number(group.automaticLimit || 0))
       group.dados.slice(0, limit).forEach((entrada) => ids.add(entrada.equipe.id))
     })
     return ids
-  }, [tableGroups])
+  }, [automaticClassifiedIds, tableGroups])
 
   const manualCount = manualIds.size
   const automaticCount = requiredClassified > 0 ? Math.min(automaticIds.size, requiredClassified) : 0
@@ -79,13 +84,17 @@ export function ClassificacaoTable({
 
   async function classifyTeam(equipeId: number, nome: string) {
     if (!ligaId || savingId) return
+    if (!categoriaCampeonatoId) {
+      setMessage('Escolha a categoria antes de classificar a equipe.')
+      return
+    }
     setSavingId(equipeId)
     setMessage('')
     try {
       const response = await fetch('/api/classificacao/manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ligaId, equipeId }),
+        body: JSON.stringify({ ligaId, equipeId, categoriaCampeonatoId }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error ?? 'Não foi possível classificar a equipe.')
@@ -107,7 +116,7 @@ export function ClassificacaoTable({
           </span>
           {ligaId && filled === requiredClassified && groupStageFinished && (
             <a
-              href={`/fase-mata-mata?ligaId=${ligaId}${organizadorId ? `&organizador=${encodeURIComponent(organizadorId)}` : ''}`}
+              href={`/fase-mata-mata?ligaId=${ligaId}${categoriaCampeonatoId ? `&categoria=${encodeURIComponent(categoriaCampeonatoId)}` : ''}${organizadorId ? `&organizador=${encodeURIComponent(organizadorId)}` : ''}`}
               className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#ffb331] px-5 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-slate-950 transition hover:bg-amber-300"
             >
               {locked ? 'Ver chaveamento' : 'Avançar de Fase'}

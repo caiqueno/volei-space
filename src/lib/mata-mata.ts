@@ -1,6 +1,7 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { selecionarClassificados } from '@/lib/classificados'
 import { FASES_ELIMINATORIAS, type FaseEliminatoria, formatEliminatoryPhase, getRequiredEliminatoryTeams, normalizeEliminatoryPhase } from '@/lib/eliminatorias'
+import { chaveDaVaga } from '@/lib/operacao-categoria'
 import { perdedorDaPartida, vencedorDaPartida } from '@/lib/resultado-partida'
 import type { BracketRoundView, BracketSlot, TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
 
@@ -47,12 +48,13 @@ export async function getClassifiedTeamIds(ligaId: number, categoriaCampeonatoId
     manuaisQuery,
   ])
 
+  const regras = categoriaCampeonatoId ? config : (config ?? liga)
   return selecionarClassificados({
-    formato: config?.formato ?? liga?.formato,
-    faseEliminatoria: config?.faseEliminatoria ?? liga?.faseEliminatoria,
-    quantidadeGrupos: config?.quantidadeGrupos ?? liga?.quantidadeGrupos,
-    classificadosPorGrupo: config?.classificadosPorGrupo ?? liga?.classificadosPorGrupo,
-    melhoresClassificadosGerais: config?.melhoresClassificadosGerais ?? liga?.melhoresClassificadosGerais,
+    formato: regras?.formato,
+    faseEliminatoria: regras?.faseEliminatoria,
+    quantidadeGrupos: regras?.quantidadeGrupos,
+    classificadosPorGrupo: regras?.classificadosPorGrupo,
+    melhoresClassificadosGerais: regras?.melhoresClassificadosGerais,
     ordenados: (entradas ?? []).map((row: any) => Number(row.equipeId)),
     grupos: (groupRows ?? []).map((group: any) => ({ id: Number(group.id), classificados: Number(group.classificados ?? 0) })),
     vinculos: (groupLinks ?? []).map((link: any) => ({ grupoId: Number(link.grupoId), equipeId: Number(link.equipeId) })),
@@ -110,8 +112,12 @@ export async function getMataMataBracket(
       ? supabase.from('CategoriaConfiguracao').select('faseEliminatoria,disputaTerceiroLugar').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId).maybeSingle()
       : Promise.resolve({ data: null }),
   ])
-  const faseDaChave = config?.faseEliminatoria || faseEliminatoria || ligaCfg?.faseEliminatoria
-  const disputaTerceiroLugar = config?.disputaTerceiroLugar ?? ligaCfg?.disputaTerceiroLugar
+  const faseDaChave = categoriaCampeonatoId
+    ? (config?.faseEliminatoria ?? 'NENHUMA')
+    : (config?.faseEliminatoria || faseEliminatoria || ligaCfg?.faseEliminatoria)
+  const disputaTerceiroLugar = categoriaCampeonatoId
+    ? config?.disputaTerceiroLugar
+    : (config?.disputaTerceiroLugar ?? ligaCfg?.disputaTerceiroLugar)
   const bracketRounds = getBracketRounds(faseDaChave)
   const fases = bracketRounds.map((round) => round.fase)
   if (fases.length === 0) return { rounds: [], champion: null, thirdPlace: null }
@@ -122,7 +128,7 @@ export async function getMataMataBracket(
   let entradasQuery = supabase.from('ClassificacaoEntrada').select('equipeId,equipe:Equipe(id,nome,corHex,logoUrl)').eq('ligaId', ligaId)
   let partidasQuery = supabase
     .from('Partida')
-    .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,vencedorId,sumulaToken,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
+    .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,vencedorId,sumulaToken,categoriaCampeonatoId,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
     .eq('ligaId', ligaId)
     .in('fase', fasesParaBuscar)
   if (categoriaCampeonatoId) {
@@ -142,10 +148,12 @@ export async function getMataMataBracket(
     if (equipe?.id != null) teamById.set(Number(equipe.id), { id: Number(equipe.id), nome: equipe.nome, corHex: equipe.corHex, logoUrl: equipe.logoUrl })
   }
 
+  const categoriaChave = categoriaCampeonatoId ?? ''
   const partidaBySlot = new Map<string, any>()
   for (const partida of partidas ?? []) {
-    partidaBySlot.set(`${partida.fase}:${partida.rodada}`, partida)
+    partidaBySlot.set(chaveDaVaga(partida.categoriaCampeonatoId ?? categoriaChave, partida.fase, partida.rodada), partida)
   }
+  const vaga = (fase: string, rodada: number) => partidaBySlot.get(chaveDaVaga(categoriaChave, fase, rodada))
 
   const classifiedOptions = Array.from(classifiedIds).map((id) => teamById.get(id)).filter((team): team is TeamOption => Boolean(team))
 
@@ -153,7 +161,8 @@ export async function getMataMataBracket(
     const previousRound = roundIndex > 0 ? bracketRounds[roundIndex - 1] : null
     const usedInThisRound = new Set<number>()
     for (const partida of partidas ?? []) {
-      if (partida.fase === round.fase) {
+      const mesmaCategoria = !categoriaCampeonatoId || partida.categoriaCampeonatoId === categoriaCampeonatoId
+      if (partida.fase === round.fase && mesmaCategoria) {
         usedInThisRound.add(Number(partida.equipeAId))
         usedInThisRound.add(Number(partida.equipeBId))
       }
@@ -161,15 +170,15 @@ export async function getMataMataBracket(
 
     const slots: BracketSlot[] = []
     for (let slotNumber = 1; slotNumber <= round.slots; slotNumber += 1) {
-      const partida = partidaBySlot.get(`${round.fase}:${slotNumber}`)
+      const partida = vaga(round.fase, slotNumber)
 
       let eligibleOptions: TeamOption[] | null = null
       if (!partida) {
         if (roundIndex === 0) {
           eligibleOptions = classifiedOptions.filter((team) => !usedInThisRound.has(team.id))
         } else if (previousRound) {
-          const feederA = partidaBySlot.get(`${previousRound.fase}:${slotNumber * 2 - 1}`)
-          const feederB = partidaBySlot.get(`${previousRound.fase}:${slotNumber * 2}`)
+          const feederA = vaga(previousRound.fase, slotNumber * 2 - 1)
+          const feederB = vaga(previousRound.fase, slotNumber * 2)
           const winnerA = feederA ? getMatchWinnerId(feederA) : null
           const winnerB = feederB ? getMatchWinnerId(feederB) : null
           if (winnerA && winnerB) {
@@ -202,7 +211,7 @@ export async function getMataMataBracket(
 
   const finalRound = rounds[rounds.length - 1]
   const finalPartida = finalRound?.slots[0]?.partida
-  const finalBruta = finalRound ? partidaBySlot.get(`${finalRound.fase}:1`) : null
+  const finalBruta = finalRound ? vaga(finalRound.fase, 1) : null
   let champion: TeamOption | null = null
   if (finalPartida && finalBruta) {
     const winnerId = getMatchWinnerId(finalBruta)
@@ -211,11 +220,11 @@ export async function getMataMataBracket(
 
   let thirdPlace: BracketSlot | null = null
   if (semifinalRound && disputaTerceiroLugar !== false) {
-    const partida = partidaBySlot.get(`${THIRD_PLACE_FASE}:1`)
+    const partida = vaga(THIRD_PLACE_FASE, 1)
     let eligibleOptions: TeamOption[] | null = null
     if (!partida) {
-      const feederA = partidaBySlot.get(`${semifinalRound.fase}:1`)
-      const feederB = partidaBySlot.get(`${semifinalRound.fase}:2`)
+      const feederA = vaga(semifinalRound.fase, 1)
+      const feederB = vaga(semifinalRound.fase, 2)
       const loserA = feederA ? getMatchLoserId(feederA) : null
       const loserB = feederB ? getMatchLoserId(feederB) : null
       if (loserA && loserB) {

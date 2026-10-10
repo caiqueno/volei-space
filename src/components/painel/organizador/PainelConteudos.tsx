@@ -11,21 +11,15 @@ import { CollapseBar } from '@/components/ui/collapse-bar'
 import { AcessoArbitroJogo, type LinkDoJuiz } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
-import { faseDeGruposEncerrada } from '@/lib/configuracao-categoria-edicao'
+import type { TabelaCategoria } from '@/lib/operacao-categoria'
 import { manterPaginaAberta } from '@/lib/pagina-aberta'
 import { rotuloArbitroResponsavel } from '@/lib/arbitro-responsavel'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
-import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
 const REGRA_TABELA = 'Vitória por 2 sets a 0 vale 3 pontos. Vitória por 2 sets a 1 vale 2 pontos para o vencedor e 1 para o perdedor. Cada grupo tem a sua tabela. Empate em pontos desempata pelo confronto direto.'
-
-function lerTabela(data: { linhas?: any[]; grupos?: Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> } | any[] | undefined) {
-  if (Array.isArray(data)) return { linhas: data, grupos: [] as Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> }
-  return { linhas: data?.linhas ?? [], grupos: data?.grupos ?? [] }
-}
 
 type LigaLista = {
   id: number
@@ -130,10 +124,7 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
 }
 
 export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; organizadorId: string; campeonatoId: number | null; onSelect: (id: number) => void }) {
-  const [dados, setDados] = useState<any[]>([])
-  const [gruposTabela, setGruposTabela] = useState<Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }>>([])
-  const [partidas, setPartidas] = useState<Array<{ fase?: string | null; status?: string | null }>>([])
-  const [jogosCarregados, setJogosCarregados] = useState(false)
+  const [tabelas, setTabelas] = useState<TabelaCategoria[]>([])
   const [pendente, setPendente] = useState(true)
   const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
   const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(liga?.id ?? null)
@@ -141,35 +132,21 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
   useEffect(() => {
     if (!liga || !pronto) {
       if (!liga) {
-        setDados([])
-        setGruposTabela([])
-        setPartidas([])
-        setJogosCarregados(false)
+        setTabelas([])
         setPendente(false)
       }
       return
     }
     const controlador = new AbortController()
     setPendente(true)
-    setJogosCarregados(false)
     const consulta = queryCategoria(categoriaId)
-    Promise.all([
-      consultar<{ data?: { linhas?: any[]; grupos?: Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> } | any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
-      consultar<{ data?: any[] }>(`/api/partidas?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
-    ])
-      .then(([classificacao, jogos]) => {
-        const tabela = lerTabela(classificacao.data)
-        setDados(tabela.linhas)
-        setGruposTabela(tabela.grupos)
-        setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
-        setJogosCarregados(true)
+    consultar<{ data?: { categorias?: TabelaCategoria[] } }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { signal: controlador.signal })
+      .then((classificacao) => {
+        setTabelas(Array.isArray(classificacao.data?.categorias) ? classificacao.data.categorias : [])
       })
       .catch((erro) => {
         if (erro instanceof ConsultaCancelada) return
-        setDados([])
-        setGruposTabela([])
-        setPartidas([])
-        setJogosCarregados(false)
+        setTabelas([])
       })
       .finally(() => setPendente(false))
     return () => controlador.abort()
@@ -181,16 +158,9 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
     () => {
       if (!liga || !pronto) return
       const consulta = queryCategoria(categoriaId)
-      Promise.all([
-        consultar<{ data?: { linhas?: any[]; grupos?: Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> } | any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { forcar: true }),
-        consultar<{ data?: any[] }>(`/api/partidas?ligaId=${liga.id}${consulta}`, { forcar: true }),
-      ])
-        .then(([classificacao, jogos]) => {
-          const tabela = lerTabela(classificacao.data)
-          setDados(tabela.linhas)
-          setGruposTabela(tabela.grupos)
-          setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
-          setJogosCarregados(true)
+      consultar<{ data?: { categorias?: TabelaCategoria[] } }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { forcar: true })
+        .then((classificacao) => {
+          setTabelas(Array.isArray(classificacao.data?.categorias) ? classificacao.data.categorias : [])
         })
         .catch((erro) => {
           if (erro instanceof ConsultaCancelada) return
@@ -218,10 +188,27 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
       <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
       {pendente || !pronto ? (
         <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
-      ) : dados.length === 0 ? (
+      ) : tabelas.length === 0 || tabelas.every((tabela) => tabela.linhas.length === 0) ? (
         <EstadoVazio titulo={categoriaId ? 'Nenhuma equipe nesta categoria' : 'Nenhuma equipe inscrita'} descricao="A classificação aparece aqui com zero até a primeira partida desta categoria." />
       ) : (
-        <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} groups={gruposTabela.map((grupo) => ({ id: grupo.id, nome: grupo.nome, automaticLimit: grupo.automaticLimit, dados: grupo.linhas }))} ligaId={liga.id} organizadorId={organizadorId} organizerMode requiredClassified={getRequiredEliminatoryTeams(liga.faseEliminatoria)} groupStageFinished={jogosCarregados && faseDeGruposEncerrada(partidas)} />
+        tabelas.filter((tabela) => tabela.linhas.length > 0).map((tabela) => (
+          <ChampionshipTableSection
+            key={tabela.id ?? 'legado'}
+            nome={tabela.nome && tabela.nome !== 'Classificação' ? `${liga.nome} · ${tabela.nome}` : liga.nome}
+            regra={REGRA_TABELA}
+            dados={tabela.linhas}
+            groups={tabela.groups}
+            ligaId={liga.id}
+            categoriaCampeonatoId={tabela.id}
+            organizadorId={organizadorId}
+            organizerMode
+            requiredClassified={tabela.requiredClassified}
+            automaticClassifiedIds={tabela.automaticClassifiedIds}
+            initialManualClassifiedIds={tabela.manualClassifiedIds}
+            locked={tabela.locked}
+            groupStageFinished={tabela.groupStageFinished}
+          />
+        ))
       )}
     </section>
   )

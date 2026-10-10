@@ -36,7 +36,7 @@
     "test:championship-setup": "node scripts/with-ts-node.mjs scripts/championship-setup.test.ts",
     "test:configuracao-categoria": "node scripts/with-ts-node.mjs scripts/configuracao-categoria-edicao.test.ts",
     "test:pricing": "node scripts/with-ts-node.mjs scripts/pricing.test.ts",
-    "test:categorias": "node scripts/with-ts-node.mjs scripts/category-match-rules.test.ts && node scripts/with-ts-node.mjs scripts/category-pricing.test.ts && node scripts/with-ts-node.mjs scripts/category-replication.test.ts && node scripts/with-ts-node.mjs scripts/isolamento-categoria.test.ts",
+    "test:categorias": "node scripts/with-ts-node.mjs scripts/category-match-rules.test.ts && node scripts/with-ts-node.mjs scripts/category-pricing.test.ts && node scripts/with-ts-node.mjs scripts/category-replication.test.ts && node scripts/with-ts-node.mjs scripts/isolamento-categoria.test.ts && node scripts/with-ts-node.mjs scripts/operacao-categoria.test.ts",
     "test:sets-por-fase": "node scripts/with-ts-node.mjs scripts/sets-por-fase.test.ts",
     "test:simulacao": "node scripts/with-ts-node.mjs scripts/simulacao.test.ts",
     "test:campeonato": "node scripts/with-ts-node.mjs scripts/campeonato-completo.test.ts",

@@ -13,6 +13,21 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | merge da operação por categoria com a main
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A main entrou com súmula transacional, W.O. configurável, jogo só no mesmo grupo e confronto direto. `20261010138000` continua sendo o WO da chave da categoria. `20261010137000` é a súmula e `20261010150000` é o W.O. configurável.
+
+## [2026-10-10] fix | prefixo da migration do WO da categoria
+
+- pages_updated=`06-BANCO-DE-DADOS`, `modulos/MATA-MATA`, `hot`, `log`
+- `20261010137000` ficou com a súmula transacional. O WO da chave da categoria passou para `20261010138000_confronto_categoria_vencedor.sql`, ainda sem aplicar, e a migration de RLS continua a última.
+
+## [2026-10-10] fix | operação de campeonato por categoria
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A chave chama `criar_confronto_categoria`, a classificação manual chama `classificar_equipe_categoria` e a tabela pública sai separada por categoria, só com id, nome, cor e logo da equipe. A geração de grupos não chama `substituir_estrutura_categoria`. O arquivo do WO foi renomeado para `20261010138000` e continua sem aplicar, antes da migration de RLS.
+
 ## [2026-10-10] fix | regras da categoria na súmula e gravação transacional
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/CLASSIFICACAO`, `modulos/PARAMETRIZACAO`, `06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`

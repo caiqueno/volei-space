@@ -48,12 +48,14 @@ export function ChaveamentoMataMata({
   champion,
   thirdPlace,
   organizerMode,
+  categoriaCampeonatoId = null,
 }: {
   ligaId: number
   rounds: BracketRoundView[]
   champion: TeamOption | null
   thirdPlace?: BracketSlot | null
   organizerMode: boolean
+  categoriaCampeonatoId?: string | null
 }) {
   if (rounds.length === 0) return null
 
@@ -80,9 +82,9 @@ export function ChaveamentoMataMata({
         {showThirdPlaceInline ? (
           <>
             <div className="relative flex items-end gap-8">
-              <BracketNode node={root.children[0]} ligaId={ligaId} organizerMode={organizerMode} nivel={1} />
-              <SlotCard slot={thirdPlace!} roundLabel="Disputa de 3º lugar" multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} nivel={1} />
-              <BracketNode node={root.children[1]} ligaId={ligaId} organizerMode={organizerMode} nivel={1} />
+              <BracketNode node={root.children[0]} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={1} />
+              <SlotCard slot={thirdPlace!} roundLabel="Disputa de 3º lugar" multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={1} />
+              <BracketNode node={root.children[1]} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={1} />
               {/* Conector especial: com o card do 3º lugar ocupando a vaga central da linha,
                   os dois cards da semifinal ficam a 1/6.5 e 5,5/6.5 da largura total (256px de
                   card + 32px de gap, repetidos 3x) — não mais em 25%/75% como nas linhas normais. */}
@@ -92,10 +94,10 @@ export function ChaveamentoMataMata({
               </svg>
             </div>
             <div className="h-7" />
-            <SlotCard slot={root.slot} roundLabel={root.round.label} multiSlot={root.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} highlight={root.round.fase === 'FINAL'} nivel={0} />
+            <SlotCard slot={root.slot} roundLabel={root.round.label} multiSlot={root.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} highlight={root.round.fase === 'FINAL'} nivel={0} />
           </>
         ) : (
-          <BracketNode node={root} ligaId={ligaId} organizerMode={organizerMode} />
+          <BracketNode node={root} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} />
         )}
         <StraightConnector />
         <div className={`border-beam flex w-56 flex-col items-center gap-2 rounded-2xl bg-luva-navy p-5 text-center shadow-[0_0_28px_rgba(239,159,39,0.4)] ${mi.campeao} ${mi.entrar}`} style={{ animationDelay: '180ms' }}>
@@ -112,14 +114,14 @@ export function ChaveamentoMataMata({
   )
 }
 
-function BracketNode({ node, ligaId, organizerMode, nivel = 0 }: { node: Node; ligaId: number; organizerMode: boolean; nivel?: number }) {
+function BracketNode({ node, ligaId, organizerMode, categoriaCampeonatoId = null, nivel = 0 }: { node: Node; ligaId: number; organizerMode: boolean; categoriaCampeonatoId?: string | null; nivel?: number }) {
   const hasChildren = node.children.length > 0
   return (
     <div className="flex flex-col items-center">
       {hasChildren && (
         <div className="relative flex items-start gap-8">
           {node.children.map((child, index) => (
-            <BracketNode key={index} node={child} ligaId={ligaId} organizerMode={organizerMode} nivel={nivel + 1} />
+            <BracketNode key={index} node={child} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={nivel + 1} />
           ))}
           {/* Spans the exact rendered width of the row above via absolute positioning, so the
               25%/75% marks land on each child's center regardless of subtree width. */}
@@ -130,7 +132,7 @@ function BracketNode({ node, ligaId, organizerMode, nivel = 0 }: { node: Node; l
         </div>
       )}
       {hasChildren && <div className="h-7" />}
-      <SlotCard slot={node.slot} roundLabel={node.round.label} multiSlot={node.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} highlight={node.round.fase === 'FINAL'} nivel={nivel} />
+      <SlotCard slot={node.slot} roundLabel={node.round.label} multiSlot={node.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} highlight={node.round.fase === 'FINAL'} nivel={nivel} />
     </div>
   )
 }
@@ -145,6 +147,7 @@ function SlotCard({
   multiSlot,
   ligaId,
   organizerMode,
+  categoriaCampeonatoId = null,
   highlight = false,
   nivel = 0,
 }: {
@@ -153,6 +156,7 @@ function SlotCard({
   multiSlot: boolean
   ligaId: number
   organizerMode: boolean
+  categoriaCampeonatoId?: string | null
   highlight?: boolean
   nivel?: number
 }) {
@@ -192,7 +196,7 @@ function SlotCard({
   }
 
   if (organizerMode && slot.eligibleOptions) {
-    return <CriarConfrontoCard slot={slot} tag={tag} ligaId={ligaId} options={slot.eligibleOptions} highlight={highlight} revelacao={revelacao} />
+    return <CriarConfrontoCard slot={slot} tag={tag} ligaId={ligaId} categoriaCampeonatoId={categoriaCampeonatoId} options={slot.eligibleOptions} highlight={highlight} revelacao={revelacao} />
   }
 
   return (
@@ -212,7 +216,7 @@ function TeamRow({ team, score, isWinner }: { team: TeamOption; score: number | 
   )
 }
 
-function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false, revelacao }: { slot: BracketSlot; tag: string; ligaId: number; options: TeamOption[]; highlight?: boolean; revelacao?: { animationDelay: string } }) {
+function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId = null, options, highlight = false, revelacao }: { slot: BracketSlot; tag: string; ligaId: number; categoriaCampeonatoId?: string | null; options: TeamOption[]; highlight?: boolean; revelacao?: { animationDelay: string } }) {
   const router = useRouter()
   const [equipeAId, setEquipeAId] = useState('')
   const [equipeBId, setEquipeBId] = useState('')
@@ -232,7 +236,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false, rev
       const response = await fetch(`/api/organizador/ligas/${ligaId}/mata-mata`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fase: slot.fase, rodada: slot.rodada, equipeAId: Number(equipeAId), equipeBId: Number(equipeBId) }),
+        body: JSON.stringify({ fase: slot.fase, rodada: slot.rodada, equipeAId: Number(equipeAId), equipeBId: Number(equipeBId), categoriaCampeonatoId }),
       })
       const payload = await response.json()
       if (!response.ok) {
