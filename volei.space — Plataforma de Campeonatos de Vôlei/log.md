@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/SUMULA-DIGITAL`, `03-REGRAS-DE-NEGOCIO`, `11-DECISOES`, `references/SUMULA-DIGITAL-E-CLASSIFICACAO`, `hot`, `log`
 - O modal lista só reservas elegíveis. Quem entrou no set só sai para o titular voltar. Depois da volta o par fecha. Líbero não conta. A API recusa a troca inválida e a 9ª substituição. O requisito bruto ainda descreve a repetição do par.
 
+## [2026-10-10] decisao | número da camisa no credenciamento
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O número editado no credenciamento fica em `SumulaPresenca.numero`, por partida, e não no cadastro `Jogador.numero`. `202610100001` torna `presente` anulável para a linha existir antes da confirmação. Não foi aplicada em produção.
+
 ## [2026-10-10] fix | papeleta de um time e alternância do saque
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

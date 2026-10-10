@@ -8,7 +8,7 @@ summary: >-
   supabase/migrations é a fonte da verdade do Postgres. O Prisma só descreve esse banco. O elenco TOURNAMENT-SEED está no script idempotente.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 # Modelo de dados
 
@@ -29,7 +29,7 @@ supabase migration repair --status applied \
   202610010001 202610010002 202610010003
 ```
 
-Rode o repair nos dois projetos. O `db push` seguinte aplica só o que ainda não está no histórico, nesta ordem: `202610090001` (EXECUTE de `PUBLIC` nos default privileges), `202610090002` (índices de chave estrangeira), `202610090003` (unicidade de classificação por liga e equipe) e `202610090004` (`default now()` em `Partida.atualizadoEm`). Nenhuma dessas quatro apaga linha.
+Rode o repair nos dois projetos. O `db push` seguinte aplica só o que ainda não está no histórico, nesta ordem: `202610090001` (EXECUTE de `PUBLIC` nos default privileges), `202610090002` (índices de chave estrangeira), `202610090003` (unicidade de classificação por liga e equipe), `202610090004` (`default now()` em `Partida.atualizadoEm`) e `202610100001` (`SumulaPresenca.presente` anulável, para guardar o número da camisa antes da confirmação). Nenhuma dessas cinco apaga linha.
 
 As tabelas base (`Liga`, `Equipe`, `Partida` e as outras que já existiam antes desta pasta) não nascem de um `CREATE TABLE` versionado. Um banco vazio não reproduz o produto só com `db push`. O histórico ordenado reproduz os deltas em cima dessa base.
 
@@ -38,6 +38,8 @@ O projeto `volei-space-producao` é a base de produção e só pode ser usado no
 A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authenticated` todo acesso ao schema `public`, inclusive nos objetos criados depois, e devolve apenas três leituras: `ClassificacaoEntrada` inteira, `SetPartida` inteira e as colunas de placar de `Partida` (sem `sumulaToken` e sem `sumulaTokenExpira`). É o mínimo que o Realtime do placar e da classificação precisa. Antes dela a chave publicável lia `Partida.sumulaToken`, lia `Jogador` inteiro e era aceita em `PATCH /rest/v1/Partida`. Todo acesso de servidor passou a usar `supabaseAdmin`; no navegador sobraram o Realtime e os uploads de storage.
 
 `Partida.atualizadoEm` não tinha default. O cliente do Supabase insere a partida sem essa coluna e o banco recusava o confronto de grupos e o mata-mata. A migration `202610090004_partida_atualizado_em_default.sql` define `default now()`. O prefixo `202610090001` continua sendo a revogação de EXECUTE. Ela está no repositório e ainda não foi aplicada em produção: aplique só esse arquivo se a coluna continuar sem default. Não reaplique a pasta inteira.
+
+`SumulaPresenca.numero` já é o número da camisa desta partida. `202610100001_sumula_presenca_presente_nulo.sql` só tira o `NOT NULL` de `presente`, para a linha poder existir antes da confirmação. O default de `presente` continua `true`. Não foi aplicada em produção.
 
 `revoke ... from anon, authenticated` não alcança a concessão que o Postgres dá a `PUBLIC` quando a função é criada. Por isso a chave publicável continuava chamando `/rest/v1/rpc/recalcular_classificacao_liga` e recalculando a tabela de qualquer campeonato sem sessão. A migration `202610060005_fechar_rpc_anonimo.sql` percorre as funções do schema `public` que não pertencem a extensão, revoga de `public`, `anon` e `authenticated`, e concede `execute` ao `service_role`. Função de gatilho não perde nada: o `EXECUTE` é conferido na criação do gatilho, não a cada disparo.
 
