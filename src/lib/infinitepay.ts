@@ -1,6 +1,7 @@
 // InfinitePay payment integration.
 // Docs: https://developers.infinitepay.io
 import { createHmac, timingSafeEqual } from 'crypto'
+import { z } from 'zod'
 
 const INFINITEPAY_API_URL = 'https://api.infinitepay.io/v2'
 
@@ -54,33 +55,81 @@ export async function createPaymentLink(params: CreatePaymentLinkParams): Promis
   }
 }
 
-// The exact implementation depends on InfinitePay's webhook signing method.
-// Keep the signature check permissive in development, but strict in production.
+function desenvolvimentoLocal() {
+  return process.env.NODE_ENV !== 'production' && !process.env.VERCEL_ENV
+}
+
+// Sem segredo, só o `next dev` local segue sem assinatura. Produção e preview
+// da Vercel recusam. Tamanhos diferentes não estouram o timingSafeEqual.
 export function validateWebhookSignature(
   payload: string,
   signature: string | null,
 ): boolean {
   const webhookSecret = process.env.INFINITEPAY_WEBHOOK_SECRET
   if (!webhookSecret) {
-    console.warn('INFINITEPAY_WEBHOOK_SECRET not set - skipping signature validation in dev')
-    return process.env.NODE_ENV !== 'production'
+    if (desenvolvimentoLocal()) {
+      console.warn('INFINITEPAY_WEBHOOK_SECRET ausente — assinatura ignorada só no desenvolvimento local')
+      return true
+    }
+    console.error('INFINITEPAY_WEBHOOK_SECRET ausente — webhook recusado')
+    return false
   }
   if (!signature) return false
 
   const expected = createHmac('sha256', webhookSecret)
     .update(payload)
     .digest('hex')
+  const received = Buffer.from(signature)
+  const expectedBuffer = Buffer.from(expected)
+  if (received.length !== expectedBuffer.length) return false
 
-  return timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected),
-  )
+  try {
+    return timingSafeEqual(received, expectedBuffer)
+  } catch (err) {
+    console.error('[infinitepay] falha ao comparar assinatura', err)
+    return false
+  }
 }
 
-export interface InfinitePayWebhookPayload {
-  id: string
-  external_id: string
-  status: 'paid' | 'pending' | 'cancelled' | 'expired'
-  amount: number
-  paid_at?: string
+export function parseExternalId(externalId: string): { tipo: 'equipe' | 'arbitro'; candidaturaId: string } | null {
+  if (!externalId || externalId.length > 200) return null
+  const partes = externalId.split(':')
+  if (partes.length !== 2) return null
+  const [tipo, candidaturaId] = partes
+  if ((tipo !== 'equipe' && tipo !== 'arbitro') || !candidaturaId || candidaturaId.length > 80) return null
+  return { tipo, candidaturaId }
 }
+
+export function pagamentoConfereExternalId(
+  pagamento: { id: string; descricao?: string | null },
+  externalId: string,
+  candidatura: { id: string; pagamentoId?: string | null } | null,
+) {
+  const externo = parseExternalId(externalId)
+  if (!externo || !candidatura || externo.candidaturaId !== candidatura.id) return false
+  if (candidatura.pagamentoId && candidatura.pagamentoId === pagamento.id) return true
+  return (pagamento.descricao ?? '') === externalId
+}
+
+// O webhook pode mandar centavos do valor gravado em reais. O caminho inverso
+// (valor gravado em centavos e evento em reais) fica de fora: R$ 100 e R$ 1
+// passariam a conferir.
+export function paymentAmountsMatch(expected: number, received: number) {
+  if (!Number.isFinite(expected) || !Number.isFinite(received) || expected < 0 || received < 0) return false
+  if (Math.abs(expected - received) < 0.009) return true
+  return Math.abs(Math.round(expected * 100) - received) < 0.009
+}
+
+export function valoresDePagamentoConferem(esperado: number, recebido: number) {
+  return paymentAmountsMatch(esperado, recebido)
+}
+
+export const infinitePayWebhookSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  external_id: z.string().trim().regex(/^(equipe|arbitro):([a-z0-9-]{8,64})$/i),
+  status: z.enum(['paid', 'pending', 'cancelled', 'expired']),
+  amount: z.coerce.number().finite().nonnegative(),
+  paid_at: z.string().trim().min(1).max(40).optional(),
+})
+
+export type InfinitePayWebhookPayload = z.infer<typeof infinitePayWebhookSchema>

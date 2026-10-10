@@ -8,7 +8,8 @@ export type SumulaTokenAccess = {
   partida: any
 }
 
-const PARTIDA_SUMULA = '*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(*)), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(*)), presencas:SumulaPresenca(*, jogador:Jogador(*)), sets:SetPartida(*), ocorrencias:OcorrenciaPartida(*), destaques:DestaquesPartida(*, jogador:Jogador(*)), escala:EscalaArbitro(*, arbitro:Arbitro(*))'
+const JOGADOR_PARTIDA = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
+const PARTIDA_SUMULA = `*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), presencas:SumulaPresenca(*, jogador:Jogador(${JOGADOR_PARTIDA})), sets:SetPartida(*), ocorrencias:OcorrenciaPartida(*), destaques:DestaquesPartida(*, jogador:Jogador(${JOGADOR_PARTIDA})), escala:EscalaArbitro(*, arbitro:Arbitro(id,nome))`
 
 export async function requireSumulaTokenAccess(token: string): Promise<SumulaTokenAccess | NextResponse> {
   const numerico = /^\d+$/.test(token)

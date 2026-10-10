@@ -8,7 +8,7 @@ summary: >-
   Interface e experiência.
 status: implementado
 created: 2026-09-20
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 # Interface e experiência
 
@@ -31,6 +31,8 @@ Consultas repetidas do navegador passam por `src/lib/api-cliente.ts`: a mesma le
 Nas telas do portal o menu fixo é somente Portal, Jogos, Classificação, Rankings e Galeria. O símbolo volta para `/`. O botão Portal abre sempre `/portal`. Essa fila não se repete dentro do campeonato. `/jogos` lista os jogos públicos de todos os campeonatos e filtra em Todos, Ao vivo (`EM_ANDAMENTO`), Não iniciado (`AGENDADA` ou `PENDENTE`) e Encerrados (`ENCERRADA` ou `WO`). `/ao-vivo` encaminha para o filtro Ao vivo. Classificação, rankings e galeria abrem o campeonato na própria tela. No ranking, o nome traz Concluído, Em andamento ou Não iniciado. O MVP do campeonato só aparece com o campeonato `FINALIZADO` ou `ENCERRADA`, e é o atleta com mais pontos de saque (`ace`), ataque (`attack`) e bloqueio (`block`). No portal público (`/portal`), a área de campeonatos ativos é um carrossel dos campeonatos com status `ATIVA`, lidos de `GET /api/portal/ativos` sem exigir login. Com um campeonato, o slide fica parado. Sem nenhum, a área fica vazia. Setas, indicadores e toque trocam o slide; a troca automática pausa com o ponteiro em cima. Campeonato `FINALIZADO` sai desse carrossel, continua em `/campeonatos` no filtro Finalizados e na página do slug, com o aviso de consulta. No guia de parametrização do organizador, «Finalizar campeonato» só aparece quando o campeonato já está ativo. Durante o cadastro, com status em breve, o botão fica oculto. Quando aparece, pede confirmação e, depois, trava os campos daquele campeonato. A agenda do portal separa jogos em andamento, próximos e encerrados, mostra o placar do set atual enquanto a partida segue e atualiza esse placar a cada 8 segundos. Sem partida em andamento, a conferência fica a cada 60 segundos. Sem um campeonato escolhido, a agenda reúne os jogos de todos os campeonatos que não são simulação. Falha de consulta não aparece como lista vazia.
 
 Na página inicial, «Entre ou Cadastre-se» abre `/login`. «Quero me cadastrar» continua sendo só o aviso de interesse, sem criar conta.
+
+O nome visível da marca, no cabeçalho e no rodapé, é «volei.space». Fora da home, o cabeçalho reserva a mesma faixa de 72px enquanto a sessão local ainda não foi lida, para o conteúdo não saltar. Sair no admin usa o mesmo encerramento da sessão pública: apaga `luva_session`, chama `DELETE /api/auth` e volta para `/login` mesmo se a rede falhar. Na página do campeonato, erro de inscrição não usa o aviso verde de sucesso. Nova partida lê as categorias do campeonato em `GET /api/categorias?ligaId=`.
 
 Os campos de e-mail, senha e cadastro nessa tela usam fundo escuro opaco. O fundo translúcido antigo deixava uma faixa clara do navegador, inclusive quando o e-mail vinha preenchido sozinho.
 

@@ -153,6 +153,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ s
     return success({ deleted: true, slug: liga.slug })
   } catch (err) {
     console.error('[ligas] erro ao excluir', err)
-    return error('Erro ao excluir campeonato', 500, err instanceof Error ? err.message : err)
+    return error('Erro ao excluir campeonato', 500)
   }
 }

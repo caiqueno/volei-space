@@ -90,7 +90,7 @@ async function main() {
   process.env.INFINITEPAY_WEBHOOK_SECRET = segredo
   process.env.NODE_ENV = 'development'
   for (const status of ['pending', 'cancelled', 'expired']) {
-    const raw = JSON.stringify({ id: `evt-${status}`, external_id: 'equipe:x', status, amount: 1 })
+    const raw = JSON.stringify({ id: `evt-${status}`, external_id: 'equipe:cand-pendente', status, amount: 1 })
     const resposta = await postWebhook(raw, assinar(raw, segredo))
     assert.equal(resposta.status, 200, status)
     assert.equal(resposta.json.received ?? resposta.json.data?.received, true, status)

@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const duplicateError = duplicateDatabaseMessage(detail)
     if (duplicateError) return error(duplicateError, 409)
     console.error('[candidaturas/quadras] erro ao registrar cadastro', err)
-    return error(`Erro ao registrar cadastro de quadra: ${detail}`, 500)
+    return error('Erro ao registrar cadastro de quadra.', 500)
   }
 }
 

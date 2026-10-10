@@ -56,6 +56,10 @@ const tsNode = createRequire(import.meta.url).resolve('ts-node/dist/bin.js')
 const target = file.startsWith('scripts/') ? file : `scripts/${file}`
 const result = spawnSync(process.execPath, [tsNode, '-r', 'tsconfig-paths/register', target], {
   stdio: 'inherit',
-  env: process.env,
+  env: {
+    ...process.env,
+    TS_NODE_PROJECT: 'tsconfig.scripts.json',
+    TS_NODE_COMPILER_OPTIONS: JSON.stringify({ module: 'CommonJS', esModuleInterop: true }),
+  },
 })
 process.exit(result.status ?? 1)

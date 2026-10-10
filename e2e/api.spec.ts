@@ -41,7 +41,6 @@ test.describe('API no servidor local', () => {
   })
 
   test('assinatura curta inválida responde 401', async ({ request }) => {
-    test.fail(true, 'validateWebhookSignature compara os buffers com timingSafeEqual sem igualar o tamanho. Uma assinatura curta lança ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH e o Next responde 500, em vez de 401 Assinatura inválida.')
     const resposta = await request.post('/api/webhooks/infinitepay', {
       headers: {
         'content-type': 'application/json',
@@ -85,7 +84,6 @@ test.describe('API no servidor local', () => {
   })
 
   test('falha ao processar pagamento pago não é engolida com 200', async ({ request }) => {
-    test.fail(true, 'Candidatura inexistente faz o Supabase lançar. O catch da rota registra o erro e mesmo assim responde 200 { received: true }, então o InfinitePay não repete e a equipe não é criada.')
     const raw = JSON.stringify(webhookPago('id-que-nao-existe'))
     const resposta = await request.post('/api/webhooks/infinitepay', {
       headers: {
