@@ -1,27 +1,21 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { jwtVerify, JWTPayload } from 'jose'
+import type { JWTPayload } from 'jose'
 import { Home, LogOut, ShieldCheck, Trophy } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 import { AdminNav } from './AdminNav'
 import { isAdminSession } from '@/lib/admin-access'
+import { lerToken } from '@/lib/token-verify'
 import { AvisoAmbienteBanco } from '@/components/admin/AvisoAmbienteBanco'
 
 async function getAdmin(): Promise<JWTPayload | null> {
   const cookieStore = cookies()
   const token = cookieStore.get('luva_token')?.value
   if (!token) return null
-  try {
-    const jwtSecret = process.env.JWT_SECRET
-    if (!jwtSecret) return null
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jwtVerify(token, secret)
-    if (!isAdminSession(payload)) return null
-    return payload
-  } catch {
-    return null
-  }
+  const payload = await lerToken<JWTPayload>(token, 'admin')
+  if (!payload || !isAdminSession(payload)) return null
+  return payload
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

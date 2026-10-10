@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
+import { exigirOrganizadorOuAdminDaPartida } from '@/lib/organizador-isolamento'
 import { regrasDaConfiguracao, validateCategoryResult } from '@/lib/category-match-rules'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const acesso = await exigirOrganizadorDaPartida(req, Number(id))
+  const acesso = await exigirOrganizadorOuAdminDaPartida(req, Number(id))
   if (acesso instanceof NextResponse) return acesso
 
   try {
@@ -76,11 +76,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (updateErr) throw updateErr
 
-    // Update classification for both teams
-    await recalculateLeagueClassification(partida.ligaId)
+    try {
+      await recalculateLeagueClassification(partida.ligaId)
+    } catch (err) {
+      console.error('[partidas/aprovar] partida aprovada; classificação não recalculada', err)
+    }
 
     return success(updated)
-  } catch {
+  } catch (err) {
+    console.error('[partidas/aprovar] erro', err)
     return error('Erro ao aprovar partida', 500)
   }
 }

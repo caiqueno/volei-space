@@ -4,6 +4,11 @@ import { success, error } from '@/lib/api-response'
 import { equipeSchema } from '@/lib/schemas'
 import { exigirOrganizadorDaLiga, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
 
+const EQUIPE_COLUNAS = 'id,nome,slug,logoUrl,corHex,categoria,ligaId,categoriaCampeonatoId,statusEquipe'
+const LIGA_COLUNAS = 'id,nome,slug,nomeCurto,status'
+const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl'
+const EQUIPE_SELECT = `${EQUIPE_COLUNAS},liga:Liga(${LIGA_COLUNAS}),jogadores:Jogador(${JOGADOR_COLUNAS})`
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -18,7 +23,7 @@ export async function GET(req: NextRequest) {
     if (ligaId) {
       const { data: inscricoes, error: inscricoesError } = await supabase
         .from('InscricaoCampeonato')
-        .select('equipe:Equipe(*, liga:Liga(*), jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl))')
+        .select(`equipe:Equipe(${EQUIPE_SELECT})`)
         .eq('ligaId', Number(ligaId))
         .eq('status', 'APROVADA')
 
@@ -37,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     let q = supabase
       .from('Equipe')
-      .select('*, liga:Liga(*), jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)')
+      .select(EQUIPE_SELECT)
       .order('nome', { ascending: true })
 
     if (ligasDoOrganizador) q = q.in('ligaId', ligasDoOrganizador.length ? ligasDoOrganizador : [-1])
@@ -77,7 +82,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (err) {
-      if (err.code === '23505') return error('Equipe já cadastrada nessa liga/categoria/série', 409)
+      if (err.code === '23505') return error('Equipe já cadastrada nesse campeonato e nessa categoria.', 409)
       throw err
     }
     return success(data, 201)

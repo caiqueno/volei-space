@@ -8,24 +8,27 @@ import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
 import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
+import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 
 const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
 
-async function assertDb<T extends { error: any }>(operation: PromiseLike<T>) {
-  const result = await operation
-  if (result.error) throw result.error
-  return result
+function demoSumulaLiberado(token: string) {
+  if (process.env.NODE_ENV === 'production') return false
+  if (process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview') return false
+  return DEMO_SUMULA_TOKENS.has(token)
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
 
-  if (DEMO_SUMULA_TOKENS.has(token)) {
+  if (demoSumulaLiberado(token)) {
     return success(makeDemoPartida(token))
   }
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
+  // Consulta pública da página /sumula/{token}. A projeção tira documento, telefone e e-mail.
+  // O GET sem ?consulta=1 continua passando por requireSumulaLeitura.
   if (new URL(req.url).searchParams.get('consulta') === '1') {
     return success(sumulaParaConsulta(access.partida))
   }
@@ -37,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   try {
-    if (DEMO_SUMULA_TOKENS.has(token)) {
+    if (demoSumulaLiberado(token)) {
       return success({ submetida: true, oficial: false, modoTeste: true, status: 'ENCERRADA', publico: '/partidas/9001/ao-vivo' })
     }
 
@@ -90,26 +93,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const vencedorId = setsPorA > setsPorB ? partida.equipeAId : setsPorB > setsPorA ? partida.equipeBId : null
     if (!vencedorId) return error('A partida precisa ter um vencedor antes de enviar a súmula.', 422)
 
-    await assertDb(supabase.from('SetPartida').delete().eq('partidaId', partida.id))
-    await assertDb(supabase.from('SetPartida').insert(sets.map((set) => ({ ...set, partidaId: partida.id }))))
-
-    await assertDb(supabase.from('SumulaPresenca').delete().eq('partidaId', partida.id))
-    if (presencas.length > 0) {
-      await assertDb(supabase.from('SumulaPresenca').insert(presencas.map((presenca) => ({ ...presenca, partidaId: partida.id }))))
-    }
-
-    await substituirOcorrencias(partida.id, ocorrencias, access.candidatura.arbitroId, sets)
-
-    await assertDb(supabase.from('DestaquesPartida').delete().eq('partidaId', partida.id))
-    if (destaques?.length) {
-      await assertDb(supabase.from('DestaquesPartida').insert(destaques.map((destaque) => ({ ...destaque, partidaId: partida.id }))))
-    }
-
     const instante = agora.toISOString()
     const correcao = Boolean(partida.sumulaAprovadaEm)
-    const { error: updateErr } = await supabase
-      .from('Partida')
-      .update({
+    await gravarSumulaComRestauracao({
+      partidaId: partida.id,
+      sets,
+      presencas,
+      ocorrencias,
+      destaques,
+      arbitroId: access.candidatura.arbitroId,
+      partida: {
         status: 'ENCERRADA',
         setsPorA,
         setsPorB,
@@ -118,10 +111,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         vencedorId,
         sumulaSubmetidaEm: partida.sumulaSubmetidaEm ?? instante,
         ...(correcao ? {} : { sumulaAprovadaEm: instante }),
-      })
-      .eq('id', partida.id)
-
-    if (updateErr) throw updateErr
+      },
+    })
     await concluirPublicacao(partida.ligaId)
 
     return success({ submetida: true, oficial: true, status: 'ENCERRADA', publico })
@@ -134,7 +125,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   try {
-    if (DEMO_SUMULA_TOKENS.has(token)) {
+    if (demoSumulaLiberado(token)) {
       return success({ salva: true, oficial: false, modoTeste: true, status: 'EM_ANDAMENTO' })
     }
 
@@ -157,37 +148,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     if (andamentoInvalido) return error(andamentoInvalido, 422)
     const liveSummary = buildLiveSummary(sets, partida.liga)
 
-    await assertDb(supabase.from('SetPartida').delete().eq('partidaId', partida.id))
-    if (sets.length > 0) {
-      await assertDb(supabase.from('SetPartida').insert(sets.map((set) => ({ ...set, partidaId: partida.id }))))
-    }
-
-    await assertDb(supabase.from('SumulaPresenca').delete().eq('partidaId', partida.id))
-    if (presencas.length > 0) {
-      await assertDb(supabase
-        .from('SumulaPresenca')
-        .insert(presencas.map((presenca) => ({ ...presenca, partidaId: partida.id }))))
-    }
-
-    await substituirOcorrencias(partida.id, ocorrencias, access.candidatura.arbitroId, sets)
-
-    await assertDb(supabase.from('DestaquesPartida').delete().eq('partidaId', partida.id))
-    if (destaques?.length) {
-      await assertDb(supabase.from('DestaquesPartida').insert(destaques.map((destaque) => ({ ...destaque, partidaId: partida.id }))))
-    }
-
-    const { error: updateErr } = await supabase
-      .from('Partida')
-      .update({
+    await gravarSumulaComRestauracao({
+      partidaId: partida.id,
+      sets,
+      presencas,
+      ocorrencias,
+      destaques,
+      arbitroId: access.candidatura.arbitroId,
+      partida: {
         status: 'EM_ANDAMENTO',
         setsPorA: liveSummary.setsPorA,
         setsPorB: liveSummary.setsPorB,
         pontosPorA: liveSummary.pontosPorA,
         pontosPorB: liveSummary.pontosPorB,
-      })
-      .eq('id', partida.id)
-
-    if (updateErr) throw updateErr
+      },
+    })
     await syncLeagueLifecycle(partida.ligaId)
     const setsMudaram = Number(partida.setsPorA ?? 0) !== liveSummary.setsPorA
       || Number(partida.setsPorB ?? 0) !== liveSummary.setsPorB
@@ -204,34 +179,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     console.error('[sumula] erro ao salvar andamento', err)
     return error('Erro ao salvar andamento da súmula', 500)
   }
-}
-
-async function substituirOcorrencias(
-  partidaId: number,
-  ocorrencias: Array<{ tipo: string; descricao?: string | null; set?: number | null; jogadorId?: number | null }> | undefined,
-  arbitroId: number | null,
-  sets: Array<{ numero: number; pontosA: number; pontosB: number }>,
-) {
-  const { data: atuais, error: leituraErr } = await supabase
-    .from('OcorrenciaPartida')
-    .select('id,descricao')
-    .eq('partidaId', partidaId)
-  if (leituraErr) throw leituraErr
-  const apagar = (atuais ?? [])
-    .filter((item) => !String(item.descricao ?? '').startsWith('Registro de '))
-    .map((item) => item.id)
-  if (apagar.length > 0) {
-    await assertDb(supabase.from('OcorrenciaPartida').delete().in('id', apagar))
-  }
-  if (ocorrencias?.length) {
-    await assertDb(supabase.from('OcorrenciaPartida').insert(ocorrencias.map((ocorrencia) => ({ ...ocorrencia, partidaId }))))
-  }
-  const resumo = sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
-  await assertDb(supabase.from('OcorrenciaPartida').insert({
-    partidaId,
-    tipo: 'OBSERVACAO',
-    descricao: `Registro de placar pelo árbitro ${arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`,
-  }))
 }
 
 async function concluirPublicacao(ligaId: number) {
