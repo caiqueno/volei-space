@@ -15,13 +15,14 @@ import {
 import type { SetupIntent } from '@/lib/championship-setup-status'
 import { validateQrPhotoNameDependency } from '@/lib/championship-validation'
 import { supabaseAdmin as db } from '@/lib/supabase-admin'
+import { colunaElegibilidadeAusente, mensagemFaixaIdade, separarElegibilidade } from '@/lib/elegibilidade-categoria'
 
 const ALLOWED: Record<string, string[]> = {
   estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled'],
   classificacao: ['criteriosClassificacao', 'classificadosPorGrupo', 'melhoresClassificadosGerais', 'pontosVencedorMargem1', 'pontosPerdedorMargem1', 'pontosVencedorMargem2', 'pontosPerdedorMargem2', 'woSetsVencedor', 'woSetsPerdedor', 'woPontosSetVencedor', 'woPontosSetPerdedor', 'woPunicaoPontos'],
   eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataInicio', 'dataFim'],
-  inscricoes: ['inscricoesAbertas', 'inscricoesAberturaEm', 'inscricoesEncerramentoEm', 'inscricaoPermiteEdicaoAposEnvio', 'inscricaoPrazoEdicaoDias', 'elencoQuantidadeMinima', 'elencoQuantidadeMaxima', 'elencoCadastroDuranteInscricao', 'prazoAlteracaoElencoDias', 'qrCodeEnabled', 'formularioInscricaoConfig'],
+  inscricoes: ['inscricoesAbertas', 'inscricoesAberturaEm', 'inscricoesEncerramentoEm', 'inscricaoPermiteEdicaoAposEnvio', 'inscricaoPrazoEdicaoDias', 'elencoQuantidadeMinima', 'elencoQuantidadeMaxima', 'elencoCadastroDuranteInscricao', 'prazoAlteracaoElencoDias', 'qrCodeEnabled', 'formularioInscricaoConfig', 'genero', 'idadeMinima', 'idadeMaxima'],
 }
 
 const SECOES_COM_TRAVA = new Set(['estrutura', 'classificacao', 'eliminatorias'])
@@ -61,10 +62,14 @@ export async function saveCategorySection(args: {
       if (key === 'elencoCadastroDuranteInscricao' && value !== true) continue
       patch[key] = value
     }
+    const separado = separarElegibilidade(patch)
+    const faixa = mensagemFaixaIdade(separado.elegibilidade)
+    if (faixa) return error(faixa, 422)
+    const patchRpc = separado.resto
     if (SECOES_COM_TRAVA.has(args.section)) {
       const jogos = await jogosDaCategoria(categoryId)
       if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
-      const motivo = motivoBloqueioEdicao(args.section, patch, jogos)
+      const motivo = motivoBloqueioEdicao(args.section, patchRpc, jogos)
       if (motivo) return error(motivo, 409)
     }
     const { data, error: rpcError } = await db.rpc('salvar_configuracao_categoria', {
@@ -73,28 +78,32 @@ export async function saveCategorySection(args: {
       p_organizador_id: args.organizadorId,
       p_versao: config.versao,
       p_secao: args.section,
-      p_patch: patch,
+      p_patch: patchRpc,
       p_concluir: args.intent === 'complete',
     })
     if (rpcError) {
       if (/Operacao iniciada/i.test(rpcError.message) && SECOES_COM_TRAVA.has(args.section)) {
         const jogos = await jogosDaCategoria(categoryId)
         if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
-        const motivo = motivoBloqueioEdicao(args.section, patch, jogos)
+        const motivo = motivoBloqueioEdicao(args.section, patchRpc, jogos)
         if (motivo) return error(motivo, 409)
-        const gravada = await gravarCategoriaComEquipes(args.ligaId, categoryId, args.section, config, patch, args.intent)
+        const gravada = await gravarCategoriaComEquipes(args.ligaId, categoryId, args.section, config, patchRpc, args.intent)
         if (gravada instanceof Response) return gravada
-        await espelharNaLiga(args.ligaId, patch)
-        return success({ ...gravada, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
+        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, gravada)
+        if (comElegibilidade instanceof Response) return comElegibilidade
+        await espelharNaLiga(args.ligaId, patchRpc)
+        return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
       }
       const message = /Versao alterada/i.test(rpcError.message)
         ? 'A categoria foi atualizada em outra tela. Recarregue e tente de novo.'
         : 'A configuração da categoria não foi aceita. Revise os campos.'
       return error(message, /Versao alterada/i.test(rpcError.message) ? 409 : 422)
     }
-    await espelharNaLiga(args.ligaId, patch)
-    const saved = data && typeof data === 'object' ? data : config
-    return success({ ...saved, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
+    const salva = data && typeof data === 'object' ? data as Record<string, unknown> : config
+    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, salva)
+    if (comElegibilidade instanceof Response) return comElegibilidade
+    await espelharNaLiga(args.ligaId, patchRpc)
+    return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
   } catch (cause) {
     if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
     console.error('[setup] erro ao salvar categoria', cause)
@@ -200,6 +209,27 @@ async function gravarCategoriaComEquipes(
     return error('Não foi possível salvar a categoria.', 500)
   }
   return salva
+}
+
+async function gravarElegibilidade(
+  ligaId: number,
+  categoryId: string,
+  elegibilidade: Record<string, unknown>,
+  salva: Record<string, unknown>,
+) {
+  if (Object.keys(elegibilidade).length === 0) return salva
+  const { error: updateErro } = await db
+    .from('CategoriaConfiguracao')
+    .update(elegibilidade)
+    .eq('categoriaCampeonatoId', categoryId)
+    .eq('ligaId', ligaId)
+  if (!updateErro) return { ...salva, ...elegibilidade }
+  if (colunaElegibilidadeAusente(updateErro)) {
+    console.error('[setup] gênero e idade ainda não existem nesta base; a inscrição segue sem essa regra')
+    return salva
+  }
+  console.error('[setup] erro ao gravar gênero ou idade', updateErro)
+  return error('Não foi possível gravar gênero ou idade da categoria.', 422)
 }
 
 async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {

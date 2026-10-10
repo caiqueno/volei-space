@@ -156,6 +156,7 @@ export const inscricaoRapidaJogadorSchema = z.object({
   dataNascimento: dataNascimentoOpcional,
   documentoTipo: documentoOpcional,
   documentoNumero: documentoOpcional,
+  sexo: z.enum(['MASCULINO', 'FEMININO']).nullable().optional(),
 })
 
 export const inscricaoRapidaSchema = z.object({
@@ -275,6 +276,9 @@ export const ligaSchema = z.object({
   qrCodeEnabled: z.boolean().optional(),
   sumulaScoutsEnabled: z.boolean().optional(),
   formularioInscricaoConfig: formularioInscricaoConfigSchema.optional().nullable(),
+  genero: z.enum(['MASCULINO', 'FEMININO', 'MISTO']).nullable().optional(),
+  idadeMinima: z.number().int().min(0).max(120).nullable().optional(),
+  idadeMaxima: z.number().int().min(0).max(120).nullable().optional(),
 })
 
 // Sub-schemas por sessão da Central de Parametrização — cada PATCH aceita
@@ -369,6 +373,9 @@ export const setupInscricoesSchema = ligaSchema.pick({
   qrCodeEnabled: true,
   formularioInscricaoConfig: true,
   prazoAlteracaoElencoDias: true,
+  genero: true,
+  idadeMinima: true,
+  idadeMaxima: true,
 }).partial()
 
 export const inscricaoCampeonatoSchema = z.object({

@@ -7,6 +7,7 @@ import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { supabase } from '@/lib/supabase'
 import { optimizeImageFile } from '@/lib/client-image-upload'
 import type { ResolvedFormularioRapidaConfig, CategoriaSerieOption } from '@/lib/inscricao-rapida'
+import { mensagemElegibilidade, type ElegibilidadeCategoria } from '@/lib/elegibilidade-categoria'
 
 const POSICOES = ['Levantador', 'Oposto', 'Central', 'Ponteiro', 'Líbero']
 const DOCUMENT_TYPES = [
@@ -25,6 +26,7 @@ export type JogadorDraft = {
   dataNascimento: string
   documentoTipo: string
   documentoNumero: string
+  sexo: string
 }
 
 export type InscricaoRapidaInitialData = {
@@ -45,12 +47,19 @@ export type InscricaoRapidaInitialData = {
     dataNascimento: string | null
     documentoTipo: string | null
     documentoNumero: string | null
+    sexo?: string | null
   }>
 }
 
 const emptyJogador: JogadorDraft = {
-  nome: '', numero: '', posicao: '', fotoUrl: '', cpf: '', dataNascimento: '', documentoTipo: 'CPF', documentoNumero: '',
+  nome: '', numero: '', posicao: '', fotoUrl: '', cpf: '', dataNascimento: '', documentoTipo: 'CPF', documentoNumero: '', sexo: '',
 }
+
+const SEXOS = [
+  { value: 'NAO', label: 'Não informar' },
+  { value: 'FEMININO', label: 'Feminino' },
+  { value: 'MASCULINO', label: 'Masculino' },
+]
 
 function FloatingInput({ id, label, value, onChange, type = 'text', required, disabled, locked = false }: {
   id: string; label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; disabled?: boolean; locked?: boolean
@@ -114,10 +123,11 @@ function toDraft(player: InscricaoRapidaInitialData['jogadores'][number]): Jogad
     posicao: player.posicao || '', fotoUrl: player.fotoUrl || '', cpf: player.cpf || '',
     dataNascimento: player.dataNascimento ? player.dataNascimento.slice(0, 10) : '',
     documentoTipo: player.documentoTipo || 'CPF', documentoNumero: player.documentoNumero || '',
+    sexo: player.sexo || '',
   }
 }
 
-function jogadorPayload(player: JogadorDraft, config: ResolvedFormularioRapidaConfig) {
+function jogadorPayload(player: JogadorDraft, config: ResolvedFormularioRapidaConfig, coletarSexo: boolean) {
   return {
     nome: player.nome,
     ...(config.atleta.numeroCamisa === 'disabled' ? {} : { numero: player.numero ? Number(player.numero) : undefined }),
@@ -129,10 +139,11 @@ function jogadorPayload(player: JogadorDraft, config: ResolvedFormularioRapidaCo
       documentoTipo: player.documentoTipo || undefined,
       documentoNumero: player.documentoNumero || undefined,
     }),
+    ...(coletarSexo ? { sexo: player.sexo || null } : {}),
   }
 }
 
-export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, tokenCategoria = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null }: {
+export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, tokenCategoria = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null, elegibilidade = null }: {
   ligaId: number
   linkToken?: string | null
   tokenCategoria?: string | null
@@ -146,6 +157,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
   canEditRoster?: boolean
   readOnlyReason?: string | null
   registrationStatus?: string | null
+  elegibilidade?: ElegibilidadeCategoria | null
 }) {
   const router = useRouter()
   const [nomeEquipe, setNomeEquipe] = useState(initialData?.nomeEquipe || '')
@@ -185,6 +197,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
   const nascimentoRequired = config.atleta.dataNascimento === 'required'
   const documentoEnabled = config.atleta.documento !== 'disabled'
   const documentoRequired = config.atleta.documento === 'required'
+  const coletarSexo = Boolean(elegibilidade?.genero)
 
   useEffect(() => {
     if (!token || !canEdit) return
@@ -262,12 +275,17 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
       setErrorMsg('Documento é obrigatório.')
       return
     }
+    const regra = mensagemElegibilidade(elegibilidade, { sexo: draft.sexo || null, dataNascimento: draft.dataNascimento || null })
+    if (regra) {
+      setErrorMsg(regra)
+      return
+    }
     setSavingPlayer(true)
     setErrorMsg('')
     try {
       const editing = editingId !== null
       const response = await fetch(editing ? `/api/inscricao-rapida/${token}/jogadores/${editingId}` : `/api/inscricao-rapida/${token}/jogadores`, {
-        method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jogadorPayload(draft, config)),
+        method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jogadorPayload(draft, config, coletarSexo)),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar o jogador.')
@@ -399,6 +417,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">{numeroEnabled && <FloatingInput id="jogadorNumero" label="Número" type="number" value={draft.numero} onChange={(value) => setDraft((current) => ({ ...current, numero: value }))} required={numeroRequired} />}{posicaoEnabled && <FloatingSelect id="jogadorPosicao" label="Posição" value={draft.posicao} onChange={(value) => setDraft((current) => ({ ...current, posicao: value }))} required={posicaoRequired} options={POSICOES.map((position) => ({ value: position, label: position }))} />}</div>
             {cpfEnabled && <FloatingInput id="jogadorCpf" label="CPF" value={draft.cpf} onChange={(value) => setDraft((current) => ({ ...current, cpf: value }))} required={cpfRequired} />}
             {nascimentoEnabled && <FloatingInput id="jogadorNascimento" label={nascimentoRequired ? 'Data de nascimento' : 'Data de nascimento (opcional)'} type="date" value={draft.dataNascimento} onChange={(value) => setDraft((current) => ({ ...current, dataNascimento: value }))} required={nascimentoRequired} />}
+            {coletarSexo && <FloatingSelect id="jogadorSexo" label="Sexo (opcional)" value={draft.sexo || 'NAO'} onChange={(value) => setDraft((current) => ({ ...current, sexo: value === 'NAO' ? '' : value }))} options={SEXOS} />}
             {documentoEnabled && <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"><FloatingSelect id="jogadorDocTipo" label={documentoRequired ? 'Documento' : 'Documento (opcional)'} value={draft.documentoTipo} onChange={(value) => setDraft((current) => ({ ...current, documentoTipo: value }))} required={documentoRequired} options={DOCUMENT_TYPES} /><FloatingInput id="jogadorDocNumero" label={documentoRequired ? 'Número do documento' : 'Número do documento (opcional)'} value={draft.documentoNumero} onChange={(value) => setDraft((current) => ({ ...current, documentoNumero: value }))} required={documentoRequired} /></div>}
             {fotoEnabled && <div className="flex items-center gap-3">{draft.fotoUrl ? <img src={draft.fotoUrl} alt="Foto do jogador" className="h-10 w-10 rounded-full border border-white/10 object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={14} /></span>}{uploadingFotoJogador ? <LoadingTrack label="Enviando" className="min-w-[12rem]" /> : <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">Foto (opcional)<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleJogadorFotoUpload(event.target.files?.[0] ?? null)} /></label>}</div>}
             <ActionBar type="button" onClick={salvarJogador} loading={savingPlayer} loadingLabel="Salvando" disabled={!draft.nome.trim()} className="mt-1 w-full rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{editingId !== null ? 'Salvar alterações' : 'Salvar jogador'}</ActionBar>

@@ -161,6 +161,9 @@ export interface InscricoesSectionDTO extends SectionPatchMeta {
   qrCodeEnabled: boolean
   formularioInscricaoConfig: FormularioInscricaoConfig | null
   prazoAlteracaoElencoDias: number
+  genero?: 'MASCULINO' | 'FEMININO' | 'MISTO' | null
+  idadeMinima?: number | null
+  idadeMaxima?: number | null
 }
 
 export interface PricingLineItemDTO {

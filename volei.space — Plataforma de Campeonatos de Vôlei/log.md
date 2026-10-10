@@ -13,6 +13,12 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | gênero e idade da categoria
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Gênero e faixa de idade nascem vazios. A conferência só roda quando a categoria e o atleta têm o dado. Sem a coluna, a regra fica desligada. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes da migration de RLS.
+- Leitura do projeto `mqbkwbqpnhsqaemavive`: W.O., sets por fase, formulário, `punicoes` e as funções usadas pela súmula, pela inscrição e pela classificação já estão no schema. `SuspensaoAtleta` e as colunas de gênero, idade e sexo não estão.
+
 ## [2026-10-10] fix | menu do painel não cobre a página
 
 - pages_updated=`09-UI-UX`, `hot`, `log`

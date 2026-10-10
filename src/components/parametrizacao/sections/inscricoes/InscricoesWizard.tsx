@@ -227,6 +227,29 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
               onChange={(v) => updateNow({ inscricaoPrazoEdicaoDias: v })}
             />
             <p className="text-xs font-semibold text-slate-400">Deixe em branco para não ter prazo.</p>
+            {'genero' in data && (
+              <div className="grid gap-4 rounded-2xl border border-white/10 p-4">
+                <label className="grid gap-2 text-xs font-black uppercase tracking-[0.16em] text-luva-amber" htmlFor="genero-categoria">
+                  Gênero da categoria
+                  <select
+                    id="genero-categoria"
+                    value={data.genero ?? ''}
+                    onChange={(event) => updateNow({ genero: (event.target.value || null) as InscricoesSectionDTO['genero'] })}
+                    className="rounded-xl border border-white/10 bg-[#07111f] px-3 py-3 text-sm font-bold normal-case tracking-normal text-white"
+                  >
+                    <option value="">Não restringir</option>
+                    <option value="FEMININO">Feminino</option>
+                    <option value="MASCULINO">Masculino</option>
+                    <option value="MISTO">Misto</option>
+                  </select>
+                </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FloatingLabelNumberInput id="idade-minima" label="Idade mínima" value={data.idadeMinima ?? null} min={0} max={120} onChange={(v) => updateNow({ idadeMinima: v })} />
+                  <FloatingLabelNumberInput id="idade-maxima" label="Idade máxima" value={data.idadeMaxima ?? null} min={0} max={120} onChange={(v) => updateNow({ idadeMaxima: v })} />
+                </div>
+                <p className="text-xs font-semibold text-slate-400">Sem gênero ou idade, a inscrição não confere esses dados. Sexo e nascimento vazios continuam aceitos.</p>
+              </div>
+            )}
           </>
         )}
 
