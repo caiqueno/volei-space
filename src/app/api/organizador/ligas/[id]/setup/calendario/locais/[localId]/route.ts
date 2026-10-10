@@ -26,7 +26,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('ligaId', ligaId)
     .select('id,nome,endereco,quadra,ordem')
     .single()
-  if (updateErr) return error('Erro ao atualizar local do campeonato.', 500, updateErr)
+  if (updateErr) {
+    console.error('[calendario/locais] erro ao atualizar', updateErr)
+    return error('Erro ao atualizar local do campeonato.', 500)
+  }
 
   return success(data)
 }
@@ -40,7 +43,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (bloqueio) return bloqueio
 
   const { error: deleteErr } = await supabase.from('LigaLocal').delete().eq('id', localId).eq('ligaId', ligaId)
-  if (deleteErr) return error('Erro ao remover local do campeonato.', 500, deleteErr)
+  if (deleteErr) {
+    console.error('[calendario/locais] erro ao remover', deleteErr)
+    return error('Erro ao remover local do campeonato.', 500)
+  }
 
   return success({ deleted: true, id: localId })
 }

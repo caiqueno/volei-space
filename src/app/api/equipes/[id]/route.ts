@@ -6,13 +6,22 @@ import { exigirOrganizadorDaEquipe, exigirOrganizadorDaLiga } from '@/lib/organi
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const equipeId = Number(id)
   const { data, error: err } = await supabase
     .from('Equipe')
-    .select('*, jogadores:Jogador(id,nome,numero,posicao,fotoUrl,fotoRostoUrl)')
-    .eq('id', Number(id))
-    .single()
-  if (err) return error('Equipe não encontrada', 404)
-  return success(data)
+    .select('id,nome,slug,logoUrl,corHex,categoria,categoriaCampeonatoId,ligaId,statusEquipe,serie')
+    .eq('id', equipeId)
+    .maybeSingle()
+  if (err || !data) return error('Equipe não encontrada', 404)
+  const { data: jogadores, error: jogadoresErr } = await supabase
+    .from('Jogador')
+    .select('id,nome,numero,posicao,fotoUrl,fotoRostoUrl')
+    .eq('equipeId', equipeId)
+  if (jogadoresErr) {
+    console.error('[equipes] erro ao ler elenco', jogadoresErr)
+    return error('Equipe não encontrada', 404)
+  }
+  return success({ ...data, jogadores: jogadores ?? [] })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

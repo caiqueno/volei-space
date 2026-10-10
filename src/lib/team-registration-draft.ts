@@ -473,10 +473,6 @@ export async function finalizeRegistration(token: string) {
     throw error
   }
   const result = data as { equipeId: number; inscricaoCampeonatoId: string; status: string; idempotent: boolean }
-  if (result.inscricaoCampeonatoId && result.status !== 'APROVADA') {
-    await supabase.from('InscricaoCampeonato').update({ status: 'APROVADA' }).eq('id', result.inscricaoCampeonatoId)
-    result.status = 'APROVADA'
-  }
   if (result.status === 'APROVADA') {
     await ensureApprovedRegistrationOperations(result.inscricaoCampeonatoId)
   }

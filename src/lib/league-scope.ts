@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 
 export type LeagueScopeParams = {
   organizador?: string
@@ -13,7 +14,7 @@ export async function getCreatorLeagueScope(params: LeagueScopeParams) {
 
     const { data, error } = await supabaseAdmin
       .from('Liga')
-      .select('*')
+      .select(LIGA_COLUNAS_PUBLICAS as '*')
       .eq('id', requestedId)
       .maybeSingle()
 
@@ -25,7 +26,7 @@ export async function getCreatorLeagueScope(params: LeagueScopeParams) {
 
   const { data, error } = await supabaseAdmin
     .from('Liga')
-    .select('*')
+    .select(LIGA_COLUNAS_PUBLICAS as '*')
     .eq('organizadorId', organizadorId)
     .order('criadoEm', { ascending: false })
 

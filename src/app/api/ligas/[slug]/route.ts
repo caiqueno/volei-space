@@ -6,12 +6,13 @@ import { ligaSchema } from '@/lib/schemas'
 import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { isCampeonatoFinalizado, respostaCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const { data, error: err } = await supabase
     .from('Liga')
-    .select('*')
+    .select(LIGA_COLUNAS_PUBLICAS as '*')
     .eq('slug', slug)
     .single()
 
@@ -81,7 +82,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ slug
       .from('Liga')
       .update(payload)
       .eq('slug', slug)
-      .select()
+      .select(LIGA_COLUNAS_PUBLICAS as '*')
       .single()
 
     if (err) throw err

@@ -6,6 +6,8 @@ import { countApprovedRegistrations, ensureClassificationAndCalendar } from '@/l
 import { requirePublicRole } from '@/lib/auth'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sync'
+import { statusInicialDaInscricao } from '@/lib/inscricao-status'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -66,7 +68,10 @@ export async function GET(req: NextRequest) {
       .select('id,token,ligaId,status,nomeEquipe,categoria,serie,inscricaoCampeonatoId')
       .in('ligaId', ligaIds)
       .order('criadaEm', { ascending: false })
-    if (rascunhosErr) return error('Erro ao recuperar links das inscrições.', 500, rascunhosErr)
+    if (rascunhosErr) {
+      console.error('[inscricoes-campeonato] erro ao ler rascunhos', rascunhosErr)
+      return error('Erro ao recuperar links das inscrições.', 500)
+    }
     const tokenByRegistration = new Map((rascunhos ?? []).map((draft: any) => [draft.inscricaoCampeonatoId, draft.token]))
     const activeDrafts = (rascunhos ?? []).filter((draft: any) => !draft.inscricaoCampeonatoId).map((draft: any) => ({
       id: `draft-${draft.id}`,
@@ -97,7 +102,7 @@ export async function GET(req: NextRequest) {
   const [{ data: ligas, error: ligasErr }, { data: inscricoes, error: inscricoesErr }] = await Promise.all([
     supabase
       .from('Liga')
-      .select('*')
+      .select(LIGA_COLUNAS_PUBLICAS as '*')
       .in('status', ['EM_BREVE', 'ATIVA'])
       .order('dataInicio', { ascending: true, nullsFirst: false }),
     supabase
@@ -150,7 +155,7 @@ export async function POST(req: NextRequest) {
 
     const { data: liga, error: ligaErr } = await supabase
       .from('Liga')
-      .select('id,status,quantidadeEquipes,inscricoesAbertas')
+      .select('id,status,quantidadeEquipes,inscricoesAbertas,inscricaoAprovacaoAutomatica')
       .eq('id', parsed.data.ligaId)
       .single()
 
@@ -159,9 +164,22 @@ export async function POST(req: NextRequest) {
     if (!['EM_BREVE', 'ATIVA'].includes(liga.status)) return error('Campeonato não está aberto para inscrição.', 400)
     if (liga.inscricoesAbertas === false) return error('As inscrições deste campeonato estão fechadas.', 400)
 
-    const aprovadas = await countApprovedRegistrations(parsed.data.ligaId)
-    if (liga.quantidadeEquipes && aprovadas >= liga.quantidadeEquipes) {
-      return error('O limite de equipes aprovadas deste campeonato já foi atingido.', 400)
+    const { data: existente, error: existenteErr } = await supabase
+      .from('InscricaoCampeonato')
+      .select('id,status')
+      .eq('ligaId', parsed.data.ligaId)
+      .eq('equipeId', equipe.id)
+      .maybeSingle()
+    if (existenteErr) throw existenteErr
+
+    const status = existente?.status === 'APROVADA'
+      ? 'APROVADA'
+      : statusInicialDaInscricao(liga.inscricaoAprovacaoAutomatica)
+    if (status === 'APROVADA' && existente?.status !== 'APROVADA') {
+      const aprovadas = await countApprovedRegistrations(parsed.data.ligaId)
+      if (liga.quantidadeEquipes && aprovadas >= liga.quantidadeEquipes) {
+        return error('O limite de equipes aprovadas deste campeonato já foi atingido.', 400)
+      }
     }
 
     const { data, error: insertErr } = await supabase
@@ -169,7 +187,7 @@ export async function POST(req: NextRequest) {
       .upsert({
         ligaId: parsed.data.ligaId,
         equipeId: equipe.id,
-        status: 'APROVADA',
+        status,
       }, { onConflict: 'ligaId,equipeId' })
       .select()
       .single()
@@ -197,7 +215,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: inscricaoAtual, error: findErr } = await supabase
       .from('InscricaoCampeonato')
-      .select(`*, liga:Liga(*), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})`)
+      .select(`*, liga:Liga(organizadorId,quantidadeEquipes), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})`)
       .eq('id', id)
       .single()
 
@@ -217,7 +235,7 @@ export async function PATCH(req: NextRequest) {
       .from('InscricaoCampeonato')
       .update({ status })
       .eq('id', id)
-      .select(`*, liga:Liga(*), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})`)
+      .select(`*, liga:Liga(${LIGA_COLUNAS_PUBLICAS}), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})` as '*')
       .single()
 
     if (updateErr) throw updateErr

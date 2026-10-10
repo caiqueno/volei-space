@@ -1,4 +1,4 @@
-// Shape retornado por GET /api/ligas (select('*') da tabela Liga) e helpers de
+// Shape retornado por GET /api/ligas (colunas públicas da tabela Liga) e helpers de
 // rótulo compartilhados entre /painel e /painel/campeonatos.
 
 export type LigaPanel = {

@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 
+const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -9,32 +11,57 @@ export async function GET(req: NextRequest) {
     const categoria = searchParams.get('categoria')
     const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
 
-    let q = supabase
-      .from('VotoMVP')
-      .select('jogadorId, jogador:Jogador(id, nome, numero, posicao, fotoUrl, fotoRostoUrl, equipe:Equipe(nome, corHex, categoriaCampeonatoId))')
+    let votosQuery = supabase.from('VotoMVP').select('jogadorId,categoria,categoriaCampeonatoId')
+    if (!categoriaCampeonatoId && categoria) votosQuery = votosQuery.eq('categoria', categoria)
 
-    if (!categoriaCampeonatoId && categoria) q = q.eq('categoria', categoria)
+    const { data: votos, error: votosErr } = await votosQuery
+    if (votosErr) throw votosErr
 
-    const { data, error: err } = await q
-    if (err) throw err
+    const jogadorIds = Array.from(new Set((votos ?? []).map((voto) => Number(voto.jogadorId)).filter((id) => Number.isInteger(id))))
+    if (jogadorIds.length === 0) return success([])
 
-    // Aggregate votes
-    const voteCounts: Record<number, { jogador: any; votos: number }> = {}
-    const linhas = (data ?? []).filter((row: any) => {
-      if (!categoriaCampeonatoId) return true
-      const jogador = Array.isArray(row.jogador) ? row.jogador[0] : row.jogador
-      const equipe = Array.isArray(jogador?.equipe) ? jogador.equipe[0] : jogador?.equipe
-      return equipe?.categoriaCampeonatoId === categoriaCampeonatoId
-    })
-    for (const row of linhas) {
-      const id = row.jogadorId
-      if (!voteCounts[id]) voteCounts[id] = { jogador: row.jogador, votos: 0 }
-      voteCounts[id].votos++
+    const { data: jogadores, error: jogadoresErr } = await supabase
+      .from('Jogador')
+      .select(JOGADOR_COLUNAS)
+      .in('id', jogadorIds)
+    if (jogadoresErr) throw jogadoresErr
+
+    const equipeIds = Array.from(new Set((jogadores ?? []).map((jogador) => Number(jogador.equipeId)).filter((id) => Number.isInteger(id))))
+    const { data: equipes, error: equipesErr } = equipeIds.length
+      ? await supabase.from('Equipe').select('id,nome,corHex,categoriaCampeonatoId').in('id', equipeIds)
+      : { data: [], error: null }
+    if (equipesErr) throw equipesErr
+
+    const equipePorId = new Map((equipes ?? []).map((equipe) => [equipe.id, equipe]))
+    const jogadorPorId = new Map((jogadores ?? []).map((jogador) => {
+      const equipe = equipePorId.get(jogador.equipeId) ?? null
+      return [jogador.id, {
+        id: jogador.id,
+        nome: jogador.nome,
+        numero: jogador.numero,
+        posicao: jogador.posicao,
+        fotoUrl: jogador.fotoUrl,
+        fotoRostoUrl: jogador.fotoRostoUrl,
+        equipe: equipe
+          ? { nome: equipe.nome, corHex: equipe.corHex, categoriaCampeonatoId: equipe.categoriaCampeonatoId }
+          : null,
+      }]
+    }))
+
+    const voteCounts = new Map<number, { jogador: NonNullable<ReturnType<typeof jogadorPorId.get>>; votos: number }>()
+    for (const voto of votos ?? []) {
+      const jogador = jogadorPorId.get(Number(voto.jogadorId))
+      if (!jogador) continue
+      if (categoriaCampeonatoId && jogador.equipe?.categoriaCampeonatoId !== categoriaCampeonatoId) continue
+      const atual = voteCounts.get(jogador.id) ?? { jogador, votos: 0 }
+      atual.votos += 1
+      voteCounts.set(jogador.id, atual)
     }
 
-    const ranking = Object.values(voteCounts).sort((a, b) => b.votos - a.votos)
+    const ranking = Array.from(voteCounts.values()).sort((a, b) => b.votos - a.votos)
     return success(ranking)
-  } catch {
+  } catch (err) {
+    console.error('[rankings] erro ao buscar', err)
     return error('Erro ao buscar rankings', 500)
   }
 }

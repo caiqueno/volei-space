@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     .from('Partida')
     .update(update)
     .eq('id', access.partida.id)
-    .select()
+    .select('id,status,sumulaToken')
     .single()
 
   if (updateErr) return error('Erro ao iniciar partida', 500)

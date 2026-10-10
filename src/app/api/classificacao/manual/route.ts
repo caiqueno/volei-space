@@ -42,7 +42,10 @@ export async function POST(req: NextRequest) {
       .eq('equipeId', equipeId)
       .eq('status', 'APROVADA')
       .maybeSingle()
-    if (inscricaoErr) return error('Erro ao validar inscricao da equipe.', 500, inscricaoErr)
+    if (inscricaoErr) {
+      console.error('[classificacao/manual] erro ao validar inscrição', inscricaoErr)
+      return error('Erro ao validar inscricao da equipe.', 500)
+    }
     if (!inscricao) return error('Equipe nao pertence a este campeonato.', 404)
 
     const automaticIds = await getAutomaticClassifiedIds(ligaId, Number(liga.quantidadeGrupos ?? 1) * Number(liga.classificadosPorGrupo ?? 0))
@@ -52,7 +55,10 @@ export async function POST(req: NextRequest) {
       .from('ClassificacaoEliminatoria')
       .select('equipeId')
       .eq('ligaId', ligaId)
-    if (manualErr) return error('Erro ao validar classificacoes manuais. Rode o SQL da classificacao eliminatoria no Supabase.', 500, manualErr)
+    if (manualErr) {
+      console.error('[classificacao/manual] erro ao ler classificações', manualErr)
+      return error('Erro ao validar classificacoes manuais. Rode o SQL da classificacao eliminatoria no Supabase.', 500)
+    }
 
     const manualIds = new Set((manualRows ?? []).map((row: any) => Number(row.equipeId)))
     if (manualIds.has(equipeId)) return error('Esta equipe ja foi classificada manualmente.', 409)
@@ -71,7 +77,8 @@ export async function POST(req: NextRequest) {
 
     if (insertErr) {
       if (insertErr.code === '23505') return error('Esta equipe ja foi classificada manualmente.', 409)
-      return error('Erro ao classificar equipe manualmente.', 500, insertErr)
+      console.error('[classificacao/manual] erro ao classificar', insertErr)
+      return error('Erro ao classificar equipe manualmente.', 500)
     }
 
     const equipeNome = Array.isArray(data.equipe) ? data.equipe[0]?.nome : data.equipe?.nome
@@ -80,7 +87,8 @@ export async function POST(req: NextRequest) {
       message: `${equipeNome ?? 'Equipe'} foi classificada manualmente pelo organizador.`,
     }, 201)
   } catch (err) {
-    return error('Erro ao classificar equipe manualmente.', 500, err instanceof Error ? err.message : err)
+    console.error('[classificacao/manual] erro', err)
+    return error('Erro ao classificar equipe manualmente.', 500)
   }
 }
 

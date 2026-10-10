@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin, supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sync'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 
 const demoEquipes = [
   { id: 1, nome: 'Kimura Vôlei', corHex: '#0F2C52', logoUrl: null, jogadores: Array.from({ length: 12 }, (_, id) => ({ id })) },
@@ -54,7 +55,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
 
     const { data: inscricoes } = await supabaseAdmin
       .from('InscricaoCampeonato')
-      .select('*, liga:Liga(*)')
+      .select(`id,ligaId,status,criadaEm, liga:Liga(${LIGA_COLUNAS_PUBLICAS})` as '*')
       .eq('equipeId', equipe.id)
       .in('status', ['SOLICITADA', 'APROVADA'])
       .order('criadaEm', { ascending: false })
@@ -64,7 +65,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
       .filter(Boolean)
 
     if (ligasInscritas.length === 0 && equipe.ligaId) {
-      const { data: ligaAtual } = await supabaseAdmin.from('Liga').select('*').eq('id', equipe.ligaId).maybeSingle()
+      const { data: ligaAtual } = await supabaseAdmin.from('Liga').select(LIGA_COLUNAS_PUBLICAS as '*').eq('id', equipe.ligaId).maybeSingle()
       if (ligaAtual) ligasInscritas.push(ligaAtual)
     }
 
@@ -109,7 +110,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
     ? Promise.resolve({ data: [] })
     : supabaseAdmin
       .from('InscricaoCampeonato')
-      .select('equipe:Equipe(*, jogadores:Jogador(id,banido))')
+      .select('equipe:Equipe!InscricaoCampeonato_equipeId_fkey(id,nome,slug,logoUrl,corHex,categoria,categoriaCampeonatoId,ligaId,statusEquipe, jogadores:Jogador(id,banido))')
       .eq('ligaId', ligaId)
       .eq('status', 'APROVADA')
       .order('criadaEm', { ascending: true })

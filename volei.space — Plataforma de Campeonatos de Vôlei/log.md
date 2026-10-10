@@ -8,10 +8,16 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] fix | leitura pública de placar e autorização
+
+- pages_updated=`07-SEGURANCA`, `06-BANCO-DE-DADOS`, `modulos/INSCRICOES`, `hot`, `log`
+- A migration `202610100001_fechar_leitura_publica_placar.sql` liga o RLS, revoga `anon` e `authenticated` em `SetPartida` e `ClassificacaoEntrada` e ajusta default privileges. Não foi aplicada. O ao vivo passa a consultar a API a cada 4 segundos.
+- `POST /api/inscricoes-campeonato` respeita `inscricaoAprovacaoAutomatica`. A função SQL só faz o mesmo depois da migration. `GET /api/ligas` deixa de devolver `organizadorId` e `seedKey`. `GET /api/equipes` e `GET /api/rankings` montam o join no servidor.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 
