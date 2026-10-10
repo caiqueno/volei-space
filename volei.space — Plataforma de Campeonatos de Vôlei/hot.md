@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A súmula registra advertência, penalidade, expulsão e desqualificação. A suspensão da partida seguinte é automática. 20261010139500 não foi aplicada.
+  Gênero e idade da categoria são opcionais e ficam desligados sem a coluna. 20261010139700 não foi aplicada.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,10 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a categoria pode restringir gênero e faixa de idade. Os dois nascem vazios. A inscrição só confere o sexo quando a categoria é masculina ou feminina e o atleta informou o sexo. A idade só entra quando há data de nascimento e a faixa está preenchida. Misto aceita os dois sexos. Sexo vazio e nascimento vazio continuam válidos. Sem as colunas, a leitura volta nula por dez minutos e o salvamento da inscrição segue. Gênero e idade não entram em `salvar_configuracao_categoria` nem em `Liga`. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 a leitura do projeto `mqbkwbqpnhsqaemavive` mostrou que W.O., sets por fase, `formularioInscricaoConfig`, `punicoes` e as funções de súmula, classificação e inscrição já existem, embora `schema_migrations` pare em `20261010083821`. `SuspensaoAtleta`, `genero`, `idadeMinima`, `idadeMaxima` e `sexo` não existem. A súmula, a inscrição e a classificação do código já mergeado não consultam esses objetos ausentes. Fonte: [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a súmula registra advertência, penalidade, expulsão e desqualificação. A sequência sobe no mesmo jogo. Expulsão, desqualificação e duas advertências suspendem o atleta na partida seguinte da categoria. A coluna `punicoes` recebe o peso, sem tirar ponto de campeonato. O cartão amarelo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A súmula decide o cumprimento pelas ocorrências e não grava essa tabela. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 

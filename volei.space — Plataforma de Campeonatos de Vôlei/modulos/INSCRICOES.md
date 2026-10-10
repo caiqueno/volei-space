@@ -5,12 +5,14 @@ category: modulo
 tags: [inscricoes]
 sources: [repo:athrios/volei-space/docs/requisitos/INSCRICOES-POR-EQUIPE.md]
 summary: >-
-  A inscrição rápida usa o formulário da categoria. Não coletar esconde nascimento e documento; obrigatório bloqueia o vazio. 20261010138500 não foi aplicada.
+  Gênero e idade da categoria são opcionais. Sem a coluna, a inscrição não confere esses dados. 20261010139700 não foi aplicada.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Inscrições por equipe
+
+**Conferência de 10 de outubro de 2026, gênero e idade:** a aba Inscrições mostra gênero e faixa etária só quando `CategoriaConfiguracao` já devolve a coluna `genero`. Masculino, feminino, misto ou vazio. A idade mínima e a máxima ficam em branco para não restringir. O formulário público pede o sexo, como opcional, só quando o gênero da categoria está preenchido. A categoria masculina ou feminina recusa o sexo informado diferente. Misto aceita os dois. Sem sexo, a inscrição passa. A idade só é conferida quando o atleta tem data de nascimento e a categoria tem mínimo ou máximo. Nascimento ilegível não bloqueia. Gênero e idade não vão para `Liga` nem para `salvar_configuracao_categoria`. Se a coluna não existir, a leitura fica desligada por dez minutos e o restante do salvamento continua. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`.
 
 **Conferência de 10 de outubro de 2026, parametrização do formulário:** `/inscricao-rapida/{token}`, o link da vaga e o link da categoria leem `CategoriaConfiguracao.formularioInscricaoConfig` da categoria do rascunho. O JSON da liga só entra quando a categoria não gravou o formulário. Campeonato com uma categoria também copia esse JSON para `Liga` ao salvar a aba Inscrições. Data de nascimento e documento do atleta seguem os três estados: `disabled` esconde o campo e não grava; `optional` mostra «(opcional)» e aceita vazio; `required` exige o valor ao salvar o atleta e ao concluir. Sem a chave, os dois continuam opcionais. A foto segue opcional na inscrição, mesmo se o JSON disser `required`, e some só em `disabled`. O capitão permanece com nascimento e documento opcionais. `20261010138500_formulario_inscricao_categoria.sql` faz a função de conclusão usar a categoria e recusar o vazio só quando o campo está `required`. Não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`. Enquanto a função instalada for a anterior a `20261010135000`, concluir ainda pode responder «Data de nascimento e obrigatoria.» ou «Documento do jogador e obrigatorio.».
 

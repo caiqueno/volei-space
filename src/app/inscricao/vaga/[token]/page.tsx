@@ -42,6 +42,7 @@ export default async function InscricaoVagaPage({ params }: { params: Promise<{ 
           canEditRoster={contexto.canEditRoster}
           readOnlyReason={contexto.readOnlyReason}
           registrationStatus={contexto.registrationStatus}
+          elegibilidade={contexto.elegibilidade}
         />
       </main>
     )

@@ -2,7 +2,7 @@ import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
 import { formularioDaInscricao, resolveFormularioRapidaConfig } from '@/lib/inscricao-rapida'
 import { periodoInscricao } from '@/lib/link-inscricao-campeonato'
-import { lerFormularioDaCategoria } from '@/lib/team-registration-draft'
+import { lerElegibilidadeDaCategoria, lerFormularioDaCategoria } from '@/lib/team-registration-draft'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -49,6 +49,7 @@ export default async function InscricaoCategoriaPage({ params }: { params: Promi
   }
 
   const daCategoria = await lerFormularioDaCategoria(liga.id, categoria.id)
+  const elegibilidade = await lerElegibilidadeDaCategoria(liga.id, categoria.id)
   const config = resolveFormularioRapidaConfig(formularioDaInscricao(liga.formularioInscricaoConfig, daCategoria))
   return (
     <main className="luva-shell min-h-screen px-4 py-10 text-white">
@@ -64,6 +65,7 @@ export default async function InscricaoCategoriaPage({ params }: { params: Promi
         categoriaFixa={{ categoria: categoria.codigo, serie: 'GERAL', label: categoria.nome }}
         categoriaOptions={[]}
         tokenCategoria={token}
+        elegibilidade={elegibilidade}
       />
     </main>
   )
