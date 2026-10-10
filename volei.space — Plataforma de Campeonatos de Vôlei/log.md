@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | desfazer ponto depois de recarregar
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- O botão de corrigir o último ponto lia só a memória da tela. Ao reabrir a súmula, o histórico do set em andamento volta a ser montado pelos eventos gravados.
+
 ## [2026-10-10] fix | presença do árbitro sem upsert
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
