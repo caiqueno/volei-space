@@ -98,7 +98,7 @@ export interface EstruturaSectionDTO extends SectionPatchMeta {
   tempoMedico?: boolean
   /** Só true permite substituição por lesão fora do limite. Ausente ou false mantém o par e o teto. */
   substituicaoPorLesao?: boolean
-  /** Só false dispensa o líbero inicial. Ausente ou true continua exigindo. */
+  /** Preferência gravada da categoria. A papeleta da súmula não bloqueia a confirmação por este campo. */
   exigirLiberoInicial?: boolean
   /** 1 ou 2 limita a lista. Ausente não limita. */
   quantidadeLiberos?: number | null

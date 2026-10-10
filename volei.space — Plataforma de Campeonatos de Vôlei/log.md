@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | líbero inicial deixa de ser obrigatório na papeleta
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `06-BANCO-DE-DADOS`
+- Confirmar a papeleta vale com as seis posições. Sem líbero, a escolha é nenhum. O `PUT` da súmula não recusa o andamento por isso. Sem migration e sem mudança na gravação de pontos.
+
 ## [2026-10-10] fix | menu da súmula recolhe ou fica fixo no desktop
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`

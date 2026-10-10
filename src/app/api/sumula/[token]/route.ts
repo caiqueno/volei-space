@@ -8,6 +8,7 @@ import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { regrasParaFase, validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
 import { carregarFonteDeSets, regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
+import { validarLiberoDaSumula } from '@/lib/libero-sumula'
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { mensagemSancaoInvalida } from '@/lib/sancoes'
 import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
@@ -375,6 +376,9 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
     substituicaoPorLesao: options.substituicaoPorLesao === true,
   })
   if (substituicoesInvalidas) return substituicoesInvalidas
+
+  const liberoAusente = validarLiberoDaSumula()
+  if (liberoAusente) return liberoAusente
 
   return validarSaquesIniciais(payload.ocorrencias, {
     teamA: String(equipeA?.nome ?? ''),

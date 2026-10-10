@@ -1,8 +1,37 @@
 /**
- * Líbero. Sem configuração, a escalação continua pedindo um líbero inicial
- * e a troca não conta como substituição. Só `false` tira a exigência.
- * Quantidade 1 ou 2 limita a lista. Qualquer outro valor não limita.
+ * Líbero. A confirmação da papeleta não exige líbero inicial: vazio,
+ * `--` ou `nenhum` significam que o time não tem líbero neste set.
+ * A troca não conta como substituição. Quantidade 1 ou 2 limita a lista.
+ * Qualquer outro valor não limita.
  */
+export function numeroDeLibero(valor: unknown) {
+  const texto = String(valor ?? '').trim().replace(/^#/, '')
+  const normalizado = texto.toLowerCase()
+  if (!normalizado || normalizado === '--' || normalizado === '—' || normalizado === '-' || normalizado === 'nenhum') return ''
+  return texto
+}
+
+export function textoLiberoInicial(valor: unknown) {
+  const numero = numeroDeLibero(valor)
+  return numero ? `#${numero}` : 'nenhum'
+}
+
+/** A gravação da súmula não recusa o andamento quando o líbero inicial fica em branco. */
+export function validarLiberoDaSumula(): string | null {
+  return null
+}
+
+/** Lê a frase da papeleta confirmada. Sem marca, devolve null. */
+export function lerLiberosIniciais(descricao: string) {
+  const match = String(descricao ?? '').match(/Líberos iniciais:\s*(.+?)\s+(#[^\s.,|]+|nenhum)\s+e\s+(.+?)\s+(#[^\s.,|]+|nenhum)/i)
+  if (!match) return null
+  return {
+    equipeA: match[1].trim(),
+    liberoA: numeroDeLibero(match[2]),
+    equipeB: match[3].trim(),
+    liberoB: numeroDeLibero(match[4]),
+  }
+}
 /** A escalação guarda o número do cadastro. A lista mostra a camisa da súmula. */
 export function entraNoSeletorDeLibero(numeroCadastro: string, escalacao: readonly string[]) {
   return !escalacao.includes(String(numeroCadastro))

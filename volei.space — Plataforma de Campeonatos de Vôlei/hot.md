@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  No desktop, a barra esquerda da súmula recolhe num trilho de ícones ou fica fixa. A escolha fica no navegador. Sem migration.
+  A papeleta da súmula confirma com as seis posições. O líbero inicial é opcional. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a papeleta da súmula confirma com as seis posições preenchidas. O líbero inicial é opcional: sem escolha, a tela mostra Nenhum e a frase grava `nenhum`. A confirmação não espera `exigirLiberoInicial`. O `PUT` da súmula não recusa o andamento por falta de líbero. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a barra esquerda da súmula, no desktop, ganha Recolher e Fixar. Recolhida, o cartão da partida some e o menu vira um trilho de ícones, com o botão para abrir de novo. A quadra e os controles ocupam o espaço. A escolha fica no navegador. O botão informa se o menu está aberto e a barra gruda abaixo da faixa Sair, para continuar clicável ao rolar. Abaixo de 1100px o menu do celular segue como está. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
@@ -41,7 +43,7 @@ Em 10 de outubro de 2026 o saque inicial segue a quantidade de sets da fase. O s
 
 Em 10 de outubro de 2026 corrigir o último ponto da partida 1095 deixava o 1x0 na tela e, ao recarregar, voltava o 2x0. O `PUT` das 11:46:55 UTC gravou `1:1-0` com 204. O `PUT` das 11:46:57 gravou `1:2-0` por cima e reinseriu os dois pontos. `gravar_sumula_partida` não guarda o ponto apagado: ela grava o corpo que chegou por último. A tela agora manda `versao` e, se o placar mudar no meio do envio, manda de novo o estado atual. O servidor recusa versão menor ou reserva mais antiga e responde 409. A falha do salvamento mais novo aparece no aviso. A marca `[[V:N]]` fica no texto do registro de placar. A reserva é uma ocorrência `Registro de andamento`. Nenhuma coluna nova. A página do árbitro precisa ser recarregada para pegar esse envio. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
-Em 10 de outubro de 2026 a escalação continua pedindo um líbero inicial enquanto `exigirLiberoInicial` não está false. A quantidade 1 ou 2 limita a lista; vazio não limita. A troca de líbero não conta como substituição e não cria par. Sem as colunas, a súmula segue como está. `20261010139990_libero_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139980` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 a quantidade 1 ou 2 limita a lista de líbero; vazio não limita. A troca de líbero não conta como substituição e não cria par. A confirmação da papeleta não exige líbero. `20261010139990_libero_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139980` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o andamento da súmula voltou a gravar o placar no schema atual. A partida 1095 (ANGELS x TAYO, campeonato 65) recebia 409 em `gravar_sumula_partida` porque `OcorrenciaPartida_pkey` colidia: o registro de presença do PR #54 gravava `id` explícito e a sequence ficava atrás. A função preserva «Registro de » e o ponto não entrava. A rota respondia 500. Um `PUT` mais antigo ainda podia gravar 0x0 depois do 1x0. A ocorrência agora sai sem `id` e os salvamentos da tela entram em fila. Nenhuma migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 

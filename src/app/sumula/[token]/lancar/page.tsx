@@ -20,7 +20,7 @@ import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limit
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
 import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
-import { quantidadeDeLiberos, rotuloSeletorLibero } from '@/lib/libero-sumula'
+import { lerLiberosIniciais, numeroDeLibero, quantidadeDeLiberos, rotuloSeletorLibero, textoLiberoInicial } from '@/lib/libero-sumula'
 import { ordenarPorCamisaDaSumula } from '@/lib/ordem-camisa-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
@@ -753,18 +753,13 @@ export default function SumulaPage() {
   function confirmLineup(teamId: TeamId) {
     const lineup = teamId === 'teamA' ? lineupA : lineupB
     const team = teamId === 'teamA' ? teamA : teamB
-    const selectedLibero = startingLiberos[currentSet]?.[teamId]
-    if (!team || lineup.filter(Boolean).length < 6 || new Set(lineup.filter(Boolean)).size < 6) {
+    const selectedLibero = numeroDeLibero(startingLiberos[currentSet]?.[teamId])
+    if (!team || !papeletaCompleta(lineup)) {
       addToast('Confira os 6 atletas em quadra antes de confirmar a escalação.')
       return
     }
 
-    if (!selectedLibero && matchRules.exigirLiberoInicial) {
-      addToast(`Defina o líbero inicial do ${team.name} para o set ${currentSet}.`)
-      return
-    }
-
-    if (lineup.includes(selectedLibero)) {
+    if (selectedLibero && lineup.includes(selectedLibero)) {
       addToast('O libero inicial deve ser escolhido fora dos atletas titulares em quadra.')
       return
     }
@@ -820,7 +815,7 @@ export default function SumulaPage() {
       : modoSaque === 'sorteio'
         ? ` Sorteio do set ${currentSet} definiu o saque deste set.`
         : ''
-    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
+    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} ${textoLiberoInicial(startingLiberos[currentSet]?.teamA)} e ${teamB?.name ?? 'Equipe B'} ${textoLiberoInicial(startingLiberos[currentSet]?.teamB)}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
     if (currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO') {
       if (tokenDeDemonstracao(String(token))) {
         setPartida((current: any) => current ? { ...current, status: 'EM_ANDAMENTO' } : current)
@@ -2552,7 +2547,6 @@ function EscalacaoTab(props: {
   )
   const posicoes = ['P4', 'P3', 'P2', 'P5', 'P6', 'P1']
   const selectedTeamConfirmed = selectedTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
-  const reviewLibero = props.startingLiberos[selectedTeamId] ?? ''
   const buttonLabel = selectedTeamConfirmed ? `${team.name} confirmado` : `Confirmar ${team.name}`
   const otherTeamId: TeamId = selectedTeamId === 'teamA' ? 'teamB' : 'teamA'
   const otherTeam = otherTeamId === 'teamA' ? props.teamA : props.teamB
@@ -2813,10 +2807,10 @@ function EscalacaoTab(props: {
           <div className="official-libero-start">
             <div>
               <span>Líbero inicial</span>
-              <strong>{selectedLibero ? `${rotuloCamisa(props.getMatchNumber(selectedTeamId, selectedLibero))} ${displayPlayerName(getAnyPlayer(team, selectedLibero)?.name ?? 'Atleta', team.name)}` : 'Defina antes de confirmar'}</strong>
+              <strong>{selectedLibero ? `${rotuloCamisa(props.getMatchNumber(selectedTeamId, selectedLibero))} ${displayPlayerName(getAnyPlayer(team, selectedLibero)?.name ?? 'Atleta', team.name)}` : 'Nenhum'}</strong>
             </div>
-            <select value={selectedLibero} onChange={(event) => props.setStartingLibero(selectedTeamId, event.target.value)}>
-              <option value="">Selecionar líbero</option>
+            <select value={selectedLibero} aria-label="Líbero inicial" onChange={(event) => props.setStartingLibero(selectedTeamId, event.target.value)}>
+              <option value="">Nenhum</option>
               {liberoOptions.map((player) => (
                 <option key={player.id} value={player.number}>{rotuloSeletorLibero(displayPlayerName(player.name, team.name), props.getMatchNumber(selectedTeamId, player.number))}</option>
               ))}
@@ -2854,7 +2848,7 @@ function EscalacaoTab(props: {
           )}
           {!props.lineupConfirmed && (
             <div className="official-lineup-actions">
-              <button className="official-primary" disabled={!papeletaCompleta(lineup) || !reviewLibero || !servidorExibido || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>
+              <button className="official-primary" disabled={!papeletaCompleta(lineup) || !servidorExibido || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>
               <button type="button" className="official-secondary" onClick={() => setSelectedTeamId(otherTeamId)}>
                 {otherConfirmed ? `Ver ${otherTeam.name}` : `Conferir ${otherTeam.name}`}
               </button>
@@ -4070,9 +4064,14 @@ function parseSavedStartingLiberos(savedOccurrences: any[]) {
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'set_start') continue
     const setNumber = Math.max(1, Number(occurrence.set ?? 1))
+    const lidos = lerLiberosIniciais(String(occurrence.descricao ?? ''))
+    if (lidos) {
+      result[setNumber] = { teamA: lidos.liberoA, teamB: lidos.liberoB }
+      continue
+    }
     const matches = String(occurrence.descricao ?? '').match(/#([^\s.,|]+).*?#([^\s.,|]+)/)
     if (!matches) continue
-    result[setNumber] = { teamA: matches[1], teamB: matches[2] }
+    result[setNumber] = { teamA: numeroDeLibero(matches[1]), teamB: numeroDeLibero(matches[2]) }
   }
   return result
 }

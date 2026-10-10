@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { lerLiberosIniciais } from '@/lib/libero-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { agendaDaPartida } from '@/lib/format-partida'
@@ -215,12 +216,12 @@ function liberosPorSet(registro: Registro) {
   for (const evento of registro.ocorrencias ?? []) {
     const texto = textoDaOcorrencia(evento.descricao)
     const set = Number(evento.set) || 1
-    const iniciais = texto.match(/Líberos iniciais:\s*(.+?)\s+#(\S+)\s+e\s+(.+?)\s+#(\S+)/i)
+    const iniciais = lerLiberosIniciais(texto)
     if (iniciais) {
       const mapa = porSet.get(set) ?? new Map<string, string>()
-      mapa.set(iniciais[1].trim(), nomePeloNumero(equipePeloNome(registro, iniciais[1]), iniciais[2].replace(/\D/g, ''), registro.presencas ?? []))
-      mapa.set(iniciais[3].trim(), nomePeloNumero(equipePeloNome(registro, iniciais[3]), iniciais[4].replace(/\D/g, ''), registro.presencas ?? []))
-      porSet.set(set, mapa)
+      if (iniciais.liberoA) mapa.set(iniciais.equipeA, nomePeloNumero(equipePeloNome(registro, iniciais.equipeA), iniciais.liberoA, registro.presencas ?? []))
+      if (iniciais.liberoB) mapa.set(iniciais.equipeB, nomePeloNumero(equipePeloNome(registro, iniciais.equipeB), iniciais.liberoB, registro.presencas ?? []))
+      if (mapa.size) porSet.set(set, mapa)
     }
     const troca = texto.match(/Troca de líbero\s+(.+?):\s*sai\s+#\S+.+?entra\s+#(\S+)\s+(.+?)(?:\.|$)/i)
     if (troca) {
