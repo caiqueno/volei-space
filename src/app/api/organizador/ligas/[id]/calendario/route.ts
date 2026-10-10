@@ -5,6 +5,7 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { partidaForaDaCategoria } from '@/lib/isolamento-categoria'
+import { conflitosDeAgenda, lerDiasDisponiveis } from '@/lib/conflito-agenda'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -54,7 +55,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   const ids = parsed.data.partidas.map((partida) => partida.id)
   const { data: currentMatches, error: matchesErr } = await supabase
     .from('Partida')
-    .select('id,ligaId,equipeAId,equipeBId,status,categoriaCampeonatoId')
+    .select('id,ligaId,equipeAId,equipeBId,status,categoriaCampeonatoId,dataHora,localNome')
     .eq('ligaId', ligaId)
     .in('id', ids)
 
@@ -68,6 +69,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 
   const currentById = new Map((currentMatches ?? []).map((partida: any) => [Number(partida.id), partida]))
+  const conflito = await conferirAgenda(ligaId, parsed.data.partidas, currentById)
+  if (conflito) return conflito
   let updated = 0
 
   for (const item of parsed.data.partidas) {
@@ -139,6 +142,57 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 
   return success({ atualizadas: updated })
+}
+
+async function conferirAgenda(
+  ligaId: number,
+  partidas: Array<{ id: number; data?: string | null; horario?: string | null; localNome?: string | null; status?: string | null }>,
+  atuais: Map<number, { equipeAId?: number | null; equipeBId?: number | null; dataHora?: string | null; localNome?: string | null; status?: string | null }>,
+) {
+  const { data: agenda, error: agendaErr } = await supabase
+    .from('Partida')
+    .select('id,equipeAId,equipeBId,dataHora,localNome,status')
+    .eq('ligaId', ligaId)
+  if (agendaErr) {
+    console.error('[calendario] erro ao ler a agenda', agendaErr)
+    return error('Não foi possível conferir a agenda.', 500)
+  }
+  const times = new Set<number>()
+  for (const partida of Array.from(atuais.values())) {
+    if (partida.equipeAId) times.add(Number(partida.equipeAId))
+    if (partida.equipeBId) times.add(Number(partida.equipeBId))
+  }
+  const diasPorEquipe = new Map<number, string[]>()
+  if (times.size > 0) {
+    const { data: equipes, error: equipesErr } = await supabase.from('Equipe').select('id,diasDisponiveis').in('id', Array.from(times))
+    const texto = `${equipesErr?.code ?? ''} ${equipesErr?.message ?? ''}`
+    if (equipesErr && !/42703|PGRST204/i.test(texto)) {
+      console.error('[calendario] erro ao ler dias das equipes', equipesErr)
+      return error('Não foi possível conferir os dias das equipes.', 500)
+    }
+    for (const equipe of equipes ?? []) diasPorEquipe.set(Number(equipe.id), lerDiasDisponiveis(equipe.diasDisponiveis))
+  }
+  const propostos = partidas.flatMap((item) => {
+    const atual = atuais.get(item.id)
+    if (!atual) return []
+    const dateTime = buildDateTime(item.data, item.horario)
+    const mexeNoHorario = Boolean(dateTime)
+    const mexeNaQuadra = typeof item.localNome === 'string'
+    if (!mexeNoHorario && !mexeNaQuadra) return []
+    return [{
+      id: item.id,
+      equipeAId: atual.equipeAId,
+      equipeBId: atual.equipeBId,
+      dataHora: dateTime || atual.dataHora,
+      localNome: mexeNaQuadra ? item.localNome?.trim() || 'A definir' : atual.localNome,
+      status: String(item.status || atual.status || ''),
+      diasA: diasPorEquipe.get(Number(atual.equipeAId)) ?? [],
+      diasB: diasPorEquipe.get(Number(atual.equipeBId)) ?? [],
+    }]
+  })
+  const avisos = conflitosDeAgenda(propostos, agenda ?? [])
+  if (avisos.length > 0) return error(avisos[0], 409)
+  return null
 }
 
 function buildDateTime(data?: string | null, horario?: string | null) {

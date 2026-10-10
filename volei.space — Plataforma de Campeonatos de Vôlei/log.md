@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | conflito de agenda
+
+- pages_updated=`modulos/PARTIDAS`, `hot`, `log`
+- O calendário e a vaga do mata-mata recusam equipe, quadra ou dia indisponível no mesmo intervalo de 90 minutos. Sem migration.
+
 ## [2026-10-10] feat | ida e volta
 
 - pages_updated=`modulos/MATA-MATA`, `hot`, `log`

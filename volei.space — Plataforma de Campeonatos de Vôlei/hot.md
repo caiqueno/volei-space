@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Ida e volta grava o segundo jogo sem migration. Sem o flag, o campeonato continua em jogo único.
+  O calendário recusa equipe, quadra ou dia indisponível no mesmo horário. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o calendário recusa um horário em que a equipe já joga, a quadra já está ocupada ou o dia não está em `diasDisponiveis`. A janela é de 90 minutos. `A definir` não conta como quadra. Jogo cancelado não bloqueia. Sem a coluna de dias, equipe e quadra continuam sendo conferidas. Não houve migration. Fonte: [[modulos/PARTIDAS]].
 
 Em 10 de outubro de 2026 a chave com ida e volta grava o segundo jogo na mesma fase, com mando invertido e rodada 1000 acima da ida. A fase seguinte soma os sets dos dois jogos. Sem o segundo jogo, ou sem o flag, segue o jogo único. O calendário automático também repete o turno do grupo quando `turnoReturno` está ligado. Se a coluna não existir, nada disso é criado. Não houve migration. Fonte: [[modulos/MATA-MATA]].
 

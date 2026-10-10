@@ -9,6 +9,7 @@ import { lerIdCategoria } from '@/lib/isolamento-categoria'
 import { sincronizarVagas } from '@/lib/preencher-vagas'
 import { gerarSumulaToken } from '@/lib/sumula-token'
 import { lerOrigemVaga, sugerirVagasSemifinal, timesDefinidos } from '@/lib/vaga-a-definir'
+import { conflitosDeAgenda } from '@/lib/conflito-agenda'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -92,6 +93,30 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (!config) return error('Configure a categoria antes de montar a chave.', 422)
     const rounds = getBracketRounds(config.faseEliminatoria)
     if (!rounds.some((rodada) => rodada.fase === 'SEMIFINAL')) return error('Esta categoria não tem semifinal.', 422)
+
+    const { data: agenda, error: agendaErr } = await supabase
+      .from('Partida')
+      .select('id,fase,rodada,categoriaCampeonatoId,equipeAId,equipeBId,dataHora,localNome,status')
+      .eq('ligaId', ligaId)
+    if (agendaErr) return error('Não foi possível conferir a agenda.', 500)
+    const propostos = jogos.flatMap((jogo: { fase?: string; rodada?: number; dataHora?: string; localNome?: string }) => {
+      const fase = String(jogo?.fase ?? '').toUpperCase()
+      const rodada = Number(jogo?.rodada)
+      const dataHora = dataAgendada(jogo?.dataHora)
+      const localNome = String(jogo?.localNome ?? '').trim()
+      if (!dataHora || !localNome) return []
+      const existente = (agenda ?? []).find((partida) => partida.categoriaCampeonatoId === categoria.id && partida.fase === fase && Number(partida.rodada) === rodada)
+      return [{
+        id: existente?.id ?? null,
+        equipeAId: existente?.equipeAId ?? null,
+        equipeBId: existente?.equipeBId ?? null,
+        dataHora,
+        localNome,
+        status: existente?.status ?? 'AGENDADA',
+      }]
+    })
+    const avisos = conflitosDeAgenda(propostos, agenda ?? [])
+    if (avisos.length > 0) return error(avisos[0], 409)
 
     const criados: Array<{ id: number; fase: string; rodada: number }> = []
     for (const jogo of jogos) {
