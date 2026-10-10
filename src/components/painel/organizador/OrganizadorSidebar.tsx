@@ -120,6 +120,10 @@ export function OrganizadorSidebar() {
               </Link>
             )
           })}
+          <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-sidebar-link profile-sidebar-logout" disabled={obfuscated}>
+            <LogOut size={18} />
+            <span>Sair</span>
+          </button>
         </nav>
         {obfuscated && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">Finalize o cadastro da organização para liberar a navegação.</p>}
 
@@ -135,14 +139,10 @@ export function OrganizadorSidebar() {
             </span>
             <strong className="!mt-0 truncate">{organizacaoNome || 'Sua organização'}</strong>
           </div>
-          <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-sidebar-logout">
-            <LogOut size={16} />
-            Sair
-          </button>
         </div>
       </aside>
 
-      <nav className="profile-mobile-nav">
+      <nav className="profile-mobile-nav" aria-label="Menu do painel">
         <div className="profile-mobile-scroll">
           {ITENS.map((item) => {
             const Icon = item.icon
@@ -159,11 +159,11 @@ export function OrganizadorSidebar() {
               </Link>
             )
           })}
+          <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-mobile-link profile-mobile-logout" disabled={obfuscated}>
+            <LogOut size={18} />
+            <span>Sair</span>
+          </button>
         </div>
-        <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-mobile-link profile-mobile-logout">
-          <LogOut size={18} />
-          <span>Sair</span>
-        </button>
       </nav>
     </>
   )

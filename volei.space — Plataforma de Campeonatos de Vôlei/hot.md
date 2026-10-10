@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A súmula registra advertência, penalidade, expulsão e desqualificação. A suspensão da partida seguinte é automática. 20261010139500 não foi aplicada.
+  O menu do painel não cobre a página e Sair fica abaixo de Rankings. A súmula registra sanções e a suspensão automática. 20261010139500 não foi aplicada.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o menu do painel deixa de cobrir a página. A faixa inferior só aparece abaixo de 1024px, numa linha só, e a guia de 292px fica ao lado do conteúdo. Sair é o último item, abaixo de Rankings, na mesma coluna. Em tela baixa a lista rola dentro da guia. Fonte: [[09-UI-UX]].
 
 Em 10 de outubro de 2026 a súmula registra advertência, penalidade, expulsão e desqualificação. A sequência sobe no mesmo jogo. Expulsão, desqualificação e duas advertências suspendem o atleta na partida seguinte da categoria. A coluna `punicoes` recebe o peso, sem tirar ponto de campeonato. O cartão amarelo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A súmula decide o cumprimento pelas ocorrências e não grava essa tabela. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 

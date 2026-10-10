@@ -4232,14 +4232,16 @@ html body .profile-sidebar-brand small {
 
 html body .profile-sidebar-nav {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 4px;
   margin-top: 10px;
   min-height: 0;
   flex: 1;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-bottom: 8px;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 html body .profile-sidebar-link {
@@ -4310,6 +4312,26 @@ html body .profile-sidebar-logout {
   padding: 9px 12px;
   font-weight: 700;
   cursor: pointer;
+}
+
+html body .profile-sidebar-nav > .profile-sidebar-logout {
+  appearance: none;
+  width: 100%;
+  margin: 0;
+  min-height: 40px;
+  justify-content: flex-start;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0 12px;
+  color: #dbe7f5;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+html body .profile-sidebar-nav > .profile-sidebar-logout svg {
+  color: var(--vs-gold);
 }
 
 html body.luv-keyboard-open .profile-mobile-nav {
@@ -12131,8 +12153,9 @@ html body .profile-sidebar {
 html body .profile-sidebar-nav,
 html body .admin-sidebar nav {
   align-content: start;
-  overflow: hidden;
-  scrollbar-width: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 html.painel-embed .profile-sidebar,
@@ -12151,9 +12174,8 @@ html.painel-embed body > div > main {
 }
 
 html body .profile-sidebar-nav::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 6px;
+  height: 6px;
 }
 
 html body .profile-sidebar-link,
@@ -15933,9 +15955,14 @@ html body .profile-mobile-nav {
   position: fixed;
   left: 12px;
   right: 12px;
+  top: auto;
   bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 70;
-  display: flex;
+  display: none;
+  height: auto;
+  max-height: 84px;
+  flex-wrap: nowrap;
+  align-items: stretch;
   overflow: hidden;
   gap: 6px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -15945,6 +15972,17 @@ html body .profile-mobile-nav {
   backdrop-filter: none;
   background: rgba(3, 12, 24, 0.98);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+html body .profile-mobile-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 html body :where(
@@ -15969,15 +16007,18 @@ html body :where(main.luva-shell, .admin-shell, main.auth-page) textarea {
   }
 
   html body .profile-mobile-nav {
+    display: flex;
     overflow: hidden;
   }
 
   html body .profile-mobile-scroll {
     display: flex;
+    flex-wrap: nowrap;
     min-width: 0;
     flex: 1;
     gap: 6px;
     overflow-x: auto;
+    overflow-y: hidden;
   }
 
   html body .profile-mobile-logout {
@@ -16753,4 +16794,23 @@ h1, h2, h3, h4,
   background: var(--vs-gold-hover);
   border-color: var(--vs-gold-hover);
   color: var(--vs-on-gold);
+}
+
+/* A guia lateral nasce com display:none depois da media query que a abre.
+   Estas regras ficam por último: a partir de 1024px a guia volta, e a faixa
+   inferior não cobre o painel nem o modo embutido. */
+@media (min-width: 1024px) {
+  html body .profile-sidebar {
+    display: flex;
+  }
+
+  html body .profile-mobile-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  html.painel-embed .profile-mobile-nav {
+    display: none;
+  }
 }
