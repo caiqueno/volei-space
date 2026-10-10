@@ -13,6 +13,13 @@ updated: 2026-10-09
 
 # Log
 
+## [2026-10-10] ingest | importação Winners e partida com categoria
+
+- pages_updated=`modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e deixam `serie` nula. `GET` da estrutura passa a devolver `sumulaToken`.
+- A migration `202610090004_partida_atualizado_em_default.sql` define default `now()` em `Partida.atualizadoEm`. O prefixo `202610090001` permanece na revogação de EXECUTE. Ainda não está em produção. O script de importação não foi executado.
+- `scripts/import-winners.mjs` cria os três campeonatos pelo fluxo HTTP. A confirmação simulada usa a sessão de administrador. O campeão do Winners Teste é o vencedor da final.
+
 ## [2026-10-10] fix | fluxo até o campeão
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`

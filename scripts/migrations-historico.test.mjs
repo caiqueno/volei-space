@@ -15,6 +15,10 @@ function versionOf(name) {
   return name.slice(0, name.indexOf('_'))
 }
 
+const versions = files.map(versionOf)
+const repetidos = versions.filter((version, index) => versions.indexOf(version) !== index)
+assert.deepEqual(repetidos, [], `prefixo de migration repetido: ${[...new Set(repetidos)].join(', ')}`)
+
 function sqlSemComentario(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, '')

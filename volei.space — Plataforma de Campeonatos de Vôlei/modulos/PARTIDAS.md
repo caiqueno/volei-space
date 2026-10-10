@@ -8,7 +8,7 @@ summary: >-
   Confrontos entre equipes.
 status: misto
 created: 2026-09-20
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 # Partidas e calendário
 
@@ -16,6 +16,8 @@ updated: 2026-10-06
 
 As partidas pertencem a um campeonato e envolvem equipes compatíveis com sua estrutura. Resultado oficial alimenta classificação e rankings. O calendário e confrontos não devem surgir como efeito de **gerar convite** de inscrição; somente etapas operacionais adequadas depois do cadastro e da configuração.
 
+A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e `serie` nula. `Partida.atualizadoEm` precisa do default `now()` (`202610090004_partida_atualizado_em_default.sql`); o Prisma marca a coluna como obrigatória e o `@updatedAt` não vira default no Postgres. A migration está no repositório e ainda não foi aplicada em produção.
+
 **Aprovado, pendente:** encerramento, vencedor, último set, MVP e correção seguem [[modulos/SUMULA-DIGITAL]]. Quando resultado mudar, rever [[modulos/CLASSIFICACAO]] e [[modulos/SCOUTS]].
 
-**Categorias — aprovado, pendente:** partida e rodada devem pertencer a uma única `CategoriaCampeonato` por `categoriaCampeonatoId` no modelo-alvo. Geração e correção não podem envolver equipe de outra categoria; resultados, campeão e pódio permanecem isolados. `Partida.categoria` textual atual não garante isso. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
+**Categorias — aprovado, pendente:** a gravação da partida já exige uma categoria comum. Leituras que ainda filtram pela string `categoria` não têm a mesma garantia. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].

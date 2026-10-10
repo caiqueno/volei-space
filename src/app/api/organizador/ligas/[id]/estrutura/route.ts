@@ -37,6 +37,7 @@ type EquipeRecord = {
   nome: string
   categoria?: string | null
   serie?: string | null
+  categoriaCampeonatoId?: string | null
   statusEquipe?: string | null
   jogadores?: JogadorRecord[]
   quantidadeJogadores?: number
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .order('posicao', { ascending: true }),
     supabase
       .from('Partida')
-      .select('id,ligaId,equipeAId,equipeBId,rodada,status,dataHora,localNome,grupoId,fase,escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
+      .select('id,ligaId,equipeAId,equipeBId,rodada,status,dataHora,localNome,grupoId,fase,setsPorA,setsPorB,sumulaToken,escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
       .eq('ligaId', ligaId)
       .order('rodada', { ascending: true }),
   ])
@@ -142,6 +143,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if ('error' in equipesResult) return error('Erro ao buscar equipes aprovadas.', 500, equipesResult.error)
     const equipes = equipesResult.data
     if (equipes.length < 2) return error('A estrutura precisa de pelo menos 2 equipes aprovadas.', 400)
+    const categoriaCampeonatoId = categoriaComum(equipes)
+    if (!categoriaCampeonatoId) return error('As equipes aprovadas precisam estar na mesma categoria do campeonato.', 422)
 
     const groups = normalizeGroups(body.grupos, nomesGrupos, equipes)
     const validation = validateGroups(groups, equipes, classificadosPorGrupo, liga.faseEliminatoria, liga.formato)
@@ -175,6 +178,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       nome: grupo.nome,
       ordem: index + 1,
       classificados: classificadosPorGrupo,
+      categoriaCampeonatoId,
     }))
     const { data: createdGroups, error: gruposInsertErr } = await supabase
       .from('GrupoCampeonato')
@@ -191,13 +195,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
         grupoId: created.id,
         equipeId,
         posicao: index + 1,
+        categoriaCampeonatoId,
       }))
     })
 
     const { error: vinculosErr } = await supabase.from('GrupoEquipeCampeonato').insert(vinculos)
     if (vinculosErr) return error('Erro ao salvar distribuição dos grupos.', 500, vinculosErr)
 
-    const partidas = buildGroupMatches(ligaId, groups, createdByName, equipes, turnoReturno, dataInicial, horarioPadrao, localPadrao)
+    const partidas = buildGroupMatches(ligaId, groups, createdByName, equipes, turnoReturno, dataInicial, horarioPadrao, localPadrao, categoriaCampeonatoId)
     if (partidas.length > 0) {
       const { error: insertPartidasErr } = await supabase.from('Partida').insert(partidas)
       if (insertPartidasErr) return error('Erro ao gerar confrontos.', 500, insertPartidasErr)
@@ -244,6 +249,7 @@ async function getApprovedTeams(ligaId: number): Promise<{ data: EquipeRecord[] 
         nome,
         categoria,
         serie,
+        categoriaCampeonatoId,
         statusEquipe,
         jogadores:Jogador(
           id,
@@ -362,6 +368,12 @@ function validateGroups(groups: Required<GrupoInput>[], equipes: EquipeRecord[],
   return ''
 }
 
+function categoriaComum(equipes: EquipeRecord[]) {
+  const ids = new Set(equipes.map((equipe) => equipe.categoriaCampeonatoId).filter(Boolean))
+  if (ids.size !== 1) return null
+  return Array.from(ids)[0] as string
+}
+
 function buildGroupMatches(
   ligaId: number,
   groups: Required<GrupoInput>[],
@@ -371,6 +383,7 @@ function buildGroupMatches(
   dataInicial: string,
   horarioPadrao: string,
   localPadrao: string,
+  categoriaCampeonatoId: string,
 ) {
   const equipeById = new Map(equipes.map((equipe) => [equipe.id, equipe]))
   const rows: any[] = []
@@ -399,7 +412,8 @@ function buildGroupMatches(
         equipeAId: pair.a.id,
         equipeBId: pair.b.id,
         categoria: pair.a.categoria || pair.b.categoria || 'GERAL',
-        serie: pair.a.serie || pair.b.serie || 'UNICA',
+        serie: null,
+        categoriaCampeonatoId,
         rodada: index + 1,
         status: 'AGENDADA',
         dataHora: buildDateTime(globalIndex - 1, dataInicial, horarioPadrao),
