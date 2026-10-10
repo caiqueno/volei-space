@@ -1,6 +1,8 @@
 'use client'
 
 import type { DragEvent } from 'react'
+import { classeFeedbackPonto } from '@/lib/feedback-ponto'
+import type { OrigemPonto } from '@/lib/ponto-sumula'
 
 export type LadoQuadra = 'teamA' | 'teamB'
 
@@ -55,7 +57,7 @@ type Props = {
   direita: LadoDaQuadra
   modo: 'escalacao' | 'jogo'
   numeroExibido?: (teamId: LadoQuadra, numero: string) => string
-  destaque?: { teamId: LadoQuadra; numero: string } | null
+  destaque?: { teamId: LadoQuadra; numero: string; origem?: OrigemPonto } | null
   onAtivar?: (teamId: LadoQuadra, indice: number) => void
   onSoltar?: (teamId: LadoQuadra, indice: number, numero: string) => void
   onAtaque?: (teamId: LadoQuadra, numero: string) => void
@@ -102,7 +104,7 @@ function Metade({
   zonas: Zona[]
   modo: 'escalacao' | 'jogo'
   numeroExibido?: (teamId: LadoQuadra, numero: string) => string
-  destaque?: { teamId: LadoQuadra; numero: string } | null
+  destaque?: { teamId: LadoQuadra; numero: string; origem?: OrigemPonto } | null
   onAtivar?: (teamId: LadoQuadra, indice: number) => void
   onSoltar?: (teamId: LadoQuadra, indice: number, numero: string) => void
   onAtaque?: (teamId: LadoQuadra, numero: string) => void
@@ -122,6 +124,7 @@ function Metade({
         const sacandoAqui = Boolean(dados.sacando && numero && zona.indice === dados.indiceSaque)
         const funcao = rotuloFuncao(atleta, numero, dados.libero)
         const brilhou = destaque?.teamId === dados.id && destaque.numero === numero
+        const pulso = brilhou ? classeFeedbackPonto(destaque?.origem) : ''
         return (
           <div
             key={zona.posicao}
@@ -151,7 +154,7 @@ function Metade({
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={sacandoAqui} />
               </button>
             ) : (
-              <div className={`volley-marker is-live ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''} ${brilhou ? 'is-scored' : ''}`}>
+              <div className={`volley-marker is-live ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''} ${brilhou ? 'is-scored' : ''} ${pulso}`} data-feedback={brilhou ? destaque?.origem ?? undefined : undefined}>
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={false} />
                 {numero && (
                   <span className="volley-actions">

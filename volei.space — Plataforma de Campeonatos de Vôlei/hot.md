@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A substituição fecha o par na volta. O credenciamento grava o número da camisa na partida. A migration 202610100001 não foi aplicada. A papeleta é de um time. O saque alterna até o 4º set e o +1 é ponto sem jogador.
+  ACE, toque e bloqueio pulsam no atleta. O +1 sem jogador permanece. A troca de lado no fim do set ainda não entrou.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+ACE, o toque no atleta e o bloqueio já gravavam o ponto com o jogador. Cada um ganha um pulso de 420 ms, só opacidade e transform, e `prefers-reduced-motion: reduce` desliga. O `+1` sem jogador não pulsa. A troca de lado ao encerrar o set fica para o passo seguinte. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Em 10 de outubro de 2026 a súmula passa a fechar o par de substituição no set. Se o #5 sai e o #9 entra, o #9 só pode sair para o #5 voltar. Depois da volta, nenhum dos dois é substituído de novo naquele set. O modal da quadra lista só reservas elegíveis e nunca quem está em quadra. A troca de líbero não conta e não cria par. O limite continua em 8. Não há substituição excepcional. O `PUT` e o `POST` de `/api/sumula/[token]` recusam troca inválida. O requisito bruto ainda permite repetir o par; a decisão do dono fecha na volta. Fonte: [[modulos/SUMULA-DIGITAL]], [[11-DECISOES]].
 

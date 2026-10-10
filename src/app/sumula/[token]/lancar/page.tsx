@@ -31,8 +31,11 @@ import {
   Users,
 } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
+import { classeFeedbackPonto } from '@/lib/feedback-ponto'
+import './feedback-ponto.css'
 
 type TeamId = 'teamA' | 'teamB'
+type PointFlash = { teamId: TeamId; number: string; id: number; origem: OrigemPonto }
 type TabId = 'pre' | 'resumo' | 'pontuacao' | 'escalacao' | 'tempos' | 'anotacoes'
 type EventType = 'point' | 'attack' | 'block' | 'ace' | 'timeout' | 'substitution' | 'libero_exchange' | 'anotacao' | 'set_start' | 'set_end' | 'system'
 
@@ -164,7 +167,7 @@ export default function SumulaPage() {
   const [scoreHistory, setScoreHistory] = useState<Array<{ score: { teamA: number; teamB: number }; servingTeamId: TeamId; serverIndexA: number; serverIndexB: number; lineupA: string[]; lineupB: string[]; eventIds: string[] }>>([])
   const [matchNumberOverrides, setMatchNumberOverrides] = useState<Record<TeamId, Record<number, string>>>({ teamA: {}, teamB: {} })
   const [toasts, setToasts] = useState<Array<{ id: string; message: string }>>([])
-  const [pointFlash, setPointFlash] = useState<{ teamId: TeamId; number: string; id: number } | null>(null)
+  const [pointFlash, setPointFlash] = useState<PointFlash | null>(null)
   const [setEndPrompt, setSetEndPrompt] = useState<SetEndPrompt | null>(null)
   const [mvpId, setMvpId] = useState('')
   const [editingSlot, setEditingSlot] = useState<{ teamId: TeamId; index: number } | null>(null)
@@ -430,10 +433,10 @@ export default function SumulaPage() {
     if (origem) addToast(`${ROTULO_PONTO[origem]} — ${playerName}`)
     else addToast('+1 — Sem jogador')
     const eventIds = [eventId]
-    if (number) {
-      const flash = { teamId, number, id: Date.now() }
+    if (number && origem) {
+      const flash: PointFlash = { teamId, number, id: Date.now(), origem }
       setPointFlash(flash)
-      setTimeout(() => setPointFlash((current) => current?.id === flash.id ? null : current), 950)
+      setTimeout(() => setPointFlash((current) => current?.id === flash.id ? null : current), 1200)
     }
 
     if (isSideOut) {
@@ -1968,7 +1971,7 @@ function PontuacaoTab(props: {
   benchB: string[]
   serverIndexA: number
   serverIndexB: number
-  pointFlash: { teamId: TeamId; number: string; id: number } | null
+  pointFlash: PointFlash | null
   rules: MatchRules
   subModal: { teamId: TeamId; index: number; outNumber: string } | null
   allowedSubstitutions: string[]
@@ -2031,6 +2034,7 @@ function PontuacaoTab(props: {
             timeoutsUsed={leftTimeoutsUsed}
             onTimeout={() => props.onTimeout(leftTeamId)}
             events={props.events}
+            flashAce={props.pointFlash?.origem === 'ace' && props.pointFlash.teamId === leftTeamId}
           />
         </div>
         <div className="official-score-between">
@@ -2053,6 +2057,7 @@ function PontuacaoTab(props: {
             timeoutsUsed={rightTimeoutsUsed}
             onTimeout={() => props.onTimeout(rightTeamId)}
             events={props.events}
+            flashAce={props.pointFlash?.origem === 'ace' && props.pointFlash.teamId === rightTeamId}
           />
         </div>
       </div>
@@ -2072,6 +2077,7 @@ function PontuacaoTab(props: {
             timeoutsUsed={leftTimeoutsUsed}
             onTimeout={() => props.onTimeout(leftTeamId)}
             events={props.events}
+            flashAce={props.pointFlash?.origem === 'ace' && props.pointFlash.teamId === leftTeamId}
           />
           <div className="official-compact-set-score" aria-label="Placar de sets">
             <span>{props.setsWon[leftTeamId]}</span>
@@ -2090,12 +2096,13 @@ function PontuacaoTab(props: {
             timeoutsUsed={rightTimeoutsUsed}
             onTimeout={() => props.onTimeout(rightTeamId)}
             events={props.events}
+            flashAce={props.pointFlash?.origem === 'ace' && props.pointFlash.teamId === rightTeamId}
           />
         </div>
         <QuadraVolei
           modo="jogo"
           numeroExibido={props.getMatchNumber}
-          destaque={props.pointFlash ? { teamId: props.pointFlash.teamId, numero: props.pointFlash.number } : null}
+          destaque={props.pointFlash ? { teamId: props.pointFlash.teamId, numero: props.pointFlash.number, origem: props.pointFlash.origem } : null}
           esquerda={ladoQuadra(leftTeam, leftLineup, props.servingTeamId === leftTeamId, leftServerIndex)}
           direita={ladoQuadra(rightTeam, rightLineup, props.servingTeamId === rightTeamId, rightServerIndex)}
           onAtaque={(teamId, numero) => props.onAttack(teamId, numero)}
@@ -2868,6 +2875,7 @@ function CompactTeamControl({
   timeoutsUsed,
   onTimeout,
   events,
+  flashAce = false,
 }: {
   teamId: TeamId
   team: Team
@@ -2880,6 +2888,7 @@ function CompactTeamControl({
   timeoutsUsed: number
   onTimeout: () => void
   events: MatchEvent[]
+  flashAce?: boolean
 }) {
   const ultimo = events.find((event) => event.teamId === teamId && (event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)))
   const rotulo = ultimo ? lerRotuloPonto(ultimo.text) ?? ROTULO_PONTO[ultimo.type as OrigemPonto] : null
@@ -2893,7 +2902,7 @@ function CompactTeamControl({
       <span className="official-compact-score-team-name">{team.name}</span>
       <strong>{score.toString().padStart(2, '0')}</strong>
       {serving ? (
-        <button className="official-compact-icon-action is-ace" type="button" onClick={onAce} aria-label={`ACE para ${team.name}`}>ACE</button>
+        <button className={`official-compact-icon-action is-ace ${flashAce ? classeFeedbackPonto('ace') : ''}`} type="button" onClick={onAce} aria-label={`ACE para ${team.name}`} data-feedback={flashAce ? 'ace' : undefined}>ACE</button>
       ) : (
         <i aria-hidden="true" />
       )}
@@ -3129,7 +3138,7 @@ function RosterClickers({
   lineup: string[]
   servingTeam: boolean
   serverIndex: number
-  pointFlash: { teamId: TeamId; number: string; id: number } | null
+  pointFlash: PointFlash | null
   getMatchNumber: (teamId: TeamId, number: string) => string
   onAttack: (number: string) => void
   onBlock: (number: string) => void
@@ -3164,11 +3173,13 @@ function RosterClickers({
           const player = number ? getAnyPlayer(team, number) : undefined
           const nome = player ? displayPlayerName(player.name, team.name) : ''
           const scored = pointFlash?.teamId === teamId && pointFlash.number === number
+          const pulso = scored ? classeFeedbackPonto(pointFlash?.origem) : ''
           const frontRow = ['P2', 'P3', 'P4'].includes(slot.label)
           return (
             <div
               key={`${slot.label}-${number || index}`}
-              className={`official-player-card ${frontRow ? 'is-front-row' : 'is-back-row'} ${servingTeam && index === serverIndex ? 'is-serving' : ''} ${scored ? 'is-scored' : ''}`}
+              className={`official-player-card ${frontRow ? 'is-front-row' : 'is-back-row'} ${servingTeam && index === serverIndex ? 'is-serving' : ''} ${scored ? 'is-scored' : ''} ${pulso}`}
+              data-feedback={scored ? pointFlash?.origem : undefined}
               role="button"
               tabIndex={0}
               onClick={() => number && onAttack(number)}

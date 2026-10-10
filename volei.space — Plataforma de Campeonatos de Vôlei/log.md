@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | pulso no ACE, no toque e no bloqueio
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- O ponto continua no atleta já lançado. O pulso usa só opacidade e transform, por 420 ms, e `prefers-reduced-motion: reduce` desliga. O `+1` sem jogador não pulsa.
+
 ## [2026-10-10] decisao | par de substituição fecha na volta
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `03-REGRAS-DE-NEGOCIO`, `11-DECISOES`, `references/SUMULA-DIGITAL-E-CLASSIFICACAO`, `hot`, `log`
