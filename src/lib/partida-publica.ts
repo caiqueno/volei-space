@@ -1,3 +1,5 @@
+import { dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
+
 export const PARTIDA_PUBLICA_COLUNAS = [
   'id',
   'ligaId',
@@ -60,7 +62,7 @@ export function normalizarPartidaPublica(partida: any): PartidaPublica | null {
     rodada: Number(partida.rodada ?? 0),
     fase: partida.fase ?? null,
     status: String(partida.status ?? ''),
-    dataHora: partida.dataHora ? String(partida.dataHora) : null,
+    dataHora: dataHoraUtc(partida.dataHora),
     localNome: partida.localNome ?? null,
     setsPorA: partida.setsPorA ?? null,
     setsPorB: partida.setsPorB ?? null,
@@ -81,13 +83,9 @@ export function agruparPartidasPublicas(partidas: PartidaPublica[]): GruposParti
     else if (status === 'PENDENTE_APROVACAO') grupos.analise.push(partida)
     else grupos.outras.push(partida)
   }
-  grupos.aoVivo.sort(porData)
-  grupos.proximos.sort(porData)
-  grupos.encerradas.sort((a, b) => porData(b, a))
-  grupos.analise.sort(porData)
+  grupos.aoVivo = ordenarJogos(grupos.aoVivo)
+  grupos.proximos = ordenarJogos(grupos.proximos)
+  grupos.encerradas = ordenarJogos(grupos.encerradas)
+  grupos.analise = ordenarJogos(grupos.analise)
   return grupos
-}
-
-function porData(a: PartidaPublica, b: PartidaPublica) {
-  return new Date(a.dataHora ?? 0).getTime() - new Date(b.dataHora ?? 0).getTime()
 }

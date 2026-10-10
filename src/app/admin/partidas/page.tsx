@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { AprovarButton } from './AprovarButton'
 import { EscalarArbitroButton } from './EscalarArbitroButton'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { formatarDataPartida } from '@/lib/format-partida'
 
 const statusLabel: Record<string, string> = {
   AGENDADA: 'Agendada',
@@ -36,8 +37,9 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
       escala:EscalaArbitro(*, arbitro:Arbitro(*)),
       candidaturasArbitro:CandidaturaPartidaArbitro(*, candidatura:CandidaturaArbitro(*))
     `)
+    .order('dataHora', { ascending: true, nullsFirst: false })
     .order('rodada', { ascending: true })
-    .order('dataHora', { ascending: true })
+    .order('id', { ascending: true })
 
   if (sp.status) q = q.eq('status', sp.status)
 
@@ -206,13 +208,7 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return 'Data a definir'
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
+  return formatarDataPartida(value) ?? 'Data a definir'
 }
 
 function normalizeStatus(status?: string | null) {

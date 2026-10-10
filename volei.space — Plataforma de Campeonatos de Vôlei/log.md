@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | ordem dos jogos e horário em UTC
+
+- pages_updated=`modulos/PARTIDAS`, `hot`, `log`
+- Agenda, `/jogos`, painel, árbitro e jogos dentro da fase sobem por data e hora, com desempate na rodada. `dataHora` sem fuso sai como UTC com `Z`. 11:30 UTC aparece como 08:30 em `America/Sao_Paulo`. Nenhuma linha de partida foi atualizada.
+
 ## [2026-10-10] fix | merge da operação por categoria com a main
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `06-BANCO-DE-DADOS`, `hot`, `log`

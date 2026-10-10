@@ -4,6 +4,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, CalendarDays, Medal, ShieldCheck, Trophy, UsersRound } from 'lucide-react'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import { ordenarJogos } from '@/lib/data-hora'
+import { formatarDataPartida } from '@/lib/format-partida'
 import { formatLigaFormato } from '@/lib/format-liga'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
@@ -111,7 +113,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
     supabase.from('ClassificacaoEntrada').select('pontos,atualizadoEm').eq('equipeId', equipe.id).order('atualizadoEm', { ascending: false }).limit(1).maybeSingle(),
   ])
 
-  const jogos = partidas ?? []
+  const jogos = ordenarJogos(partidas ?? [])
   const encerradas = jogos.filter((partida: any) => partida.status === 'ENCERRADA')
   const vitorias = encerradas.filter((partida: any) => partida.vencedorId === equipe.id).length
   const derrotas = encerradas.filter((partida: any) => partida.vencedorId && partida.vencedorId !== equipe.id).length
@@ -255,7 +257,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
                     <p className="font-display text-lg font-black text-white"><NomeEquipe nome={equipeA?.nome} vazio="Equipe A" /> x <NomeEquipe nome={equipeB?.nome} vazio="Equipe B" /></p>
                     <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">{liga?.nome ?? 'Campeonato'} · Rodada {partida.rodada ?? '-'}</p>
                   </div>
-                  <span className="text-sm font-black text-slate-200">{formatDate(partida.dataHora)}</span>
+                  <span className="text-sm font-black text-slate-200">{formatarDataPartida(partida.dataHora) ?? 'Data a definir'}</span>
                   <span className={`text-sm font-black text-luva-amber ${mi.numero}`}>{partida.setsPorA ?? 0} x {partida.setsPorB ?? 0}</span>
                 </div>
               )
@@ -289,12 +291,3 @@ function HistoryRow({ icon, label, value }: { icon: React.ReactNode; label: stri
   )
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return 'Data a definir'
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
-}

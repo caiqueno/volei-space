@@ -11,6 +11,8 @@
 // sempre que o horário salvo cai entre 21h e 23h59 local (é exatamente o bug
 // hoje presente em src/app/painel/page.tsx::toDateInputValue).
 
+import { dataHoraUtc } from '@/lib/data-hora'
+
 const BR_OFFSET = '-03:00'
 
 function isValidIso(value: string): boolean {
@@ -58,7 +60,7 @@ export function dateTimeLocalToIso(value: string): string | null {
 /** ISO 8601 -> `YYYY-MM-DDTHH:mm` no fuso de São Paulo, para datetime-local. */
 export function isoToDateTimeLocal(value?: string | null): string {
   if (!value) return ''
-  const date = new Date(value)
+  const date = new Date(dataHoraUtc(value) ?? value)
   if (Number.isNaN(date.getTime())) return ''
 
   const parts = new Intl.DateTimeFormat('en-CA', {

@@ -11,6 +11,7 @@ import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import { compararJogosPorHorario, dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
 import { formatFaseMataMata, ordemFaseMataMata } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { formatCategoriaLabel } from '@/lib/equipe-categoria'
@@ -78,8 +79,9 @@ export default async function JogosPage({ searchParams }: PageProps) {
             .from('Partida')
             .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
             .or(`equipeAId.eq.${equipeCapitao.id},equipeBId.eq.${equipeCapitao.id}`)
+            .order('dataHora', { ascending: true, nullsFirst: false })
             .order('rodada', { ascending: true })
-            .order('dataHora', { ascending: true })
+            .order('id', { ascending: true })
 
           if (params.ligaId) query = query.eq('ligaId', Number(params.ligaId))
           query = query.limit(24)
@@ -313,10 +315,16 @@ function buildGameTree(partidas: any[]): TabelaTree[] {
   return Array.from(tabelas.values())
     .map((tabela) => ({
       ...tabela,
-      rodadas: [...tabela.rodadas].sort((a, b) => a.ordem - b.ordem),
-      fases: [...tabela.fases].sort((a, b) => b.ordem - a.ordem),
+      rodadas: ordenarSecoes(tabela.rodadas, (a, b) => a.ordem - b.ordem),
+      fases: ordenarSecoes(tabela.fases, (a, b) => b.ordem - a.ordem),
     }))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+}
+
+function ordenarSecoes(grupos: RoundGroup[], empate: (a: RoundGroup, b: RoundGroup) => number) {
+  return grupos
+    .map((grupo) => ({ ...grupo, partidas: ordenarJogos(grupo.partidas) }))
+    .sort((a, b) => compararJogosPorHorario(a.partidas[0] ?? { id: 0, dataHora: null, rodada: a.ordem }, b.partidas[0] ?? { id: 0, dataHora: null, rodada: b.ordem }) || empate(a, b))
 }
 
 function categoryKey(partida: any) {
@@ -324,7 +332,5 @@ function categoryKey(partida: any) {
 }
 
 function normalizeDateValue(value: unknown) {
-  if (!value) return null
-  const date = new Date(String(value))
-  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  return dataHoraUtc(value)
 }

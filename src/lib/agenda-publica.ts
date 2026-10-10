@@ -25,7 +25,7 @@ export type FatiaAgenda = {
   erro: boolean
 }
 
-async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean, offset: number, limite: number, categoriaCampeonatoId?: string | null): Promise<FatiaAgenda> {
+async function fatiaAgenda(ligaId: number, status: string[], offset: number, limite: number, categoriaCampeonatoId?: string | null): Promise<FatiaAgenda> {
   let consulta = supabaseAdmin
     .from('Partida')
     .select(COLUNAS)
@@ -33,7 +33,8 @@ async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean,
     .in('status', status)
   if (categoriaCampeonatoId) consulta = consulta.eq('categoriaCampeonatoId', categoriaCampeonatoId)
   const { data, error } = await consulta
-    .order('dataHora', { ascending, nullsFirst: false })
+    .order('dataHora', { ascending: true, nullsFirst: false })
+    .order('rodada', { ascending: true })
     .order('id', { ascending: true })
     .range(offset, offset + limite)
   if (error) return { partidas: [], temMais: false, erro: true }
@@ -58,9 +59,9 @@ export async function buscarAgendaCampeonato(
   const offset = Math.max(0, opcoes?.offset ?? 0)
   const parte = opcoes?.parte
   const [aoVivo, proximos, encerradas] = await Promise.all([
-    !parte || parte === 'ao-vivo' ? fatiaAgenda(ligaId, ['EM_ANDAMENTO'], true, parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
-    !parte || parte === 'proximos' ? fatiaAgenda(ligaId, ['AGENDADA', 'PENDENTE'], true, parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
-    !parte || parte === 'encerradas' ? fatiaAgenda(ligaId, ['ENCERRADA', 'WO'], false, parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
+    !parte || parte === 'ao-vivo' ? fatiaAgenda(ligaId, ['EM_ANDAMENTO'], parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
+    !parte || parte === 'proximos' ? fatiaAgenda(ligaId, ['AGENDADA', 'PENDENTE'], parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
+    !parte || parte === 'encerradas' ? fatiaAgenda(ligaId, ['ENCERRADA', 'WO'], parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
   ])
   return { aoVivo, proximos, encerradas, erro: aoVivo.erro || proximos.erro || encerradas.erro }
 }
@@ -76,16 +77,18 @@ export async function buscarPartidasPublicas(ligaIds: number[], completo: boolea
       .from('Partida')
       .select(COLUNAS)
       .in('ligaId', ligaIds)
-      .order('dataHora', { ascending: true })
+      .order('dataHora', { ascending: true, nullsFirst: false })
+      .order('rodada', { ascending: true })
+      .order('id', { ascending: true })
     if (error) return { partidas: [] as PartidaPublica[], erro: true }
     return { partidas: normalizar(data), erro: false }
   }
 
   const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const [aoVivo, proximos, recentes] = await Promise.all([
-    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).eq('status', 'EM_ANDAMENTO').order('dataHora', { ascending: true }),
-    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).in('status', ['AGENDADA', 'PENDENTE']).gte('dataHora', desde).order('dataHora', { ascending: true }).limit(40),
-    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).in('status', ['ENCERRADA', 'WO']).order('dataHora', { ascending: false }).limit(20),
+    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).eq('status', 'EM_ANDAMENTO').order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }),
+    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).in('status', ['AGENDADA', 'PENDENTE']).gte('dataHora', desde).order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).limit(40),
+    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).in('status', ['ENCERRADA', 'WO']).order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).limit(20),
   ])
   const falha = aoVivo.error || proximos.error || recentes.error
   if (falha) return { partidas: [] as PartidaPublica[], erro: true }
