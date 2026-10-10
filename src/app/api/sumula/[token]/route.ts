@@ -7,6 +7,7 @@ import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-acc
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 
@@ -321,13 +322,19 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
 
   const equipeA = valorUnico(partida.equipeA)
   const equipeB = valorUnico(partida.equipeB)
-  return validarSubstituicoes({
+  const substituicoesInvalidas = validarSubstituicoes({
     ocorrencias: payload.ocorrencias,
     equipes: [
       { id: equipeAId, nome: equipeA?.nome },
       { id: equipeBId, nome: equipeB?.nome },
     ],
     jogadorEquipe: jogadoresPorId,
+  })
+  if (substituicoesInvalidas) return substituicoesInvalidas
+
+  return validarSaquesIniciais(payload.ocorrencias, {
+    teamA: String(equipeA?.nome ?? ''),
+    teamB: String(equipeB?.nome ?? ''),
   })
 }
 
@@ -384,17 +391,19 @@ function readBoolean(source: any, keys: string[], fallback: boolean) {
 }
 
 function makeDemoPartida(token: string) {
-  const jogadoresA = Array.from({ length: 8 }, (_, index) => ({
+  const jogadoresA = Array.from({ length: 11 }, (_, index) => ({
     id: 100 + index + 1,
     nome: `Jogador ${index + 1} - Set Point`,
     numero: index + 1,
+    posicao: index === 7 ? 'LB' : null,
     fotoRostoUrl: null,
     qrToken: `demo-setpoint-${index + 1}`,
   }))
-  const jogadoresB = Array.from({ length: 8 }, (_, index) => ({
+  const jogadoresB = Array.from({ length: 11 }, (_, index) => ({
     id: 200 + index + 1,
     nome: `Jogador ${index + 1} - Libero FC`,
     numero: index + 1,
+    posicao: index === 7 ? 'LB' : null,
     fotoRostoUrl: null,
     qrToken: `demo-libero-${index + 1}`,
   }))

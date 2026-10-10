@@ -5,9 +5,13 @@ import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, Trophy, UsersRound } from 'lucide-react'
 import { CampeonatoActions } from '@/components/campeonatos/CampeonatoActions'
+import { CampeonatoMataMata } from '@/components/campeonatos/CampeonatoMataMata'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import type { BracketRoundView, BracketSlot, TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
+import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podium'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { getMataMataBracket } from '@/lib/mata-mata'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
@@ -69,7 +73,10 @@ export default async function CampeonatoPage({ params }: PageProps) {
     )
   }
 
-  const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }] = await Promise.all([
+  const finalizado = isCampeonatoFinalizado(liga.status)
+  const faseChave = await faseDaChave(liga.id, liga.faseEliminatoria)
+  const chaveVazia = { rounds: [] as BracketRoundView[], champion: null as TeamOption | null, thirdPlace: null as BracketSlot | null }
+  const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }, bracket, podium] = await Promise.all([
     supabase.from('InscricaoCampeonato').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id).eq('status', 'APROVADA'),
     supabase.from('Partida').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id),
     supabase
@@ -78,10 +85,11 @@ export default async function CampeonatoPage({ params }: PageProps) {
       .eq('ligaId', liga.id)
       .eq('status', 'APROVADA')
       .order('criadaEm', { ascending: true }),
+    faseChave ? getMataMataBracket(liga.id, faseChave, false) : Promise.resolve(chaveVazia),
+    finalizado ? getChampionshipPodium(liga.id) : Promise.resolve([] as PodiumTeam[]),
   ])
   const vagasLimite = liga.quantidadeEquipes ?? null
   const vagasDisponiveis = vagasLimite ? Math.max(vagasLimite - (equipesCount ?? 0), 0) : null
-  const finalizado = isCampeonatoFinalizado(liga.status)
   const inscricoesAbertas = !finalizado && liga.inscricoesAbertas !== false && (vagasDisponiveis === null || vagasDisponiveis > 0)
 
   return (
@@ -91,7 +99,6 @@ export default async function CampeonatoPage({ params }: PageProps) {
           <div>
             <p className="luva-kicker flex flex-wrap items-center gap-2">
               <Trophy size={16} /> {formatLigaStatus(liga.status)}
-              {finalizado && <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-black text-white">Finalizado</span>}
             </p>
             {finalizado && (
               <p className="mt-4 max-w-2xl text-sm font-bold text-slate-100">Este campeonato está finalizado e disponível apenas para consulta.</p>
@@ -111,6 +118,15 @@ export default async function CampeonatoPage({ params }: PageProps) {
         <InfoCard icon={<UsersRound size={22} />} label="Equipes aprovadas" value={equipesCount ?? 0} atraso="80ms" />
         <InfoCard icon={<CalendarDays size={22} />} label="Jogos" value={jogosCount ?? 0} atraso="120ms" />
       </section>
+
+      <CampeonatoMataMata
+        ligaId={liga.id}
+        rounds={bracket.rounds}
+        champion={bracket.champion}
+        thirdPlace={bracket.thirdPlace}
+        podium={podium}
+        finalizado={finalizado}
+      />
 
       {Boolean(equipesConfirmadas?.length) && (
         <section className="mx-auto max-w-7xl px-4 pb-8">
@@ -193,6 +209,16 @@ export default async function CampeonatoPage({ params }: PageProps) {
       </section>
     </main>
   )
+}
+
+const FASES_DA_CHAVE = ['DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMIFINAL', 'FINAL']
+
+async function faseDaChave(ligaId: number, faseEliminatoria?: string | null) {
+  const configurada = String(faseEliminatoria ?? '').trim().toUpperCase()
+  if (configurada && configurada !== 'NENHUMA') return configurada
+  const { data } = await supabase.from('Partida').select('fase').eq('ligaId', ligaId).in('fase', FASES_DA_CHAVE)
+  const presentes = new Set((data ?? []).map((partida) => String(partida.fase ?? '')))
+  return FASES_DA_CHAVE.find((fase) => presentes.has(fase)) ?? null
 }
 
 function InfoCard({ icon, label, value, atraso = '0ms' }: { icon: React.ReactNode; label: string; value: React.ReactNode; atraso?: string }) {

@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, CalendarDays, Medal, ShieldCheck, Trophy, UsersRound } from 'lucide-react'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import { formatLigaFormato } from '@/lib/format-liga'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
@@ -164,7 +165,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
                   </span>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate font-black text-white">{jogador.nome}</p>
+                  <p className="break-words font-black text-white">{jogador.nome}</p>
                   <p className="mt-1 text-xs font-bold uppercase tracking-[0.1em] text-slate-300">
                     #{jogador.numero ?? '--'} · {jogador.posicao || 'Atleta'}
                   </p>
@@ -216,7 +217,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
                 <Link key={item.id} href={liga?.slug ? `/campeonatos/${liga.slug}` : '/campeonatos'} className={`grid gap-2 bg-white/[0.03] px-4 py-4 hover:bg-white/[0.06] md:grid-cols-[1fr_auto_auto] md:items-center ${mi.linha}`}>
                   <div>
                     <p className="font-display text-lg font-black text-white">{liga?.nome ?? 'Campeonato'}</p>
-                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">{liga?.formato ?? 'Formato a definir'}</p>
+                    <p className="mt-1 text-xs font-bold tracking-[0.04em] text-slate-300">{formatLigaFormato(liga?.formato)}</p>
                   </div>
                   <span className="text-sm font-black text-slate-200">{item.status?.replace(/_/g, ' ')}</span>
                   <span className="inline-flex items-center gap-2 text-sm font-black text-luva-amber">Ver campeonato <ArrowLeft className="rotate-180" size={15} /></span>

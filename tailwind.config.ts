@@ -41,6 +41,15 @@ const config: Config = {
         sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         display: ['var(--font-display)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
+      transitionDuration: {
+        'vs-press': 'var(--vs-motion-press)',
+        'vs-tap': 'var(--vs-motion-tap)',
+        'vs-burst': 'var(--vs-motion-burst)',
+      },
+      transitionTimingFunction: {
+        'vs-out': 'var(--vs-motion-ease-out)',
+        'vs-snap': 'var(--vs-motion-ease-snap)',
+      },
     },
   },
   plugins: [],

@@ -44,10 +44,14 @@ export function PainelClassificacao({ ligaId }: { ligaId: number }) {
   if (erro) return <p className="text-sm font-bold text-red-200">{erro}</p>
   if (!linhas) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
   if (linhas.length === 0) return <p className="text-sm font-semibold text-slate-300">Nenhuma equipe inscrita neste campeonato</p>
+  const semJogos = linhas.every((linha) => (linha.jogos ?? 0) === 0)
 
   return (
     <div>
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffb331]">Classificação</p>
+      {semJogos && (
+        <p className="mt-2 text-sm font-semibold text-slate-300">Ainda não há jogos. A tabela começa zerada com as equipes.</p>
+      )}
       <ol className="mt-3 grid gap-2">
         {linhas.map((linha, index) => (
           <li key={`${linha.posicao}-${linha.equipe}`} className={`rounded-2xl bg-white/5 px-4 py-3 text-sm font-black text-white ${mi.linha} ${mi.entrar} ${linha.posicao === 1 ? mi.lider : ''}`} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
