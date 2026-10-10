@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | senha idempotente na importação Winners
+
+- pages_updated=`hot`, `log`
+- `scripts/import-winners.mjs` só grava senha ao criar o organizador. Conta já `ATIVA` entra com `ORGANIZADOR_SENHA` e não chama `POST /api/admin/organizadores`. `--reset-senha` força a troca. O teste usa chamadas falsas. O script não foi executado contra produção nem banco real.
+
 ## [2026-10-10] decisao | par de substituição fecha na volta
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `03-REGRAS-DE-NEGOCIO`, `11-DECISOES`, `references/SUMULA-DIGITAL-E-CLASSIFICACAO`, `hot`, `log`
