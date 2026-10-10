@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | nascimento e documento do atleta opcionais
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O default da liga e da categoria nasce opcional. Link da vaga, rascunho, inscrição rápida e capitão não exigem data de nascimento nem documento. `20261010135000_nascimento_documento_atleta_opcional.sql` não foi aplicada.
+
 ## [2026-10-10] fix | foto do atleta opcional na inscrição
 
 - pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`

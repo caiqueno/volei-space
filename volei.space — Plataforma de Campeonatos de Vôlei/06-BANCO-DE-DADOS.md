@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  supabase/migrations é a fonte da verdade. 20261010130000 torna a foto do atleta opcional na conclusão e ainda não foi aplicada.
+  supabase/migrations é a fonte da verdade. 20261010135000 torna nascimento e documento opcionais na conclusão e ainda não foi aplicada.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -50,6 +50,8 @@ As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produç
 `202610100002_fechar_leitura_publica_placar.sql` ainda não foi aplicada. Quando for, `SetPartida` e `ClassificacaoEntrada` passam a ter RLS sem policy para `anon` ou `authenticated`, e o `GRANT` de tabela inteira dessas duas some. `Partida` permanece como está. A mesma migration recria `finalizar_inscricao_equipe_rascunho` para gravar `APROVADA` só se `inscricaoAprovacaoAutomatica` for verdadeiro. O bloco de default privileges de `supabase_admin` pode terminar só com um aviso de privilégio insuficiente; isso não desfaz o revoke de `postgres` nem o das duas tabelas. Não rode `db push` da pasta inteira para aplicá-la.
 
 `20261010130000_foto_atleta_opcional.sql` também não foi aplicada. Ela só faz `CREATE OR REPLACE` de `finalizar_inscricao_equipe_rascunho` e de `validar_jogador_formulario_categoria`: a foto ausente deixa de recusar a conclusão, e `Jogador.fotoUrl` continua sendo copiada quando o campo não está `disabled`. O corpo da finalização é o de `202610100002`, então esta entra depois daquela e antes de `20261010140000`. Não apaga linha e não concede a `anon` nem a `authenticated`.
+
+`20261010135000_nascimento_documento_atleta_opcional.sql` também não foi aplicada. Ela repete o `CREATE OR REPLACE` das duas funções a partir de `20261010130000` e tira a recusa de nascimento e de documento. `Jogador.dataNascimento`, `documentoTipo` e `documentoNumero` continuam copiados quando o campo não está `disabled`. Entra depois de `20261010130000` e antes de `20261010140000`. Não apaga linha e não concede a `anon` nem a `authenticated`.
 
 A leitura do Realtime está em migration versionada. A policy de linha é `public_read_classificacao`, `public_read_sets` e `public_read_partidas` em `202609200020_producao-elenco-sumula-rls.sql`, e `luv_public_select_classificacao`, `luv_public_select_set_partida` e `luv_public_select_partida` em `202609200021_rls-producao-permissoes-campeonatos.sql`. Policy é filtro de linha. A coluna fica de fora no `GRANT` de `202610060004_fechar_acesso_anonimo.sql`: `ClassificacaoEntrada` e `SetPartida` inteiras, e `Partida` só com id, liga, equipes, categoria, rodada, status, data, local, sets, pontos e vencedor. `sumulaToken` e `sumulaTokenExpira` não entram. A publicação em `202610060003_classificacao_ao_vivo.sql` repete essa lista de colunas da `Partida`.
 

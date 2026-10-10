@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A foto do atleta é opcional na inscrição. 20261010130000 ainda não foi aplicada. A vitrine e o RLS de 20261010140000 seguem pendentes de banco.
+  Nascimento e documento do atleta são opcionais na inscrição. 20261010135000 ainda não foi aplicada. Foto e RLS seguem pendentes de banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a data de nascimento e o documento do atleta (CPF, RG e os outros tipos) deixaram de ser obrigatórios no cadastro. O default de `formularioInscricaoConfig` nasce `optional`. O link da vaga, o rascunho, a inscrição rápida e o capitão aceitam salvar e concluir sem esses dados e gravam o valor quando ele é enviado. Configuração antiga com `required` não bloqueia mais a inscrição; o campo some só se estiver `disabled`. A chave `rg` continua `disabled` porque não tem coluna. `20261010135000_nascimento_documento_atleta_opcional.sql` recria `finalizar_inscricao_equipe_rascunho` e `validar_jogador_formulario_categoria` sem essa recusa e não foi aplicada. Ela entra depois de `20261010130000` e antes de `20261010140000`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a foto do atleta deixou de bloquear a inscrição. O link da vaga, o rascunho, a inscrição rápida e o capitão mostram o campo como opcional e aceitam salvar e concluir sem imagem. O upload segue gravando `fotoUrl` ou `fotoRostoUrl` quando a foto é enviada. O campo continua oculto só se a configuração estiver `disabled`. A função instalada ainda pode recusar a conclusão; `20261010130000_foto_atleta_opcional.sql` tira essa recusa de `finalizar_inscricao_equipe_rascunho` e de `validar_jogador_formulario_categoria` e não foi aplicada. Ela deve entrar depois de `202610100002`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 

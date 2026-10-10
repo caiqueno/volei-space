@@ -142,16 +142,20 @@ export const formularioInscricaoConfigSchema = z.object({
 // (ver mapeamento em src/app/api/inscricao-rapida/route.ts). Requisitos por
 // campo (obrigatório/opcional/desabilitado) vêm de Liga.formularioInscricaoConfig
 // e são checados em runtime na rota, não aqui — este schema só valida forma.
-// A foto do atleta não entra nessa exigência: ausência, null e string vazia passam.
+// Foto, data de nascimento e documento do atleta não entram nessa exigência:
+// ausência, null e string vazia passam. Data preenchida continua no formato AAAA-MM-DD.
+const dataNascimentoOpcional = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida').optional().nullable().or(z.literal(''))
+const documentoOpcional = z.string().trim().max(80).optional().nullable().or(z.literal(''))
+
 export const inscricaoRapidaJogadorSchema = z.object({
   nome: z.string().trim().min(1),
   numero: z.number().int().min(0).max(999).optional(),
   posicao: z.string().trim().optional(),
   fotoUrl: urlDeFotoOpcional,
   cpf: z.string().trim().optional(),
-  dataNascimento: z.string().optional(),
-  documentoTipo: z.string().trim().optional(),
-  documentoNumero: z.string().trim().optional(),
+  dataNascimento: dataNascimentoOpcional,
+  documentoTipo: documentoOpcional,
+  documentoNumero: documentoOpcional,
 })
 
 export const inscricaoRapidaSchema = z.object({
@@ -505,10 +509,10 @@ export const candidaturaQuadraSchema = z.object({
 
 export const playerInscricaoSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
-  dataNascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
-  documentoTipo: z.string().min(2, 'Tipo de documento obrigatório').max(40).optional(),
-  documentoNumero: z.string().max(80).optional(),
-  cpf: z.string().optional(),
+  dataNascimento: dataNascimentoOpcional,
+  documentoTipo: documentoOpcional,
+  documentoNumero: documentoOpcional,
+  cpf: z.string().optional().nullable().or(z.literal('')),
   email: z.string().email('E-mail inválido'),
   celular: z.string().min(10, 'Celular inválido'),
   telefoneEmergencia: z.string().min(10, 'Telefone de emergência inválido'),
@@ -516,13 +520,4 @@ export const playerInscricaoSchema = z.object({
   documentosUrls: z.array(z.string().url()).optional(),
   posicao: z.enum(posicoesJogador).optional(),
   numero: z.number().int().optional(),
-}).superRefine((data, ctx) => {
-  const documento = data.documentoNumero?.trim() || data.cpf?.trim()
-  if (!documento) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Documento obrigatório',
-      path: ['documentoNumero'],
-    })
-  }
 })
