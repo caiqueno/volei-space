@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Corrigir um ponto do set em andamento não copia o placar do set anterior. Escolher o MVP grava o destaque oficial pela camisa da súmula. Com vencedor, Encerrar partida e Oficializar súmula ficam na tela. O saque alterna até o penúltimo set da fase e o último sai de sorteio. Sem migration.
+  O seletor de líbero mostra a camisa da súmula, a mesma do banco. O valor interno continua o número do cadastro. Corrigir um ponto do set em andamento não copia o placar do set anterior. Escolher o MVP grava o destaque oficial pela camisa da súmula. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Seletor de líbero — implementado:** «Selecionar líbero» lista quem está fora da escalação, como o banco. O banco mostra `SumulaPresenca.numero`. O seletor mostrava `Jogador.numero`. Na ALL BLACK, Daniel está no banco como #1 e no cadastro como 13; a escalação já usa o cadastro 1 de outro atleta, então o #1 do banco não aparecia na lista. O rótulo passa a ser a camisa da súmula. O valor gravado continua o número do cadastro, para a troca e o recarregamento acharem o mesmo atleta. Ninguém no Winners Oficial tem `posicao` LB, e `quantidadeLiberos` não existe nessa base: a lista não estava cortada por essas regras. Não há migration.
 
 **MVP na oficialização — implementado:** escolher o atleta no campo «MVP da equipe vencedora» grava `DestaquesPartida` com `tipo` MVP, o mesmo registro do `POST` que oficializa. A escolha entra no salvamento do andamento e não envia a súmula sozinha. Uma anotação no formato da partida 1036, `[Observação] TARGET - #10 …: MVP`, também vira esse destaque: o `#10` é `SumulaPresenca.numero`, não `Jogador.numero`. Naquela partida o cadastro 9 jogou de 10 e o cadastro 10 jogou de 13; a ata citava o 10 da súmula e o destaque ficou vazio, então a partida seguiu `EM_ANDAMENTO` com os sets já fechados em 2×1. Com vencedor, a tela mostra «Encerrar partida» e, depois do fim, «Oficializar súmula». Sem o MVP, oficializar continua pedindo a escolha. Não há migration nem alteração de banco.
 
@@ -28,7 +30,7 @@ updated: 2026-10-10
 
 **Regras da categoria — implementado no código:** lançamento, andamento, validação e o placar recalculado leem `CategoriaConfiguracao` da partida (`setsPorPartida`, pontos, tie-break, `terceiroSetObrigatorio`, formato e a quantidade da fase). A `Liga` não entra nessa leitura quando a partida tem categoria. `terceiroSetObrigatorio` não é coluna da `Liga`; sem categoria, ele fica desligado e o tie-break usa o valor da `Liga` (o default dela é desligado; o da categoria é ligado). A tela `/sumula/{token}/lancar` usa a mesma função. Com terceiro set obrigatório ou quantidade fixa, ela não encerra em 2×0. Resultado manual e aprovação seguem o mesmo carregamento.
 
-**Líbero — implementado no código, migration pendente:** a escalação continua pedindo um líbero inicial enquanto `exigirLiberoInicial` não está false. A troca de líbero não conta no limite de substituições e não cria par, com ou sem a opção. `quantidadeLiberos` 1 ou 2 corta a lista de quem pode ser o líbero inicial; vazio, ausente ou fora disso não corta. Sem as colunas, a leitura não pede esses campos no pedido seguinte e a conferência da escalação permanece a de hoje. `20261010139990_libero_sumula.sql` não foi aplicada.
+**Líbero — implementado no código, migration pendente:** a escalação continua pedindo um líbero inicial enquanto `exigirLiberoInicial` não está false. A troca de líbero não conta no limite de substituições e não cria par, com ou sem a opção. `quantidadeLiberos` 1 ou 2 corta a lista de quem pode ser o líbero inicial; vazio, ausente ou fora disso não corta. Sem as colunas, a leitura não pede esses campos no pedido seguinte e a conferência da escalação permanece a de hoje. `20261010139990_libero_sumula.sql` não foi aplicada. O seletor mostra a camisa da súmula e grava o número do cadastro.
 
 **Tempo médico e lesão — implementado no código, migration pendente:** `tempoMedico` true mostra o botão de tempo médico, que não entra na conta dos tempos. `substituicaoPorLesao` true permite marcar a entrada como lesão: ela não conta no limite e não cria par. Com as opções desligadas, ausentes ou sem a coluna, não há botão novo, o teto de tempos permanece e o par fecha na volta. Uma ocorrência `lesao` enviada sem a opção conta como substituição comum, para não furar o limite. `20261010139980_lesao_sumula.sql` não foi aplicada.
 

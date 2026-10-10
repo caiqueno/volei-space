@@ -3,6 +3,15 @@
  * e a troca não conta como substituição. Só `false` tira a exigência.
  * Quantidade 1 ou 2 limita a lista. Qualquer outro valor não limita.
  */
+/** A escalação guarda o número do cadastro. A lista mostra a camisa da súmula. */
+export function entraNoSeletorDeLibero(numeroCadastro: string, escalacao: readonly string[]) {
+  return !escalacao.includes(String(numeroCadastro))
+}
+
+export function rotuloSeletorLibero(nome: string, camisaDaSumula: string) {
+  return `#${camisaDaSumula} - ${nome}`
+}
+
 export function quantidadeDeLiberos(valor: unknown): 1 | 2 | null {
   const numero = Number(valor)
   if (numero !== 1 && numero !== 2) return null

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Corrigir um ponto do set em andamento não copia o placar do set anterior. O MVP escolhido na súmula grava o destaque oficial pela camisa da partida. Encerrar e oficializar aparecem quando já há vencedor. Sem migration.
+  O seletor de líbero usa a camisa da súmula, igual ao banco. Corrigir um ponto do set em andamento não copia o placar do set anterior. O MVP escolhido na súmula grava o destaque oficial pela camisa da partida. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o seletor «Selecionar líbero» não mostrava a camisa que está no banco. O banco usa `SumulaPresenca.numero` e o seletor usava `Jogador.numero`. Na ALL BLACK o banco tem Daniel como #1, cadastro 13, e o cadastro 1 já está em quadra. A lista passa a mostrar a camisa da súmula. O valor salvo continua o do cadastro. `posicao` está vazia em todo o Winners Oficial e `quantidadeLiberos` não está nessa base. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a partida 1036 fechou 2×1 e continuou `EM_ANDAMENTO`. Na aba Anotações o operador registrou TARGET, camisa 10 e o texto MVP. Isso ficou só na ata. `DestaquesPartida` continuou vazio e a oficialização, que lê esse destaque, não concluiu. A camisa 10 da súmula era o cadastro 9; o cadastro 10 jogou de 13. A escolha do MVP agora grava o mesmo destaque da oficialização, pelo número da súmula. Se a partida já tem vencedor, a tela mostra Encerrar partida e, em seguida, Oficializar súmula. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

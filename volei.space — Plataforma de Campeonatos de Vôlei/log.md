@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | seletor de líbero usa a camisa da súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`
+- O banco mostrava a camisa da partida e «Selecionar líbero» mostrava o número do cadastro. Na ALL BLACK o #1 do banco não aparecia na lista. O rótulo passa a ser a camisa da súmula. Nenhuma migration.
+
 ## [2026-10-10] fix | MVP da anotação oficializa pela camisa da súmula
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`

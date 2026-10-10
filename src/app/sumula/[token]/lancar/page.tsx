@@ -20,7 +20,7 @@ import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limit
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
 import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
-import { quantidadeDeLiberos } from '@/lib/libero-sumula'
+import { quantidadeDeLiberos, rotuloSeletorLibero } from '@/lib/libero-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -2826,12 +2826,12 @@ function EscalacaoTab(props: {
           <div className="official-libero-start">
             <div>
               <span>Líbero inicial</span>
-              <strong>{selectedLibero ? `#${selectedLibero} ${displayPlayerName(getAnyPlayer(team, selectedLibero)?.name ?? 'Atleta', team.name)}` : 'Defina antes de confirmar'}</strong>
+              <strong>{selectedLibero ? `#${props.getMatchNumber(selectedTeamId, selectedLibero)} ${displayPlayerName(getAnyPlayer(team, selectedLibero)?.name ?? 'Atleta', team.name)}` : 'Defina antes de confirmar'}</strong>
             </div>
             <select value={selectedLibero} onChange={(event) => props.setStartingLibero(selectedTeamId, event.target.value)}>
               <option value="">Selecionar líbero</option>
               {liberoOptions.map((player) => (
-                <option key={player.number} value={player.number}>#{player.number} - {displayPlayerName(player.name, team.name)}</option>
+                <option key={player.id} value={player.number}>{rotuloSeletorLibero(displayPlayerName(player.name, team.name), props.getMatchNumber(selectedTeamId, player.number))}</option>
               ))}
             </select>
           </div>
