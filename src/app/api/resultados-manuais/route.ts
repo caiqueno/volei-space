@@ -6,6 +6,8 @@ import { validateCategoryResult } from '@/lib/category-match-rules'
 import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
+import { sincronizarVagas } from '@/lib/preencher-vagas'
 
 type ManualSetInput = {
   numero: number
@@ -84,6 +86,7 @@ export async function PATCH(req: NextRequest) {
       .single()
 
     if (partidaErr || !partida) return error('Partida não encontrada.', 404)
+    if (!timesDefinidos(partida)) return error(MENSAGEM_SUMULA_SEM_TIMES, 422)
     const liga = Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
     if (liga?.organizadorId !== auth.userId) {
       return error('Você não pode lançar resultado nesta partida.', 403)
@@ -139,6 +142,11 @@ export async function PATCH(req: NextRequest) {
     if (updateErr) throw updateErr
     await recalculateLeagueClassification(partida.ligaId)
     await syncLeagueLifecycle(partida.ligaId)
+    try {
+      await sincronizarVagas(Number(partida.ligaId), partida.categoriaCampeonatoId ?? null)
+    } catch (err) {
+      console.error('[vaga] resultado manual gravado; vagas não preenchidas', err)
+    }
 
     return success(updated)
   } catch (err) {

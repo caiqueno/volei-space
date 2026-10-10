@@ -13,7 +13,8 @@ import { LinksCategoria } from './LinksCategoria'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import type { TabelaCategoria } from '@/lib/operacao-categoria'
 import { ordenarJogos } from '@/lib/data-hora'
-import { formatarDataPartida } from '@/lib/format-partida'
+import { formatarDataPartida, formatFaseMataMata } from '@/lib/format-partida'
+import { textoDoLado } from '@/lib/vaga-a-definir'
 import { manterPaginaAberta } from '@/lib/pagina-aberta'
 import { rotuloArbitroResponsavel } from '@/lib/arbitro-responsavel'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
@@ -219,6 +220,7 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
 type PartidaOrganizacao = {
   id: number
   ligaId: number
+  fase?: string | null
   rodada?: number | null
   status?: string | null
   dataHora?: string | null
@@ -227,8 +229,8 @@ type PartidaOrganizacao = {
   pontosPorA?: number | null
   pontosPorB?: number | null
   sumulaToken?: string | null
-  equipeA?: { nome?: string | null } | null
-  equipeB?: { nome?: string | null } | null
+  equipeA?: { nome?: string | null; vaga?: boolean } | null
+  equipeB?: { nome?: string | null; vaga?: boolean } | null
   liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
   escala?: Array<{ arbitroId?: number | null; cargo?: string | null; arbitro?: { nome?: string | null; email?: string | null } | null }>
   acesso?: { ultimoAcessoEm?: string | null } | Array<{ ultimoAcessoEm?: string | null }> | null
@@ -377,6 +379,9 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                 {ordenarJogos(grupo.partidas).map((partida) => {
                   const status = String(partida.status || 'AGENDADA').toUpperCase()
                   const quando = formatarDataPartida(partida.dataHora) ?? 'A definir'
+                  const fase = formatFaseMataMata(partida.fase)
+                  const semTimes = Boolean(partida.equipeA?.vaga || partida.equipeB?.vaga)
+                  const nomeJogo = `${textoDoLado(partida.equipeA, 'Equipe A')} × ${textoDoLado(partida.equipeB, 'Equipe B')}`
                   const emJogo = status === 'EM_ANDAMENTO'
                   const nomeArbitro = rotuloArbitroResponsavel([
                     partida.escala?.find((item) => item.cargo === 'PRIMEIRO_ARBITRO')?.arbitro?.nome,
@@ -384,8 +389,12 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                   ], arbitroDoLink(partida))
                   return (
                     <tr key={partida.id} className="border-t border-white/10">
-                      <td data-label="Rodada" className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
-                      <td data-label="Jogo" className="px-3 py-3 font-black"><NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" /> × <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" /></td>
+                      <td data-label="Rodada" className="px-3 py-3 font-bold">{fase ?? (partida.rodada || '—')}</td>
+                      <td data-label="Jogo" className="px-3 py-3 font-black">
+                        {partida.equipeA?.vaga ? <span>{partida.equipeA.nome}</span> : <NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" />}
+                        {' × '}
+                        {partida.equipeB?.vaga ? <span>{partida.equipeB.nome}</span> : <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" />}
+                      </td>
                       <td data-label="Horário" className="px-3 py-3">{quando}</td>
                       <td data-label="Status" className="px-3 py-3">{STATUS_JOGO[status] ?? status}</td>
                       <td data-label="Placar" className="px-3 py-3 font-bold">
@@ -395,8 +404,14 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                       <td data-label="Árbitro" className="px-3 py-3">{nomeArbitro}</td>
                       <td data-label="Súmula" className="px-3 py-3">
                         <div className="flex flex-col items-start gap-1">
-                          <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}/lancar`}>Lançar súmula</a>
-                          <a className="font-bold text-white/80" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
+                          {semTimes ? (
+                            <span className="text-xs font-bold text-white/70">A súmula não pode iniciar enquanto os times não estiverem definidos.</span>
+                          ) : (
+                            <>
+                              <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}/lancar`}>Lançar súmula</a>
+                              <a className="font-bold text-white/80" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
+                            </>
+                          )}
                           <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Link público</a>
                           <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Resumo da partida</a>
                         </div>
@@ -404,7 +419,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                       <td data-label="Link do juiz" className="px-3 py-3">
                         <AcessoArbitroJogo
                           partidaId={partida.id}
-                          jogo={`${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`}
+                          jogo={semTimes ? nomeJogo : `${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`}
                           onDisponivel={(link) => { linksDoJuiz.current.set(partida.id, link) }}
                         />
                       </td>
@@ -440,7 +455,9 @@ async function copiarRodada(
   const linhas = partidas.flatMap((partida) => {
     const link = links.get(partida.id)
     if (!link?.url) return []
-    const jogo = `${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`
+    const jogo = partida.equipeA?.vaga || partida.equipeB?.vaga
+      ? `${textoDoLado(partida.equipeA, 'Equipe A')} × ${textoDoLado(partida.equipeB, 'Equipe B')}`
+      : `${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`
     return [`${jogo}\n${link.url}${link.codigo ? `\nCódigo: ${link.codigo}` : ''}`]
   })
   if (linhas.length === 0) {

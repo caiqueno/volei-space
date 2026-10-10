@@ -7,7 +7,9 @@ import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/Leag
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
 import { GeradorChave } from '@/components/mata-mata/GeradorChave'
+import { AgendarVagas } from '@/components/mata-mata/AgendarVagas'
 import { getMataMataBracket } from '@/lib/mata-mata'
+import { colunasDeVagaAtivas } from '@/lib/consulta-vaga'
 import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
 import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
 import { escolherCategoria } from '@/lib/isolamento-categoria'
@@ -37,6 +39,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
   let thirdPlace: BracketSlot | null = null
   let categoriasPublicas: { id: string; nome: string }[] = []
   let categoriaId: string | null = null
+  let vagasDisponiveis = false
 
   if (isSupabaseConfigured && scope.selectedLiga) {
     const lista = await listarCategoriasDoCampeonato(scope.selectedLiga.id)
@@ -46,6 +49,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
     rounds = bracket.rounds
     champion = bracket.champion
     thirdPlace = bracket.thirdPlace
+    vagasDisponiveis = organizerMode && Boolean(categoriaId) && await colunasDeVagaAtivas()
   }
 
   return (
@@ -83,6 +87,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
         ) : (
           <>
             {organizerMode ? <GeradorChave ligaId={scope.selectedLiga.id} categoriaId={categoriaId} /> : null}
+            {vagasDisponiveis && categoriaId ? <AgendarVagas ligaId={scope.selectedLiga.id} categoriaId={categoriaId} /> : null}
             <ChaveamentoMataMata ligaId={scope.selectedLiga.id} rounds={rounds} champion={champion} thirdPlace={thirdPlace} organizerMode={organizerMode} categoriaCampeonatoId={categoriaId} />
           </>
         )}

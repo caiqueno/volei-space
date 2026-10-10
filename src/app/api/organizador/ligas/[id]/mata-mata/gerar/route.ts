@@ -5,6 +5,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { getBracketRounds } from '@/lib/mata-mata'
 import { montarConfrontosAutomaticos, ranquearGrupo } from '@/lib/chave-grupos'
+import { gruposEncerradosNaCategoria } from '@/lib/operacao-categoria'
 import { faseContaNaClassificacao, type PartidaClassificacao } from '@/lib/classificacao'
 import { gerarSumulaToken } from '@/lib/sumula-token'
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const { data: config } = categoriaInformada
       ? await supabase
         .from('CategoriaConfiguracao')
-        .select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo')
+        .select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato')
         .eq('ligaId', ligaId)
         .eq('categoriaCampeonatoId', categoriaInformada)
         .maybeSingle()
@@ -93,8 +94,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const existentes = (partidas ?? [])
       .filter((partida) => !faseContaNaClassificacao(partida.fase))
       .map((partida) => ({ fase: String(partida.fase), rodada: Number(partida.rodada) }))
+    const gruposEncerrados = gruposEncerradosNaCategoria(partidas ?? [], categoriaInformada, config?.formato, Boolean(categoriaInformada))
     const sugestoes = montarConfrontosAutomaticos({
-      grupos: gruposRanqueados,
+      grupos: gruposEncerrados ? gruposRanqueados : [],
       faseInicial: rounds[0].fase,
       rounds,
       disputaTerceiro,

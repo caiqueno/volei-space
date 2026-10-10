@@ -10,7 +10,7 @@ import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import mi from '@/styles/microinteracoes.module.css'
 
-export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null }
+export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null; vaga?: boolean }
 
 type SetScore = { numero: number; pontosA: number; pontosB: number }
 
@@ -175,16 +175,20 @@ function SlotCard({
           <span className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
           <Badge variant={badge.variant}>{badge.label}</Badge>
         </div>
-        <TeamRow team={partida.equipeA} score={partida.setsPorA} isWinner={winnerId === partida.equipeA.id} />
-        <TeamRow team={partida.equipeB} score={partida.setsPorB} isWinner={winnerId === partida.equipeB.id} />
+        <TeamRow team={partida.equipeA} score={partida.setsPorA} isWinner={winnerId === partida.equipeA.id && !partida.equipeA.vaga} />
+        <TeamRow team={partida.equipeB} score={partida.setsPorB} isWinner={winnerId === partida.equipeB.id && !partida.equipeB.vaga} />
         {partida.sets.length > 0 && (
           <p className={`mt-2 border-t border-slate-100 pt-2 text-[11px] font-bold text-slate-400 ${mi.numero}`}>
             {partida.sets.map((s) => `${s.pontosA}-${s.pontosB}`).join(' · ')}
           </p>
         )}
-        <a href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
-          Abrir súmula <ExternalLink size={12} />
-        </a>
+        {partida.equipeA.vaga || partida.equipeB.vaga ? (
+          <p className="mt-3 text-center text-[11px] font-bold leading-4 text-slate-500">A súmula não pode iniciar enquanto os times não estiverem definidos.</p>
+        ) : (
+          <a href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
+            Abrir súmula <ExternalLink size={12} />
+          </a>
+        )}
         <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
           <Radio size={12} /> Link público
         </a>
@@ -208,6 +212,13 @@ function SlotCard({
 }
 
 function TeamRow({ team, score, isWinner }: { team: TeamOption; score: number | null; isWinner: boolean }) {
+  if (team.vaga) {
+    return (
+      <div className="py-1.5">
+        <p className="text-sm font-black leading-5 text-slate-900">{team.nome}</p>
+      </div>
+    )
+  }
   return (
     <div className={`flex items-center justify-between gap-2 py-1.5 ${isWinner ? mi.lider : 'opacity-70'}`}>
       <TeamIdentity nome={team.nome} cor={team.corHex} logoUrl={team.logoUrl} compact />

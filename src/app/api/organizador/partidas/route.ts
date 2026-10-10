@@ -3,6 +3,8 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
+import { consultarComVaga } from '@/lib/consulta-vaga'
+import { ladoExposto } from '@/lib/vaga-a-definir'
 
 export async function GET(req: NextRequest) {
   const auth = await requirePublicRole(req, ['organizador'], { releasedOnly: true })
@@ -31,20 +33,23 @@ export async function GET(req: NextRequest) {
   const statusPermitido = ['EM_ANDAMENTO', 'AGENDADA', 'PENDENTE', 'ENCERRADA', 'WO', 'CANCELADA']
   if (status && !statusPermitido.includes(status)) return error('Status inválido.', 422)
 
-  let consulta = supabase
-    .from('Partida')
-    .select('id,ligaId,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaToken,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email)),acesso:AcessoArbitroJogo!AcessoArbitroJogo_partidaId_fkey(ultimoAcessoEm,ativo,revogadoEm)')
-    .eq('ligaId', ligaId)
-  if (categoria.id) consulta = consulta.eq('categoriaCampeonatoId', categoria.id)
-  if (status) consulta = consulta.eq('status', status)
-
-  const { data, error: partidasErr } = await consulta
-    .order('dataHora', { ascending: true, nullsFirst: false })
-    .order('rodada', { ascending: true })
-    .order('id', { ascending: true })
-    .range(offset, offset + limite)
+  const selectPartidas = 'id,ligaId,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaToken,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex),liga:Liga!Partida_ligaId_fkey(id,nome,simulacao),escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email)),acesso:AcessoArbitroJogo!AcessoArbitroJogo_partidaId_fkey(ultimoAcessoEm,ativo,revogadoEm)'
+  const { data, error: partidasErr } = await consultarComVaga(selectPartidas, (colunas) => {
+    let consulta = supabase.from('Partida').select(colunas).eq('ligaId', ligaId)
+    if (categoria.id) consulta = consulta.eq('categoriaCampeonatoId', categoria.id)
+    if (status) consulta = consulta.eq('status', status)
+    return consulta
+      .order('dataHora', { ascending: true, nullsFirst: false })
+      .order('rodada', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + limite)
+  })
 
   if (partidasErr) return error('Erro ao carregar partidas', 500, partidasErr.message)
-  const linhas = data ?? []
+  const linhas = (data ?? []).map((partida: any) => ({
+    ...partida,
+    equipeA: ladoExposto(partida.equipeA, partida.origemVagaA),
+    equipeB: ladoExposto(partida.equipeB, partida.origemVagaB),
+  }))
   return success({ partidas: linhas.slice(0, limite), temMais: linhas.length > limite })
 }

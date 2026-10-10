@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api-response'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
 
 const STATUS_BLOQUEADOS = new Set(['ENCERRADA', 'WO', 'CANCELADA'])
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   if (access instanceof Response) return access
 
   const status = String(access.partida.status || '').toUpperCase()
+  if (!timesDefinidos(access.partida)) return error(MENSAGEM_SUMULA_SEM_TIMES, 422)
   if (STATUS_BLOQUEADOS.has(status)) return error('Esta partida não pode ser iniciada.', 400)
   const bloqueio = await rejectIfCampeonatoFinalizado(Number(access.partida.ligaId))
   if (bloqueio) return bloqueio

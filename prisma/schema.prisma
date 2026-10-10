@@ -333,10 +333,12 @@ model Partida {
   id                    Int              @id @default(autoincrement())
   ligaId                Int
   liga                  Liga             @relation(fields: [ligaId], references: [id])
-  equipeAId             Int
-  equipeBId             Int
-  equipeA               Equipe           @relation("EquipeA", fields: [equipeAId], references: [id])
-  equipeB               Equipe           @relation("EquipeB", fields: [equipeBId], references: [id])
+  equipeAId             Int?
+  equipeBId             Int?
+  equipeA               Equipe?          @relation("EquipeA", fields: [equipeAId], references: [id])
+  equipeB               Equipe?          @relation("EquipeB", fields: [equipeBId], references: [id])
+  origemVagaA           String?
+  origemVagaB           String?
   categoria             String
   serie                 String?
   categoriaCampeonatoId String           @db.Uuid

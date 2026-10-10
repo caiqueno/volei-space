@@ -5,12 +5,14 @@ category: modulo
 tags: [partidas]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Listas de jogos sobem por data e hora, com desempate na rodada. O horário gravado em UTC sai com Z e aparece em America/Sao_Paulo. Nenhuma linha foi reescrita.
+  O mata-mata pode mostrar a vaga no lugar do time. Sem a migration 20261010142000, a lista pública segue só com os dois times.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Partidas e calendário
+
+**Vaga a definir — implementado no código, migration pendente:** um jogo de mata-mata pode ir para a agenda pública e para o painel com a origem no lugar do nome da equipe. Data e quadra continuam no mesmo card. O link do juiz é o de `AcessoArbitroJogo` daquela partida e não é recriado quando o time entra. Sem `origemVagaA` e `origemVagaB`, a leitura não pede essas colunas e um jogo sem os dois times continua fora da lista. Ver [[modulos/MATA-MATA]].
 
 **Jogo manual na fase de grupos — implementado:** `POST /api/partidas` e `PUT /api/partidas/[id]` recusam confronto entre equipes de grupos diferentes quando a fase é de grupos (`GRUPOS`, `GERAL` ou vazia) e a categoria já tem grupos. O jogo novo entre duas equipes do mesmo grupo grava `fase` `GRUPOS` e o `grupoId`. Mata-mata continua cruzando grupos pela rota da chave. O código do link do juiz continua só em hash; a tela mostra o código neste navegador depois de gerá-lo, copia, manda no WhatsApp e copia os links da rodada. Sair encerra a sessão e o cookie do acesso do juiz.
 

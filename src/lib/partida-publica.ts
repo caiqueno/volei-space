@@ -1,4 +1,5 @@
 import { dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
+import { rotuloValido } from '@/lib/vaga-a-definir'
 
 export const PARTIDA_PUBLICA_COLUNAS = [
   'id',
@@ -29,8 +30,8 @@ export type PartidaPublica = {
   localNome: string | null
   setsPorA: number | null
   setsPorB: number | null
-  equipeA: { id: number; nome: string; corHex: string | null; logoUrl?: string | null } | null
-  equipeB: { id: number; nome: string; corHex: string | null; logoUrl?: string | null } | null
+  equipeA: { id: number; nome: string; corHex: string | null; logoUrl?: string | null; vaga?: boolean } | null
+  equipeB: { id: number; nome: string; corHex: string | null; logoUrl?: string | null; vaga?: boolean } | null
   sets: Array<{ numero: number; pontosA: number; pontosB: number }>
   liga?: { id: number; nome: string; simulacao?: boolean | null } | null
 }
@@ -48,11 +49,18 @@ export function primeiroRelacao<T>(valor: T | T[] | null | undefined): T | null 
   return Array.isArray(valor) ? valor[0] ?? null : valor
 }
 
+function ladoPublico(equipe: { id?: number; nome?: string; corHex?: string | null; logoUrl?: string | null } | null, origem: unknown) {
+  if (equipe?.id) return { ...equipe, id: Number(equipe.id), nome: equipe.nome ?? 'Equipe', corHex: equipe.corHex ?? null, vaga: false }
+  const rotulo = rotuloValido(origem)
+  if (!rotulo) return null
+  return { id: 0, nome: rotulo, corHex: null, logoUrl: null, vaga: true }
+}
+
 export function normalizarPartidaPublica(partida: any): PartidaPublica | null {
-  const equipeA = primeiroRelacao(partida?.equipeA)
-  const equipeB = primeiroRelacao(partida?.equipeB)
+  const equipeA = ladoPublico(primeiroRelacao(partida?.equipeA), partida?.origemVagaA)
+  const equipeB = ladoPublico(primeiroRelacao(partida?.equipeB), partida?.origemVagaB)
   const id = Number(partida?.id)
-  if (!Number.isFinite(id) || !equipeA?.id || !equipeB?.id) return null
+  if (!Number.isFinite(id) || !equipeA || !equipeB) return null
   const liga = primeiroRelacao(partida?.liga)
   return {
     id,

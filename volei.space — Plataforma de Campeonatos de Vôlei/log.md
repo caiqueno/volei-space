@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | vaga a definir no mata-mata
+
+- pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O jogo do mata-mata pode nascer sem os dois times, com origem da vaga, data, horário e quadra. O link do juiz permanece na mesma partida. A súmula não inicia até os times entrarem. `20261010142000_vaga_a_definir.sql` não foi aplicada; sem as colunas a função fica desligada.
+
 ## [2026-10-10] fix | menu do painel não cobre a página
 
 - pages_updated=`09-UI-UX`, `hot`, `log`

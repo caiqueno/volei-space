@@ -6,7 +6,7 @@ import { agendaDaPartida } from '@/lib/format-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 
 type Set = { numero: number; pontosA: number; pontosB: number }
-type Equipe = { id: number; nome: string; corHex: string | null }
+type Equipe = { id: number; nome: string; corHex: string | null; vaga?: boolean }
 type Partida = {
   id: number
   rodada: number
@@ -123,6 +123,13 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
 }
 
 function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 'left' | 'right' }) {
+  if (equipe?.vaga) {
+    return (
+      <div className={`match-team min-w-0 ${align === 'right' ? 'is-away text-right' : ''}`}>
+        <p className="mt-3 min-h-[42px] text-sm font-black leading-[1.35] text-slate-950">{equipe.nome}</p>
+      </div>
+    )
+  }
   const nome = equipe?.nome || 'Equipe'
   return (
     <div className={`match-team min-w-0 ${align === 'right' ? 'is-away text-right' : ''}`}>

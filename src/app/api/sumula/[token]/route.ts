@@ -14,6 +14,8 @@ import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
 import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
+import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
+import { sincronizarVagas } from '@/lib/preencher-vagas'
 
 const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
 
@@ -56,6 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (access instanceof Response) return access
 
     const partida = access.partida
+    if (!timesDefinidos(partida)) return error(MENSAGEM_SUMULA_SEM_TIMES, 422)
     const publico = `/partidas/${partida.id}/ao-vivo`
     const agora = new Date()
     if (partida.sumulaAprovadaEm && !correcaoPeloLinkPermitida(partida.sumulaAprovadaEm, agora)) {
@@ -124,6 +127,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       },
     })
     await concluirPublicacao(partida.ligaId)
+    await preencherVagasDaPartida(partida)
 
     return success({ submetida: true, oficial: true, status: 'ENCERRADA', publico })
   } catch (err) {
@@ -143,6 +147,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     if (access instanceof Response) return access
 
     const partida = access.partida
+    if (!timesDefinidos(partida)) return error(MENSAGEM_SUMULA_SEM_TIMES, 422)
     if (partida.status === 'ENCERRADA') return error('Partida já encerrada', 400)
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
@@ -191,6 +196,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
   } catch (err) {
     console.error('[sumula] erro ao salvar andamento', err)
     return error('Erro ao salvar andamento da súmula', 500)
+  }
+}
+
+async function preencherVagasDaPartida(partida: { ligaId?: number | null; categoriaCampeonatoId?: string | null }) {
+  try {
+    await sincronizarVagas(Number(partida.ligaId), partida.categoriaCampeonatoId ?? null)
+  } catch (err) {
+    console.error('[vaga] resultado gravado; vagas não preenchidas', err)
   }
 }
 
