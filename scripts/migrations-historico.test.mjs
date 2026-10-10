@@ -87,6 +87,10 @@ assert.match(
   /add table public\."Partida"/,
 )
 
+const numeroPartida = fs.readFileSync(path.join(dir, '202610100001_sumula_presenca_presente_nulo.sql'), 'utf8')
+assert.match(numeroPartida, /alter column presente drop not null/i)
+assert.doesNotMatch(numeroPartida, /\b(delete|truncate|drop table)\b/i)
+
 assert.equal(fs.existsSync(path.join(process.cwd(), 'setup-db.mjs')), false)
 
 console.log(`migrations ok: ${files.length} arquivos versionados`)

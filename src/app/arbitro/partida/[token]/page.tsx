@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck, X } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { numeroNaPartida, presencaFoiDecidida, proximoAtletaNoElenco, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
 
 export default function OperacaoArbitroPage() {
   const { token } = useParams<{ token: string }>()
@@ -17,6 +18,13 @@ export default function OperacaoArbitroPage() {
   const [msg, setMsg] = useState('')
   const [validating, setValidating] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [editorNumero, setEditorNumero] = useState<number | null>(null)
+  const [rascunhoNumero, setRascunhoNumero] = useState('')
+  const [erroNumero, setErroNumero] = useState('')
+  const [salvandoNumeroId, setSalvandoNumeroId] = useState<number | null>(null)
+  const [numeroSalvoId, setNumeroSalvoId] = useState<number | null>(null)
+  const [avisoNumero, setAvisoNumero] = useState('')
+  const badgeRefs = useRef<Record<number, HTMLButtonElement | null>>({})
   const [scannerOpen, setScannerOpen] = useState(false)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [scanError, setScanError] = useState('')
@@ -56,10 +64,12 @@ export default function OperacaoArbitroPage() {
   const jogadoresA = partida?.equipeA?.jogadores ?? []
   const jogadoresB = partida?.equipeB?.jogadores ?? []
   const totalAtletas = jogadoresA.length + jogadoresB.length
-  const totalValidados = presencas.length
+  const presencasDecididas = presencas.filter((item: { presente?: boolean | null }) => presencaFoiDecidida(item))
+  const totalValidados = presencasDecididas.length
   const progresso = totalAtletas > 0 ? Math.round((totalValidados / totalAtletas) * 100) : 0
-  const presentesA = presencas.filter((p: any) => p.equipeId === partida?.equipeAId).length
-  const presentesB = presencas.filter((p: any) => p.equipeId === partida?.equipeBId).length
+  const presentesA = presencasDecididas.filter((p: any) => p.equipeId === partida?.equipeAId).length
+  const presentesB = presencasDecididas.filter((p: any) => p.equipeId === partida?.equipeBId).length
+  const partidaEncerrada = String(partida?.status || '').toUpperCase() === 'ENCERRADA'
 
   async function validateQrToken(value: string, keepScanning = false) {
     if (!value.trim() || validating) return
@@ -194,14 +204,100 @@ export default function OperacaoArbitroPage() {
       }
       setPartida((current: any) => {
         if (!current) return current
+        const anterior = (current.presencas ?? []).find((item: any) => item.jogadorId === jogadorId)
         const demais = (current.presencas ?? []).filter((item: any) => item.jogadorId !== jogadorId)
-        return { ...current, presencas: [...demais, json.data] }
+        const numero = json.data?.numero !== undefined ? json.data.numero : anterior?.numero ?? null
+        return { ...current, presencas: [...demais, { ...anterior, ...json.data, numero }] }
       })
     } catch {
       setMsg('Falha de conexão. A presença não foi salva.')
       await fetchPartida()
     } finally {
       setSavingId(null)
+    }
+  }
+
+  function focarBadge(jogadorId: number) {
+    requestAnimationFrame(() => badgeRefs.current[jogadorId]?.focus())
+  }
+
+  function alterarRascunhoNumero(valor: string) {
+    setRascunhoNumero(valor)
+    setErroNumero('')
+  }
+
+  function abrirNumero(jogador: { id: number; numero?: unknown }) {
+    if (partidaEncerrada || salvandoNumeroId != null) return
+    const atual = numeroNaPartida(jogador, presencas)
+    setEditorNumero(jogador.id)
+    setRascunhoNumero(atual == null ? '' : String(atual))
+    setErroNumero('')
+    setAvisoNumero('')
+  }
+
+  function cancelarNumero(jogadorId: number) {
+    if (salvandoNumeroId != null) return
+    setEditorNumero(null)
+    setErroNumero('')
+    focarBadge(jogadorId)
+  }
+
+  async function salvarNumero(jogadorId: number, numero: number | null | '') {
+    if (salvandoNumeroId != null || !partida) return
+    if (numero === '') {
+      setErroNumero('O número da camisa deve ser um inteiro de 0 a 99.')
+      return
+    }
+    const atletas = [...(partida.equipeA?.jogadores ?? []), ...(partida.equipeB?.jogadores ?? [])]
+    if (numero != null) {
+      const mensagem = validarTrocaNumeroCamisa({ jogadorId, numero, atletas, presencas })
+      if (mensagem) {
+        setErroNumero(mensagem)
+        return
+      }
+    }
+    setSalvandoNumeroId(jogadorId)
+    setErroNumero('')
+    try {
+      const res = await fetch(`/api/arbitro/partidas/${token}/numero`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jogadorId, numero }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErroNumero(json.error ?? 'Não foi possível salvar o número.')
+        await fetchPartida()
+        return
+      }
+      const nome = atletas.find((item: { id: number }) => item.id === jogadorId)?.nome ?? 'Atleta'
+      setPartida((current: any) => {
+        if (!current || !json.data?.id) return current
+        const anterior = (current.presencas ?? []).find((item: any) => item.jogadorId === jogadorId)
+        const demais = (current.presencas ?? []).filter((item: any) => item.jogadorId !== jogadorId)
+        return { ...current, presencas: [...demais, { ...anterior, ...json.data }] }
+      })
+      const texto = numero == null ? `Número de ${nome} voltou ao cadastro.` : `Número de ${nome} atualizado para ${numero}.`
+      setAvisoNumero(texto)
+      setNumeroSalvoId(jogadorId)
+      window.setTimeout(() => setNumeroSalvoId((atual) => (atual === jogadorId ? null : atual)), 2500)
+      const elenco = (partida.equipeA?.jogadores ?? []).some((item: { id: number }) => item.id === jogadorId)
+        ? partida.equipeA?.jogadores ?? []
+        : partida.equipeB?.jogadores ?? []
+      const seguinte = numero == null ? null : proximoAtletaNoElenco(elenco, jogadorId)
+      if (seguinte) {
+        const atual = numeroNaPartida(seguinte, presencas)
+        setEditorNumero(seguinte.id)
+        setRascunhoNumero(atual == null ? '' : String(atual))
+        setErroNumero('')
+      } else {
+        setEditorNumero(null)
+        focarBadge(jogadorId)
+      }
+    } catch {
+      setErroNumero('Falha de conexão. O número não foi salvo.')
+    } finally {
+      setSalvandoNumeroId(null)
     }
   }
 
@@ -284,11 +380,12 @@ export default function OperacaoArbitroPage() {
           </div>
 
           {msg && <p className="referee-message mt-4 rounded-2xl border px-4 py-3 text-sm font-bold">{msg}</p>}
+          <p className="sr-only" role="status">{avisoNumero}</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <TeamRoster team={partida.equipeA} jogadores={jogadoresA} presencas={presencas} presentes={presentesA} savingId={savingId} onPresenca={marcarPresenca} />
-          <TeamRoster team={partida.equipeB} jogadores={jogadoresB} presencas={presencas} presentes={presentesB} savingId={savingId} onPresenca={marcarPresenca} />
+          <TeamRoster team={partida.equipeA} jogadores={jogadoresA} presencas={presencas} presentes={presentesA} savingId={savingId} salvandoNumeroId={salvandoNumeroId} podeEditarNumero={!partidaEncerrada} editorNumero={editorNumero} rascunhoNumero={rascunhoNumero} erroNumero={erroNumero}   numeroSalvoId={numeroSalvoId} onPresenca={marcarPresenca} onAbrirNumero={abrirNumero} onRascunhoNumero={alterarRascunhoNumero} onSalvarNumero={salvarNumero} onCancelarNumero={cancelarNumero} badgeRef={(jogadorId, elemento) => { badgeRefs.current[jogadorId] = elemento }} />
+          <TeamRoster team={partida.equipeB} jogadores={jogadoresB} presencas={presencas} presentes={presentesB} savingId={savingId} salvandoNumeroId={salvandoNumeroId} podeEditarNumero={!partidaEncerrada} editorNumero={editorNumero} rascunhoNumero={rascunhoNumero} erroNumero={erroNumero} numeroSalvoId={numeroSalvoId} onPresenca={marcarPresenca} onAbrirNumero={abrirNumero} onRascunhoNumero={alterarRascunhoNumero} onSalvarNumero={salvarNumero} onCancelarNumero={cancelarNumero} badgeRef={(jogadorId, elemento) => { badgeRefs.current[jogadorId] = elemento }} />
         </div>
 
         <div className="referee-card rounded-[2rem] border p-6">
@@ -379,11 +476,47 @@ function TeamBox({ team, align = 'left' }: { team: any; align?: 'left' | 'right'
 
 function rotuloPresenca(presencas: any[], jogadorId: number) {
   const registro = presencas.find((item) => item.jogadorId === jogadorId)
-  if (!registro) return 'Pendente'
+  if (!presencaFoiDecidida(registro)) return 'Pendente'
   return registro.presente ? 'Confirmado' : 'Ausente'
 }
 
-function TeamRoster({ team, jogadores, presencas, presentes, savingId, onPresenca }: { team: any; jogadores: any[]; presencas: any[]; presentes: number; savingId: number | null; onPresenca: (jogadorId: number, presente: boolean) => void }) {
+function TeamRoster({
+  team,
+  jogadores,
+  presencas,
+  presentes,
+  savingId,
+  salvandoNumeroId,
+  podeEditarNumero,
+  editorNumero,
+  rascunhoNumero,
+  erroNumero,
+  numeroSalvoId,
+  onPresenca,
+  onAbrirNumero,
+  onRascunhoNumero,
+  onSalvarNumero,
+  onCancelarNumero,
+  badgeRef,
+}: {
+  team: any
+  jogadores: any[]
+  presencas: any[]
+  presentes: number
+  savingId: number | null
+  salvandoNumeroId: number | null
+  podeEditarNumero: boolean
+  editorNumero: number | null
+  rascunhoNumero: string
+  erroNumero: string
+  numeroSalvoId: number | null
+  onPresenca: (jogadorId: number, presente: boolean) => void
+  onAbrirNumero: (jogador: { id: number; numero?: unknown }) => void
+  onRascunhoNumero: (valor: string) => void
+  onSalvarNumero: (jogadorId: number, numero: number | null | '') => void
+  onCancelarNumero: (jogadorId: number) => void
+  badgeRef: (jogadorId: number, elemento: HTMLButtonElement | null) => void
+}) {
   return (
     <div className="referee-card rounded-[2rem] border p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -397,29 +530,102 @@ function TeamRoster({ team, jogadores, presencas, presentes, savingId, onPresenc
           jogadores.map((jogador) => {
             const status = rotuloPresenca(presencas, jogador.id)
             const salvando = savingId === jogador.id
+            const editando = editorNumero === jogador.id
+            const salvandoNumero = salvandoNumeroId === jogador.id
+            const numero = numeroNaPartida(jogador, presencas)
+            const textoNumero = numero == null ? '--' : String(numero)
+            const registro = presencas.find((item) => item.jogadorId === jogador.id)
+            const erroId = `erro-numero-${jogador.id}`
+            const campoId = `numero-camisa-${jogador.id}`
             return (
-              <div key={jogador.id} className={`referee-player flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${status === 'Confirmado' ? 'is-validated' : ''}`}>
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/8 text-sm font-black text-white ring-1 ring-white/12">
-                    {jogador.numero ?? '--'}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black">{jogador.nome}</p>
-                    <p className="mt-1 text-xs font-bold text-white/65">{jogador.posicao ?? 'Atleta'}</p>
+              <div key={jogador.id} className={`referee-player rounded-2xl border p-4 ${status === 'Confirmado' ? 'is-validated' : ''}`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {podeEditarNumero ? (
+                      <button
+                        type="button"
+                        ref={(elemento) => badgeRef(jogador.id, elemento)}
+                        aria-label={`Alterar número da camisa de ${jogador.nome}, número atual ${textoNumero}`}
+                        aria-expanded={editando}
+                        aria-controls={editando ? `editor-numero-${jogador.id}` : undefined}
+                        disabled={salvando || salvandoNumero}
+                        onClick={() => editando ? onCancelarNumero(jogador.id) : onAbrirNumero(jogador)}
+                        className={`referee-number inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black disabled:opacity-45 ${numeroSalvoId === jogador.id ? 'is-saved' : ''}`}
+                      >
+                        {textoNumero}
+                      </button>
+                    ) : (
+                      <span className="referee-number inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black" aria-label={`Número ${textoNumero} de ${jogador.nome}`}>
+                        {textoNumero}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black">{jogador.nome}</p>
+                      <p className="mt-1 text-xs font-bold text-white/65">{jogador.posicao ?? 'Atleta'}</p>
+                      {numeroSalvoId === jogador.id && <p className="referee-feedback is-success mt-1 text-xs font-black">Salvo</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide ${status === 'Confirmado' ? 'bg-emerald-400/16 text-emerald-100' : status === 'Ausente' ? 'bg-red-400/16 text-red-100' : 'bg-white/8 text-white/70'}`}>
+                      {status === 'Confirmado' ? <CheckCircle2 size={14} /> : status === 'Ausente' ? <X size={14} /> : <UserCheck size={14} />}
+                      {salvando ? 'Salvando' : status}
+                    </span>
+                    <button type="button" aria-label={`Confirmar ${jogador.nome}`} disabled={salvando || salvandoNumero} onClick={() => onPresenca(jogador.id, true)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500 text-slate-950 disabled:opacity-45">
+                      <CheckCircle2 size={18} />
+                    </button>
+                    <button type="button" aria-label={`Marcar ${jogador.nome} como ausente`} disabled={salvando || salvandoNumero} onClick={() => onPresenca(jogador.id, false)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-500 text-white disabled:opacity-45">
+                      <X size={18} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide ${status === 'Confirmado' ? 'bg-emerald-400/16 text-emerald-100' : status === 'Ausente' ? 'bg-red-400/16 text-red-100' : 'bg-white/8 text-white/70'}`}>
-                    {status === 'Confirmado' ? <CheckCircle2 size={14} /> : status === 'Ausente' ? <X size={14} /> : <UserCheck size={14} />}
-                    {salvando ? 'Salvando' : status}
-                  </span>
-                  <button type="button" aria-label={`Confirmar ${jogador.nome}`} disabled={salvando} onClick={() => onPresenca(jogador.id, true)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-slate-950 disabled:opacity-45">
-                    <CheckCircle2 size={18} />
-                  </button>
-                  <button type="button" aria-label={`Marcar ${jogador.nome} como ausente`} disabled={salvando} onClick={() => onPresenca(jogador.id, false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-500 text-white disabled:opacity-45">
-                    <X size={18} />
-                  </button>
-                </div>
+                {editando && (
+                  <form
+                    id={`editor-numero-${jogador.id}`}
+                    className="mt-3 grid gap-2 border-t border-white/10 pt-3"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      onSalvarNumero(jogador.id, rascunhoNumero.trim() === '' ? '' : Number(rascunhoNumero))
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        onCancelarNumero(jogador.id)
+                      }
+                    }}
+                  >
+                    <label htmlFor={campoId} className="text-xs font-black uppercase tracking-wide">Número da camisa nesta partida</label>
+                    <p className="text-xs font-bold text-white/70">Cadastro da equipe: {jogador.numero ?? 'sem número'}. Inteiro de 0 a 99, sem repetir nesta equipe. Enter salva e abre o próximo.</p>
+                    <input
+                      id={campoId}
+                      value={rascunhoNumero}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      enterKeyHint="done"
+                      maxLength={2}
+                      autoFocus
+                      onFocus={(event) => event.currentTarget.select()}
+                      aria-invalid={Boolean(erroNumero)}
+                      aria-describedby={erroNumero ? erroId : undefined}
+                      disabled={salvandoNumero}
+                      onChange={(event) => onRascunhoNumero(event.target.value.replace(/\D/g, '').slice(0, 2))}
+                      className="referee-input h-11 rounded-xl border px-3 text-base font-bold outline-none"
+                    />
+                    {erroNumero && <p id={erroId} className="referee-feedback is-error text-sm font-bold" role="alert">{erroNumero}</p>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="submit" disabled={salvandoNumero} className="referee-primary inline-flex h-11 items-center justify-center rounded-xl px-3 text-sm font-black disabled:opacity-45">
+                        {salvandoNumero ? 'Salvando' : 'Salvar'}
+                      </button>
+                      <button type="button" disabled={salvandoNumero} onClick={() => onCancelarNumero(jogador.id)} className="referee-secondary inline-flex h-11 items-center justify-center rounded-xl border px-3 text-sm font-black disabled:opacity-45">
+                        Cancelar
+                      </button>
+                    </div>
+                    {registro?.numero != null && (
+                      <button type="button" disabled={salvandoNumero} onClick={() => onSalvarNumero(jogador.id, null)} className="referee-secondary inline-flex h-11 items-center justify-center rounded-xl border px-3 text-sm font-black disabled:opacity-45">
+                        Voltar ao número do cadastro
+                      </button>
+                    )}
+                  </form>
+                )}
               </div>
             )
           })

@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       supabase.from('SetPartida').select('id,numero,pontosA,pontosB').eq('partidaId', partidaId),
       supabase
         .from('SumulaPresenca')
-        .select('id,presente,equipeId,jogadorId,jogador:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)')
+        .select('id,presente,equipeId,jogadorId,numero,jogador:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)')
         .eq('partidaId', partidaId),
       supabase.from('OcorrenciaPartida').select('id,tipo,descricao,set,jogadorId').eq('partidaId', partidaId),
       supabase

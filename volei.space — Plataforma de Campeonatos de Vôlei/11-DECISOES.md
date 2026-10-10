@@ -8,7 +8,7 @@ summary: >-
   Decisões registradas do produto.
 status: implementado
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-10-10
 ---
 # Decisões do produto
 
@@ -25,6 +25,7 @@ updated: 2026-09-25
 | 2026-09 | Sets, último set e terceiro obrigatório são configuráveis | Súmula e servidor dependem da parametrização |
 | 2026-09 | Classificação por margem de 1 ou 2+ sets, pontos do vencedor e perdedor | 2×0 e 3×0 usam a mesma faixa |
 | 2026-09 | 8 substituições por equipe/set; líbero informativo | Par fica vinculado apenas no set |
+| 2026-10-10 | Depois que o titular volta, o par fecha no set | #5 e #9 não se substituem de novo naquele set. O modal lista só reservas elegíveis. Líbero não conta. Sem substituição excepcional |
 | 2026-09 | MVP obrigatório da vencedora; correção por link por 30 minutos | Destaque público e atualização dos dados derivados |
 | 2026-09-27 | Organizador recebe usuário e senha do administrador; criar conta é só do público | Organizador gerencia o evento. Público acompanha portal, jogos e tabela, sem painel de gestão |
 | 2026-09-27 | Administrador reseta a senha do organizador; a senha recebida é substituída na entrada seguinte | `/admin/acessos` define a senha temporária. `/trocar-senha` bloqueia o painel até a troca |
