@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | fase do mata-mata, rodadas do turno e contraste do card
+
+- pages_updated=`modulos/PARTIDAS`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/EQUIPES-E-ATLETAS`, `09-UI-UX`, `hot`, `log`
+- O acompanhamento ao vivo e a súmula mostram a fase. Data e local ausentes somem na partida encerrada. O turno preenche a primeira rodada livre e não reescreve jogo já gravado. O card de data e local usa a superfície elevada da Noite de final. Nome novo de equipe é gravado em maiúsculas no servidor; a tela também deixa o nome em maiúsculas. Nenhuma migration. As partidas da liga 60 em produção não foram alteradas.
+
 ## [2026-10-10] decisao | RLS em todas as tabelas public
 
 - pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `03-REGRAS-DE-NEGOCIO`, `hot`, `log`

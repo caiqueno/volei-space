@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ExternalLink, Radio, Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { ActionBar } from '@/components/ui/action-bar'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import mi from '@/styles/microinteracoes.module.css'
 
 export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null }
@@ -100,7 +102,7 @@ export function ChaveamentoMataMata({
           <Trophy size={26} className={`text-luva-amber ${mi.pop}`} />
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">Campeão</p>
           {champion ? (
-            <p className="font-display text-lg font-black text-white">{champion.nome}</p>
+            <p className="font-display text-lg font-black text-white"><NomeEquipe nome={champion.nome} /></p>
           ) : (
             <p className="text-sm font-bold text-slate-300">Definido após a final</p>
           )}
@@ -262,11 +264,11 @@ function CriarConfrontoCard({ slot, tag, ligaId, options, highlight = false, rev
       <div className="mt-2 grid gap-2">
         <select value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900">
           <option value="">Time A</option>
-          {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeBId}>{team.nome}</option>)}
+          {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeBId}>{normalizarNomeEquipe(team.nome)}</option>)}
         </select>
         <select value={equipeBId} onChange={(event) => setEquipeBId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900">
           <option value="">Time B</option>
-          {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeAId}>{team.nome}</option>)}
+          {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeAId}>{normalizarNomeEquipe(team.nome)}</option>)}
         </select>
         <ActionBar
           type="button"

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
+import { agendaDaPartida } from '@/lib/format-partida'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
@@ -1247,9 +1249,9 @@ export default function SumulaPage() {
       <section className="official-content">
         <header className="official-header">
           <div>
-            <span>Rodada {partida.rodada}</span>
+            <span>{agendaDaPartida(partida).rotulo}</span>
             <h1>{leftTeam.name} <small>vs</small> {rightTeam.name}</h1>
-            <p>{partida.localNome || 'Local a definir'} - {partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR') : 'Data a definir'}</p>
+            <AgendaPartidaLinha partida={partida} />
           </div>
           <div className="flex items-center gap-3">
             <div className="official-court-switch" role="group" aria-label="Versão da quadra">
@@ -1667,9 +1669,9 @@ function PreMatchFlow(props: {
           </div>
         </div>
         <div className="official-preflow-match">
-          <span>Rodada {props.partida.rodada}</span>
+          <span>{agendaDaPartida(props.partida).rotulo}</span>
           <h1>{props.teamA.name} <small>vs</small> {props.teamB.name}</h1>
-          <p>{props.partida.localNome || 'Local a definir'} - {props.partida.dataHora ? new Date(props.partida.dataHora).toLocaleString('pt-BR') : 'Data a definir'}</p>
+          <AgendaPartidaLinha partida={props.partida} />
         </div>
       </header>
 
@@ -3700,6 +3702,13 @@ function normalizeSavedEventType(tipo: string): EventType {
   return 'anotacao'
 }
 
+function AgendaPartidaLinha({ partida }: { partida: { status?: string | null; dataHora?: string | null; localNome?: string | null; rodada?: number | null; fase?: string | null } }) {
+  const agenda = agendaDaPartida(partida)
+  const texto = [agenda.data, agenda.local].filter(Boolean).join(' · ')
+  if (!texto) return null
+  return <p>{texto}</p>
+}
+
 function makeTeam(id: TeamId, data: any): Team {
   const players = (data?.jogadores ?? []).map((jogador: any, index: number) => ({
     id: jogador.id,
@@ -3713,7 +3722,7 @@ function makeTeam(id: TeamId, data: any): Team {
   return {
     id,
     dbId: data.id,
-    name: data.nome,
+    name: normalizarNomeEquipe(String(data?.nome ?? '')),
     players: players.slice(0, 6),
     reserves: players.slice(6),
   }

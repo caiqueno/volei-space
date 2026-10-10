@@ -4,9 +4,10 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 const equipeIdentitySchema = z.object({
-  nome: z.string().trim().min(2, 'Informe o nome da equipe.').max(120),
+  nome: z.string().trim().min(2, 'Informe o nome da equipe.').max(120).transform(normalizarNomeEquipe),
   logoUrl: z.string().trim().url('Logo invalida.').optional().nullable().or(z.literal('')),
 })
 
@@ -32,7 +33,7 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return error('Dados invalidos', 422, parsed.error.flatten())
 
   const payload = {
-    nome: parsed.data.nome.trim(),
+    nome: parsed.data.nome,
     logoUrl: parsed.data.logoUrl || null,
     emblemaUrl: parsed.data.logoUrl || null,
   }

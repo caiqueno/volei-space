@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 
 type Categoria = { id: string; nome: string; quantidade: number }
 type Vaga = { vaga: number; nome: string; caminho: string | null }
@@ -93,7 +94,7 @@ export function LinksCategoria({ ligaId, nome, compacto = false }: { ligaId: num
                 <tbody>
                   {vagas.map((vaga) => (
                     <tr key={vaga.vaga} className="border-t border-white/10">
-                      <td className="px-3 py-3 font-black">{vaga.nome}</td>
+                      <td className="px-3 py-3 font-black"><NomeEquipe nome={vaga.nome} /></td>
                       <td className="px-3 py-3">
                         <button type="button" disabled={ocupado === String(vaga.vaga)} onClick={() => void gerar(vaga.vaga)} className="rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black text-[#050914] disabled:opacity-60">
                           {vaga.caminho ? 'Copiar link' : 'Gerar link'}

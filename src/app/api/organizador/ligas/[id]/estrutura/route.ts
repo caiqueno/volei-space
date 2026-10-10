@@ -12,6 +12,7 @@ import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { jogoImpedeEdicaoDaCategoria, partidaRemovivelAoRecriarGrupos } from '@/lib/configuracao-categoria-edicao'
 import { categoriaDaUrl, equipesDaCategoria, escopoDaGeracao } from '@/lib/isolamento-categoria'
 import { gerarSumulaToken } from '@/lib/sumula-token'
+import { montarConfrontos } from '@/lib/rodadas'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -461,21 +462,12 @@ function buildGroupMatches(
 
   groups.forEach((grupo, groupIndex) => {
     const grupoRecord = createdByName.get(grupo.nome)
-    const pairs: Array<{ a: EquipeRecord; b: EquipeRecord }> = []
+    const times = grupo.equipeIds
+      .map((equipeId) => equipeById.get(equipeId))
+      .filter((equipe): equipe is EquipeRecord => Boolean(equipe))
+    const pairList = montarConfrontos(times, [], turnoReturno)
 
-    for (let i = 0; i < grupo.equipeIds.length; i += 1) {
-      for (let j = i + 1; j < grupo.equipeIds.length; j += 1) {
-        const a = equipeById.get(grupo.equipeIds[i])
-        const b = equipeById.get(grupo.equipeIds[j])
-        if (a && b) pairs.push({ a, b })
-      }
-    }
-
-    const pairList = turnoReturno
-      ? pairs.flatMap((pair) => [pair, { a: pair.b, b: pair.a }])
-      : pairs
-
-    pairList.forEach((pair, index) => {
+    pairList.forEach((pair) => {
       globalIndex += 1
       rows.push({
         ligaId,
@@ -484,7 +476,7 @@ function buildGroupMatches(
         categoria: pair.a.categoria || pair.b.categoria || 'GERAL',
         serie: null,
         categoriaCampeonatoId,
-        rodada: index + 1,
+        rodada: pair.rodada,
         status: 'AGENDADA',
         dataHora: buildDateTime(globalIndex - 1, dataInicial, horarioPadrao),
         localNome: localPadrao || 'A definir',

@@ -49,3 +49,51 @@ export function textoLocalAusente(valor?: string | null): boolean {
   const texto = String(valor ?? '').trim().toLowerCase()
   return texto === '' || texto === 'a definir' || texto === 'definir' || texto === 'local a definir'
 }
+
+const STATUS_ENCERRADO = new Set(['ENCERRADA', 'WO', 'FINALIZADA', 'FINISHED'])
+
+export function statusEncerrado(status?: string | null) {
+  const valor = String(status ?? '').trim().toUpperCase().replaceAll(' ', '_')
+  return STATUS_ENCERRADO.has(valor)
+}
+
+export function formatarDataPartida(valor?: string | Date | null) {
+  if (!valor) return null
+  const date = valor instanceof Date ? valor : new Date(valor)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export type AgendaPartida = {
+  rotulo: string
+  data: string | null
+  local: string | null
+}
+
+/** Mata-mata usa o nome da fase. Data e local «a definir» somem quando a partida já encerrou. */
+export function agendaDaPartida(
+  partida: {
+    status?: string | null
+    dataHora?: string | Date | null
+    localNome?: string | null
+    rodada?: number | null
+    fase?: string | null
+  },
+  roundLabel?: string,
+): AgendaPartida {
+  const encerrada = statusEncerrado(partida.status)
+  const data = formatarDataPartida(partida.dataHora)
+  const localAusente = textoLocalAusente(partida.localNome)
+  const local = partida.localNome?.trim() ?? ''
+  return {
+    rotulo: rotuloConfronto(partida, roundLabel),
+    data: data ?? (encerrada ? null : 'A definir'),
+    local: local && !(encerrada && localAusente) ? local : null,
+  }
+}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import LiveMatchView from '@/app/partidas/[id]/ao-vivo/LiveMatchView'
 import { consultar, ConsultaCancelada } from '@/lib/api-cliente'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import type { LigaCarouselItem } from './types'
 
@@ -93,7 +94,7 @@ export function PainelAoVivo({ ligas, campeonatoId, onSelect }: { ligas: LigaCar
           <div className="operator-live-list" role="list">
             {jogos.length === 0 ? <p>{categoriaId ? 'Nenhum jogo ao vivo nesta categoria.' : 'Nenhum jogo ao vivo neste campeonato.'}</p> : jogos.map((jogo) => (
               <button key={jogo.id} type="button" role="listitem" className={partidaId === jogo.id ? 'is-active' : ''} onClick={() => escolherJogo(jogo.id)}>
-                <strong>{jogo.equipeA?.nome ?? 'Equipe A'} × {jogo.equipeB?.nome ?? 'Equipe B'}</strong>
+                <strong><NomeEquipe nome={jogo.equipeA?.nome} vazio="Equipe A" /> × <NomeEquipe nome={jogo.equipeB?.nome} vazio="Equipe B" /></strong>
                 <span>Rodada {jogo.rodada || '—'} · {jogo.setsPorA ?? 0} × {jogo.setsPorB ?? 0} sets · {jogo.pontosPorA ?? 0} a {jogo.pontosPorB ?? 0}</span>
               </button>
             ))}

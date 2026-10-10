@@ -1,4 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { slugify } from '@/utils/slug'
 import { findRepairableStaleRegistrations, type RegistrationRecord, type TeamRecord } from './registration-repair'
 import { replaceLeagueTeamReferences } from './team-reference-repair'
@@ -26,7 +27,7 @@ export async function ensureEquipeForCandidatura(candidaturaId: string) {
   const { data: existingEquipe } = await supabase
     .from('Equipe')
     .select('*')
-    .eq('nome', candidatura.nome)
+    .eq('nome', normalizarNomeEquipe(String(candidatura.nome ?? '')))
     .eq('ligaId', candidatura.ligaId)
     .eq('categoria', candidatura.categoria)
     .eq('serie', candidatura.serie)
@@ -40,11 +41,12 @@ export async function ensureEquipeForCandidatura(candidaturaId: string) {
     return syncEquipeActivation(candidatura, existingEquipe)
   }
 
-  const slug = await slugifyUniqueEquipe(candidatura.nome)
+  const nomeEquipe = normalizarNomeEquipe(String(candidatura.nome ?? ''))
+  const slug = await slugifyUniqueEquipe(nomeEquipe)
   const { data: equipe, error: equipeErr } = await supabase
     .from('Equipe')
     .insert({
-      nome: candidatura.nome,
+      nome: nomeEquipe,
       ligaId: candidatura.ligaId,
       categoria: candidatura.categoria,
       serie: candidatura.serie,

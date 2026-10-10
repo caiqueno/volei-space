@@ -6,6 +6,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { Badge } from '@/components/ui/Badge'
 import { AprovarButton } from './AprovarButton'
 import { EscalarArbitroButton } from './EscalarArbitroButton'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 
 const statusLabel: Record<string, string> = {
   AGENDADA: 'Agendada',
@@ -126,7 +127,7 @@ export default async function AdminPartidasPage({ searchParams }: { searchParams
                         </span>
                       </td>
                       <td data-label="Partida" className="px-5 py-4">
-                        <p className="font-black text-white">{p.equipeA?.nome ?? 'Equipe A'} × {p.equipeB?.nome ?? 'Equipe B'}</p>
+                        <p className="font-black text-white"><NomeEquipe nome={p.equipeA?.nome} vazio="Equipe A" /> × <NomeEquipe nome={p.equipeB?.nome} vazio="Equipe B" /></p>
                         <p className="mt-1 text-xs font-bold text-slate-400">{p.localNome || p.localEndereco || 'Local a definir'}</p>
                       </td>
                       <td data-label="Data" className="px-5 py-4 font-bold text-slate-200">

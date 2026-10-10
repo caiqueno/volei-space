@@ -1,5 +1,6 @@
 import { Shield, Swords, Zap } from 'lucide-react'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import type { EquipeInfo } from '@/components/classificacao/ScoutsGeraisTable'
 import type { PlayerScoutRow } from '@/lib/player-scouts'
 
@@ -50,7 +51,7 @@ export function TopScoutsCards({ dados, equipeInfoById }: Props) {
                       <TeamIdentity nome={equipe?.nome ?? 'Equipe'} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-black text-slate-950">{entrada.nome}</p>
-                        <p className="truncate text-xs font-bold text-slate-400">{equipe?.nome ?? 'Equipe'}</p>
+                        <p className="truncate text-xs font-bold text-slate-400"><NomeEquipe nome={equipe?.nome} /></p>
                       </div>
                       <span className="shrink-0 text-xl font-black text-slate-950">{entrada[categoria.key]}</span>
                     </div>

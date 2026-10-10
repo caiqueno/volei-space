@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { consultar } from '@/lib/api-cliente'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { Badge } from '@/components/ui/Badge'
 import { ActionBar } from '@/components/ui/action-bar'
 
@@ -128,7 +129,7 @@ export default function AdminEquipesPage() {
             <tbody className="divide-y divide-luva-border">
               {equipes.map((e: any) => (
                 <tr key={e.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{e.nome}</td>
+                  <td className="px-4 py-3 font-medium"><NomeEquipe nome={e.nome} /></td>
                   <td className="px-4 py-3"><Badge variant="neutral">{e.categoria}</Badge></td>
                   <td className="px-4 py-3 text-luva-muted">{e.liga?.nome ?? e.ligaId}</td>
                   <td className="px-4 py-3 text-luva-muted">{e.jogadores?.length ?? 0}</td>

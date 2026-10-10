@@ -5,11 +5,14 @@ import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { Activity, CalendarDays, Clock, LogIn, LogOut, Radio, ShieldCheck, Trophy } from 'lucide-react'
 import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
+import { agendaDaPartida } from '@/lib/format-partida'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 
 type LiveMatch = {
   id: number
   rodada: number
+  fase?: string | null
   dataHora: string | null
   localNome: string | null
   status: string
@@ -118,6 +121,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
   const scoreA = latestSet(match)?.pontosA ?? match.pontosPorA ?? 0
   const scoreB = latestSet(match)?.pontosB ?? match.pontosPorB ?? 0
   const finished = ['encerrada', 'finalizada', 'finished'].includes(normalizeStatus(match.status))
+  const agenda = agendaDaPartida(match)
 
   return (
     <Root className={classe}>
@@ -127,15 +131,15 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
             <span><Radio size={15} /> {finished && match.oficial ? 'Súmula oficial' : 'Placar em tempo real'}</span>
             <em>{formatStatus(match.status)}</em>
           </div>
-          <h1>{match.equipeA.nome} <small>vs</small> {match.equipeB.nome}</h1>
-          <p><CalendarDays size={16} /> Rodada {match.rodada} · {match.dataHora ? new Date(match.dataHora).toLocaleString('pt-BR') : 'Data a definir'}</p>
-          <p><Clock size={16} /> {match.localNome || 'Local a definir'}</p>
+          <h1><NomeEquipe nome={match.equipeA.nome} /> <small>vs</small> <NomeEquipe nome={match.equipeB.nome} /></h1>
+          <p><CalendarDays size={16} /> {agenda.rotulo}{agenda.data ? ` · ${agenda.data}` : ''}</p>
+          {agenda.local ? <p><Clock size={16} /> {agenda.local}</p> : null}
           {finished && match.oficial ? <p>Resultado oficial, visível sem login.</p> : null}
         </div>
         <div className="live-match-scoreboard">
-          <div><strong>{match.equipeA.nome}</strong><b>{scoreA}</b></div>
+          <div><strong><NomeEquipe nome={match.equipeA.nome} /></strong><b>{scoreA}</b></div>
           <span>{match.setsPorA ?? 0} x {match.setsPorB ?? 0}<em>sets</em></span>
-          <div><strong>{match.equipeB.nome}</strong><b>{scoreB}</b></div>
+          <div><strong><NomeEquipe nome={match.equipeB.nome} /></strong><b>{scoreB}</b></div>
         </div>
       </section>
 
@@ -181,7 +185,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
           <div className="live-match-scout">
             {scout.map((team) => (
               <section key={team.teamId}>
-                <h3>{team.teamName}</h3>
+                <h3><NomeEquipe nome={team.teamName} /></h3>
                 {team.players.length ? (
                   <div className="live-match-scout-table">
                     <div><span>Atleta</span><span>Pts</span><span>Ataque</span><span>Bloqueio</span><span>Saque</span></div>

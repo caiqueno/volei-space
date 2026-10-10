@@ -7,6 +7,8 @@ import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatLigaFormato } from '@/lib/format-liga'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { createPageMetadata } from '@/lib/seo'
 import mi from '@/styles/microinteracoes.module.css'
 
@@ -33,11 +35,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!equipe) return { ...fallback, robots: { index: false, follow: false } }
 
   const contexto = [equipe.categoria, equipe.serie].filter(Boolean).join(' · ')
+  const nome = normalizarNomeEquipe(equipe.nome)
   return createPageMetadata({
-    title: equipe.nome,
+    title: nome,
     description: contexto
-      ? `Conheça a equipe ${equipe.nome} (${contexto}), seu elenco, jogos e desempenho nos campeonatos.`
-      : `Conheça a equipe ${equipe.nome}, seu elenco, jogos e desempenho nos campeonatos.`,
+      ? `Conheça a equipe ${nome} (${contexto}), seu elenco, jogos e desempenho nos campeonatos.`
+      : `Conheça a equipe ${nome}, seu elenco, jogos e desempenho nos campeonatos.`,
     path: `/equipes/${encodeURIComponent(slug)}`,
     image: equipe.logoUrl || '/brand/banner-oficial.png',
   })
@@ -126,7 +129,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
               <p className="luva-kicker">Perfil público da equipe</p>
-              <h1 className="type-page-title mt-3 max-w-4xl">{equipe.nome}</h1>
+              <h1 className="type-page-title mt-3 max-w-4xl"><NomeEquipe nome={equipe.nome} /></h1>
               <p className="type-lead mt-4">
                 {[equipe.categoria, equipe.serie].filter(Boolean).join(' · ') || 'Equipe cadastrada na plataforma volei.space.'}
               </p>
@@ -249,7 +252,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
               return (
                 <div key={partida.id} className={`grid gap-2 bg-white/[0.03] px-4 py-4 md:grid-cols-[1fr_auto_auto] md:items-center ${mi.linha}`}>
                   <div>
-                    <p className="font-display text-lg font-black text-white">{equipeA?.nome ?? 'Equipe A'} x {equipeB?.nome ?? 'Equipe B'}</p>
+                    <p className="font-display text-lg font-black text-white"><NomeEquipe nome={equipeA?.nome} vazio="Equipe A" /> x <NomeEquipe nome={equipeB?.nome} vazio="Equipe B" /></p>
                     <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">{liga?.nome ?? 'Campeonato'} · Rodada {partida.rodada ?? '-'}</p>
                   </div>
                   <span className="text-sm font-black text-slate-200">{formatDate(partida.dataHora)}</span>

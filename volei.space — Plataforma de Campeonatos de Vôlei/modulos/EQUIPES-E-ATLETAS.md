@@ -8,11 +8,13 @@ summary: >-
   Gestão de equipes e atletas.
 status: misto
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-10-10
 ---
 # Equipes e atletas
 
 **Implementado:** entidades `Equipe` e `Jogador` em `prisma/schema.prisma`; APIs de equipes/jogadores, foto, QR e inscrição em `src/app/api`. Categorias/séries aparecem na equipe e na configuração do campeonato. A página pública `/equipes/[slug]` lista os jogos pelos sets (`setsPorA`/`setsPorB`).
+
+O nome da equipe é gravado em maiúsculas no servidor, com `normalizarNomeEquipe` (NFC, espaços colapsados, `pt-BR`). Entram criação e edição de equipe, rascunho e finalização da inscrição, candidatura, capitão, convite, vaga, webhook, simulação, massa de QA e a importação de times em `scripts/import-winners.mjs`. A função `finalizar_inscricao_equipe_rascunho` copia o nome do rascunho; o rascunho é atualizado antes da chamada. Não houve migration. Nome de atleta, árbitro e quadra não muda. Na tela, `NomeEquipe` e a classe `.nome-equipe` repetem a maiúscula. O slug continua em minúsculas.
 
 **Aprovado, pendente:** a equipe do fluxo novo é criada pelo líder a partir de um convite específico; não precisa existir nem ser aprovada antes de gerar o link. O organizador acompanha elenco e estado por categoria. Dados salvos sobrevivem ao reload e respeitam regras de edição do campeonato.
 

@@ -508,7 +508,7 @@ async function main() {
   carregarAmbiente()
   const times = JSON.parse(fs.readFileSync(TEAMS_PATH, 'utf8')).map((time) => ({
     ...time,
-    nome: limparNome(time.nome),
+    nome: limparNome(time.nome).toLocaleUpperCase('pt-BR'),
     responsavel: limparNome(time.responsavel),
     jogadores: (time.jogadores ?? []).map(limparNome).filter(Boolean),
   }))

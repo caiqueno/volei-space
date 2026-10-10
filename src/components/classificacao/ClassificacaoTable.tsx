@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import mi from '@/styles/microinteracoes.module.css'
 
 type Entrada = {
@@ -166,7 +167,7 @@ export function ClassificacaoTable({
                         <div className="flex items-center gap-3">
                           <TeamIdentity nome={entrada.equipe.nome} cor={entrada.equipe.corHex} logoUrl={entrada.equipe.logoUrl} compact showName={false} />
                           <div className="min-w-0">
-                            <p className="truncate font-black text-slate-950 text-[1.3em]">{entrada.equipe.nome}</p>
+                            <p className="truncate font-black text-slate-950 text-[1.3em]"><NomeEquipe nome={entrada.equipe.nome} /></p>
                             {organizerMode && autoClassificado && <div className="mt-1"><Badge variant="ouro">Classificado</Badge></div>}
                             {organizerMode && manualClassificado && <div className="mt-1"><Badge variant="info">Manual</Badge></div>}
                           </div>

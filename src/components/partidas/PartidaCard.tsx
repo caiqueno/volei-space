@@ -2,7 +2,8 @@ import { CalendarClock, ClipboardList, ExternalLink, MapPin, Radio } from 'lucid
 import { Badge } from '@/components/ui/Badge'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import mi from '@/styles/microinteracoes.module.css'
-import { rotuloConfronto, textoLocalAusente } from '@/lib/format-partida'
+import { agendaDaPartida } from '@/lib/format-partida'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 
 type Set = { numero: number; pontosA: number; pontosB: number }
 type Equipe = { id: number; nome: string; corHex: string | null }
@@ -39,11 +40,9 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
   const mostraPlacar = emAndamento || encerrada
   const setAtual = emAndamento ? [...(partida.sets ?? [])].sort((a, b) => a.numero - b.numero).at(-1) : null
-  const dataAusente = !partida.dataHora || Number.isNaN(new Date(partida.dataHora).getTime())
-  const localAusente = textoLocalAusente(partida.localNome)
-  const mostraData = !(encerrada && dataAusente)
-  const mostraLocal = Boolean(partida.localNome) && !(encerrada && localAusente)
-  const dataFmt = formatMatchDate(partida.dataHora)
+  const agenda = agendaDaPartida(partida, roundLabel)
+  const mostraData = Boolean(agenda.data)
+  const mostraLocal = Boolean(agenda.local)
   const liveLabel = encerrada ? 'Resumo da partida' : emAndamento ? 'Acompanhar ao vivo' : 'Link público'
   const sumulaHref = `/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`
   const publicoHref = `/partidas/${partida.id}/ao-vivo`
@@ -53,7 +52,7 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
       <div className="mb-5 flex items-start justify-between gap-3">
         <span className="min-w-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
           {partida.liga?.nome && <span className="mb-1 block normal-case tracking-normal text-slate-400">{partida.liga.nome}</span>}
-          <span className="normal-case tracking-normal">{rotuloConfronto(partida, roundLabel)}</span>
+          <span className="normal-case tracking-normal">{agenda.rotulo}</span>
         </span>
         <span className="shrink-0"><Badge variant={badge.variant}>{badge.label}</Badge></span>
       </div>
@@ -89,17 +88,17 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
       </div>
 
       {(mostraData || mostraLocal) && (
-        <div className="mt-auto grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs font-bold text-slate-500">
+        <div className="match-meta mt-auto grid gap-2 rounded-2xl p-4 text-xs font-bold">
           {mostraData && (
             <p className="flex min-w-0 items-center gap-2">
-              <CalendarClock size={14} className="shrink-0 text-luva-amber" />
-              <span className="min-w-0 truncate">{dataFmt}</span>
+              <CalendarClock size={14} className="shrink-0" />
+              <span className="min-w-0 truncate">{agenda.data}</span>
             </p>
           )}
           {mostraLocal && (
             <p className="flex min-w-0 items-center gap-2">
-              <MapPin size={14} className="shrink-0 text-luva-amber" />
-              <span className="min-w-0 truncate">{partida.localNome}</span>
+              <MapPin size={14} className="shrink-0" />
+              <span className="min-w-0 truncate">{agenda.local}</span>
             </p>
           )}
         </div>
@@ -123,20 +122,6 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
   )
 }
 
-function formatMatchDate(value: Date | string | null) {
-  if (!value) return 'A definir'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'A definir'
-
-  return date.toLocaleString('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 'left' | 'right' }) {
   const nome = equipe?.nome || 'Equipe'
   return (
@@ -145,7 +130,7 @@ function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 
         <TeamIdentity nome={nome} cor={equipe?.corHex} compact showName={false} />
       </div>
       <p className="mt-3 min-h-[42px] overflow-hidden text-sm font-black leading-[1.35] text-slate-950 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-        {nome}
+        <NomeEquipe nome={nome} />
       </p>
     </div>
   )

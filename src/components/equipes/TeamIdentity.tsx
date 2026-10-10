@@ -1,3 +1,5 @@
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+
 type TeamIdentityProps = {
   nome: string
   cor?: string | null
@@ -33,7 +35,7 @@ export function TeamIdentity({ nome, cor, logoUrl, align = 'left', compact = fal
       )}
       {showName && (
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-black leading-tight text-slate-950">{nome}</span>
+          <NomeEquipe nome={nome} className="block truncate font-black leading-tight text-slate-950" />
         </span>
       )}
     </div>

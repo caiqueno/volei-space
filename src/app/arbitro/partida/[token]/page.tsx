@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck, X } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { numeroNaPartida, presencaFoiDecidida, proximoAtletaNoElenco, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
 
@@ -467,7 +468,7 @@ function TeamBox({ team, align = 'left' }: { team: any; align?: 'left' | 'right'
     <div className={`flex items-center gap-3 ${align === 'right' ? 'lg:flex-row-reverse lg:text-right' : ''}`}>
       <TeamIdentity nome={team.nome} cor={team.corHex} showName={false} />
       <div className="min-w-0">
-        <p className="truncate text-2xl font-black text-white">{team.nome}</p>
+        <p className="truncate text-2xl font-black text-white"><NomeEquipe nome={team.nome} /></p>
         <p className="mt-1 text-sm font-semibold text-white/72">{team.jogadores?.length ?? 0} atletas no elenco</p>
       </div>
     </div>
