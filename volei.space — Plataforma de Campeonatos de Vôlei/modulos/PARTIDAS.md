@@ -5,12 +5,14 @@ category: modulo
 tags: [partidas]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O mata-mata pode mostrar a vaga no lugar do time. Sem a migration 20261010142000, a lista pública segue só com os dois times.
+  O calendário recusa equipe, quadra ou dia indisponível no mesmo horário. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Partidas e calendário
+
+**Conflito de agenda — implementado, sem migration:** `PATCH /api/organizador/ligas/{id}/calendario` e o agendamento da vaga recusam o horário quando a equipe já tem outro jogo, a quadra já está ocupada, ou o dia não está em `diasDisponiveis`. A janela é de 90 minutos. Quadra vazia ou `A definir` não entra na conta. Jogo cancelado não bloqueia. Sem a coluna de dias, a conferência de equipe e quadra continua. Não há arquivo novo de migration.
 
 **Vaga a definir — implementado no código, migration pendente:** um jogo de mata-mata pode ir para a agenda pública e para o painel com a origem no lugar do nome da equipe. Data e quadra continuam no mesmo card. O link do juiz é o de `AcessoArbitroJogo` daquela partida e não é recriado quando o time entra. Sem `origemVagaA` e `origemVagaB`, a leitura não pede essas colunas e um jogo sem os dois times continua fora da lista. Ver [[modulos/MATA-MATA]].
 
