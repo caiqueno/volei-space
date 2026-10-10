@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O aviso de rodízio só aparece com a opção ligada. A súmula não inicia enquanto a vaga do mata-mata estiver sem os dois times. Ao oficializar, as vagas da mesma categoria são preenchidas sem consultar o pagamento.
+  Sem número gravado, a súmula continua com 2 tempos e um único botão. O aviso de rodízio só aparece com a opção ligada. A súmula não inicia enquanto a vaga do mata-mata estiver sem os dois times.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -17,6 +17,8 @@ updated: 2026-10-10
 **Sanções — implementado:** advertência, penalidade, expulsão e desqualificação entram na ocorrência da súmula. No mesmo jogo a sequência sobe sozinha; uma sanção mais grave pode ser aplicada direto. A segunda advertência precisa ser gravada como penalidade. Expulsão, desqualificação e cada duas advertências suspendem o atleta na partida seguinte da categoria. A súmula recusa a presença dele. Penalidade pesa 1 na coluna `punicoes`, expulsão pesa 1 e desqualificação pesa 2. Advertência pesa 0. O peso não tira ponto de campeonato. O cartão amarelo antigo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A decisão de cumprimento lê as ocorrências e não grava essa tabela.
 
 **Regras da categoria — implementado no código:** lançamento, andamento, validação e o placar recalculado leem `CategoriaConfiguracao` da partida (`setsPorPartida`, pontos, tie-break, `terceiroSetObrigatorio`, formato e a quantidade da fase). A `Liga` não entra nessa leitura quando a partida tem categoria. `terceiroSetObrigatorio` não é coluna da `Liga`; sem categoria, ele fica desligado e o tie-break usa o valor da `Liga` (o default dela é desligado; o da categoria é ligado). A tela `/sumula/{token}/lancar` usa a mesma função. Com terceiro set obrigatório ou quantidade fixa, ela não encerra em 2×0. Resultado manual e aprovação seguem o mesmo carregamento.
+
+**Tempos — implementado no código, migration pendente:** cada equipe continua com 2 tempos por set e um único botão enquanto `limiteTemposPorSet` está vazio, ausente ou fora de 1 a 4. O texto do evento, com o limite 2, permanece «Tempo técnico solicitado por … (n/2 no set)». `separarTempos` true mostra um segundo botão, tempo de equipe, que não entra nessa conta. Desligado, ausente ou sem a coluna, esse botão não aparece. `20261010139970_tempos_sumula.sql` não foi aplicada. Sem as colunas, a leitura da súmula não pede esses campos no pedido seguinte e o teto permanece 2.
 
 **Aviso de rodízio — implementado no código, migration pendente:** no side-out, se `alertaRodizioIlegal` estiver true e a ordem de quem permaneceu em quadra mudou desde o ponto anterior, a súmula mostra um aviso. O ponto é registrado do mesmo jeito. Substituição que troca um número e mantém a ordem dos demais não avisa. Com a opção desligada, ausente ou sem a coluna, não há aviso e o lance não é recusado. `20261010139960_alerta_rodizio.sql` não foi aplicada.
 

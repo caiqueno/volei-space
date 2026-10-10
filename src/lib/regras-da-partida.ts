@@ -10,6 +10,7 @@ const CAMPOS_FASE = CAMPOS_SETS_POR_FASE_ANTERIORES.join(',')
 const CAMPOS_FASE_NOVA = CAMPOS_SETS_QUARTAS_OITAVAS.join(',')
 const CAMPO_LIMITE = 'limiteSubstituicoesPorSet'
 const CAMPO_RODIZIO = 'alertaRodizioIlegal'
+const CAMPOS_TEMPOS = 'limiteTemposPorSet,separarTempos'
 
 function primeiro(valor: unknown) {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
@@ -17,10 +18,14 @@ function primeiro(valor: unknown) {
 
 function colunaDeFaseAusente(erro: { message?: string; code?: string; details?: string } | null) {
   const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|alertaRodizioIlegal|PGRST204|42703/i.test(texto)
+  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|alertaRodizioIlegal|limiteTemposPorSet|separarTempos|PGRST204|42703/i.test(texto)
 }
 
 async function lerLinha(tabela: 'Liga' | 'CategoriaConfiguracao', campos: string, coluna: string, valor: number | string) {
+  const comTempos = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE},${CAMPO_RODIZIO},${CAMPOS_TEMPOS}`).eq(coluna, valor).maybeSingle()
+  if (!comTempos.error) return comTempos.data as Record<string, unknown> | null
+  if (!colunaDeFaseAusente(comTempos.error)) throw new Error(comTempos.error.message)
+  // Os tempos ainda não existem em produção. A leitura seguinte mantém o alerta, o limite e as fases.
   const completa = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE},${CAMPO_RODIZIO}`).eq(coluna, valor).maybeSingle()
   if (!completa.error) return completa.data as Record<string, unknown> | null
   if (!colunaDeFaseAusente(completa.error)) throw new Error(completa.error.message)

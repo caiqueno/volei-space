@@ -185,9 +185,14 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
               <Field label="Substituições por set" hint="Em branco, cada equipe continua com 8 substituições por set. A troca de líbero não entra nessa conta.">
                 <NumberInput value={data.limiteSubstituicoesPorSet} min={1} max={30} placeholder="8" onChange={(v) => updateNow({ limiteSubstituicoesPorSet: v })} />
               </Field>
+              <Field label="Tempos por set" hint="Em branco, cada equipe continua com 2 tempos. A súmula mostra um único botão.">
+                <NumberInput value={data.limiteTemposPorSet} min={1} max={4} placeholder="2" onChange={(v) => updateNow({ limiteTemposPorSet: v })} />
+              </Field>
             </div>
             <CheckboxRow label="Avisar rodízio ilegal" checked={data.alertaRodizioIlegal === true} onChange={(v) => updateNow({ alertaRodizioIlegal: v })} />
             <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula não mostra aviso e não impede o ponto.</p>
+            <CheckboxRow label="Separar tempo de equipe" checked={data.separarTempos === true} onChange={(v) => updateNow({ separarTempos: v })} />
+            <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula mantém um único botão de tempo.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Pontos por set">
                 <NumberInput value={data.pontosPorSet} min={1} max={99} onChange={(v) => updateNow({ pontosPorSet: v })} />
@@ -220,7 +225,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
             <ReviewRow icon={ClipboardList} label="Quantidade de Equipes" value={data.quantidadeEquipes ? String(data.quantidadeEquipes) : 'Não definido'} />
             {comGrupos && <ReviewRow icon={ClipboardList} label="Grupos" value={String(gruposSugeridos)} />}
             <ReviewRow icon={Repeat2} label="Ida e volta" value={data.turnoReturno ? 'Sim' : 'Não'} />
-            <ReviewRow icon={ClipboardList} label="Regras de partida" value={`Melhor de ${data.setsPorPartida ?? '?'} sets · ${data.pontosPorSet ?? '?'} pontos · ${data.limiteSubstituicoesPorSet ?? 8} substituições`} />
+            <ReviewRow icon={ClipboardList} label="Regras de partida" value={`Melhor de ${data.setsPorPartida ?? '?'} sets · ${data.pontosPorSet ?? '?'} pontos · ${data.limiteSubstituicoesPorSet ?? 8} substituições · ${data.limiteTemposPorSet ?? 2} tempos`} />
             <ReviewRow icon={ScanLine} label="Súmula Digital + Scouts" value={data.sumulaScoutsEnabled ? 'Contratado' : 'Não contratado'} />
           </div>
         )}

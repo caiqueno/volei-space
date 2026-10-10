@@ -14,6 +14,7 @@ import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTU
 import { regrasVisiveis } from '@/lib/category-match-rules'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
+import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -102,6 +103,8 @@ type MatchRules = {
   exigeTodosOsSets: boolean
   substitutionLimit: number
   alertaRodizio: boolean
+  timeoutLimit: number
+  temposSeparados: boolean
 }
 
 type SetEndPrompt = {
@@ -176,6 +179,8 @@ export default function SumulaPage() {
   const [startingLiberos, setStartingLiberos] = useState<Record<number, Record<TeamId, string>>>({})
   const [timeoutsUsedA, setTimeoutsUsedA] = useState(0)
   const [timeoutsUsedB, setTimeoutsUsedB] = useState(0)
+  const [temposEquipeA, setTemposEquipeA] = useState(0)
+  const [temposEquipeB, setTemposEquipeB] = useState(0)
   const [events, setEvents] = useState<MatchEvent[]>([])
   const [anotacoes, setAnotacoes] = useState<Anotacao[]>([])
   const [scoreHistory, setScoreHistory] = useState<Array<{ score: { teamA: number; teamB: number }; servingTeamId: TeamId; serverIndexA: number; serverIndexB: number; lineupA: string[]; lineupB: string[]; eventIds: string[] }>>([])
@@ -255,6 +260,9 @@ export default function SumulaPage() {
         const restoredTimeouts = countSavedTimeouts(savedOccurrences, teamA, teamB, restored.currentSet)
         setTimeoutsUsedA(restoredTimeouts.teamA)
         setTimeoutsUsedB(restoredTimeouts.teamB)
+        const restoredEquipe = countSavedTemposEquipe(savedOccurrences, teamA, teamB, restored.currentSet)
+        setTemposEquipeA(restoredEquipe.teamA)
+        setTemposEquipeB(restoredEquipe.teamB)
         const numerosDaPartida = restoreMatchNumberOverrides(teamA, teamB, savedPresence)
         setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida, loadedRules.substitutionLimit))
         const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
@@ -627,6 +635,10 @@ export default function SumulaPage() {
       setCurrentScore({ teamA: 0, teamB: 0 })
       setTimeoutsUsedA(0)
       setTimeoutsUsedB(0)
+      if (matchRules.temposSeparados) {
+        setTemposEquipeA(0)
+        setTemposEquipeB(0)
+      }
       setLineupConfirmedA(false)
       setLineupConfirmedB(false)
       setStartingLiberos((current) => ({ ...current, [currentSet + 1]: { teamA: '', teamB: '' } }))
@@ -917,11 +929,24 @@ export default function SumulaPage() {
     if (!teamA || !teamB) return
     const isA = teamId === 'teamA'
     const used = isA ? timeoutsUsedA : timeoutsUsedB
-    if (used >= 2) return addToast('Limite de tempos atingido neste set.')
+    const limite = matchRules.timeoutLimit
+    if (used >= limite) return addToast('Limite de tempos atingido neste set.')
     const team = isA ? teamA : teamB
     if (isA) setTimeoutsUsedA(used + 1)
     else setTimeoutsUsedB(used + 1)
-    addMatchEvent('timeout', `Tempo técnico solicitado por ${team.name} (${used + 1}/2 no set ${currentSet}).`, teamId)
+    addMatchEvent('timeout', textoTempoTecnico(team.name, used + 1, currentSet, limite), teamId)
+  }
+
+  function requestTempoEquipe(teamId: TeamId) {
+    if (!matchRules.temposSeparados || !teamA || !teamB) return
+    const isA = teamId === 'teamA'
+    const used = isA ? temposEquipeA : temposEquipeB
+    const limite = matchRules.timeoutLimit
+    if (used >= limite) return addToast('Limite de tempos de equipe atingido neste set.')
+    const team = isA ? teamA : teamB
+    if (isA) setTemposEquipeA(used + 1)
+    else setTemposEquipeB(used + 1)
+    addMatchEvent('timeout', textoTempoEquipe(team.name, used + 1, currentSet, limite), teamId)
   }
 
   function saveNote(payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) {
@@ -1355,6 +1380,9 @@ export default function SumulaPage() {
             anotacoes={anotacoes}
             timeoutsUsedA={timeoutsUsedA}
             timeoutsUsedB={timeoutsUsedB}
+            temposSeparados={matchRules.temposSeparados}
+            temposEquipeA={temposEquipeA}
+            temposEquipeB={temposEquipeB}
             getMatchNumber={getMatchNumber}
             sidesInverted={sidesInverted}
           />
@@ -1394,7 +1422,10 @@ export default function SumulaPage() {
             onCloseSet={requestCloseCurrentSet}
             timeoutsUsedA={timeoutsUsedA}
             timeoutsUsedB={timeoutsUsedB}
+            temposEquipeA={temposEquipeA}
+            temposEquipeB={temposEquipeB}
             onTimeout={requestTimeout}
+            onTempoEquipe={requestTempoEquipe}
             saveNote={saveNote}
             vistaQuadra={vistaQuadra}
             encerrada={matchStatus === 'finished'}
@@ -1437,7 +1468,7 @@ export default function SumulaPage() {
         )}
 
         {activeTab === 'tempos' && (
-          <TemposTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} timeoutsUsedA={timeoutsUsedA} timeoutsUsedB={timeoutsUsedB} events={events} requestTimeout={requestTimeout} sidesInverted={sidesInverted} />
+          <TemposTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} timeoutsUsedA={timeoutsUsedA} timeoutsUsedB={timeoutsUsedB} temposEquipeA={temposEquipeA} temposEquipeB={temposEquipeB} limite={matchRules.timeoutLimit} temposSeparados={matchRules.temposSeparados} events={events} requestTimeout={requestTimeout} requestTempoEquipe={requestTempoEquipe} sidesInverted={sidesInverted} />
         )}
 
         {activeTab === 'anotacoes' && (
@@ -1934,7 +1965,7 @@ function PrePartidaTab(props: {
   )
 }
 
-function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, anotacoes, timeoutsUsedA, timeoutsUsedB, getMatchNumber, sidesInverted }: {
+function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, anotacoes, timeoutsUsedA, timeoutsUsedB, temposSeparados = false, temposEquipeA = 0, temposEquipeB = 0, getMatchNumber, sidesInverted }: {
   teamA: Team
   teamB: Team
   currentSet: number
@@ -1944,6 +1975,9 @@ function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, an
   anotacoes: Anotacao[]
   timeoutsUsedA: number
   timeoutsUsedB: number
+  temposSeparados?: boolean
+  temposEquipeA?: number
+  temposEquipeB?: number
   getMatchNumber?: (teamId: TeamId, number: string) => string
   sidesInverted: boolean
 }) {
@@ -1986,6 +2020,7 @@ function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, an
           <div><span>Pontos registrados</span><strong>{pointEvents.length}</strong></div>
           <div><span>Substituições</span><strong>{substitutionEvents.length}</strong></div>
           <div><span>Tempos técnicos</span><strong>{timeoutsUsedA + timeoutsUsedB}</strong></div>
+          {temposSeparados ? <div><span>Tempos de equipe</span><strong>{temposEquipeA + temposEquipeB}</strong></div> : null}
           <div><span>Anotações oficiais</span><strong>{anotacoes.length}</strong></div>
         </div>
         <div className="official-section-row official-scout-heading"><h3>Scout individual</h3><span>{textoResumoScout(resumirPontos(pointEvents))}</span></div>
@@ -2064,7 +2099,10 @@ function PontuacaoTab(props: {
   onCloseSet: () => void
   timeoutsUsedA: number
   timeoutsUsedB: number
+  temposEquipeA: number
+  temposEquipeB: number
   onTimeout: (teamId: TeamId) => void
+  onTempoEquipe: (teamId: TeamId) => void
   saveNote: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
   vistaQuadra: '2d' | '3d'
   encerrada?: boolean
@@ -2085,6 +2123,8 @@ function PontuacaoTab(props: {
   const rightServerIndex = rightTeamId === 'teamA' ? props.serverIndexA : props.serverIndexB
   const leftTimeoutsUsed = leftTeamId === 'teamA' ? props.timeoutsUsedA : props.timeoutsUsedB
   const rightTimeoutsUsed = rightTeamId === 'teamA' ? props.timeoutsUsedA : props.timeoutsUsedB
+  const leftTemposEquipe = leftTeamId === 'teamA' ? props.temposEquipeA : props.temposEquipeB
+  const rightTemposEquipe = rightTeamId === 'teamA' ? props.temposEquipeA : props.temposEquipeB
 
   return (
     <>
@@ -2107,7 +2147,11 @@ function PontuacaoTab(props: {
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
+            limite={props.rules.timeoutLimit}
+            temposSeparados={props.rules.temposSeparados}
+            temposEquipeUsados={leftTemposEquipe}
             onTimeout={() => props.onTimeout(leftTeamId)}
+            onTempoEquipe={() => props.onTempoEquipe(leftTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2130,7 +2174,11 @@ function PontuacaoTab(props: {
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
+            limite={props.rules.timeoutLimit}
+            temposSeparados={props.rules.temposSeparados}
+            temposEquipeUsados={rightTemposEquipe}
             onTimeout={() => props.onTimeout(rightTeamId)}
+            onTempoEquipe={() => props.onTempoEquipe(rightTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2150,7 +2198,11 @@ function PontuacaoTab(props: {
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
+            limite={props.rules.timeoutLimit}
+            temposSeparados={props.rules.temposSeparados}
+            temposEquipeUsados={leftTemposEquipe}
             onTimeout={() => props.onTimeout(leftTeamId)}
+            onTempoEquipe={() => props.onTempoEquipe(leftTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2169,7 +2221,11 @@ function PontuacaoTab(props: {
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
+            limite={props.rules.timeoutLimit}
+            temposSeparados={props.rules.temposSeparados}
+            temposEquipeUsados={rightTemposEquipe}
             onTimeout={() => props.onTimeout(rightTeamId)}
+            onTempoEquipe={() => props.onTempoEquipe(rightTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2656,15 +2712,20 @@ function EscalacaoTab(props: {
   )
 }
 
-function TemposTab({ teamA, teamB, currentSet, currentScore, timeoutsUsedA, timeoutsUsedB, events, requestTimeout, sidesInverted }: {
+function TemposTab({ teamA, teamB, currentSet, currentScore, timeoutsUsedA, timeoutsUsedB, temposEquipeA = 0, temposEquipeB = 0, limite = 2, temposSeparados = false, events, requestTimeout, requestTempoEquipe, sidesInverted }: {
   teamA: Team
   teamB: Team
   currentSet: number
   currentScore: { teamA: number; teamB: number }
   timeoutsUsedA: number
   timeoutsUsedB: number
+  temposEquipeA?: number
+  temposEquipeB?: number
+  limite?: number
+  temposSeparados?: boolean
   events: MatchEvent[]
   requestTimeout: (teamId: TeamId) => void
+  requestTempoEquipe?: (teamId: TeamId) => void
   sidesInverted: boolean
 }) {
   const timeoutEvents = events.filter((event) => event.type === 'timeout')
@@ -2674,11 +2735,19 @@ function TemposTab({ teamA, teamB, currentSet, currentScore, timeoutsUsedA, time
   const rightTeam = rightTeamId === 'teamA' ? teamA : teamB
   const leftUsed = leftTeamId === 'teamA' ? timeoutsUsedA : timeoutsUsedB
   const rightUsed = rightTeamId === 'teamA' ? timeoutsUsedA : timeoutsUsedB
+  const leftEquipe = leftTeamId === 'teamA' ? temposEquipeA : temposEquipeB
+  const rightEquipe = rightTeamId === 'teamA' ? temposEquipeA : temposEquipeB
   return (
     <div className="official-grid">
       <section className="official-span-8 official-two-cols">
-        <TimeoutCard team={leftTeam} used={leftUsed} set={currentSet} onRequest={() => requestTimeout(leftTeamId)} />
-        <TimeoutCard team={rightTeam} used={rightUsed} set={currentSet} onRequest={() => requestTimeout(rightTeamId)} />
+        <TimeoutCard team={leftTeam} used={leftUsed} set={currentSet} limite={limite} onRequest={() => requestTimeout(leftTeamId)} />
+        <TimeoutCard team={rightTeam} used={rightUsed} set={currentSet} limite={limite} onRequest={() => requestTimeout(rightTeamId)} />
+        {temposSeparados && requestTempoEquipe ? (
+          <>
+            <TimeoutCard team={leftTeam} used={leftEquipe} set={currentSet} limite={limite} rotulo="Tempo de equipe" onRequest={() => requestTempoEquipe(leftTeamId)} />
+            <TimeoutCard team={rightTeam} used={rightEquipe} set={currentSet} limite={limite} rotulo="Tempo de equipe" onRequest={() => requestTempoEquipe(rightTeamId)} />
+          </>
+        ) : null}
       </section>
       <section className="official-panel official-span-4">
         <div className="official-section-row"><h3>Cronologia de paralisações</h3><span>{currentScore.teamA} x {currentScore.teamB}</span></div>
@@ -2976,7 +3045,11 @@ function CompactTeamControl({
   onUndo,
   onCard,
   timeoutsUsed,
+  limite = 2,
+  temposSeparados = false,
+  temposEquipeUsados = 0,
   onTimeout,
+  onTempoEquipe,
   events,
   encerrada,
 }: {
@@ -2989,7 +3062,11 @@ function CompactTeamControl({
   onUndo: () => void
   onCard: (tipo: 'Cartão amarelo' | 'Cartão vermelho') => void
   timeoutsUsed: number
+  limite?: number
+  temposSeparados?: boolean
+  temposEquipeUsados?: number
   onTimeout: () => void
+  onTempoEquipe?: () => void
   events: MatchEvent[]
   encerrada?: boolean
 }) {
@@ -3010,10 +3087,16 @@ function CompactTeamControl({
       ) : (
         <i aria-hidden="true" />
       )}
-      <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= 2} aria-label={`Registrar tempo para ${team.name}`}>
+      <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= limite} aria-label={`Registrar tempo para ${team.name}`}>
         <Clock size={15} />
-        {timeoutsUsed}/2
+        {timeoutsUsed}/{limite}
       </button>
+      {temposSeparados ? (
+        <button className="official-compact-timeout-action" type="button" onClick={onTempoEquipe} disabled={encerrada || temposEquipeUsados >= limite} aria-label={`Registrar tempo de equipe para ${team.name}`}>
+          <Clock size={15} />
+          {temposEquipeUsados}/{limite}
+        </button>
+      ) : null}
       {!encerrada && (
       <div className="official-point-actions">
         <VolleyballBurst>
@@ -3476,8 +3559,9 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function TimeoutCard({ team, used, set, onRequest }: { team: Team; used: number; set: number; onRequest: () => void }) {
-  return <section className="official-panel"><div className="official-section-row"><h3>{team.name}</h3><span>Set {set}</span></div><div className="official-timeout-boxes">{[1, 2].map((n) => <div key={n} className={used >= n ? 'is-used' : ''}><Clock size={15} />Tempo {n}</div>)}</div><button className="official-primary" disabled={used >= 2} onClick={onRequest}>Registrar tempo</button></section>
+function TimeoutCard({ team, used, set, onRequest, limite = 2, rotulo = 'Registrar tempo' }: { team: Team; used: number; set: number; onRequest: () => void; limite?: number; rotulo?: string }) {
+  const caixas = Array.from({ length: limite }, (_, indice) => indice + 1)
+  return <section className="official-panel"><div className="official-section-row"><h3>{team.name}</h3><span>Set {set}</span></div><div className="official-timeout-boxes">{caixas.map((n) => <div key={n} className={used >= n ? 'is-used' : ''}><Clock size={15} />Tempo {n}</div>)}</div><button className="official-primary" disabled={used >= limite} onClick={onRequest}>{rotulo}</button></section>
 }
 
 function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string) => void; onClose: () => void }) {
@@ -3695,6 +3779,20 @@ function countSavedTimeouts(savedOccurrences: any[], teamA: Team, teamB: Team, c
     if (normalizeSavedEventType(occurrence.tipo) !== 'timeout') continue
     if (Number(occurrence.set ?? currentSet) !== currentSet) continue
     const text = normalizeName(String(occurrence.descricao ?? ''))
+    if (ehTempoDeEquipe(text)) continue
+    if (text.includes(normalizeName(teamA.name))) result.teamA += 1
+    if (text.includes(normalizeName(teamB.name))) result.teamB += 1
+  }
+  return result
+}
+
+function countSavedTemposEquipe(savedOccurrences: any[], teamA: Team, teamB: Team, currentSet: number) {
+  const result: Record<TeamId, number> = { teamA: 0, teamB: 0 }
+  for (const occurrence of savedOccurrences) {
+    if (normalizeSavedEventType(occurrence.tipo) !== 'timeout') continue
+    if (Number(occurrence.set ?? currentSet) !== currentSet) continue
+    const text = normalizeName(String(occurrence.descricao ?? ''))
+    if (!ehTempoDeEquipe(text)) continue
     if (text.includes(normalizeName(teamA.name))) result.teamA += 1
     if (text.includes(normalizeName(teamB.name))) result.teamB += 1
   }
@@ -3895,6 +3993,8 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     ...regras,
     substitutionLimit: limiteDeSubstituicoes(source?.limiteSubstituicoesPorSet),
     alertaRodizio: source?.alertaRodizioIlegal === true,
+    timeoutLimit: limiteDeTempos(source?.limiteTemposPorSet),
+    temposSeparados: source?.separarTempos === true,
   }
 }
 

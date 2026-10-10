@@ -20,9 +20,10 @@ import { criteriosPersistiveis, erroRecusaQuociente } from '@/lib/classificacao'
 import { colunaDeSetsQuartasOitavasAusente, semSetsQuartasOitavas, soSetsQuartasOitavas } from '@/lib/sets-por-fase'
 import { colunaDeLimiteSubstituicoesAusente, semLimiteSubstituicoes, soLimiteSubstituicoes } from '@/lib/sumula-regras'
 import { colunaDeAlertaRodizioAusente, semAlertaRodizio, soAlertaRodizio } from '@/lib/rodizio-sumula'
+import { colunaDeTemposAusente, semTempos, soTempos } from '@/lib/tempos-sumula'
 
 const ALLOWED: Record<string, string[]> = {
-  estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled', 'limiteSubstituicoesPorSet', 'alertaRodizioIlegal'],
+  estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled', 'limiteSubstituicoesPorSet', 'alertaRodizioIlegal', 'limiteTemposPorSet', 'separarTempos'],
   classificacao: ['criteriosClassificacao', 'classificadosPorGrupo', 'melhoresClassificadosGerais', 'pontosVencedorMargem1', 'pontosPerdedorMargem1', 'pontosVencedorMargem2', 'pontosPerdedorMargem2', 'woSetsVencedor', 'woSetsPerdedor', 'woPontosSetVencedor', 'woPontosSetPerdedor', 'woPunicaoPontos'],
   eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaQuartas', 'setsPorPartidaOitavas', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataInicio', 'dataFim'],
@@ -73,7 +74,8 @@ export async function saveCategorySection(args: {
     const setsNovos = soSetsQuartasOitavas(patchRpc)
     const limiteNovo = soLimiteSubstituicoes(patchRpc)
     const alertaNovo = soAlertaRodizio(patchRpc)
-    let patchEfetivo = semAlertaRodizio(semLimiteSubstituicoes(semSetsQuartasOitavas(patchRpc)))
+    const temposNovos = soTempos(patchRpc)
+    let patchEfetivo = semTempos(semAlertaRodizio(semLimiteSubstituicoes(semSetsQuartasOitavas(patchRpc))))
     if (SECOES_COM_TRAVA.has(args.section)) {
       const jogos = await jogosDaCategoria(categoryId)
       if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
@@ -120,9 +122,11 @@ export async function saveCategorySection(args: {
         if (comLimite instanceof Response) return comLimite
         const comAlerta = await gravarAlertaRodizio(args.ligaId, categoryId, alertaNovo, comLimite)
         if (comAlerta instanceof Response) return comAlerta
-        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comAlerta)
+        const comTempos = await gravarTempos(args.ligaId, categoryId, temposNovos, comAlerta)
+        if (comTempos instanceof Response) return comTempos
+        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comTempos)
         if (comElegibilidade instanceof Response) return comElegibilidade
-        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo })
+        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo, ...temposNovos })
         return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
       }
       const message = /Versao alterada/i.test(rpcError.message)
@@ -137,9 +141,11 @@ export async function saveCategorySection(args: {
     if (comLimite instanceof Response) return comLimite
     const comAlerta = await gravarAlertaRodizio(args.ligaId, categoryId, alertaNovo, comLimite)
     if (comAlerta instanceof Response) return comAlerta
-    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comAlerta)
+    const comTempos = await gravarTempos(args.ligaId, categoryId, temposNovos, comAlerta)
+    if (comTempos instanceof Response) return comTempos
+    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comTempos)
     if (comElegibilidade instanceof Response) return comElegibilidade
-    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo })
+    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo, ...temposNovos })
     return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
   } catch (cause) {
     if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
@@ -349,6 +355,29 @@ async function gravarAlertaRodizio(
   return error('Não foi possível gravar o alerta de rodízio.', 422)
 }
 
+async function gravarTempos(
+  ligaId: number,
+  categoryId: string,
+  campos: Record<string, unknown>,
+  salva: Record<string, unknown>,
+) {
+  if (Object.keys(campos).length === 0) return salva
+  const { data, error: updateErro } = await db
+    .from('CategoriaConfiguracao')
+    .update(campos)
+    .eq('categoriaCampeonatoId', categoryId)
+    .eq('ligaId', ligaId)
+    .select('*')
+    .maybeSingle()
+  if (!updateErro && data) return data
+  if (colunaDeTemposAusente(updateErro)) {
+    console.error('[setup] tempos ainda não existem nesta base; a súmula segue com 2')
+    return salva
+  }
+  console.error('[setup] erro ao gravar tempos', updateErro)
+  return error('Não foi possível gravar os tempos.', 422)
+}
+
 async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
   const campos = camposParaEspelharNaLiga(patch)
   if (Object.keys(campos).length === 0) return
@@ -360,7 +389,7 @@ async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
   if (contagemErro) throw contagemErro
   if (count !== 1) return
   let corpo = campos
-  for (let tentativa = 0; tentativa < 4 && Object.keys(corpo).length > 0; tentativa += 1) {
+  for (let tentativa = 0; tentativa < 6 && Object.keys(corpo).length > 0; tentativa += 1) {
     const resultado = await db.from('Liga').update(corpo).eq('id', ligaId)
     if (!resultado.error) return
     const reduzido = enxugarEspelhoDaLiga(corpo, resultado.error)
@@ -374,6 +403,7 @@ function enxugarEspelhoDaLiga(corpo: Record<string, unknown>, erro: { message?: 
   if (colunaDeSetsQuartasOitavasAusente(erro)) atual = semSetsQuartasOitavas(atual)
   if (colunaDeLimiteSubstituicoesAusente(erro)) atual = semLimiteSubstituicoes(atual)
   if (colunaDeAlertaRodizioAusente(erro)) atual = semAlertaRodizio(atual)
+  if (colunaDeTemposAusente(erro)) atual = semTempos(atual)
   return atual
 }
 

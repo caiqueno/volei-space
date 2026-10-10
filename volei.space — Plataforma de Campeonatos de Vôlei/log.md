@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | tempos da súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Sem número gravado, cada equipe segue com 2 tempos e um único botão. O tempo de equipe só aparece com a opção ligada. `20261010139970_tempos_sumula.sql` não foi aplicada.
+
 ## [2026-10-10] feat | aviso de rodízio
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
