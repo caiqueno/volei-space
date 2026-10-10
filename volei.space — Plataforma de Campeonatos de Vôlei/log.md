@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | leitura ao vivo de sets e classificação
+
+- pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `hot`, `log`
+- `20261010141000_leitura_publica_sets_classificacao.sql` devolve só o `SELECT` de `SetPartida` e `ClassificacaoEntrada` a `anon` e `authenticated`, com policy de leitura, `replica identity full` e publicação no Realtime se faltar. Não abre escrita nem `Partida.sumulaToken`. O W.O. é `20261010139000`. `20261010139500` fica entre o W.O. e a RLS. Não foi aplicada. As duas de RLS entram juntas, a `140000` e em seguida esta.
+
 ## [2026-10-10] feat | cartões e sanções
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
