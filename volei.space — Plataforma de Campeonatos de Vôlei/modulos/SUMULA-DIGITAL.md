@@ -8,7 +8,7 @@ summary: >-
   O link corrige a súmula por 30 minutos e o servidor barra a 9ª substituição.
 status: misto
 created: 2026-09-20
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 # Súmula digital
 
@@ -25,3 +25,5 @@ updated: 2026-10-09
 - A gravação confere cada erro e tenta restaurar sets, presenças, ocorrências e destaques se quebra no meio. A transação única no banco continua pendente.
 
 [Requisito completo](https://github.com/athrios/volei-space/blob/main/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md). Ver [[modulos/PARTIDAS]], [[modulos/CLASSIFICACAO]] e [[12-BUGS-E-DEBITOS-TECNICOS]].
+
+**Microinterações — implementado:** na tela de lançamento, ACE, toque no atleta, bloqueio B, troca de set e o modal de substituição abrem e fecham com animação só de opacidade e transform. `prefers-reduced-motion` desliga esses pulsos. O lance é gravado no mesmo clique. O `+1` não entra nessa camada.

@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] query | microinterações da súmula
+
+- pages_updated=`09-UI-UX`, `modulos/SUMULA-DIGITAL`, `hot`, `log`
+- ACE, toque no atleta, bloqueio B, troca de set e o modal de substituição ganham pulso local de opacidade e transform. O ponto continua no mesmo clique. O `+1` não muda.
+
 ## [2026-10-10] decisao | base visual Noite de final
 
 - pages_updated=`09-UI-UX`, `hot`, `log`

@@ -145,7 +145,10 @@ function Metade({
                   event.dataTransfer.setData('text/plain', numero)
                   event.dataTransfer.effectAllowed = 'move'
                 }}
-                onClick={() => onAtivar?.(dados.id, zona.indice)}
+                onClick={(event) => {
+                  onAtivar?.(dados.id, zona.indice)
+                  pulsarMicro(event.currentTarget, 'sumula-micro-tap')
+                }}
                 aria-label={numero ? `${zona.posicao}, ${camisa}, ${nomeCurto(atleta?.name || 'Atleta')}` : `${zona.posicao} vazia de ${dados.nome}`}
               >
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={sacandoAqui} />
@@ -159,7 +162,16 @@ function Metade({
                       <button
                         key={acao}
                         type="button"
-                        onClick={() => executarAcao(acao, dados.id, numero, zona.indice, { onAtaque, onBloqueio, onAce, onSubstituicao })}
+                        onClick={(event) => {
+                          executarAcao(acao, dados.id, numero, zona.indice, { onAtaque, onBloqueio, onAce, onSubstituicao })
+                          if (acao === 'A') {
+                            pulsarMicro(event.currentTarget, 'sumula-micro-ace')
+                            pulsarMicro(event.currentTarget.closest('.volley-marker'), 'sumula-micro-ace')
+                          } else if (acao === 'B') {
+                            pulsarMicro(event.currentTarget, 'sumula-micro-block')
+                            pulsarMicro(event.currentTarget.closest('.volley-marker'), 'sumula-micro-block')
+                          }
+                        }}
                         aria-label={rotuloAcao(acao, camisa)}
                         title={rotuloAcao(acao, camisa)}
                       >
@@ -196,6 +208,19 @@ function soltar(event: DragEvent<HTMLDivElement>, dados: LadoDaQuadra, indice: n
   const numero = event.dataTransfer.getData('text/plain').trim()
   if (!numero) return
   onSoltar?.(dados.id, indice, numero)
+}
+
+function pulsarMicro(alvo: EventTarget | null, classe: string) {
+  if (!(alvo instanceof HTMLElement)) return
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  alvo.classList.remove(classe)
+  void alvo.offsetWidth
+  alvo.classList.add(classe)
+  const limpar = () => {
+    alvo.classList.remove(classe)
+    alvo.removeEventListener('animationend', limpar)
+  }
+  alvo.addEventListener('animationend', limpar)
 }
 
 function nomeCurto(nome: string) {
