@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | menu do painel não cobre a página
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- A faixa inferior do painel ficava visível a partir de 1024px, empilhava os itens e punha Sair ao lado de Elenco, por cima do conteúdo. Agora ela só aparece abaixo de 1024px, numa linha. Sair fecha a lista, abaixo de Rankings. Em tela baixa a guia rola por dentro.
+
 ## [2026-10-10] fix | formulário da inscrição segue a categoria
 
 - pages_updated=`modulos/INSCRICOES`, `06-BANCO-DE-DADOS`, `hot`, `log`

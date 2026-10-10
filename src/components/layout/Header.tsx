@@ -261,19 +261,19 @@ export function Header() {
                 </Link>
               )
             })}
+            <button type="button" onClick={logout} className="profile-sidebar-link profile-sidebar-logout">
+              <LogOut size={18} />
+              <span>Sair</span>
+            </button>
           </nav>
 
           <div className="profile-sidebar-session">
             <span className="profile-sidebar-session-label">Sessão</span>
             <strong>{userName}</strong>
-            <button type="button" onClick={logout} className="profile-sidebar-logout">
-              <LogOut size={16} />
-              Sair
-            </button>
           </div>
         </aside>
 
-        <nav className="profile-mobile-nav">
+        <nav className="profile-mobile-nav" aria-label="Menu do painel">
           <div className="profile-mobile-scroll">
             {mobileLinks.map((link) => {
               const Icon = link.icon ?? Home
@@ -285,8 +285,8 @@ export function Header() {
                 </Link>
               )
             })}
+            <BotaoSair compacto />
           </div>
-          <BotaoSair compacto />
         </nav>
       </>
     )

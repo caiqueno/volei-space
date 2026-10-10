@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A inscrição rápida segue não coletar, opcional e obrigatório da categoria. 20261010138500 não foi aplicada e fica antes do W.O. e da RLS. Jogos sobem por data e hora; dataHora sem fuso sai em UTC.
+  O menu do painel não cobre a página e Sair fica abaixo de Rankings. A inscrição rápida segue a categoria. 20261010138500 não foi aplicada.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o menu do painel deixa de cobrir a página. A faixa inferior só aparece abaixo de 1024px, numa linha só, e a guia de 292px fica ao lado do conteúdo. Sair é o último item, abaixo de Rankings, na mesma coluna. Em tela baixa a lista rola dentro da guia. Fonte: [[09-UI-UX]].
 
 Em 10 de outubro de 2026 a inscrição rápida deixa de ler só `Liga.formularioInscricaoConfig`. O rascunho, a vaga e o link da categoria usam o formulário gravado na categoria. Não coletar esconde data de nascimento e documento. Opcional aceita vazio. Obrigatório bloqueia o atleta e a conclusão. Sem a chave, os dois ficam opcionais. A foto continua opcional, salvo quando está desligada. Um campeonato com uma categoria espelha o JSON na liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`, para a migration de RLS continuar sendo a última. Fonte: [[modulos/INSCRICOES]], [[06-BANCO-DE-DADOS]].
 
