@@ -9,6 +9,8 @@ import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
 import { carregarFonteDeSets, regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
+import { mensagemSancaoInvalida } from '@/lib/sancoes'
+import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
 import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
@@ -69,6 +71,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const { presencas, sets, ocorrencias, destaques } = parsed.data
     const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: !campeonatoDeSimulacao(partida) })
     if (validationError) return error(validationError, 422)
+    const suspenso = await mensagemDeSuspensao(partida, presencas)
+    if (suspenso) return error(suspenso, 422)
     if (sets.length === 0) return error('A súmula só pode ser enviada com pelo menos um set registrado.', 422)
     const mvp = (destaques ?? []).find((item) => item.tipo === 'MVP' && item.jogadorId)
     if (!mvp?.jogadorId) return error('Escolha o MVP antes de oficializar a súmula.', 422)
@@ -150,6 +154,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     const { presencas, sets, ocorrencias, destaques } = parsed.data
     const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: false })
     if (validationError) return error(validationError, 422)
+    const suspenso = await mensagemDeSuspensao(partida, presencas)
+    if (suspenso) return error(suspenso, 422)
     const regraAndamento = await regrasEfetivasDaPartida(partida)
     const andamentoInvalido = validateCategoryProgress(sets, regraAndamento)
     if (andamentoInvalido) return error(andamentoInvalido, 422)
@@ -314,6 +320,9 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
       return 'A súmula possui ocorrência para atleta fora da partida.'
     }
   }
+
+  const sancaoInvalida = mensagemSancaoInvalida(payload.ocorrencias)
+  if (sancaoInvalida) return sancaoInvalida
 
   const equipeA = valorUnico(partida.equipeA)
   const equipeB = valorUnico(partida.equipeB)

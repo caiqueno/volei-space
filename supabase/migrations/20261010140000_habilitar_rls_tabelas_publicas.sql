@@ -78,6 +78,7 @@ declare
     'Premiacao',
     'SetPartida',
     'SumulaPresenca',
+    'SuspensaoAtleta',
     'VotoMVP'
   ];
   tem_anon boolean := exists (select 1 from pg_roles where rolname = 'anon');

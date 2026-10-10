@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import { calcularClassificacao, type PartidaClassificacao, type RegrasCategoria, type TimeClassificacao } from '@/lib/classificacao'
+import { punicoesPorOcorrencia } from '@/lib/sancoes'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { rpcAusente } from '@/lib/rpc-ausente'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
@@ -176,6 +177,27 @@ async function marcaDasPartidas(ligaId: number) {
   return JSON.stringify(data ?? [])
 }
 
+async function punicoesDasPartidas(partidas: Array<{ id?: number; fase?: string | null; equipeAId?: number; equipeBId?: number }>) {
+  const deGrupo = partidas.filter((partida) => {
+    const fase = String(partida.fase ?? 'GERAL').toUpperCase()
+    return fase === 'GERAL' || fase === 'GRUPOS' || fase === ''
+  })
+  const ids = deGrupo.map((partida) => Number(partida.id)).filter((id) => Number.isInteger(id))
+  const equipes = Array.from(new Set(deGrupo.flatMap((partida) => [Number(partida.equipeAId), Number(partida.equipeBId)]).filter((id) => Number.isInteger(id))))
+  if (ids.length === 0 || equipes.length === 0) return {}
+  const [{ data: ocorrencias, error: falhaOcorrencias }, { data: jogadores, error: falhaJogadores }] = await Promise.all([
+    supabaseAdmin.from('OcorrenciaPartida').select('tipo,jogadorId,partidaId').in('partidaId', ids),
+    supabaseAdmin.from('Jogador').select('id,equipeId').in('equipeId', equipes),
+  ])
+  if (falhaOcorrencias || falhaJogadores) {
+    console.error('[classificacao] punições não lidas', falhaOcorrencias ?? falhaJogadores)
+    return {}
+  }
+  const mapa = new Map((jogadores ?? []).map((jogador) => [Number(jogador.id), Number(jogador.equipeId)]))
+  const pesos = punicoesPorOcorrencia(ocorrencias ?? [], mapa)
+  return Object.fromEntries(pesos)
+}
+
 async function gravarClassificacaoUmaVez(ligaId: number) {
   const { data: inscricoes, error: falhaInscricoes } = await supabaseAdmin
     .from('InscricaoCampeonato')
@@ -186,7 +208,7 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
 
   const { data: partidas, error: falhaPartidas } = await supabaseAdmin
     .from('Partida')
-    .select('equipeAId,equipeBId,setsPorA,setsPorB,pontosPorA,pontosPorB,status,vencedorId,fase,categoriaCampeonatoId,sumulaAprovadaEm,sumulaSubmetidaEm,sets:SetPartida(numero,pontosA,pontosB)')
+    .select('id,equipeAId,equipeBId,setsPorA,setsPorB,pontosPorA,pontosPorB,status,vencedorId,fase,categoriaCampeonatoId,sumulaAprovadaEm,sumulaSubmetidaEm,sets:SetPartida(numero,pontosA,pontosB)')
     .eq('ligaId', ligaId)
   if (falhaPartidas) throw new Error(falhaPartidas.message)
 
@@ -236,10 +258,12 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
     }
   }
 
+  const punicoesPorEquipe = await punicoesDasPartidas(partidas ?? [])
   const ranque = calcularClassificacao({
     times,
     partidas: (partidas ?? []) as PartidaClassificacao[],
     regras,
+    punicoesPorEquipe,
   })
   const linhas = ranque.map((linha) => ({
     equipeId: linha.equipeId,

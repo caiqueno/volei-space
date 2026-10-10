@@ -967,6 +967,20 @@ model AcessoArbitroEvento {
   @@index([partidaId, criadoEm])
 }
 
+model SuspensaoAtleta {
+  id                    BigInt   @id @default(autoincrement())
+  ligaId                Int
+  categoriaCampeonatoId String?  @db.Uuid
+  jogadorId             Int
+  equipeId              Int?
+  partidaOrigemId       Int?
+  motivo                String
+  jogosRestantes        Int      @default(1)
+  criadoEm              DateTime @default(now())
+
+  @@index([jogadorId, categoriaCampeonatoId])
+}
+
 model AdminAcaoHistorico {
   id         String   @id @default(uuid()) @db.Uuid
   adminEmail String?

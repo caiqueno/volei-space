@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A súmula usa a CategoriaConfiguracao da partida. A gravação transacional está na migration 20261010137000, ainda não aplicada. O organizador dono grava a súmula. Oficializar pede o MVP e uma confirmação. A quadra encerrada não lança ponto.
+  Sanções sobem na sequência e suspendem a partida seguinte. A coluna de punições recebe o peso. A súmula usa a CategoriaConfiguracao da partida. 20261010139500 e 20261010137000 não foram aplicadas.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Sanções — implementado:** advertência, penalidade, expulsão e desqualificação entram na ocorrência da súmula. No mesmo jogo a sequência sobe sozinha; uma sanção mais grave pode ser aplicada direto. A segunda advertência precisa ser gravada como penalidade. Expulsão, desqualificação e cada duas advertências suspendem o atleta na partida seguinte da categoria. A súmula recusa a presença dele. Penalidade pesa 1 na coluna `punicoes`, expulsão pesa 1 e desqualificação pesa 2. Advertência pesa 0. O peso não tira ponto de campeonato. O cartão amarelo antigo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A decisão de cumprimento lê as ocorrências e não grava essa tabela.
 
 **Regras da categoria — implementado no código:** lançamento, andamento, validação e o placar recalculado leem `CategoriaConfiguracao` da partida (`setsPorPartida`, pontos, tie-break, `terceiroSetObrigatorio`, formato e a quantidade da fase). A `Liga` não entra nessa leitura quando a partida tem categoria. `terceiroSetObrigatorio` não é coluna da `Liga`; sem categoria, ele fica desligado e o tie-break usa o valor da `Liga` (o default dela é desligado; o da categoria é ligado). A tela `/sumula/{token}/lancar` usa a mesma função. Com terceiro set obrigatório ou quantidade fixa, ela não encerra em 2×0. Resultado manual e aprovação seguem o mesmo carregamento.
 
