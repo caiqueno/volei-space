@@ -184,18 +184,7 @@ export async function getMataMataBracket(
       slots.push({
         fase: round.fase,
         rodada: slotNumber,
-        partida: partida
-          ? {
-              id: partida.id,
-              status: partida.status,
-              equipeA: ladoDoConfronto(partida.equipeA, partida.origemVagaA),
-              equipeB: ladoDoConfronto(partida.equipeB, partida.origemVagaB),
-              setsPorA: partida.setsPorA,
-              setsPorB: partida.setsPorB,
-              sets: partida.sets ?? [],
-              sumulaToken: organizerMode ? partida.sumulaToken : null,
-            }
-          : null,
+        partida: resumoDaPartida(partida, organizerMode),
         eligibleOptions,
         volta: resumoDaPartida(vaga(round.fase, rodadaDaVolta(slotNumber)), organizerMode),
       })
@@ -228,18 +217,7 @@ export async function getMataMataBracket(
     thirdPlace = {
       fase: THIRD_PLACE_FASE,
       rodada: 1,
-      partida: partida
-        ? {
-            id: partida.id,
-            status: partida.status,
-            equipeA: ladoDoConfronto(partida.equipeA, partida.origemVagaA),
-            equipeB: ladoDoConfronto(partida.equipeB, partida.origemVagaB),
-            setsPorA: partida.setsPorA,
-            setsPorB: partida.setsPorB,
-            sets: partida.sets ?? [],
-            sumulaToken: organizerMode ? partida.sumulaToken : null,
-          }
-        : null,
+      partida: resumoDaPartida(partida, organizerMode),
       eligibleOptions,
       volta: resumoDaPartida(vaga(THIRD_PLACE_FASE, rodadaDaVolta(1)), organizerMode),
     }
@@ -253,6 +231,8 @@ function resumoDaPartida(partida: any, organizerMode: boolean) {
   return {
     id: partida.id,
     status: partida.status,
+    dataHora: partida.dataHora ?? null,
+    localNome: partida.localNome ?? null,
     equipeA: ladoDoConfronto(partida.equipeA, partida.origemVagaA),
     equipeB: ladoDoConfronto(partida.equipeB, partida.origemVagaB),
     setsPorA: partida.setsPorA,

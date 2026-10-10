@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | quadro de classificação com chave, Top 5 e scouts
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/SCOUTS`, `hot`, `log`
+- `/classificacao` e `/rankings` mostram líder, pódio, chave em duas colunas, Top 5 e a tabela de grupos. Os scouts relêem a cada 12 segundos. Sem migration e sem mudança na súmula.
+
 ## [2026-10-10] fix | ranking não consulta createdAt e trata camisa -1 como vazia
 
 - pages_updated=`modulos/SCOUTS`, `hot`, `log`

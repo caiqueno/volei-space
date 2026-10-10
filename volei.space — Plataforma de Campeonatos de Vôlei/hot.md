@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A classificação geral de jogadores fica em Rankings, soma ataque, bloqueio e saque da súmula e relê a cada 12 segundos com a aba aberta. No celular cada fundamento fica na própria linha. A consulta não pede createdAt. Camisa -1 é ausência de número. A camisa repetida fica com quem está sendo editado; o outro atleta fica sem número. A papeleta abre com as seis posições vazias. Sem migration.
+  A classificação pública e o ranking mostram líder, pódio, chave em colunas, Top 5 e scouts. A súmula e o banco não mudam.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 `/classificacao` e `/rankings` passam a mostrar o quadro do campeonato: cartão do líder, pódio quando a final tem vencedor, chave eliminatória em colunas que convergem no centro, Top 5 de ataque, bloqueio e saque, scouts gerais de todos os atletas e a tabela de cada grupo. No celular a chave vira abas por fase. A leitura usa as rotas que já existiam. `GET /api/portal/classificacao` passa a devolver sets contra, pontos e punições, que o cálculo já tinha. Nenhuma migration e nenhuma alteração de súmula. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/SCOUTS]].
 
 Em 10 de outubro de 2026 a classificação geral consulta só colunas que existem. `OcorrenciaPartida` não tem `createdAt`, `updatedAt` nem `criadoEm`; a leitura pede `tipo`, `jogadorId` e `descricao`, e a partida entra por `ligaId` e `categoriaCampeonatoId`. O atleta entra por `jogadorId`. `SumulaPresenca.numero = -1` é camisa vazia, o mesmo valor do PR 79, e não vira número na tabela nem chave de ponto. Nenhuma migration. Fonte: [[modulos/SCOUTS]], [[modulos/SUMULA-DIGITAL]].
 

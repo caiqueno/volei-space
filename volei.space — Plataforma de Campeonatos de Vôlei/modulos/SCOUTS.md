@@ -5,12 +5,14 @@ category: modulo
 tags: [scouts]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A classificação geral de atletas soma ataque, bloqueio e saque da súmula, relê a cada 12 segundos e não consulta createdAt. Camisa -1 fica sem número.
+  O quadro público mostra Top 5 e scouts de todos os atletas, relê a cada 12 segundos e não consulta createdAt.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Scouts e rankings
+
+**Quadro de scouts — implementado, sem migration:** os cinco primeiros de ataque, bloqueio e saque e a tabela Scouts gerais (PTS, ATQ, BLQ, ACE) aparecem em `/classificacao` e em `/rankings`. PTS é a soma dos três. A ordem é PTS, ataque, bloqueio, saque e nome. Entram todos os atletas, inclusive com zero. A camisa `-1` não aparece. A releitura segue a cada 12 segundos.
 
 **Classificação geral de jogadores — implementado, sem migration:** em `/rankings`, na área pública e no painel do organizador (o menu Rankings abre a mesma página), a tabela lista todos os atletas da categoria, inclusive com zero. Não separa por grupo nem por equipe. Colunas: posição, nome, equipe, ataque, bloqueio, saque e total. Se a súmula gravar um `point` ou `ponto` com atleta, entra a coluna Ponto. O clique no cabeçalho reordena na tela; a posição continua sendo a do ranking. Abaixo de 768px, `globals.css` troca `.overflow-x-auto` por `overflow-x: clip`, então uma tabela mais larga que a tela esconde ataque, bloqueio, saque e total. A tabela usa `data-stack`: no celular cada número fica na própria linha, com o rótulo ao lado. A ordem oficial é total, depois ataque, bloqueio, saque e nome. A leitura é `GET /api/portal/rankings/jogadores`. Ela só conta ocorrência de campeonato que ainda existe, ignora descrição de lance desfeito, anulado ou excluído, ignora «Registro de » e ignora ponto sem jogador. Cartão, tempo, substituição, lesão, anotação e troca de camisa não entram. A aba visível relê a cada 12 segundos, com `Cache-Control: private, no-store`. O processo guarda a leitura por 8 segundos para várias abas não repetirem a consulta. `OcorrenciaPartida` não está na publicação `supabase_realtime`; a tela não abre canal novo. O MVP do campeonato concluído continua no cartão de cima. A consulta de ocorrências pede `tipo`, `jogadorId` e `descricao`, com a partida por `ligaId` e `categoriaCampeonatoId`. `OcorrenciaPartida` não tem `createdAt`, `updatedAt` nem `criadoEm`. O atleta é o `jogadorId`. Ao lado do nome, a tabela mostra `Jogador.numero` de 0 a 99. `SumulaPresenca.numero = -1`, o texto `-1` e a marca `sem` são camisa vazia: não aparecem e não atribuem ponto.
 

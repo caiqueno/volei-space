@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     grupos: tabela.groups.map((grupo) => ({
       id: grupo.id,
       nome: grupo.nome,
+      vagas: grupo.automaticLimit,
       linhas: grupo.dados.map(linhaPublica),
     })),
   }))
@@ -42,6 +43,11 @@ function linhaPublica(linha: LinhaClassificacao) {
     vitorias: linha.vitorias,
     derrotas: linha.derrotas,
     setsPro: linha.setsPro,
+    setsContra: linha.setsContra,
     saldoSets: linha.setsPro - linha.setsContra,
+    pontosPro: linha.pontosPro,
+    pontosContra: linha.pontosContra,
+    saldoPontos: linha.pontosPro - linha.pontosContra,
+    punicoes: linha.punicoes,
   }
 }

@@ -23,6 +23,8 @@ const config: Config = {
           win: '#22C55E',
           loss: '#EF4444',
           live: '#FF4D6D',
+          silver: '#C9D1DC',
+          bronze: '#D08C4E',
         },
         luva: {
           navy: '#16243D',

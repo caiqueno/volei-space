@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ExternalLink, Radio, Trophy } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
+import { Check, Radio, Trophy } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
-import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+import { abasDaChave, caminhoConector, colunasSimetricas, gradeDaChave, trechosConectores, type ColunaVisual } from '@/lib/chave-visual'
+import { agendaDaPartida, formatFaseMataMata } from '@/lib/format-partida'
 import mi from '@/styles/microinteracoes.module.css'
 
 export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null; vaga?: boolean }
@@ -26,6 +26,8 @@ export type BracketSlot = {
     setsPorB: number | null
     sets: SetScore[]
     sumulaToken: string | null
+    dataHora?: string | null
+    localNome?: string | null
   } | null
   eligibleOptions: TeamOption[] | null
   volta?: BracketSlot['partida']
@@ -33,14 +35,21 @@ export type BracketSlot = {
 
 export type BracketRoundView = { fase: string; label: string; slots: BracketSlot[] }
 
-type Node = { round: BracketRoundView; slot: BracketSlot; children: Node[] }
+type Props = {
+  ligaId: number
+  rounds: BracketRoundView[]
+  champion: TeamOption | null
+  thirdPlace?: BracketSlot | null
+  organizerMode: boolean
+  categoriaCampeonatoId?: string | null
+}
 
-const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' | 'warning' | 'success' | 'error' }> = {
-  AGENDADA: { label: 'Agendada', variant: 'neutral' },
-  EM_ANDAMENTO: { label: 'Ao vivo', variant: 'info' },
-  PENDENTE_APROVACAO: { label: 'Em análise', variant: 'warning' },
-  ENCERRADA: { label: 'Encerrada', variant: 'success' },
-  WO: { label: 'W.O.', variant: 'error' },
+const STATUS: Record<string, string> = {
+  AGENDADA: 'Agendada',
+  EM_ANDAMENTO: 'Ao vivo',
+  PENDENTE_APROVACAO: 'Em análise',
+  ENCERRADA: 'Encerrada',
+  WO: 'W.O.',
 }
 
 export function ChaveamentoMataMata({
@@ -50,196 +59,273 @@ export function ChaveamentoMataMata({
   thirdPlace,
   organizerMode,
   categoriaCampeonatoId = null,
-}: {
-  ligaId: number
-  rounds: BracketRoundView[]
-  champion: TeamOption | null
-  thirdPlace?: BracketSlot | null
-  organizerMode: boolean
-  categoriaCampeonatoId?: string | null
-}) {
+}: Props) {
+  const [aba, setAba] = useState(rounds[rounds.length - 1]?.fase ?? '')
   if (rounds.length === 0) return null
 
-  function buildNode(roundIndex: number, slotNumber: number): Node {
-    const round = rounds[roundIndex]
-    const slot = round.slots[slotNumber - 1]
-    if (roundIndex === 0) return { round, slot, children: [] }
-    return {
-      round,
-      slot,
-      children: [buildNode(roundIndex - 1, slotNumber * 2 - 1), buildNode(roundIndex - 1, slotNumber * 2)],
-    }
-  }
-
-  const root = buildNode(rounds.length - 1, 1)
-  // O 3º lugar só entra encaixado entre os dois cards da semifinal quando a raiz da árvore
-  // (a final) tem exatamente essas duas semifinais como filhas — que é sempre o caso quando
-  // getMataMataBracket calculou um thirdPlace (só calcula quando existe rodada de SEMIFINAL).
-  const showThirdPlaceInline = Boolean(thirdPlace) && root.children.length === 2
+  const colunas = colunasSimetricas(rounds.map((round) => ({
+    fase: round.fase,
+    label: round.label,
+    slots: round.slots.map((slot) => ({ rodada: slot.rodada, avancou: avancou(slot) })),
+  })))
+  const trechos = trechosConectores(colunas)
+  const abas = abasDaChave(rounds)
+  const abaAtiva = abas.some((item) => item.id === aba) ? aba : abas[0]?.id
 
   return (
-    <div className="overflow-x-auto pb-4">
-      <div className="mx-auto flex min-w-max flex-col items-center">
-        {showThirdPlaceInline ? (
-          <>
-            <div className="relative flex items-end gap-8">
-              <BracketNode node={root.children[0]} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={1} />
-              <SlotCard slot={thirdPlace!} roundLabel="Disputa de 3º lugar" multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={1} />
-              <BracketNode node={root.children[1]} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={1} />
-              {/* Conector especial: com o card do 3º lugar ocupando a vaga central da linha,
-                  os dois cards da semifinal ficam a 1/6.5 e 5,5/6.5 da largura total (256px de
-                  card + 32px de gap, repetidos 3x) — não mais em 25%/75% como nas linhas normais. */}
-              <svg viewBox="0 0 100 28" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 top-full h-7 w-full">
-                <path d="M15.385,0 V14 H84.615 V0" fill="none" stroke="#CBD5E1" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                <path d="M50,14 V28" fill="none" stroke="#CBD5E1" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-              </svg>
-            </div>
-            <div className="h-7" />
-            <SlotCard slot={root.slot} roundLabel={root.round.label} multiSlot={root.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} highlight={root.round.fase === 'FINAL'} nivel={0} />
-          </>
-        ) : (
-          <BracketNode node={root} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} />
-        )}
-        <StraightConnector />
-        <div className={`border-beam flex w-56 flex-col items-center gap-2 rounded-2xl bg-luva-navy p-5 text-center shadow-[0_0_28px_rgba(239,159,39,0.4)] ${mi.campeao} ${mi.entrar}`} style={{ animationDelay: '180ms' }}>
-          <Trophy size={26} className={`text-luva-amber ${mi.pop}`} />
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">Campeão</p>
-          {champion ? (
-            <p className="font-display text-lg font-black text-white"><NomeEquipe nome={champion.nome} /></p>
-          ) : (
-            <p className="text-sm font-bold text-slate-300">Definido após a final</p>
+    <div>
+      <div className="lg:hidden">
+        <div role="tablist" aria-label="Fases do mata-mata" className="flex snap-x gap-2 overflow-x-auto pb-3">
+          {abas.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={abaAtiva === item.id}
+              onClick={() => setAba(item.id)}
+              className={`snap-start rounded-full px-4 py-2 font-display text-sm font-bold uppercase tracking-[0.12em] ${abaAtiva === item.id ? 'bg-vs-gold text-vs-on-gold' : 'border border-vs-border bg-vs-elevated text-vs-text'}`}
+            >
+              {item.rotulo}
+            </button>
+          ))}
+        </div>
+        {rounds.filter((round) => round.fase === abaAtiva).map((round) => (
+          <div key={round.fase} role="tabpanel" className="grid gap-4">
+            {round.fase === 'FINAL' && <Trofeu champion={champion} />}
+            <ul className="grid gap-4">
+              {round.slots.map((slot) => (
+                <li key={`${round.fase}-${slot.rodada}`}>
+                  <CartaoJogo slot={slot} roundLabel={round.label} multiSlot={round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} destaque={round.fase === 'FINAL'} />
+                </li>
+              ))}
+            </ul>
+            {round.fase === 'FINAL' && thirdPlace && (
+              <CartaoJogo slot={thirdPlace} roundLabel={formatFaseMataMata(thirdPlace.fase) ?? '3º lugar'} multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} compacto />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden lg:grid lg:gap-4" style={{ gridTemplateColumns: gradeDaChave(colunas.length) }}>
+        <div style={{ gridColumn: colunaCentral(colunas), gridRow: 1 }}>
+          <Trofeu champion={champion} />
+        </div>
+        <div className="relative" style={{ gridColumn: '1 / -1', gridRow: 2 }}>
+          <div className="grid items-stretch" style={{ gridTemplateColumns: gradeDaChave(colunas.length) }}>
+            {colunas.map((coluna, indice) => (
+              <div key={coluna.id} className="min-w-0" style={{ gridColumn: indice * 2 + 1 }}>
+                <ColunaJogos coluna={coluna} rounds={rounds} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} />
+              </div>
+            ))}
+          </div>
+          {trechos.length > 0 && (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+              {trechos.map((trecho, indice) => (
+                <path key={indice} d={caminhoConector(trecho)} fill="none" stroke="currentColor" strokeWidth={2} vectorEffect="non-scaling-stroke" className={trecho.ouro ? 'text-vs-gold' : 'text-vs-border'} />
+              ))}
+            </svg>
           )}
         </div>
+        {thirdPlace && (
+          <div className="origin-top scale-95" style={{ gridColumn: colunaCentral(colunas), gridRow: 3 }}>
+            <CartaoJogo slot={thirdPlace} roundLabel={formatFaseMataMata(thirdPlace.fase) ?? '3º lugar'} multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} compacto />
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function BracketNode({ node, ligaId, organizerMode, categoriaCampeonatoId = null, nivel = 0 }: { node: Node; ligaId: number; organizerMode: boolean; categoriaCampeonatoId?: string | null; nivel?: number }) {
-  const hasChildren = node.children.length > 0
+function colunaCentral(colunas: ColunaVisual[]) {
+  const indice = Math.max(0, colunas.findIndex((coluna) => coluna.lado === 'centro'))
+  return indice * 2 + 1
+}
+
+function ColunaJogos({
+  coluna,
+  rounds,
+  ligaId,
+  organizerMode,
+  categoriaCampeonatoId,
+}: {
+  coluna: ColunaVisual
+  rounds: BracketRoundView[]
+  ligaId: number
+  organizerMode: boolean
+  categoriaCampeonatoId: string | null
+}) {
+  const round = rounds.find((item) => item.fase === coluna.fase)
+  const jogos = round ? coluna.jogos.map((jogo) => round.slots.find((slot) => slot.rodada === jogo.rodada)).filter((slot): slot is BracketSlot => Boolean(slot)) : []
   return (
-    <div className="flex flex-col items-center">
-      {hasChildren && (
-        <div className="relative flex items-start gap-8">
-          {node.children.map((child, index) => (
-            <BracketNode key={index} node={child} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} nivel={nivel + 1} />
-          ))}
-          {/* Spans the exact rendered width of the row above via absolute positioning, so the
-              25%/75% marks land on each child's center regardless of subtree width. */}
-          <svg viewBox="0 0 100 28" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 top-full h-7 w-full">
-            <path d="M25,0 V14 H75 V0" fill="none" stroke="#CBD5E1" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            <path d="M50,14 V28" fill="none" stroke="#CBD5E1" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-          </svg>
-        </div>
+    <ul className="grid h-full min-w-0" style={{ gridTemplateRows: `repeat(${Math.max(jogos.length, 1)}, minmax(0, 1fr))` }}>
+      {jogos.map((slot) => (
+        <li key={slot.rodada} className="flex min-w-0 items-center">
+          <div className="w-full min-w-0">
+            <CartaoJogo slot={slot} roundLabel={round?.label ?? coluna.rotulo} multiSlot={(round?.slots.length ?? 0) > 1} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} destaque={coluna.lado === 'centro'} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Trofeu({ champion }: { champion: TeamOption | null }) {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <Trophy size={64} strokeWidth={1.75} className="text-vs-gold" aria-hidden="true" />
+      <p className="luva-kicker mt-2 font-display text-sm font-bold tracking-[0.12em]">Final</p>
+      {champion ? (
+        <b className="mt-1 font-display text-2xl font-bold text-vs-gold"><NomeEquipe nome={champion.nome} /></b>
+      ) : (
+        <p className="mt-1 text-sm font-semibold text-vs-muted">Definido após a final</p>
       )}
-      {hasChildren && <div className="h-7" />}
-      <SlotCard slot={node.slot} roundLabel={node.round.label} multiSlot={node.round.slots.length > 1} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} highlight={node.round.fase === 'FINAL'} nivel={nivel} />
     </div>
   )
 }
 
-function StraightConnector() {
-  return <div className="h-7 w-0.5 bg-slate-300" />
+function avancou(slot: BracketSlot) {
+  const partida = slot.partida
+  if (!partida) return false
+  const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
+  if (!encerrada) return false
+  return Number(partida.setsPorA ?? 0) !== Number(partida.setsPorB ?? 0)
 }
 
-function SlotCard({
+function CartaoJogo({
   slot,
   roundLabel,
   multiSlot,
   ligaId,
   organizerMode,
-  categoriaCampeonatoId = null,
-  highlight = false,
-  nivel = 0,
+  categoriaCampeonatoId,
+  destaque = false,
+  compacto = false,
 }: {
   slot: BracketSlot
   roundLabel: string
   multiSlot: boolean
   ligaId: number
   organizerMode: boolean
-  categoriaCampeonatoId?: string | null
-  highlight?: boolean
-  nivel?: number
+  categoriaCampeonatoId: string | null
+  destaque?: boolean
+  compacto?: boolean
 }) {
   const tag = multiSlot ? `${roundLabel} · Jogo ${slot.rodada}` : roundLabel
-  const revelacao = { animationDelay: `${Math.max(0, 3 - nivel) * 50}ms` }
-
   if (slot.partida) {
-    const { partida } = slot
-    const badge = statusBadge[partida.status] ?? { label: partida.status, variant: 'neutral' as const }
-    const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
-    const winnerId = encerrada ? (Number(partida.setsPorA ?? 0) > Number(partida.setsPorB ?? 0) ? partida.equipeA.id : Number(partida.setsPorB ?? 0) > Number(partida.setsPorA ?? 0) ? partida.equipeB.id : null) : null
-
-    return (
-      <div className={`chave-confronto w-64 rounded-2xl bg-white p-4 ${mi.chave} ${mi.cartao} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.08)]'}`} style={revelacao}>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <span className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
-          <Badge variant={badge.variant}>{badge.label}</Badge>
-        </div>
-        <TeamRow team={partida.equipeA} score={partida.setsPorA} isWinner={winnerId === partida.equipeA.id && !partida.equipeA.vaga} />
-        <TeamRow team={partida.equipeB} score={partida.setsPorB} isWinner={winnerId === partida.equipeB.id && !partida.equipeB.vaga} />
-        {slot.volta ? (
-          <p className="mt-2 text-[11px] font-bold text-slate-500">
-            Volta: {slot.volta.setsPorA ?? 0}–{slot.volta.setsPorB ?? 0}
-            {slot.volta.sumulaToken ? (
-              <>
-                {' · '}
-                <a href={`/sumula/${encodeURIComponent(slot.volta.sumulaToken)}`} target="_blank" rel="noreferrer" className="underline">súmula</a>
-              </>
-            ) : null}
-          </p>
-        ) : null}
-        {partida.sets.length > 0 && (
-          <p className={`mt-2 border-t border-slate-100 pt-2 text-[11px] font-bold text-slate-400 ${mi.numero}`}>
-            {partida.sets.map((s) => `${s.pontosA}-${s.pontosB}`).join(' · ')}
-          </p>
-        )}
-        {partida.equipeA.vaga || partida.equipeB.vaga ? (
-          <p className="mt-3 text-center text-[11px] font-bold leading-4 text-slate-500">A súmula não pode iniciar enquanto os times não estiverem definidos.</p>
-        ) : (
-          <a href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
-            Abrir súmula <ExternalLink size={12} />
-          </a>
-        )}
-        <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
-          <Radio size={12} /> Link público
-        </a>
-        <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-slate-200 py-2 text-xs font-black text-slate-600 transition hover:border-luva-amber hover:text-luva-navy">
-          {encerrada ? 'Resumo da partida' : partida.status === 'EM_ANDAMENTO' ? 'Acompanhar ao vivo' : 'Resumo da partida'}
-        </a>
-      </div>
-    )
+    return <CartaoPartida partida={slot.partida} tag={tag} volta={slot.volta} organizerMode={organizerMode} destaque={destaque} compacto={compacto} />
   }
-
   if (organizerMode && slot.eligibleOptions) {
-    return <CriarConfrontoCard slot={slot} tag={tag} ligaId={ligaId} categoriaCampeonatoId={categoriaCampeonatoId} options={slot.eligibleOptions} highlight={highlight} revelacao={revelacao} />
+    return <CriarConfrontoCard slot={slot} tag={tag} ligaId={ligaId} categoriaCampeonatoId={categoriaCampeonatoId} options={slot.eligibleOptions} destaque={destaque} />
   }
-
   return (
-    <div className={`chave-confronto flex w-64 flex-col items-center justify-center gap-1 rounded-2xl bg-slate-50 p-4 text-center ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-dashed border-slate-300'}`} style={revelacao}>
-      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
-      <span className="text-sm font-bold text-slate-400">A definir</span>
-    </div>
+    <article aria-label={`${tag}, a definir`} className={`flex min-h-20 flex-col justify-center rounded-xl border border-dashed border-vs-border bg-vs-surface px-3 py-2 ${mi.chave}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-vs-muted">{tag}</p>
+      <p className="mt-1 text-sm italic text-vs-muted">A definir —</p>
+    </article>
   )
 }
 
-function TeamRow({ team, score, isWinner }: { team: TeamOption; score: number | null; isWinner: boolean }) {
-  if (team.vaga) {
+function CartaoPartida({
+  partida,
+  tag,
+  volta,
+  organizerMode,
+  destaque,
+  compacto,
+}: {
+  partida: NonNullable<BracketSlot['partida']>
+  tag: string
+  volta?: BracketSlot['partida']
+  organizerMode: boolean
+  destaque: boolean
+  compacto: boolean
+}) {
+  const agenda = agendaDaPartida(partida, tag)
+  const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
+  const aoVivo = partida.status === 'EM_ANDAMENTO'
+  const vencedorId = encerrada
+    ? (Number(partida.setsPorA ?? 0) > Number(partida.setsPorB ?? 0) ? partida.equipeA.id : Number(partida.setsPorB ?? 0) > Number(partida.setsPorA ?? 0) ? partida.equipeB.id : null)
+    : null
+  const rotulo = `${tag}, ${partida.equipeA.nome} contra ${partida.equipeB.nome}`
+  const parciais = [...partida.sets].sort((a, b) => a.numero - b.numero)
+
+  return (
+    <article aria-label={rotulo} className={`min-h-20 min-w-0 rounded-xl border bg-vs-surface px-3 py-2 ${mi.chave} ${destaque ? 'border-vs-gold' : 'border-vs-border'} ${compacto ? 'text-sm' : ''}`}>
+      <header className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-vs-muted">{tag}</p>
+          {(agenda.data || agenda.local) && (
+            <p className={`mt-0.5 text-xs font-semibold ${partida.status === 'AGENDADA' ? 'text-vs-blue' : 'text-vs-muted'}`}>
+              {[agenda.data, agenda.local].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+        <StatusPartida status={partida.status} />
+      </header>
+      <ul>
+        <LinhaTime equipe={partida.equipeA} sets={partida.setsPorA} venceu={vencedorId === partida.equipeA.id && !partida.equipeA.vaga} encerrada={encerrada} />
+        <LinhaTime equipe={partida.equipeB} sets={partida.setsPorB} venceu={vencedorId === partida.equipeB.id && !partida.equipeB.vaga} encerrada={encerrada} />
+      </ul>
+      {parciais.length > 0 && (
+        <p className="mt-2 flex flex-wrap gap-1">
+          {parciais.map((set) => (
+            <span key={set.numero} className="rounded-md bg-vs-elevated px-1.5 py-0.5 text-xs font-semibold tabular-nums text-vs-muted">{set.pontosA}-{set.pontosB}</span>
+          ))}
+        </p>
+      )}
+      {volta && (
+        <p className="mt-2 text-xs font-semibold text-vs-muted">Volta: {volta.setsPorA ?? 0}–{volta.setsPorB ?? 0}</p>
+      )}
+      {aoVivo && <span className="sr-only">Partida ao vivo</span>}
+      <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-vs-border py-2 text-xs font-bold text-vs-text transition-colors duration-vs-tap ease-vs-out hover:border-vs-gold">
+        <Radio size={12} aria-hidden="true" /> Resumo da partida
+      </a>
+      {organizerMode && partida.sumulaToken && (
+        <a href={`/sumula/${encodeURIComponent(partida.sumulaToken)}`} target="_blank" rel="noreferrer" className="mt-2 block text-center text-xs font-bold text-vs-muted underline">Abrir súmula</a>
+      )}
+    </article>
+  )
+}
+
+function StatusPartida({ status }: { status: string }) {
+  if (status === 'EM_ANDAMENTO') {
     return (
-      <div className="py-1.5">
-        <p className="text-sm font-black leading-5 text-slate-900">{team.nome}</p>
-      </div>
+      <b className="inline-flex items-center gap-1 font-display text-xs font-bold tracking-[0.12em] text-vs-live">
+        <span className="h-2 w-2 rounded-full bg-vs-live motion-safe:animate-pulse" aria-hidden="true" />
+        AO VIVO
+      </b>
     )
   }
+  return <span className="rounded-full border border-vs-border px-2 py-0.5 text-xs font-bold text-vs-muted">{STATUS[status] ?? status}</span>
+}
+
+function LinhaTime({ equipe, sets, venceu, encerrada }: { equipe: TeamOption; sets: number | null; venceu: boolean; encerrada: boolean }) {
+  const definir = equipe.vaga || equipe.id <= 0
   return (
-    <div className={`flex items-center justify-between gap-2 py-1.5 ${isWinner ? mi.lider : 'opacity-70'}`}>
-      <TeamIdentity nome={team.nome} cor={team.corHex} logoUrl={team.logoUrl} compact />
-      {score != null && <span className={`text-sm font-black ${mi.numero} ${isWinner ? 'text-emerald-600' : 'text-slate-400'}`}>{score}</span>}
-    </div>
+    <li className={`flex min-h-8 items-center gap-2 border-l-4 py-1 pl-2 ${venceu ? 'border-vs-gold' : 'border-transparent'} ${encerrada && !venceu && !definir ? 'opacity-60' : ''}`}>
+      <Escudo nome={equipe.nome} cor={equipe.corHex} logoUrl={equipe.logoUrl} />
+      <span className={`min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-vs-text ${venceu ? 'font-bold' : 'font-semibold'} ${definir ? 'italic text-vs-muted' : ''}`}>
+        <NomeEquipe nome={definir ? 'A definir' : equipe.nome} />
+      </span>
+      {venceu && <Check size={14} className="shrink-0 text-vs-gold" aria-label="Vencedor" />}
+      <b className={`w-6 text-right font-display text-xl font-bold tabular-nums ${venceu ? 'text-vs-gold' : 'text-vs-muted'}`}>{definir ? '—' : sets ?? '—'}</b>
+    </li>
   )
 }
 
-function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId = null, options, highlight = false, revelacao }: { slot: BracketSlot; tag: string; ligaId: number; categoriaCampeonatoId?: string | null; options: TeamOption[]; highlight?: boolean; revelacao?: { animationDelay: string } }) {
+function Escudo({ nome, cor, logoUrl }: { nome: string; cor: string | null; logoUrl: string | null }) {
+  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((parte) => parte[0]).join('').toUpperCase()
+  if (logoUrl) {
+    return <img src={logoUrl} alt="" className="h-6 w-6 shrink-0 object-contain" />
+  }
+  return (
+    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-vs-text" style={{ background: cor ?? '#16243D' }}>
+      {iniciais || '–'}
+    </span>
+  )
+}
+
+function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId, options, destaque }: { slot: BracketSlot; tag: string; ligaId: number; categoriaCampeonatoId: string | null; options: TeamOption[]; destaque: boolean }) {
   const router = useRouter()
   const [equipeAId, setEquipeAId] = useState('')
   const [equipeBId, setEquipeBId] = useState('')
@@ -278,43 +364,34 @@ function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId = null, o
 
   if (options.length === 0) {
     return (
-      <div className={`chave-confronto flex w-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center ${mi.chave}`} style={revelacao}>
-        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{tag}</span>
-        <span className="text-sm font-bold text-slate-400">Sem times disponíveis</span>
-      </div>
+      <article aria-label={`${tag}, sem times`} className="flex min-h-20 flex-col justify-center rounded-xl border border-dashed border-vs-border bg-vs-surface px-3 py-2">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-vs-muted">{tag}</p>
+        <p className="mt-1 text-sm text-vs-muted">Sem times disponíveis</p>
+      </article>
     )
   }
 
   return (
-    <div className={`chave-confronto w-64 rounded-2xl bg-amber-50/40 p-4 ${mi.chave} ${highlight ? `border-beam shadow-[0_0_22px_rgba(239,159,39,0.35)] ${mi.campeao}` : 'border border-luva-amber/40'}`} style={revelacao}>
-      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{tag}</span>
+    <article aria-label={`${tag}, criar confronto`} className={`min-h-20 rounded-xl border bg-vs-surface px-3 py-2 ${destaque ? 'border-vs-gold' : 'border-vs-border'}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-vs-muted">{tag}</p>
       <div className="mt-2 grid gap-2">
-        <select value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900">
+        <select value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-lg border border-vs-border bg-vs-elevated px-3 py-2 text-sm font-semibold text-vs-text">
           <option value="">Time A</option>
           {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeBId}>{normalizarNomeEquipe(team.nome)}</option>)}
         </select>
-        <select value={equipeBId} onChange={(event) => setEquipeBId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900">
+        <select value={equipeBId} onChange={(event) => setEquipeBId(event.target.value)} className="w-full rounded-lg border border-vs-border bg-vs-elevated px-3 py-2 text-sm font-semibold text-vs-text">
           <option value="">Time B</option>
           {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeAId}>{normalizarNomeEquipe(team.nome)}</option>)}
         </select>
-        <ActionBar
-          type="button"
-          onClick={criarConfronto}
-          loading={submitting}
-          loadingLabel="Criando"
-          disabled={!equipeAId || !equipeBId}
-          className="rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-        >
+        <ActionBar type="button" onClick={criarConfronto} loading={submitting} loadingLabel="Criando" disabled={!equipeAId || !equipeBId} className="rounded-full bg-vs-gold px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] text-vs-on-gold disabled:opacity-60">
           Criar confronto
         </ActionBar>
         {sessionExpired ? (
-          <p className="text-xs font-bold text-red-500">
-            Sua sessão expirou. <a href="/login" className="underline hover:text-red-600">Faça login novamente</a> e repita a criação do confronto.
-          </p>
+          <p className="text-xs font-bold text-vs-loss">Sua sessão expirou. <a href="/login" className="underline">Faça login novamente</a>.</p>
         ) : (
-          message && <p className="text-xs font-bold text-red-500">{message}</p>
+          message && <p className="text-xs font-bold text-vs-loss">{message}</p>
         )}
       </div>
-    </div>
+    </article>
   )
 }
