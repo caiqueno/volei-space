@@ -587,7 +587,7 @@ export default function CapitaoPage() {
                   </button>
                 </label>
                 <label className="grid gap-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-200">Tipo de documento</span>
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-200">Tipo de documento (opcional)</span>
                   <select
                     value={playerForm.documentoTipo}
                     onChange={(event) => setPlayerForm((current) => ({ ...current, documentoTipo: event.target.value }))}
@@ -598,8 +598,8 @@ export default function CapitaoPage() {
                     ))}
                   </select>
                 </label>
-                <Input label="Documento" value={playerForm.documentoNumero} onChange={(value) => setPlayerForm((current) => ({ ...current, documentoNumero: value, cpf: current.documentoTipo === 'CPF' ? value : current.cpf }))} />
-                <Input label="Nascimento" value={playerForm.dataNascimento} onChange={(value) => setPlayerForm((current) => ({ ...current, dataNascimento: value }))} type="date" />
+                <Input label="Documento (opcional)" value={playerForm.documentoNumero} onChange={(value) => setPlayerForm((current) => ({ ...current, documentoNumero: value, cpf: current.documentoTipo === 'CPF' ? value : current.cpf }))} />
+                <Input label="Nascimento (opcional)" value={playerForm.dataNascimento} onChange={(value) => setPlayerForm((current) => ({ ...current, dataNascimento: value }))} type="date" />
                 <Input label="Telefone" value={playerForm.telefone} onChange={(value) => setPlayerForm((current) => ({ ...current, telefone: value }))} />
                 <Input label="Emergência" value={playerForm.telefoneEmergencia} onChange={(value) => setPlayerForm((current) => ({ ...current, telefoneEmergencia: value }))} />
               </div>
