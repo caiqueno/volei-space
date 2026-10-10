@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | súmula do organizador, scout e chave automática
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
+- O organizador grava a própria súmula. O MVP pede confirmação. Anotações usam o número da partida. Últimos pontos seguem o lado do lance. A quadra encerrada esconde +1, ACE, P, B e S. O scout separa ponto sem atleta. O árbitro do link deixa de aparecer como não registrado, e o credenciamento não volta em jogo já iniciado. Ver mais conserva o mata-mata sem data. A chave nasce dos grupos e o texto dos cartões claros fica escuro. Sem migration.
+
 ## [2026-10-10] fix | sets por fase do mata-mata e pódio público
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `modulos/PARAMETRIZACAO`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`

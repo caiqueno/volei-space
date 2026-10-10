@@ -64,9 +64,10 @@ type Props = {
   onBloqueio?: (teamId: LadoQuadra, numero: string) => void
   onAce?: (teamId: LadoQuadra, numero: string) => void
   onSubstituicao?: (teamId: LadoQuadra, indice: number) => void
+  encerrada?: boolean
 }
 
-export function QuadraVolei({ esquerda, direita, modo, numeroExibido, destaque, onAtivar, onSoltar, onAtaque, onBloqueio, onAce, onSubstituicao }: Props) {
+export function QuadraVolei({ esquerda, direita, modo, numeroExibido, destaque, onAtivar, onSoltar, onAtaque, onBloqueio, onAce, onSubstituicao, encerrada }: Props) {
   return (
     <div className="volley-board">
       <div className="volley-names">
@@ -77,8 +78,8 @@ export function QuadraVolei({ esquerda, direita, modo, numeroExibido, destaque, 
       <div className="volley-court" role="group" aria-label={`Quadra de ${normalizarNomeEquipe(esquerda.nome)} contra ${normalizarNomeEquipe(direita.nome)}`}>
         <img src="/images/quadra-padrao.png" alt="" />
         <div className="volley-play">
-          <Metade lado="esquerda" dados={esquerda} zonas={ZONAS_ESQUERDA} modo={modo} numeroExibido={numeroExibido} destaque={destaque} onAtivar={onAtivar} onSoltar={onSoltar} onAtaque={onAtaque} onBloqueio={onBloqueio} onAce={onAce} onSubstituicao={onSubstituicao} />
-          <Metade lado="direita" dados={direita} zonas={ZONAS_DIREITA} modo={modo} numeroExibido={numeroExibido} destaque={destaque} onAtivar={onAtivar} onSoltar={onSoltar} onAtaque={onAtaque} onBloqueio={onBloqueio} onAce={onAce} onSubstituicao={onSubstituicao} />
+          <Metade lado="esquerda" dados={esquerda} zonas={ZONAS_ESQUERDA} modo={modo} numeroExibido={numeroExibido} destaque={destaque} encerrada={encerrada} onAtivar={onAtivar} onSoltar={onSoltar} onAtaque={onAtaque} onBloqueio={onBloqueio} onAce={onAce} onSubstituicao={onSubstituicao} />
+          <Metade lado="direita" dados={direita} zonas={ZONAS_DIREITA} modo={modo} numeroExibido={numeroExibido} destaque={destaque} encerrada={encerrada} onAtivar={onAtivar} onSoltar={onSoltar} onAtaque={onAtaque} onBloqueio={onBloqueio} onAce={onAce} onSubstituicao={onSubstituicao} />
         </div>
       </div>
     </div>
@@ -98,6 +99,7 @@ function Metade({
   onBloqueio,
   onAce,
   onSubstituicao,
+  encerrada,
 }: {
   lado: 'esquerda' | 'direita'
   dados: LadoDaQuadra
@@ -111,6 +113,7 @@ function Metade({
   onBloqueio?: (teamId: LadoQuadra, numero: string) => void
   onAce?: (teamId: LadoQuadra, numero: string) => void
   onSubstituicao?: (teamId: LadoQuadra, indice: number) => void
+  encerrada?: boolean
 }) {
   const vazia = dados.escalacao.filter(Boolean).length === 0
   const [pulso, setPulso] = useState<string | null>(null)
@@ -169,7 +172,7 @@ function Metade({
             ) : (
               <div className={`volley-marker is-live ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''} ${brilhou ? 'is-scored' : ''} ${pulso === `${zona.posicao}:ace` ? 'sumula-micro-ace' : ''} ${pulso === `${zona.posicao}:block` ? 'sumula-micro-block' : ''}`} onAnimationEnd={limparPulso}>
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={false} />
-                {numero && (
+                {numero && !encerrada && (
                   <span className="volley-actions">
                     {acoesDaPosicao(zona.posicao, sacandoAqui).map((acao) => (
                       <button

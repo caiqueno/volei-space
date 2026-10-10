@@ -4,10 +4,12 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
+import { escalacaoParaJogo } from '@/lib/escalacao-inicial'
 import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
+import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
-import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
+import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
@@ -182,6 +184,7 @@ export default function SumulaPage() {
   const [controleSubstituicao, setControleSubstituicao] = useState<Record<number, Record<TeamId, ControleSubstituicao>>>({})
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
+  const [confirmarOficial, setConfirmarOficial] = useState(false)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
@@ -211,12 +214,9 @@ export default function SumulaPage() {
 
         setPartida(data)
         const savedRotation = parseSavedRotationState(savedOccurrences, restored.currentSet)
-        const initialLineupA = restored.matchStatus === 'pre-game'
-          ? createEmptyLineup()
-          : savedRotation?.lineupA ?? getDefaultLineupNumbers(teamA)
-        const initialLineupB = restored.matchStatus === 'pre-game'
-          ? createEmptyLineup()
-          : savedRotation?.lineupB ?? getDefaultLineupNumbers(teamB)
+        const preJogo = restored.matchStatus === 'pre-game'
+        const initialLineupA = escalacaoParaJogo(savedRotation?.lineupA, getDefaultLineupNumbers(teamA), preJogo)
+        const initialLineupB = escalacaoParaJogo(savedRotation?.lineupB, getDefaultLineupNumbers(teamB), preJogo)
         setLineupA(initialLineupA)
         setLineupB(initialLineupB)
         setBenchA(getBenchNumbers(teamA, initialLineupA, restored.startingLiberos[restored.currentSet]?.teamA))
@@ -363,8 +363,23 @@ export default function SumulaPage() {
     addMatchEvent('anotacao', 'Equipes inverteram os lados da quadra.')
   }
 
+  function preencherEscalacaoSeVazia() {
+    if (!teamA || !teamB) return
+    if (!lineupA.some((item) => item)) {
+      const numeros = getDefaultLineupNumbers(teamA)
+      setLineupA(numeros)
+      setBenchA(getBenchNumbers(teamA, numeros, startingLiberos[currentSet]?.teamA))
+    }
+    if (!lineupB.some((item) => item)) {
+      const numeros = getDefaultLineupNumbers(teamB)
+      setLineupB(numeros)
+      setBenchB(getBenchNumbers(teamB, numeros, startingLiberos[currentSet]?.teamB))
+    }
+  }
+
   function handleSkipSetup() {
     if (!teamA || !teamB) return
+    preencherEscalacaoSeVazia()
     const starter = initialServerBySet[currentSet] ?? 'teamA'
     setCaptA(teamA.players[0]?.number ?? '')
     setCaptB(teamB.players[0]?.number ?? '')
@@ -384,6 +399,7 @@ export default function SumulaPage() {
 
   async function handleConfirmSetup() {
     if (!teamA || !teamB) return
+    preencherEscalacaoSeVazia()
     if (!stepChecklist.conferido || !stepChecklist.capitaes || !stepChecklist.saque) {
       addToast('Confirme os capitães, o saque inicial e pelo menos 6 atletas validados por equipe.')
       return
@@ -410,6 +426,7 @@ export default function SumulaPage() {
   }
 
   function logPoint(teamId: TeamId, number = '', options: { ace?: boolean; kind?: 'attack' | 'block' | 'team' } = {}) {
+    if (matchStatus === 'finished') return
     if (!teamA || !teamB) return
     const isA = teamId === 'teamA'
     const previous = { ...currentScore }
@@ -793,6 +810,7 @@ export default function SumulaPage() {
   }
 
   function askSubstitution(teamId: TeamId, index: number) {
+    if (matchStatus === 'finished') return
     const number = teamId === 'teamA' ? lineupA[index] : lineupB[index]
     if (!number) return
     setSubModal({ teamId, index, outNumber: number })
@@ -1042,26 +1060,17 @@ export default function SumulaPage() {
     }
   }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao, submitted, submitting, partida?.sumulaAprovadaEm])
 
-  useEffect(() => {
-    if (matchStatus !== 'finished' || !mvpId || submitted || submitting || finalSubmitRef.current || partida?.sumulaAprovadaEm) return
-    finalSubmitRef.current = true
-    let cancelado = false
-    const maxTentativas = 3
-
-    async function tentarEnvioAutomatico(tentativa: number) {
-      const ok = await submitSumula(true)
-      if (ok || cancelado) return
-      if (tentativa < maxTentativas) {
-        await new Promise((resolve) => setTimeout(resolve, tentativa * 2500))
-        if (!cancelado) await tentarEnvioAutomatico(tentativa + 1)
-        return
-      }
-      finalSubmitRef.current = false
+  function pedirOficializacao() {
+    if (matchStatus !== 'finished') return
+    if (!mvpId || !jogadoresVencedores.some((player) => String(player.id) === String(mvpId))) {
+      setActiveTab('anotacoes')
+      setSidebarOpen(false)
+      setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      addToast('Escolha o MVP da equipe vencedora na aba Anotações.')
+      return
     }
-
-    tentarEnvioAutomatico(1)
-    return () => { cancelado = true }
-  }, [matchStatus, mvpId, submitted, submitting])
+    setConfirmarOficial(true)
+  }
 
   async function submitSumula(automatic = false) {
     if (!teamA || !teamB) return false
@@ -1238,7 +1247,7 @@ export default function SumulaPage() {
           {partida.sumulaAprovadaEm ? (
             <a className="official-public-sumula" href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer">Ver súmula pública</a>
           ) : (
-            <ActionBar type="button" onClick={() => submitSumula()} loading={submitting} loadingLabel="Enviando" disabled={matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : undefined}>
+            <ActionBar type="button" onClick={pedirOficializacao} loading={submitting} loadingLabel="Enviando" disabled={matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : 'Escolhe o MVP na aba Anotações quando ele ainda não foi definido'}>
               <Send size={14} />
               {matchStatus === 'finished' ? 'Oficializar súmula' : 'Aguardando fim'}
             </ActionBar>
@@ -1362,6 +1371,7 @@ export default function SumulaPage() {
             onTimeout={requestTimeout}
             saveNote={saveNote}
             vistaQuadra={vistaQuadra}
+            encerrada={matchStatus === 'finished'}
           />
         )}
 
@@ -1432,6 +1442,20 @@ export default function SumulaPage() {
           }}
           onConfirm={unlockPontuacao}
         />
+      )}
+
+      {confirmarOficial && (
+        <div className="official-set-confirm" role="dialog" aria-modal="true" aria-labelledby="confirmar-oficial-titulo">
+          <div className="official-set-confirm-card">
+            <span>Súmula oficial</span>
+            <h2 id="confirmar-oficial-titulo">Oficializar a súmula?</h2>
+            <p>O resultado fica público e a partida deixa de aceitar novos lances. Confira o MVP da equipe vencedora antes de continuar.</p>
+            <div>
+              <button type="button" onClick={() => setConfirmarOficial(false)}>Voltar</button>
+              <button type="button" onClick={() => { setConfirmarOficial(false); void submitSumula(false) }}>Confirmar oficialização</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {falhaSalvamento && (
@@ -1938,7 +1962,7 @@ function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, an
           <div><span>Tempos técnicos</span><strong>{timeoutsUsedA + timeoutsUsedB}</strong></div>
           <div><span>Anotações oficiais</span><strong>{anotacoes.length}</strong></div>
         </div>
-        <div className="official-section-row official-scout-heading"><h3>Scout individual</h3><span>{pointEvents.length} ponto(s) identificados</span></div>
+        <div className="official-section-row official-scout-heading"><h3>Scout individual</h3><span>{textoResumoScout(resumirPontos(pointEvents))}</span></div>
         <div className="official-scout-grid">
           {orderedScout.map((teamScout) => (
             <section key={teamScout.teamId}>
@@ -2017,6 +2041,7 @@ function PontuacaoTab(props: {
   onTimeout: (teamId: TeamId) => void
   saveNote: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
   vistaQuadra: '2d' | '3d'
+  encerrada?: boolean
 }) {
   const [cardModal, setCardModal] = useState<{ teamId: TeamId; tipo: 'Cartão amarelo' | 'Cartão vermelho' } | null>(null)
   const substitutionTeam = props.subModal?.teamId === 'teamA' ? props.teamA : props.teamB
@@ -2040,9 +2065,9 @@ function PontuacaoTab(props: {
       {props.vistaQuadra === '2d' ? (
       <>
       <div className="official-facing-court" aria-label="Quadra 2D com as equipes de frente">
-        <RosterClickers key={leftTeamId} teamId={leftTeamId} mirrored={false} team={leftTeam} lineup={leftLineup} servingTeam={props.servingTeamId === leftTeamId} serverIndex={leftServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} onAttack={(number) => props.onAttack(leftTeamId, number)} onBlock={(number) => props.onBlock(leftTeamId, number)} onSubstitution={props.onSubstitution} />
+        <RosterClickers key={leftTeamId} teamId={leftTeamId} mirrored={false} team={leftTeam} lineup={leftLineup} servingTeam={props.servingTeamId === leftTeamId} serverIndex={leftServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} encerrada={props.encerrada} onAttack={(number) => props.onAttack(leftTeamId, number)} onBlock={(number) => props.onBlock(leftTeamId, number)} onSubstitution={props.onSubstitution} />
         <div className="official-facing-net" aria-hidden="true"><span>Rede</span></div>
-        <RosterClickers key={rightTeamId} teamId={rightTeamId} mirrored={true} team={rightTeam} lineup={rightLineup} servingTeam={props.servingTeamId === rightTeamId} serverIndex={rightServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} onAttack={(number) => props.onAttack(rightTeamId, number)} onBlock={(number) => props.onBlock(rightTeamId, number)} onSubstitution={props.onSubstitution} />
+        <RosterClickers key={rightTeamId} teamId={rightTeamId} mirrored={true} team={rightTeam} lineup={rightLineup} servingTeam={props.servingTeamId === rightTeamId} serverIndex={rightServerIndex} pointFlash={props.pointFlash} getMatchNumber={props.getMatchNumber} encerrada={props.encerrada} onAttack={(number) => props.onAttack(rightTeamId, number)} onBlock={(number) => props.onBlock(rightTeamId, number)} onSubstitution={props.onSubstitution} />
       </div>
       <div className="official-score-layout is-facing">
         <div className="official-team-score-group is-team-a">
@@ -2058,6 +2083,7 @@ function PontuacaoTab(props: {
             timeoutsUsed={leftTimeoutsUsed}
             onTimeout={() => props.onTimeout(leftTeamId)}
             events={props.events}
+            encerrada={props.encerrada}
           />
         </div>
         <div className="official-score-between">
@@ -2080,6 +2106,7 @@ function PontuacaoTab(props: {
             timeoutsUsed={rightTimeoutsUsed}
             onTimeout={() => props.onTimeout(rightTeamId)}
             events={props.events}
+            encerrada={props.encerrada}
           />
         </div>
       </div>
@@ -2099,6 +2126,7 @@ function PontuacaoTab(props: {
             timeoutsUsed={leftTimeoutsUsed}
             onTimeout={() => props.onTimeout(leftTeamId)}
             events={props.events}
+            encerrada={props.encerrada}
           />
           <div className="official-compact-set-score" aria-label="Placar de sets">
             <span>{props.setsWon[leftTeamId]}</span>
@@ -2117,10 +2145,12 @@ function PontuacaoTab(props: {
             timeoutsUsed={rightTimeoutsUsed}
             onTimeout={() => props.onTimeout(rightTeamId)}
             events={props.events}
+            encerrada={props.encerrada}
           />
         </div>
         <QuadraVolei
           modo="jogo"
+          encerrada={props.encerrada}
           numeroExibido={props.getMatchNumber}
           destaque={props.pointFlash ? { teamId: props.pointFlash.teamId, numero: props.pointFlash.number } : null}
           esquerda={ladoQuadra(leftTeam, leftLineup, props.servingTeamId === leftTeamId, leftServerIndex)}
@@ -2151,14 +2181,15 @@ function PontuacaoTab(props: {
       <section className="official-point-history" aria-label="Últimos pontos">
         <h3>Últimos pontos</h3>
         <ol>
-          {props.events.filter((event) => event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)).slice(0, 8).map((event) => {
+          {props.events.map((event, indice) => ({ event, indice })).filter(({ event }) => event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)).slice(0, 8).map(({ event, indice }) => {
             const equipe = event.teamId === 'teamA' ? props.teamA.name : event.teamId === 'teamB' ? props.teamB.name : ''
             const rotulo = lerRotuloPonto(event.text) ?? ROTULO_PONTO[event.type as OrigemPonto]
+            const placar = placarNaOrientacao(event.score, ladosInvertidosNoPonto(props.events, indice, props.sidesInverted))
             return (
             <li key={event.id}>
               <strong>{event.time} — {equipe} {rotulo}</strong>
               <span>{lerJogadorPonto(event.text) ?? 'Atleta'}</span>
-              <em>{event.score}</em>
+              <em>{placar}</em>
             </li>
             )
           })}
@@ -2649,12 +2680,12 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
   const playerTargets = [
     ...[...teamA.players, ...teamA.reserves].map((player) => ({
       value: `player:${teamA.id}:${player.number}`,
-      label: `#${player.number} ${displayPlayerName(player.name, teamA.name)} - ${teamA.name}`,
+      label: `#${numeroMvpDaLista(player.number, getMatchNumber('teamA', player.number))} ${displayPlayerName(player.name, teamA.name)} - ${teamA.name}`,
       teamName: teamA.name,
     })),
     ...[...teamB.players, ...teamB.reserves].map((player) => ({
       value: `player:${teamB.id}:${player.number}`,
-      label: `#${player.number} ${displayPlayerName(player.name, teamB.name)} - ${teamB.name}`,
+      label: `#${numeroMvpDaLista(player.number, getMatchNumber('teamB', player.number))} ${displayPlayerName(player.name, teamB.name)} - ${teamB.name}`,
       teamName: teamB.name,
     })),
   ]
@@ -2921,6 +2952,7 @@ function CompactTeamControl({
   timeoutsUsed,
   onTimeout,
   events,
+  encerrada,
 }: {
   teamId: TeamId
   team: Team
@@ -2933,6 +2965,7 @@ function CompactTeamControl({
   timeoutsUsed: number
   onTimeout: () => void
   events: MatchEvent[]
+  encerrada?: boolean
 }) {
   const [pulsoAce, setPulsoAce] = useState(false)
   const ultimo = events.find((event) => event.teamId === teamId && (event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)))
@@ -2946,20 +2979,22 @@ function CompactTeamControl({
       </div>
       <span className="official-compact-score-team-name">{team.name}</span>
       <strong>{score.toString().padStart(2, '0')}</strong>
-      {serving ? (
+      {serving && !encerrada ? (
         <button className={`official-compact-icon-action is-ace${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
       ) : (
         <i aria-hidden="true" />
       )}
-      <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={timeoutsUsed >= 2} aria-label={`Registrar tempo para ${team.name}`}>
+      <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= 2} aria-label={`Registrar tempo para ${team.name}`}>
         <Clock size={15} />
         {timeoutsUsed}/2
       </button>
+      {!encerrada && (
       <div className="official-point-actions">
         <VolleyballBurst>
           <button className="official-compact-point-action vs-press vs-focus" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
         </VolleyballBurst>
       </div>
+      )}
       <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (
         <p className="official-last-point">
@@ -3178,6 +3213,7 @@ function RosterClickers({
   onAttack,
   onBlock,
   onSubstitution,
+  encerrada,
 }: {
   teamId: TeamId
   mirrored: boolean
@@ -3190,6 +3226,7 @@ function RosterClickers({
   onAttack: (number: string) => void
   onBlock: (number: string) => void
   onSubstitution: (teamId: TeamId, index: number) => void
+  encerrada?: boolean
 }) {
   const [pulso, setPulso] = useState<string | null>(null)
   const visualSlots = !mirrored
@@ -3226,22 +3263,22 @@ function RosterClickers({
             <div
               key={`${slot.label}-${number || index}`}
               className={`official-player-card ${frontRow ? 'is-front-row' : 'is-back-row'} ${servingTeam && index === serverIndex ? 'is-serving' : ''} ${scored ? 'is-scored' : ''}`}
-              role="button"
-              tabIndex={0}
+              role={encerrada ? undefined : 'button'}
+              tabIndex={encerrada ? undefined : 0}
               onClick={() => {
-                if (!number) return
+                if (encerrada || !number) return
                 onAttack(number)
                 dispararPulso(setPulso, `${index}:tap`)
               }}
               onKeyDown={(event) => {
-                if (!number) return
+                if (encerrada || !number) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
                   onAttack(number)
                   dispararPulso(setPulso, `${index}:tap`)
                 }
               }}
-              aria-label={`Ponto de ataque do atleta ${number}`}
+              aria-label={encerrada ? `Atleta ${number}` : `Ponto de ataque do atleta ${number}`}
             >
               <div className="official-player-card-top">
                 <i>{slot.label}</i>
@@ -3254,10 +3291,12 @@ function RosterClickers({
                 )}
                 {nome && <small className="official-player-name">{nome}</small>}
               </div>
+              {!encerrada && (
               <div className="official-player-actions">
                 {frontRow && number && <button className={`official-point-action is-block${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
                 {number && <button className="official-sub-action is-icon" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
               </div>
+              )}
               {scored && <b>+1</b>}
             </div>
           )
