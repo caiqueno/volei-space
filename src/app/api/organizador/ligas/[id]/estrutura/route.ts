@@ -9,6 +9,7 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
+import { gerarSumulaToken } from '@/lib/sumula-token'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -440,7 +441,7 @@ function buildGroupMatches(
         status: 'AGENDADA',
         dataHora: buildDateTime(globalIndex - 1, dataInicial, horarioPadrao),
         localNome: localPadrao || 'A definir',
-        sumulaToken: `luv-${ligaId}-g${groupIndex + 1}-r${index + 1}-${pair.a.id}-${pair.b.id}`,
+        sumulaToken: gerarSumulaToken(),
         grupoId: grupoRecord?.id ?? null,
         fase: 'GRUPOS',
       })
