@@ -31,6 +31,7 @@ import {
   Users,
 } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
+import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
 
 type TeamId = 'teamA' | 'teamB'
 type TabId = 'pre' | 'resumo' | 'pontuacao' | 'escalacao' | 'tempos' | 'anotacoes'
@@ -2902,7 +2903,9 @@ function CompactTeamControl({
         {timeoutsUsed}/2
       </button>
       <div className="official-point-actions">
-        <button className="official-compact-point-action" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
+        <VolleyballBurst>
+          <button className="official-compact-point-action vs-press vs-focus" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
+        </VolleyballBurst>
       </div>
       <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (

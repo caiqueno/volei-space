@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | base de movimento e bola no +1
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Tokens `--vs-motion-*` e classes `.vs-press`, `.vs-tap`, `.vs-tap-play`, `.vs-hover`, `.vs-focus` em `src/styles/vs-motion.css`. `VolleyballBurst` (`children`, `enabled`) no +1 da súmula. Só transform e opacity; `prefers-reduced-motion` desliga. O ponto não espera a bola. Sem API, banco, auth ou data fetching.
+
 ## [2026-10-10] decisao | base visual Noite de final
 
 - pages_updated=`09-UI-UX`, `hot`, `log`
