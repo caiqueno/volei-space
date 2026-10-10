@@ -9,7 +9,7 @@ import {
   type RegistrationDraft,
   type RegistrationLeague,
 } from '../src/lib/team-registration-draft'
-import { resolveFormularioRapidaConfig } from '../src/lib/inscricao-rapida'
+import { formularioDaInscricao, pendenciasDoAtleta, resolveFormularioRapidaConfig } from '../src/lib/inscricao-rapida'
 import { getDefaultFormularioInscricaoConfig } from '../src/lib/championship-setup-defaults'
 import { criarJogadorInscricaoRascunhoSchema, jogadorSchema, playerInscricaoSchema } from '../src/lib/schemas'
 
@@ -118,9 +118,9 @@ function testPersistenceApiContract() {
 
 function testFotoAtletaOpcional() {
   const exigida = resolveFormularioRapidaConfig({ atleta: { foto: 'required', dataNascimento: 'required', documento: 'required' } })
-  assert.equal(exigida.atleta.foto, 'optional', 'config required vira opcional na inscrição')
-  assert.equal(exigida.atleta.dataNascimento, 'optional', 'nascimento required vira opcional')
-  assert.equal(exigida.atleta.documento, 'optional', 'documento required vira opcional')
+  assert.equal(exigida.atleta.foto, 'optional', 'foto required no JSON continua opcional na inscrição')
+  assert.equal(exigida.atleta.dataNascimento, 'required', 'nascimento obrigatório continua obrigatório')
+  assert.equal(exigida.atleta.documento, 'required', 'documento obrigatório continua obrigatório')
   assert.equal(resolveFormularioRapidaConfig({ atleta: { foto: 'disabled' } }).atleta.foto, 'disabled')
   assert.equal(resolveFormularioRapidaConfig(null).atleta.foto, 'optional')
   assert.equal(resolveFormularioRapidaConfig({ atleta: { foto: 'optional' } }).atleta.foto, 'optional')
@@ -180,6 +180,23 @@ function testNascimentoDocumentoOpcionais() {
   assert.equal(resolveFormularioRapidaConfig(null).atleta.documento, 'optional')
   assert.equal(resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'disabled', documento: 'disabled' } }).atleta.dataNascimento, 'disabled')
   assert.equal(resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'disabled', documento: 'disabled' } }).atleta.documento, 'disabled')
+  assert.equal(resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'required', documento: 'optional' } }).atleta.dataNascimento, 'required')
+  assert.equal(resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'required', documento: 'optional' } }).atleta.documento, 'optional')
+  const daCategoria = formularioDaInscricao(
+    { atleta: { dataNascimento: 'optional', documento: 'required', foto: 'required' } },
+    { atleta: { dataNascimento: 'disabled', documento: 'disabled' } },
+  )
+  const efetiva = resolveFormularioRapidaConfig(daCategoria)
+  assert.equal(efetiva.atleta.dataNascimento, 'disabled', 'não coletar da categoria esconde o nascimento')
+  assert.equal(efetiva.atleta.documento, 'disabled', 'não coletar da categoria esconde o documento')
+  assert.equal(efetiva.atleta.foto, 'optional')
+  const obrigatorio = resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'required', documento: 'required' } })
+  assert.deepEqual(pendenciasDoAtleta({ dataNascimento: '', documentoNumero: ' ' }, obrigatorio), [
+    'Data de nascimento é obrigatória.',
+    'Documento é obrigatório.',
+  ])
+  assert.deepEqual(pendenciasDoAtleta({ dataNascimento: '1990-01-02', documentoNumero: '123' }, obrigatorio), [])
+  assert.deepEqual(pendenciasDoAtleta({}, efetiva), [])
 
   for (const dataNascimento of [undefined, null, '', '1990-01-02']) {
     const parsed = criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana', dataNascimento, documentoTipo: null, documentoNumero: '' })
@@ -207,14 +224,16 @@ function testNascimentoDocumentoOpcionais() {
 
   assert.match(domain, /dataNascimento: input\.dataNascimento \|\| null/)
   assert.match(domain, /documentoNumero: input\.documentoNumero \|\| null/)
-  assert.doesNotMatch(domain, /Data de nascimento do jogador é obrigatória/)
-  assert.doesNotMatch(domain, /data de nascimento é obrigatória/)
-  assert.doesNotMatch(domain, /Documento do jogador é obrigatório/)
-  assert.doesNotMatch(domain, /documento é obrigatório/)
+  assert.match(domain, /lerFormularioDaCategoria/)
+  assert.match(domain, /formularioDaInscricao/)
+  assert.match(domain, /pendenciasDoAtleta/)
+  const regras = fs.readFileSync(path.join(process.cwd(), 'src/lib/inscricao-rapida.ts'), 'utf8')
+  assert.match(regras, /Data de nascimento é obrigatória/)
+  assert.match(regras, /Documento é obrigatório/)
   assert.match(form, /Data de nascimento \(opcional\)/)
   assert.match(form, /Número do documento \(opcional\)/)
-  assert.doesNotMatch(form, /nascimentoRequired/)
-  assert.doesNotMatch(form, /documentoRequired/)
+  assert.match(form, /nascimentoRequired/)
+  assert.match(form, /documentoRequired/)
   assert.match(capitao, /Nascimento \(opcional\)/)
   assert.match(capitao, /Documento \(opcional\)/)
   assert.match(capitaoApi, /dataNascimento: z\.string\(\)\.regex\(/)

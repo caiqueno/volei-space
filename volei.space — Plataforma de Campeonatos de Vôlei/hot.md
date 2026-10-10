@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Jogos sobem por data e hora. dataHora sem fuso sai em UTC e a tela mostra America/Sao_Paulo. O W.O. ficou em 20261010139000, antes da RLS. Nada foi aplicado.
+  A inscrição rápida segue não coletar, opcional e obrigatório da categoria. 20261010138500 não foi aplicada e fica antes do W.O. e da RLS. Jogos sobem por data e hora; dataHora sem fuso sai em UTC.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a inscrição rápida deixa de ler só `Liga.formularioInscricaoConfig`. O rascunho, a vaga e o link da categoria usam o formulário gravado na categoria. Não coletar esconde data de nascimento e documento. Opcional aceita vazio. Obrigatório bloqueia o atleta e a conclusão. Sem a chave, os dois ficam opcionais. A foto continua opcional, salvo quando está desligada. Um campeonato com uma categoria espelha o JSON na liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`, para a migration de RLS continuar sendo a última. Fonte: [[modulos/INSCRICOES]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 as listas de jogos passam a subir por data e hora, com desempate na rodada e no id. `/jogos` deixa a ordem decrescente. O texto de `dataHora` sem fuso é tratado como UTC na resposta (`2026-10-10T11:30:00` vira `2026-10-10T11:30:00.000Z`) e a tela mostra 08:30 em `America/Sao_Paulo`. Ver mais reordena o que já estava aberto. A vaga da chave não muda. Nenhuma linha foi reescrita. Fonte: [[modulos/PARTIDAS]].
 
@@ -29,7 +31,7 @@ Em 10 de outubro de 2026 o organizador dono da liga grava a súmula em `/sumula/
 
 Em 10 de outubro de 2026 a quantidade de sets deixa de ser só `Liga.setsPorPartida`. Final, semifinal e 3º lugar têm campo próprio, nulo para herdar o campeonato. A súmula, a validação e o lançamento usam essa quantidade, e o tie-break fica no último set dela. O portal (`/portal?ligaId=`) e a classificação pública mostram pódio, final, 3º lugar e chave quando existe mata-mata, mesmo antes de `FINALIZADO`. A tabela de pontos continua só com grupos. `20261010136000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica depois de `20261010135000` e antes da migration de RLS. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[modulos/PARAMETRIZACAO]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
-Em 10 de outubro de 2026 a data de nascimento e o documento do atleta (CPF, RG e os outros tipos) deixaram de ser obrigatórios no cadastro. O default de `formularioInscricaoConfig` nasce `optional`. O link da vaga, o rascunho, a inscrição rápida e o capitão aceitam salvar e concluir sem esses dados e gravam o valor quando ele é enviado. Configuração antiga com `required` não bloqueia mais a inscrição; o campo some só se estiver `disabled`. A chave `rg` continua `disabled` porque não tem coluna. `20261010135000_nascimento_documento_atleta_opcional.sql` recria `finalizar_inscricao_equipe_rascunho` e `validar_jogador_formulario_categoria` sem essa recusa e não foi aplicada. Ela entra depois de `20261010130000` e antes de `20261010140000`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 a data de nascimento e o documento do atleta passaram a nascer opcionais. O comportamento vigente é o do formulário da categoria, no parágrafo acima: não coletar, opcional ou obrigatório. `20261010135000_nascimento_documento_atleta_opcional.sql` ainda não foi aplicada. Fonte: [[modulos/INSCRICOES]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a foto do atleta deixou de bloquear a inscrição. O link da vaga, o rascunho, a inscrição rápida e o capitão mostram o campo como opcional e aceitam salvar e concluir sem imagem. O upload segue gravando `fotoUrl` ou `fotoRostoUrl` quando a foto é enviada. O campo continua oculto só se a configuração estiver `disabled`. A função instalada ainda pode recusar a conclusão; `20261010130000_foto_atleta_opcional.sql` tira essa recusa de `finalizar_inscricao_equipe_rascunho` e de `validar_jogador_formulario_categoria` e não foi aplicada. Ela deve entrar depois de `202610100002`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 

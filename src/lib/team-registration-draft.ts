@@ -2,7 +2,9 @@ import { randomUUID } from 'crypto'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import {
+  formularioDaInscricao,
   isFieldRequired,
+  pendenciasDoAtleta,
   resolveFormularioRapidaConfig,
   resolveInscricaoCategoria,
 } from '@/lib/inscricao-rapida'
@@ -210,9 +212,27 @@ export async function createRegistrationDraft(input: { ligaId?: number; linkToke
   return data as unknown as RegistrationDraft
 }
 
+export async function lerFormularioDaCategoria(ligaId: number, categoriaCampeonatoId: string | null | undefined) {
+  if (!categoriaCampeonatoId) return null
+  const consulta = await supabase
+    .from('CategoriaConfiguracao')
+    .select('formularioInscricaoConfig')
+    .eq('ligaId', ligaId)
+    .eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    .maybeSingle()
+  if (consulta.error) {
+    const texto = `${consulta.error.code ?? ''} ${consulta.error.message ?? ''}`
+    if (/formularioInscricaoConfig|42703|PGRST204/i.test(texto)) return null
+    throw new Error(consulta.error.message)
+  }
+  return consulta.data?.formularioInscricaoConfig ?? null
+}
+
 export async function getRegistrationDraftByToken(token: string) {
   const draft = await getDraft(token)
-  const liga = await getLeague(draft.ligaId)
+  const lida = await getLeague(draft.ligaId)
+  const daCategoria = await lerFormularioDaCategoria(draft.ligaId, draft.categoriaCampeonatoId)
+  const liga = { ...lida, formularioInscricaoConfig: formularioDaInscricao(lida.formularioInscricaoConfig, daCategoria) }
   const registrationStatus = await getRegistrationStatus(draft.inscricaoCampeonatoId)
   const edit = canEditRegistration(draft, liga)
   const rosterEdit = canEditRoster(draft, liga, registrationStatus)
@@ -349,9 +369,21 @@ function assertRosterPlayer(input: Record<string, unknown>, context: Awaited<Ret
   }
 }
 
+function exigirAtletaConfigurado(input: Record<string, unknown>, liga: RegistrationLeague, atual?: RegistrationPlayer) {
+  const config = resolveFormularioRapidaConfig(liga.formularioInscricaoConfig)
+  const nascimento = input.dataNascimento !== undefined ? input.dataNascimento : atual?.dataNascimento
+  const documento = input.documentoNumero !== undefined ? input.documentoNumero : atual?.documentoNumero
+  const pendencias = pendenciasDoAtleta({
+    dataNascimento: nascimento == null ? null : String(nascimento),
+    documentoNumero: documento == null ? null : String(documento),
+  }, config)
+  if (pendencias.length) throw new RegistrationDraftError(pendencias[0], 422, pendencias)
+}
+
 export async function createRegistrationPlayer(token: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context)
+  exigirAtletaConfigurado(input, context.liga)
   const maximum = context.liga.elencoQuantidadeMaxima
   if (maximum != null && context.players.length >= maximum) throw new RegistrationDraftError(`O elenco permite no máximo ${maximum} jogadores.`, 422)
   const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
@@ -367,6 +399,7 @@ export async function createRegistrationPlayer(token: string, input: Record<stri
 export async function updateRegistrationPlayer(token: string, playerId: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context, playerId)
+  exigirAtletaConfigurado(input, context.liga, context.players.find((player) => String(player.id) === String(playerId)))
   const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
   let query = supabase.from(target).update(configuredPlayerPayload(input, context.liga)).eq('id', playerId)
   query = inscricaoConcluida(context.draft.status)
@@ -415,6 +448,7 @@ function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDra
     if (isFieldRequired(config.atleta.numeroCamisa) && player.numero == null) issues.push(`${label}: número da camisa é obrigatório.`)
     if (isFieldRequired(config.atleta.posicao) && !player.posicao) issues.push(`${label}: posição é obrigatória.`)
     if (isFieldRequired(config.atleta.cpf) && !player.cpf) issues.push(`${label}: CPF é obrigatório.`)
+    for (const pendencia of pendenciasDoAtleta(player, config)) issues.push(`${label}: ${pendencia}`)
   })
   if (issues.length) throw new RegistrationDraftError('Não foi possível concluir o cadastro.', 422, issues)
 }

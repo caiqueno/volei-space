@@ -117,16 +117,18 @@ function toDraft(player: InscricaoRapidaInitialData['jogadores'][number]): Jogad
   }
 }
 
-function jogadorPayload(player: JogadorDraft) {
+function jogadorPayload(player: JogadorDraft, config: ResolvedFormularioRapidaConfig) {
   return {
     nome: player.nome,
-    numero: player.numero ? Number(player.numero) : undefined,
-    posicao: player.posicao || undefined,
-    fotoUrl: player.fotoUrl || undefined,
-    cpf: player.cpf || undefined,
-    dataNascimento: player.dataNascimento || undefined,
-    documentoTipo: player.documentoTipo || undefined,
-    documentoNumero: player.documentoNumero || undefined,
+    ...(config.atleta.numeroCamisa === 'disabled' ? {} : { numero: player.numero ? Number(player.numero) : undefined }),
+    ...(config.atleta.posicao === 'disabled' ? {} : { posicao: player.posicao || undefined }),
+    ...(config.atleta.foto === 'disabled' ? {} : { fotoUrl: player.fotoUrl || undefined }),
+    ...(config.atleta.cpf === 'disabled' ? {} : { cpf: player.cpf || undefined }),
+    ...(config.atleta.dataNascimento === 'disabled' ? {} : { dataNascimento: player.dataNascimento || undefined }),
+    ...(config.atleta.documento === 'disabled' ? {} : {
+      documentoTipo: player.documentoTipo || undefined,
+      documentoNumero: player.documentoNumero || undefined,
+    }),
   }
 }
 
@@ -180,7 +182,9 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
   const cpfEnabled = config.atleta.cpf !== 'disabled'
   const cpfRequired = config.atleta.cpf === 'required'
   const nascimentoEnabled = config.atleta.dataNascimento !== 'disabled'
+  const nascimentoRequired = config.atleta.dataNascimento === 'required'
   const documentoEnabled = config.atleta.documento !== 'disabled'
+  const documentoRequired = config.atleta.documento === 'required'
 
   useEffect(() => {
     if (!token || !canEdit) return
@@ -250,12 +254,20 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
 
   async function salvarJogador() {
     if (!token || !draft.nome.trim()) return
+    if (nascimentoRequired && !draft.dataNascimento) {
+      setErrorMsg('Data de nascimento é obrigatória.')
+      return
+    }
+    if (documentoRequired && !draft.documentoNumero.trim()) {
+      setErrorMsg('Documento é obrigatório.')
+      return
+    }
     setSavingPlayer(true)
     setErrorMsg('')
     try {
       const editing = editingId !== null
       const response = await fetch(editing ? `/api/inscricao-rapida/${token}/jogadores/${editingId}` : `/api/inscricao-rapida/${token}/jogadores`, {
-        method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jogadorPayload(draft)),
+        method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jogadorPayload(draft, config)),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Não foi possível salvar o jogador.')
@@ -386,8 +398,8 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             <FloatingInput id="jogadorNome" label="Nome completo" value={draft.nome} onChange={(value) => setDraft((current) => ({ ...current, nome: value }))} required />
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">{numeroEnabled && <FloatingInput id="jogadorNumero" label="Número" type="number" value={draft.numero} onChange={(value) => setDraft((current) => ({ ...current, numero: value }))} required={numeroRequired} />}{posicaoEnabled && <FloatingSelect id="jogadorPosicao" label="Posição" value={draft.posicao} onChange={(value) => setDraft((current) => ({ ...current, posicao: value }))} required={posicaoRequired} options={POSICOES.map((position) => ({ value: position, label: position }))} />}</div>
             {cpfEnabled && <FloatingInput id="jogadorCpf" label="CPF" value={draft.cpf} onChange={(value) => setDraft((current) => ({ ...current, cpf: value }))} required={cpfRequired} />}
-            {nascimentoEnabled && <FloatingInput id="jogadorNascimento" label="Data de nascimento (opcional)" type="date" value={draft.dataNascimento} onChange={(value) => setDraft((current) => ({ ...current, dataNascimento: value }))} />}
-            {documentoEnabled && <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"><FloatingSelect id="jogadorDocTipo" label="Documento (opcional)" value={draft.documentoTipo} onChange={(value) => setDraft((current) => ({ ...current, documentoTipo: value }))} options={DOCUMENT_TYPES} /><FloatingInput id="jogadorDocNumero" label="Número do documento (opcional)" value={draft.documentoNumero} onChange={(value) => setDraft((current) => ({ ...current, documentoNumero: value }))} /></div>}
+            {nascimentoEnabled && <FloatingInput id="jogadorNascimento" label={nascimentoRequired ? 'Data de nascimento' : 'Data de nascimento (opcional)'} type="date" value={draft.dataNascimento} onChange={(value) => setDraft((current) => ({ ...current, dataNascimento: value }))} required={nascimentoRequired} />}
+            {documentoEnabled && <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"><FloatingSelect id="jogadorDocTipo" label={documentoRequired ? 'Documento' : 'Documento (opcional)'} value={draft.documentoTipo} onChange={(value) => setDraft((current) => ({ ...current, documentoTipo: value }))} required={documentoRequired} options={DOCUMENT_TYPES} /><FloatingInput id="jogadorDocNumero" label={documentoRequired ? 'Número do documento' : 'Número do documento (opcional)'} value={draft.documentoNumero} onChange={(value) => setDraft((current) => ({ ...current, documentoNumero: value }))} required={documentoRequired} /></div>}
             {fotoEnabled && <div className="flex items-center gap-3">{draft.fotoUrl ? <img src={draft.fotoUrl} alt="Foto do jogador" className="h-10 w-10 rounded-full border border-white/10 object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={14} /></span>}{uploadingFotoJogador ? <LoadingTrack label="Enviando" className="min-w-[12rem]" /> : <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">Foto (opcional)<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleJogadorFotoUpload(event.target.files?.[0] ?? null)} /></label>}</div>}
             <ActionBar type="button" onClick={salvarJogador} loading={savingPlayer} loadingLabel="Salvando" disabled={!draft.nome.trim()} className="mt-1 w-full rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{editingId !== null ? 'Salvar alterações' : 'Salvar jogador'}</ActionBar>
           </div>}

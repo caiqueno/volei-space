@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | formulário da inscrição segue a categoria
+
+- pages_updated=`modulos/INSCRICOES`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Não coletar, opcional e obrigatório de nascimento e documento passam a valer no formulário público. A categoria prevalece sobre a liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`.
+
 ## [2026-10-10] fix | ordem dos jogos e horário em UTC
 
 - pages_updated=`modulos/PARTIDAS`, `hot`, `log`
