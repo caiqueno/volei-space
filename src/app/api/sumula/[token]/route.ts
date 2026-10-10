@@ -30,7 +30,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
-  access.partida.liga = await carregarFonteDeSets(access.partida)
+  const fonte = await carregarFonteDeSets(access.partida)
+  const liga = Array.isArray(access.partida.liga) ? access.partida.liga[0] ?? {} : access.partida.liga ?? {}
+  access.partida.liga = { ...liga, ...fonte }
   // Consulta pública da página /sumula/{token}. A projeção tira documento, telefone e e-mail.
   // O GET sem ?consulta=1 continua passando por requireSumulaLeitura.
   if (new URL(req.url).searchParams.get('consulta') === '1') {

@@ -1,12 +1,15 @@
 import { setEstaEncerrado, type RegraSet } from '@/lib/set-encerrado'
 import { DEFAULT_CRITERIOS_CLASSIFICACAO } from '@/lib/championship-setup-defaults'
+import { regrasParaFase } from '@/lib/category-match-rules'
+import type { SetsPorFase } from '@/lib/sets-por-fase'
 import { placarDoWo, woConfigurado, type WoConfig } from '@/lib/wo'
 
 /**
  * Cálculo puro da tabela. A função SQL `recalcular_classificacao_liga` que
  * prevalece depois de `supabase-recalcular-classificacao-liga-atomico.sql`
  * ainda usa 4/3/1/0, mistura o mata-mata e ignora o set já encerrado.
- * O servidor grava o resultado desta função até o banco ser alinhado.
+ * O servidor grava o resultado desta função. A RPC antiga não é chamada.
+ * A persistência usa a trava da súmula em gravar_classificacao_calculada.
  */
 
 export type FaixasPontos = {
@@ -69,7 +72,7 @@ export type PartidaClassificacao = {
 export type RegrasCategoria = {
   faixas?: Partial<FaixasPontos> | null
   criterios?: string[] | string | null
-  set?: Partial<RegraSet> | null
+  set?: (Partial<RegraSet> & Partial<SetsPorFase> & { setsFormato?: string; terceiroSetObrigatorio?: boolean }) | null
   wo?: WoConfig | null
 }
 
@@ -158,7 +161,7 @@ export function calcularClassificacao(input: {
     const categoriaId = categoriaEfetiva(partida, timePorId)
     if (!timesDaCategoria(partida, categoriaId, timePorId)) continue
     const regra = regraDaCategoria(input.regras, categoriaId)
-    aplicarSetsAoVivo(tabela, partida, regra.set)
+    aplicarSetsAoVivo(tabela, partida, regraDeSet(regra.set, partida.fase))
   }
 
   const porCategoria = new Map<string, Acumulado[]>()
@@ -439,6 +442,17 @@ function categoriaEfetiva(
   const b = timePorId.get(Number(partida.equipeBId))
   if (a?.categoriaCampeonatoId && a.categoriaCampeonatoId === b?.categoriaCampeonatoId) return a.categoriaCampeonatoId
   return null
+}
+
+function regraDeSet(set: RegrasCategoria['set'], fase?: string | null): RegraSet {
+  const ajustada = regrasParaFase(set, fase)
+  return {
+    setsPorPartida: ajustada.setsPorPartida,
+    pontosPorSet: ajustada.pontosPorSet,
+    tieBreakUltimoSet: ajustada.tieBreakUltimoSet === true,
+    pontosUltimoSet: ajustada.pontosUltimoSet,
+    diferencaMinimaSet: set?.diferencaMinimaSet,
+  }
 }
 
 function regraDaCategoria(regras: Record<string, RegrasCategoria | null | undefined> | undefined, categoriaId: string | null) {

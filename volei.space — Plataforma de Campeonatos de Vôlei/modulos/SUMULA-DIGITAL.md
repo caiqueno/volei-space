@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O organizador dono grava a súmula. Oficializar pede o MVP e uma confirmação. A quadra encerrada não lança ponto.
+  A súmula usa a CategoriaConfiguracao da partida. A gravação transacional está na migration 20261010137000, ainda não aplicada. O organizador dono grava a súmula. Oficializar pede o MVP e uma confirmação. A quadra encerrada não lança ponto.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Regras da categoria — implementado no código:** lançamento, andamento, validação e o placar recalculado leem `CategoriaConfiguracao` da partida (`setsPorPartida`, pontos, tie-break, `terceiroSetObrigatorio`, formato e a quantidade da fase). A `Liga` não entra nessa leitura quando a partida tem categoria. `terceiroSetObrigatorio` não é coluna da `Liga`; sem categoria, ele fica desligado e o tie-break usa o valor da `Liga` (o default dela é desligado; o da categoria é ligado). A tela `/sumula/{token}/lancar` usa a mesma função. Com terceiro set obrigatório ou quantidade fixa, ela não encerra em 2×0. Resultado manual e aprovação seguem o mesmo carregamento.
 
 **Sets da fase — implementado no código, migration pendente:** a validação da súmula, do andamento, do resultado manual e da aprovação usa a quantidade da fase (`FINAL`, `SEMIFINAL` ou `TERCEIRO_LUGAR`). As outras fases usam `setsPorPartida`. O último set dessa quantidade é o tie-break quando `tieBreakUltimoSet` está ligado. A tela de lançamento abre essa quantidade de sets e marca o tie-break no último. Um placar com set a mais responde 422 «Quantidade de sets inválida». Sem as colunas no banco, a leitura volta ao padrão do campeonato. Ver [[modulos/MATA-MATA]] e `20261010136000_sets_por_fase_mata_mata.sql`.
 
@@ -43,7 +45,7 @@ updated: 2026-10-10
 - Oito substituições por equipe e set, com o par fechado depois da volta, e o MVP da vencedora antes de oficializar estão no fluxo. A sugestão automática por `attack`, `block` e `ace`, com desempate, continua pendente. Líbero somente informativo.
 - Resumo público destaca nome, número, posição e scouts da partida do MVP.
 - Link corrige até 30 minutos do primeiro encerramento, sem renovar `sumulaAprovadaEm`; depois só o organizador. Corrigir atualiza a classificação em seguida; se esse recálculo falhar, a súmula permanece publicada.
-- A gravação confere cada erro e tenta restaurar sets, presenças, ocorrências e destaques se quebra no meio. A transação única no banco continua pendente.
+- A gravação oficial chama `gravar_sumula_partida`. Sets, presenças, ocorrências, destaques e o placar entram na mesma transação, com `pg_advisory_xact_lock` da liga e da partida. A migration `20261010137000_sumula_transacional.sql` ainda não foi aplicada; até lá o servidor volta à gravação em passos, com restauração se uma chamada quebra no meio.
 
 [Requisito completo](https://github.com/athrios/volei-space/blob/main/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md). Ver [[modulos/PARTIDAS]], [[modulos/CLASSIFICACAO]] e [[12-BUGS-E-DEBITOS-TECNICOS]].
 

@@ -42,6 +42,68 @@ export function regrasParaFase(source: Partial<CategoryMatchRules> | null | unde
 }
 
 /**
+ * A categoria da partida é a fonte. Sem categoria, valem as colunas que existem
+ * na Liga. `terceiroSetObrigatorio` não é coluna da Liga: o fallback fica desligado.
+ * O tie-break da Liga nasce desligado; o da categoria nasce ligado. Não misturar os dois.
+ */
+export function montarFonteDeRegras(input: {
+  liga?: Partial<CategoryMatchRules> | null
+  categoria?: Partial<CategoryMatchRules> | null
+}): Partial<CategoryMatchRules> {
+  if (input.categoria) {
+    const categoria = input.categoria
+    return {
+      setsPorPartida: categoria.setsPorPartida,
+      pontosPorSet: categoria.pontosPorSet,
+      tieBreakUltimoSet: categoria.tieBreakUltimoSet,
+      pontosUltimoSet: categoria.pontosUltimoSet,
+      setsFormato: categoria.setsFormato,
+      terceiroSetObrigatorio: categoria.terceiroSetObrigatorio,
+      setsPorPartidaFinal: categoria.setsPorPartidaFinal ?? null,
+      setsPorPartidaSemifinal: categoria.setsPorPartidaSemifinal ?? null,
+      setsPorPartidaTerceiroLugar: categoria.setsPorPartidaTerceiroLugar ?? null,
+    }
+  }
+  const liga = input.liga ?? {}
+  return {
+    setsPorPartida: liga.setsPorPartida,
+    pontosPorSet: liga.pontosPorSet,
+    tieBreakUltimoSet: liga.tieBreakUltimoSet,
+    pontosUltimoSet: liga.pontosUltimoSet,
+    setsFormato: liga.setsFormato,
+    terceiroSetObrigatorio: false,
+    setsPorPartidaFinal: liga.setsPorPartidaFinal ?? null,
+    setsPorPartidaSemifinal: liga.setsPorPartidaSemifinal ?? null,
+    setsPorPartidaTerceiroLugar: liga.setsPorPartidaTerceiroLugar ?? null,
+  }
+}
+
+export function partidaExigeTodosOsSets(rules: { setsFormato?: string; terceiroSetObrigatorio?: boolean }) {
+  return rules.setsFormato === 'QUANTIDADE_FIXA' || rules.terceiroSetObrigatorio === true
+}
+
+export type RegrasVisiveis = {
+  pointsPerSet: number
+  setsPerMatch: number
+  setsToWin: number
+  lastSetPoints: number
+  exigeTodosOsSets: boolean
+}
+
+/** Mesma leitura de `regrasParaFase`, no formato da tela de lançamento. */
+export function regrasVisiveis(source: Partial<CategoryMatchRules> | null | undefined, fase?: string | null): RegrasVisiveis {
+  const regras = regrasParaFase(source, fase)
+  const exigeTodosOsSets = partidaExigeTodosOsSets(regras)
+  return {
+    pointsPerSet: regras.pontosPorSet,
+    setsPerMatch: regras.setsPorPartida,
+    setsToWin: exigeTodosOsSets ? regras.setsPorPartida : Math.floor(regras.setsPorPartida / 2) + 1,
+    lastSetPoints: regras.tieBreakUltimoSet ? Number(regras.pontosUltimoSet) : regras.pontosPorSet,
+    exigeTodosOsSets,
+  }
+}
+
+/**
  * Aceita ou recusa um placar já montado.
  * @param sets lista de sets com número e pontos dos dois lados
  * @param rules quantidade de sets, pontos, formato, tie-break e terceiro set obrigatório
@@ -53,7 +115,7 @@ export function regrasParaFase(source: Partial<CategoryMatchRules> | null | unde
 export function validateCategoryResult(sets: CategorySet[], rules: CategoryMatchRules): string | null {
   const maxSets = Number(rules.setsPorPartida)
   const requiredWins = Math.floor(maxSets / 2) + 1
-  const fixed = rules.setsFormato === 'QUANTIDADE_FIXA' || rules.terceiroSetObrigatorio === true
+  const fixed = partidaExigeTodosOsSets(rules)
   if (!Number.isInteger(maxSets) || maxSets < 1 || maxSets > 5) return 'Configuração de sets inválida.'
   if (!sets.length || sets.length > maxSets) return 'Quantidade de sets inválida.'
   let winsA = 0, winsB = 0
@@ -76,6 +138,7 @@ export function validateCategoryResult(sets: CategorySet[], rules: CategoryMatch
 export function validateCategoryProgress(sets: CategorySet[], rules: CategoryMatchRules): string | null {
   const maxSets = Number(rules.setsPorPartida)
   const requiredWins = Math.floor(maxSets / 2) + 1
+  const fixed = partidaExigeTodosOsSets(rules)
   if (!Number.isInteger(maxSets) || maxSets < 1 || maxSets > 5) return 'Configuração de sets inválida.'
   if (sets.length > maxSets) return 'Quantidade de sets inválida.'
   let winsA = 0
@@ -87,7 +150,7 @@ export function validateCategoryProgress(sets: CategorySet[], rules: CategoryMat
     if (set.numero !== index + 1 || ![set.pontosA, set.pontosB].every((n) => Number.isSafeInteger(n) && n >= 0)) {
       return 'Numeração ou pontuação de set inválida.'
     }
-    if (Math.max(winsA, winsB) >= requiredWins) return 'Há sets após o encerramento da partida.'
+    if (!fixed && Math.max(winsA, winsB) >= requiredWins) return 'Há sets após o encerramento da partida.'
     const target = set.numero === maxSets && rules.tieBreakUltimoSet ? Number(rules.pontosUltimoSet) : Number(rules.pontosPorSet)
     const winner = Math.max(set.pontosA, set.pontosB)
     const loser = Math.min(set.pontosA, set.pontosB)

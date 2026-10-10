@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | regras da categoria na súmula e gravação transacional
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/CLASSIFICACAO`, `modulos/PARAMETRIZACAO`, `06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- A súmula usa `CategoriaConfiguracao` da partida. Sem categoria, o fallback é a `Liga`, com terceiro set obrigatório desligado. `20261010137000_sumula_transacional.sql` cria a gravação atômica e a trava da classificação calculada em `classificacao.ts`, inclusive `punicoes`. Não foi aplicada. O prefixo `20261010138000` fica livre. A RPC antiga de pontuação não foi recriada. O teste de RLS aceita arquivo posterior que não cria tabela nem concede a `anon`; `20261010150000` é esse caso.
+
 ## [2026-10-10] feat | jogos só dentro do grupo, tabelas separadas e elenco
 
 - pages_updated=`modulos/GRUPOS`, `modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`

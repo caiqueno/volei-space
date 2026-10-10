@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { calcularClassificacao, type PartidaClassificacao, type RegrasCategoria, type TimeClassificacao } from '@/lib/classificacao'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { rpcAusente } from '@/lib/rpc-ausente'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 const MARCA = 'MASSA-QA-2026'
@@ -170,43 +171,9 @@ async function marcaDasPartidas(ligaId: number) {
     .from('Partida')
     .select('id,status,setsPorA,setsPorB,vencedorId,fase')
     .eq('ligaId', ligaId)
+    .order('id', { ascending: true })
   if (error) throw new Error(error.message)
   return JSON.stringify(data ?? [])
-}
-
-const COLUNAS_REGRAS = 'categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,pontosVencedorMargem1,pontosPerdedorMargem1,pontosVencedorMargem2,pontosPerdedorMargem2,criteriosClassificacao'
-const COLUNAS_WO = 'woSetsVencedor,woSetsPerdedor,woPontosSetVencedor,woPontosSetPerdedor,woPunicaoPontos'
-
-type RegraLida = {
-  categoriaCampeonatoId: string
-  setsPorPartida?: number | null
-  pontosPorSet?: number | null
-  tieBreakUltimoSet?: boolean | null
-  pontosUltimoSet?: number | null
-  diferencaMinimaSet?: number | null
-  pontosVencedorMargem1?: number | null
-  pontosPerdedorMargem1?: number | null
-  pontosVencedorMargem2?: number | null
-  pontosPerdedorMargem2?: number | null
-  criteriosClassificacao?: string[] | string | null
-  woSetsVencedor?: number | null
-  woSetsPerdedor?: number | null
-  woPontosSetVencedor?: number | null
-  woPontosSetPerdedor?: number | null
-  woPunicaoPontos?: number | null
-}
-
-async function lerRegrasDaClassificacao(ligaId: number): Promise<RegraLida[]> {
-  const comWo = await supabaseAdmin
-    .from('CategoriaConfiguracao')
-    .select(`${COLUNAS_REGRAS},${COLUNAS_WO}`)
-    .eq('ligaId', ligaId)
-  if (!comWo.error) return (comWo.data ?? []) as RegraLida[]
-  const texto = `${comWo.error.code ?? ''} ${comWo.error.message ?? ''}`
-  if (!/woSetsVencedor|woPunicaoPontos|42703|PGRST204/i.test(texto)) throw new Error(comWo.error.message)
-  const base = await supabaseAdmin.from('CategoriaConfiguracao').select(COLUNAS_REGRAS).eq('ligaId', ligaId)
-  if (base.error) throw new Error(base.error.message)
-  return (base.data ?? []) as RegraLida[]
 }
 
 async function gravarClassificacaoUmaVez(ligaId: number) {
@@ -223,7 +190,8 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
     .eq('ligaId', ligaId)
   if (falhaPartidas) throw new Error(falhaPartidas.message)
 
-  const regrasCategoria = await lerRegrasDaClassificacao(ligaId)
+  const regrasCategoria = await listarRegrasDeCategoria(ligaId)
+  const liga = await lerRegrasDeLiga(ligaId)
 
   const times: TimeClassificacao[] = []
   for (const inscricao of inscricoes ?? []) {
@@ -238,7 +206,13 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
   }
 
   const regras: Record<string, RegrasCategoria> = {}
-  for (const regra of regrasCategoria ?? []) {
+  if (liga) {
+    regras[''] = {
+      criterios: liga.criteriosClassificacao,
+      set: regraDeSetGravada(liga, 25),
+    }
+  }
+  for (const regra of regrasCategoria) {
     regras[regra.categoriaCampeonatoId] = {
       faixas: {
         pontosVencedorMargem1: Number(regra.pontosVencedorMargem1 ?? 2),
@@ -255,11 +229,9 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
         punicaoPontos: regra.woPunicaoPontos ?? 0,
       },
       set: {
-        setsPorPartida: Number(regra.setsPorPartida) > 0 ? Number(regra.setsPorPartida) : 3,
-        pontosPorSet: Number(regra.pontosPorSet) > 0 ? Number(regra.pontosPorSet) : 21,
-        tieBreakUltimoSet: regra.tieBreakUltimoSet === true,
-        pontosUltimoSet: Number(regra.pontosUltimoSet) > 0 ? Number(regra.pontosUltimoSet) : 15,
-        diferencaMinimaSet: Number(regra.diferencaMinimaSet) > 0 ? Number(regra.diferencaMinimaSet) : 2,
+        ...regraDeSetGravada(regra, 21),
+        setsFormato: regra.setsFormato ?? undefined,
+        terceiroSetObrigatorio: regra.terceiroSetObrigatorio === true,
       },
     }
   }
@@ -269,33 +241,120 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
     partidas: (partidas ?? []) as PartidaClassificacao[],
     regras,
   })
-  if (ranque.length > 0) {
-    const { error } = await supabaseAdmin.from('ClassificacaoEntrada').upsert(ranque.map((linha) => ({
-      equipeId: linha.equipeId,
+  const linhas = ranque.map((linha) => ({
+    equipeId: linha.equipeId,
+    categoriaCampeonatoId: linha.categoriaCampeonatoId,
+    categoria: linha.categoria,
+    posicao: linha.posicao,
+    pontos: linha.pontos,
+    jogos: linha.jogos,
+    vitorias: linha.vitorias,
+    derrotas: linha.derrotas,
+    setsPro: linha.setsPro,
+    setsContra: linha.setsContra,
+    pontosPro: linha.pontosPro,
+    pontosContra: linha.pontosContra,
+    punicoes: linha.punicoes,
+  }))
+  const gravacao = await supabaseAdmin.rpc('gravar_classificacao_calculada', {
+    p_liga_id: ligaId,
+    p_linhas: linhas,
+  })
+  if (!gravacao.error) return ranque.length
+  if (!rpcAusente(gravacao.error)) throw new Error(gravacao.error.message)
+  console.error('[classificacao] RPC gravar_classificacao_calculada ausente; gravação sem trava')
+  await gravarClassificacaoSemTrava(ligaId, linhas)
+  return ranque.length
+}
+
+const CAMPOS_REGRA_CATEGORIA = 'categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,setsFormato,terceiroSetObrigatorio,pontosVencedorMargem1,pontosPerdedorMargem1,pontosVencedorMargem2,pontosPerdedorMargem2,criteriosClassificacao'
+const CAMPOS_REGRA_LIGA = 'setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,setsFormato,criteriosClassificacao'
+const CAMPOS_FASE = 'setsPorPartidaFinal,setsPorPartidaSemifinal,setsPorPartidaTerceiroLugar'
+const CAMPOS_WO = 'woSetsVencedor,woSetsPerdedor,woPontosSetVencedor,woPontosSetPerdedor,woPunicaoPontos'
+
+type RegraCategoriaLida = {
+  categoriaCampeonatoId: string
+  setsPorPartida?: number | null
+  pontosPorSet?: number | null
+  tieBreakUltimoSet?: boolean | null
+  pontosUltimoSet?: number | null
+  diferencaMinimaSet?: number | null
+  setsFormato?: string | null
+  terceiroSetObrigatorio?: boolean | null
+  pontosVencedorMargem1?: number | null
+  pontosPerdedorMargem1?: number | null
+  pontosVencedorMargem2?: number | null
+  pontosPerdedorMargem2?: number | null
+  criteriosClassificacao?: string[] | string | null
+  setsPorPartidaFinal?: number | null
+  setsPorPartidaSemifinal?: number | null
+  setsPorPartidaTerceiroLugar?: number | null
+  woSetsVencedor?: number | null
+  woSetsPerdedor?: number | null
+  woPontosSetVencedor?: number | null
+  woPontosSetPerdedor?: number | null
+  woPunicaoPontos?: number | null
+}
+
+function colunaOpcionalAusente(erro: { message?: string; code?: string; details?: string } | null) {
+  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
+  return /setsPorPartida(Final|Semifinal|TerceiroLugar)|woSetsVencedor|woPunicaoPontos|PGRST204|42703/i.test(texto)
+}
+
+async function listarRegrasDeCategoria(ligaId: number): Promise<RegraCategoriaLida[]> {
+  const tentativas = [
+    `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_FASE},${CAMPOS_WO}`,
+    `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_FASE}`,
+    `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_WO}`,
+    CAMPOS_REGRA_CATEGORIA,
+  ]
+  let ultimo: { message?: string } | null = null
+  for (const colunas of tentativas) {
+    const resposta = await supabaseAdmin.from('CategoriaConfiguracao').select(colunas).eq('ligaId', ligaId)
+    if (!resposta.error) return (resposta.data ?? []) as unknown as RegraCategoriaLida[]
+    ultimo = resposta.error
+    if (!colunaOpcionalAusente(resposta.error)) throw new Error(resposta.error.message)
+  }
+  throw new Error(ultimo?.message ?? 'Não foi possível ler a configuração da categoria.')
+}
+
+async function lerRegrasDeLiga(ligaId: number) {
+  const cheia = await supabaseAdmin.from('Liga').select(`${CAMPOS_REGRA_LIGA},${CAMPOS_FASE}`).eq('id', ligaId).maybeSingle()
+  if (!cheia.error) return cheia.data
+  if (!colunaOpcionalAusente(cheia.error)) throw new Error(cheia.error.message)
+  const base = await supabaseAdmin.from('Liga').select(CAMPOS_REGRA_LIGA).eq('id', ligaId).maybeSingle()
+  if (base.error) throw new Error(base.error.message)
+  return base.data
+}
+
+function regraDeSetGravada(regra: { [key: string]: any }, pontosPadrao: number) {
+  return {
+    setsPorPartida: Number(regra.setsPorPartida) > 0 ? Number(regra.setsPorPartida) : 3,
+    pontosPorSet: Number(regra.pontosPorSet) > 0 ? Number(regra.pontosPorSet) : pontosPadrao,
+    tieBreakUltimoSet: regra.tieBreakUltimoSet === true,
+    pontosUltimoSet: Number(regra.pontosUltimoSet) > 0 ? Number(regra.pontosUltimoSet) : 15,
+    diferencaMinimaSet: Number(regra.diferencaMinimaSet) > 0 ? Number(regra.diferencaMinimaSet) : 2,
+    setsPorPartidaFinal: regra.setsPorPartidaFinal ?? null,
+    setsPorPartidaSemifinal: regra.setsPorPartidaSemifinal ?? null,
+    setsPorPartidaTerceiroLugar: regra.setsPorPartidaTerceiroLugar ?? null,
+  }
+}
+
+async function gravarClassificacaoSemTrava(ligaId: number, linhas: Array<Record<string, unknown>>) {
+  if (linhas.length > 0) {
+    const { error } = await supabaseAdmin.from('ClassificacaoEntrada').upsert(linhas.map((linha) => ({
+      ...linha,
       ligaId,
-      categoriaCampeonatoId: linha.categoriaCampeonatoId,
-      categoria: linha.categoria,
       serie: null,
-      posicao: linha.posicao,
-      pontos: linha.pontos,
-      jogos: linha.jogos,
-      vitorias: linha.vitorias,
-      derrotas: linha.derrotas,
-      setsPro: linha.setsPro,
-      setsContra: linha.setsContra,
-      pontosPro: linha.pontosPro,
-      pontosContra: linha.pontosContra,
       punicoes: linha.punicoes ?? 0,
       atualizadoEm: new Date().toISOString(),
     })), { onConflict: 'ligaId,equipeId' })
     if (error) throw new Error(error.message)
   }
-
-  const ids = ranque.map((linha) => linha.equipeId)
+  const ids = linhas.map((linha) => Number(linha.equipeId))
   const apagar = supabaseAdmin.from('ClassificacaoEntrada').delete().eq('ligaId', ligaId)
   const { error: erroApagar } = ids.length > 0 ? await apagar.not('equipeId', 'in', `(${ids.join(',')})`) : await apagar
   if (erroApagar) throw new Error(erroApagar.message)
-  return ranque.length
 }
 
 export async function criarCopaMassa() {

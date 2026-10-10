@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Fase de grupos só aceita jogo dentro do mesmo grupo. A tabela separa os grupos e usa confronto direto. A chave automática e o W.O. configurável seguem sem migration aplicada.
+  A súmula lê a categoria da partida. 20261010137000 grava súmula e classificação na mesma trava e ainda não foi aplicada. Fase de grupos só aceita jogo dentro do mesmo grupo. A tabela separa os grupos, usa confronto direto e o W.O. de 20261010150000. O prefixo 20261010138000 fica livre.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a súmula deixa de misturar a regra da `Liga` com a da categoria. `terceiroSetObrigatorio` não existe na `Liga`, e o tie-break da `Liga` nasce desligado enquanto o da `CategoriaConfiguracao` nasce ligado. Lançamento, andamento, validação e o placar recalculado usam a configuração da partida; sem categoria, usam as colunas que a `Liga` tem e deixam o terceiro set desligado. A tela de lançamento segue a mesma função e não encerra em 2×0 quando o terceiro set é obrigatório. `gravar_sumula_partida` grava sets, presenças, ocorrências, destaques e placar numa transação, com `pg_advisory_xact_lock` da liga e da partida. `gravar_classificacao_calculada` grava o resultado de `src/lib/classificacao.ts` na mesma trava da liga, inclusive `punicoes` do W.O. A RPC antiga `recalcular_classificacao_liga` não é chamada. `20261010137000_sumula_transacional.sql` não foi aplicada. O prefixo fica depois de `20261010136000` e antes de `20261010140000`; `20261010138000` não é usado. Enquanto a função não existir, a súmula volta à gravação em passos. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/CLASSIFICACAO]], [[modulos/PARAMETRIZACAO]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a fase de grupos só confronta equipes do mesmo grupo. O gerador, o calendário automático com vínculo de grupo e a criação manual recusam o cruzamento. A tela de estrutura alinha a quantidade de grupos aos cartões; grupos + mata-mata sem quantidade salva abre em 2. A classificação pública e a do painel mostram uma tabela por grupo e desempatam por confronto direto. A chave automática em `/fase-mata-mata` usa esse mesmo ranque: 1º A × 2º B e 1º B × 2º A. O elenco com nome, número e grupo fica na página pública do campeonato e em `/painel/elenco`, com busca. Sair fica visível no celular e no desktop, inclusive árbitro, súmula e admin. O link do juiz copia, abre o WhatsApp e copia a rodada. Não houve migration. Os jogos já gravados não foram reescritos. Fonte: [[modulos/GRUPOS]], [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 

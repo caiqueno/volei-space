@@ -20,4 +20,8 @@ assert.equal(progress([[10, 8]]), null)
 assert.equal(progress([[21, 19], [4, 2]]), null)
 assert.ok(progress([[21, 20], [4, 2]]))
 assert.ok(progress([[10, 8], [4, 2]]))
+const terceiro = { ...rules, terceiroSetObrigatorio: true }
+const andamentoTerceiro = (scores: number[][]) => validateCategoryProgress(scores.map(([pontosA, pontosB], i) => ({ numero: i + 1, pontosA, pontosB })), terceiro)
+assert.equal(andamentoTerceiro([[21, 19], [21, 18], [5, 3]]), null, 'terceiro set obrigatório aceita o set 3 em andamento')
+assert.ok(progress([[21, 19], [21, 18], [5, 3]]), 'sem terceiro obrigatório o set 3 depois de 2x0 é recusado')
 console.log('Category match rules passed: configured targets, deuce, optional/mandatory third, BO5, ties, unfinished/extra sets and invalid points.')

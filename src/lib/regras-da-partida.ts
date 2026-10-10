@@ -1,9 +1,11 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
-import { regrasParaFase, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { montarFonteDeRegras, regrasParaFase, type CategoryMatchRules } from '@/lib/category-match-rules'
 
-const CAMPOS_BASE = 'setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato'
+// `terceiroSetObrigatorio` existe só em CategoriaConfiguracao. Pedi-lo na Liga
+// faz o PostgREST recusar a leitura inteira e a súmula cai no default da Liga.
+const CAMPOS_LIGA = 'setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,setsFormato'
+const CAMPOS_CATEGORIA = `${CAMPOS_LIGA},terceiroSetObrigatorio`
 const CAMPOS_FASE = 'setsPorPartidaFinal,setsPorPartidaSemifinal,setsPorPartidaTerceiroLugar'
-const CAMPOS_COM_FASE = `${CAMPOS_BASE},${CAMPOS_FASE}`
 
 function primeiro(valor: unknown) {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
@@ -14,35 +16,27 @@ function colunaDeFaseAusente(erro: { message?: string; code?: string; details?: 
   return /setsPorPartida(Final|Semifinal|TerceiroLugar)|PGRST204|42703/i.test(texto)
 }
 
-async function lerSets(tabela: 'Liga' | 'CategoriaConfiguracao', coluna: 'id' | 'categoriaCampeonatoId', valor: number | string) {
-  const consulta = await supabase.from(tabela).select(CAMPOS_COM_FASE).eq(coluna, valor).maybeSingle()
-  if (!consulta.error) return consulta.data
-  if (!colunaDeFaseAusente(consulta.error)) return null
-  const base = await supabase.from(tabela).select(CAMPOS_BASE).eq(coluna, valor).maybeSingle()
-  return base.data
+async function lerLinha(tabela: 'Liga' | 'CategoriaConfiguracao', campos: string, coluna: string, valor: number | string) {
+  const comFase = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE}`).eq(coluna, valor).maybeSingle()
+  if (!comFase.error) return comFase.data as Record<string, unknown> | null
+  if (!colunaDeFaseAusente(comFase.error)) throw new Error(comFase.error.message)
+  const base = await supabase.from(tabela).select(campos).eq(coluna, valor).maybeSingle()
+  if (base.error) throw new Error(base.error.message)
+  return base.data as Record<string, unknown> | null
 }
 
-function mesclar(liga: Record<string, unknown>, categoria: Record<string, unknown>) {
-  const fonte: Record<string, unknown> = { ...liga }
-  for (const chave of ['setsPorPartida', 'pontosPorSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'setsFormato']) {
-    if (categoria[chave] != null) fonte[chave] = categoria[chave]
-  }
-  for (const chave of ['setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar']) {
-    if (Object.prototype.hasOwnProperty.call(categoria, chave)) fonte[chave] = categoria[chave]
-  }
-  return fonte
-}
-
-/** Liga, e a categoria da partida quando ela existe. A fase entra depois, em `regrasParaFase`. */
+/** Categoria da partida, quando existe. Sem ela, as colunas de sets da Liga. */
 export async function carregarFonteDeSets(partida: { ligaId?: number | null; liga?: unknown; categoriaCampeonatoId?: string | null }) {
+  if (partida.categoriaCampeonatoId) {
+    const categoria = await lerLinha('CategoriaConfiguracao', CAMPOS_CATEGORIA, 'categoriaCampeonatoId', partida.categoriaCampeonatoId)
+    if (categoria) return montarFonteDeRegras({ categoria })
+  }
   const embutida = (primeiro(partida.liga) ?? {}) as Record<string, unknown>
   const ligaId = Number(partida.ligaId ?? embutida.id)
-  const lida = Number.isInteger(ligaId) && ligaId > 0 ? await lerSets('Liga', 'id', ligaId) : null
-  const liga = { ...embutida, ...(lida ?? {}) }
-  if (!partida.categoriaCampeonatoId) return liga
-  const categoria = await lerSets('CategoriaConfiguracao', 'categoriaCampeonatoId', partida.categoriaCampeonatoId)
-  if (!categoria) return liga
-  return mesclar(liga, categoria)
+  const lida = Number.isInteger(ligaId) && ligaId > 0
+    ? await lerLinha('Liga', CAMPOS_LIGA, 'id', ligaId)
+    : null
+  return montarFonteDeRegras({ liga: { ...embutida, ...(lida ?? {}) } })
 }
 
 export async function regrasEfetivasDaPartida(partida: {

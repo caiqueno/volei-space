@@ -1,4 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { rpcAusente } from '@/lib/rpc-ausente'
 
 type Linha = Record<string, unknown>
 
@@ -9,11 +10,6 @@ type DestaqueEntrada = { tipo: string; jogadorId: number }
 
 const TABELAS = ['SetPartida', 'SumulaPresenca', 'OcorrenciaPartida', 'DestaquesPartida'] as const
 
-// O PostgREST não abre transação entre delete e insert. Esta função confere
-// cada erro e, se a gravação quebra no meio, tenta recolocar o que leu antes.
-// Duas gravações ao mesmo tempo ainda podem se atropelar. A correção definitiva
-// é uma única função no banco, chamada por RPC, envolvendo sets, presenças,
-// ocorrências, destaques e a Partida.
 export async function gravarSumulaComRestauracao(entrada: {
   partidaId: number
   sets: SetEntrada[]
@@ -23,6 +19,32 @@ export async function gravarSumulaComRestauracao(entrada: {
   arbitroId: number | null
   partida: Record<string, unknown>
 }) {
+  const resumo = entrada.sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
+  const registro = `Registro de placar pelo árbitro ${entrada.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`
+  const { error } = await supabase.rpc('gravar_sumula_partida', {
+    p_partida_id: entrada.partidaId,
+    p_sets: entrada.sets,
+    p_presencas: entrada.presencas,
+    p_ocorrencias: entrada.ocorrencias ?? [],
+    p_destaques: entrada.destaques ?? [],
+    p_partida: entrada.partida,
+    p_registro: registro,
+  })
+  if (!error) return
+  if (!rpcAusente(error)) throw error
+  // A migration 20261010137000 ainda não foi aplicada neste banco.
+  console.error('[sumula] RPC gravar_sumula_partida ausente; gravação sem transação')
+  await gravarSemTransacao(entrada, registro)
+}
+
+async function gravarSemTransacao(entrada: {
+  partidaId: number
+  sets: SetEntrada[]
+  presencas: PresencaEntrada[]
+  ocorrencias?: OcorrenciaEntrada[]
+  destaques?: DestaqueEntrada[]
+  partida: Record<string, unknown>
+}, registro: string) {
   const { partidaId } = entrada
   const antes = {
     SetPartida: await listar('SetPartida', partidaId),
@@ -34,7 +56,7 @@ export async function gravarSumulaComRestauracao(entrada: {
   try {
     await substituir('SetPartida', partidaId, entrada.sets.map((set) => ({ ...set, partidaId })))
     await substituir('SumulaPresenca', partidaId, entrada.presencas.map((presenca) => ({ ...presenca, partidaId })))
-    await substituirOcorrencias(partidaId, entrada.ocorrencias, entrada.arbitroId, entrada.sets)
+    await substituirOcorrencias(partidaId, entrada.ocorrencias, registro)
     await substituir(
       'DestaquesPartida',
       partidaId,
@@ -77,12 +99,7 @@ async function restaurar(partidaId: number, antes: Record<(typeof TABELAS)[numbe
   }
 }
 
-async function substituirOcorrencias(
-  partidaId: number,
-  ocorrencias: OcorrenciaEntrada[] | undefined,
-  arbitroId: number | null,
-  sets: SetEntrada[],
-) {
+async function substituirOcorrencias(partidaId: number, ocorrencias: OcorrenciaEntrada[] | undefined, registro: string) {
   const { data: atuais, error: leituraErr } = await supabase
     .from('OcorrenciaPartida')
     .select('id,descricao')
@@ -101,11 +118,10 @@ async function substituirOcorrencias(
       .insert(ocorrencias.map((ocorrencia) => ({ ...ocorrencia, partidaId })))
     if (inserirErr) throw inserirErr
   }
-  const resumo = sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
   const { error: registroErr } = await supabase.from('OcorrenciaPartida').insert({
     partidaId,
     tipo: 'OBSERVACAO',
-    descricao: `Registro de placar pelo árbitro ${arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`,
+    descricao: registro,
   })
   if (registroErr) throw registroErr
 }

@@ -195,7 +195,12 @@ function simularGrantsAnon(files) {
 const files = arquivosSql()
 assert.ok(files.includes(arquivoNovo), 'migration de RLS ausente')
 assert.equal(files.filter((name) => name.startsWith('20261010140000')).length, 1)
-assert.ok(files.at(-1) === arquivoNovo, 'a migration de RLS precisa ser a última pelo prefixo')
+const posteriores = files.filter((name) => name > arquivoNovo)
+for (const nome of posteriores) {
+  const sqlPosterior = sqlSemComentario(fs.readFileSync(path.join(dir, nome), 'utf8'))
+  assert.doesNotMatch(sqlPosterior, /create\s+table/i, `${nome} cria tabela depois da migration de RLS`)
+  assert.doesNotMatch(sqlPosterior, /grant\s+[^;]*\bto\s+(anon|authenticated|public)\b/i, `${nome} concede leitura anônima depois da migration de RLS`)
+}
 
 const anteriores = files.filter((name) => name !== arquivoNovo)
 const inventario = tabelasPublicas(anteriores)
