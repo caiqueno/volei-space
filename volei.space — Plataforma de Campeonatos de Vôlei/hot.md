@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A papeleta da súmula volta a um time por vez. O saque alterna até o 4º set e o 5º sorteia. O +1 registra o ponto sem jogador. A página do campeonato mostra chave e pódio.
+  O credenciamento grava o número da camisa na partida. A migration 202610100001 não foi aplicada. A papeleta da súmula volta a um time por vez. O saque alterna até o 4º set e o 5º sorteia. O +1 registra o ponto sem jogador.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+O credenciamento pré-partida edita o número da camisa no badge do atleta. O valor fica em `SumulaPresenca.numero` e não altera `Jogador.numero`. A faixa é 0–99 e o número efetivo não repete na mesma equipe naquela partida. `presente` nulo continua Pendente; a migration `202610100001` ainda não foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 A conferência da papeleta na súmula mostra um time por vez, com indicação de quem já confirmou e um comando para o outro time. A quadra 2D com os dois lados continua na pontuação. O saque do set 1 é escolha; nos sets 2, 3 e 4 o sistema impõe quem não sacou no set anterior; no 5º set há sorteio no aplicativo ou registro do resultado da mesa. A gravação da súmula recusa a alternância quebrada. Fonte: [[modulos/SUMULA-DIGITAL]].
 
@@ -37,7 +39,7 @@ Auditoria de deploy em 9 de outubro de 2026: o build é `prisma generate && next
 
 Correções só de interface, sem API nem banco. O cabeçalho e o rodapé mostram «volei.space». Fora da home, o cabeçalho reserva 72px até ler a sessão. Nova partida trata falha de rede e resposta que não é JSON, mostra erro e carregamento de campeonatos e equipes, busca as equipes uma vez e lista as categorias em `GET /api/categorias?ligaId=`. A inscrição da equipe não deixa o botão preso se a rede cair, avisa quando a sessão não tem equipe e separa erro de sucesso. Sair no admin reutiliza `encerrarSessaoPublica()`. Aprovar súmula não chama falha de conexão quando o corpo não é JSON.
 
-O histórico SQL ficou ordenado para a CLI. Trinta e cinco arquivos `supabase-*.sql` receberam prefixo anterior a `202610060004` e `202610060005`, então nenhum grant a `anon` ou `authenticated` corre depois do fechamento. Produção e desenvolvimento já receberam esse SQL à mão: `supabase migration repair --status applied` é obrigatório antes de `db push`. Quatro migrations novas ainda não foram aplicadas, nesta ordem: `202610090001` tira o EXECUTE global de `PUBLIC` dos default privileges de `postgres` (o revoke dentro do schema não faz isso) e deixa `service_role`; `202610090002` cria os índices de chave estrangeira que faltavam; `202610090003` garante a unicidade `(ligaId, equipeId)` em `ClassificacaoEntrada` sem apagar linha; `202610090004` define `default now()` em `Partida.atualizadoEm`. A mesma equipe joga em mais de uma liga. `SetPartida.partidaId` já é a primeira coluna da unicidade `(partidaId, numero)`. As policies de leitura do Realtime estão nos arquivos agora versionados `202609200020` e `202609200021`; o `GRANT` de `202610060004` limita as colunas de `Partida` e não inclui `sumulaToken`. `prisma/schema.prisma` descreve esse banco. Não há `prisma/migrations`. `setup-db.mjs` saiu. Nada foi executado em banco real. Fonte: [[06-BANCO-DE-DADOS]].
+O histórico SQL ficou ordenado para a CLI. Trinta e cinco arquivos `supabase-*.sql` receberam prefixo anterior a `202610060004` e `202610060005`, então nenhum grant a `anon` ou `authenticated` corre depois do fechamento. Produção e desenvolvimento já receberam esse SQL à mão: `supabase migration repair --status applied` é obrigatório antes de `db push`. Cinco migrations novas ainda não foram aplicadas, nesta ordem: `202610090001` tira o EXECUTE global de `PUBLIC` dos default privileges de `postgres` (o revoke dentro do schema não faz isso) e deixa `service_role`; `202610090002` cria os índices de chave estrangeira que faltavam; `202610090003` garante a unicidade `(ligaId, equipeId)` em `ClassificacaoEntrada` sem apagar linha; `202610090004` define `default now()` em `Partida.atualizadoEm`; `202610100001` permite `SumulaPresenca.presente` nulo para guardar o número da camisa antes da confirmação. A mesma equipe joga em mais de uma liga. `SetPartida.partidaId` já é a primeira coluna da unicidade `(partidaId, numero)`. As policies de leitura do Realtime estão nos arquivos agora versionados `202609200020` e `202609200021`; o `GRANT` de `202610060004` limita as colunas de `Partida` e não inclui `sumulaToken`. `prisma/schema.prisma` descreve esse banco. Não há `prisma/migrations`. `setup-db.mjs` saiu. Nada foi executado em banco real. Fonte: [[06-BANCO-DE-DADOS]].
 
 ## Key Takeaways
 

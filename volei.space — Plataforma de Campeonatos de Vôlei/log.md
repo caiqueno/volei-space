@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | número da camisa no credenciamento
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O número editado no credenciamento fica em `SumulaPresenca.numero`, por partida, e não no cadastro `Jogador.numero`. `202610100001` torna `presente` anulável para a linha existir antes da confirmação. Não foi aplicada em produção.
+
 ## [2026-10-10] fix | papeleta de um time e alternância do saque
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
