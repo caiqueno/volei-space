@@ -33,7 +33,8 @@ async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean,
     .in('status', status)
   if (categoriaCampeonatoId) consulta = consulta.eq('categoriaCampeonatoId', categoriaCampeonatoId)
   const { data, error } = await consulta
-    .order('dataHora', { ascending })
+    .order('dataHora', { ascending, nullsFirst: false })
+    .order('id', { ascending: true })
     .range(offset, offset + limite)
   if (error) return { partidas: [], temMais: false, erro: true }
   const linhas = normalizar(data)

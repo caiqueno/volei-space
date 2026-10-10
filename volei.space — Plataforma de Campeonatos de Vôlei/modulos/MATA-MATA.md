@@ -5,7 +5,7 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A final pode ter quantidade de sets própria. O portal público mostra pódio e chave quando a final tem vencedor.
+  O organizador gera a chave a partir dos grupos. Os cartões claros da chave usam texto escuro.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -15,6 +15,10 @@ updated: 2026-10-10
 **Sets por fase — implementado no código, migration pendente:** `setsPorPartida` continua valendo para grupos, quartas, oitavas e dezesseis avos. Final, semifinal e disputa de 3º lugar aceitam um inteiro de 1 a 5 em `setsPorPartidaFinal`, `setsPorPartidaSemifinal` e `setsPorPartidaTerceiroLugar`. Null herda o campeonato. O tie-break, quando ligado, é o último set dessa quantidade. A súmula, a validação, o resultado manual e a aprovação usam essa quantidade. O campo fica em Eliminatórias e continua editável depois que os grupos começam; trava só se o jogo daquela fase já começou, encerrou ou tem súmula. A migration `20261010136000_sets_por_fase_mata_mata.sql` ainda não foi aplicada. Sem ela, a leitura cai no padrão do campeonato e gravar o campo novo falha.
 
 **Pódio público — implementado:** `/portal?ligaId=` e `/classificacao` mostram pódio, resultado da final, resultado do 3º lugar e a chave quando a categoria tem mata-mata. O pódio aparece assim que a final tem vencedor, mesmo com o campeonato ainda ativo. A tabela de pontos continua só com `GERAL` e `GRUPOS`. Campeonato de teste ou simulação não entra nessa API.
+
+**Chave automática — implementado:** em `/fase-mata-mata`, o organizador dispara uma vez `POST /api/organizador/ligas/{id}/mata-mata/gerar`. Dois ou mais grupos com pelo menos dois classificados cruzam grupos vizinhos: 1º do primeiro × 2º do segundo e 1º do segundo × 2º do primeiro. Sem esse par de grupos, a vaga segue a classificação única: 1º × último e 2º × penúltimo. A final usa os vencedores das semifinais; o 3º lugar, quando a disputa está ligada, usa os perdedores. Slot de fase e rodada já ocupado não é reescrito. Cada grupo é ordenado por `calcularClassificacao` só com os jogos `GERAL` e `GRUPOS` daquelas equipes. O limite sai de `GrupoCampeonato.classificados`, depois da configuração, e cai em 2. Não há migration. A tabela pública por grupo e o confronto direto da classificação ficam fora desta entrega.
+
+**Contraste da chave — implementado:** os cartões claros de confronto usam a classe `chave-confronto`. O texto interno fica `#0f172a`, acima da regra que clareia `span` em `main.luva-shell`. A marca colorida da equipe continua fora dessa troca.
 
 **Implementado:** funções em `src/lib/mata-mata.ts`, `src/lib/classificados.ts` e `src/lib/eliminatorias.ts`; rotas de estrutura e chaveamento em `src/app/api/organizador/ligas/[id]/mata-mata`. A parametrização define formato e fase eliminatória; as validações de capacidade estão em `src/lib/championship-validation.ts`. O insert da chave grava `categoriaCampeonatoId` da equipe e `serie` nula, e recusa confronto entre categorias diferentes. O `sumulaToken` desse insert é aleatório; a configuração da chave e o pareamento não mudam. Slot, alimentadores e classificados são lidos só nessa categoria, então duas categorias podem ter a mesma final na rodada 1. Com categoria informada, fase e disputa de 3º lugar vêm de `CategoriaConfiguracao`. O mata-mata é jogo único: volta responde 409 na rota e o índice parcial do banco também impede o segundo jogo. A classificação vigente soma só fases `GERAL` e `GRUPOS`; a chave não entra na tabela. A página pública `/campeonatos/[slug]` e `/fase-mata-mata` mostram a chave da categoria escolhida (a primeira, se a URL não pedir outra) e, com status `FINALIZADO`, o pódio de `getChampionshipPodium` dessa categoria (final e disputa de 3º lugar).
 
