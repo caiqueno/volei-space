@@ -8,7 +8,7 @@ summary: >-
   Cada vaga parametrizada tem um link próprio em ConviteVagaEquipe. O rascunho continua depois do refresh.
 status: misto
 created: 2026-09-20
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 # Inscrições por equipe
 
@@ -20,7 +20,7 @@ updated: 2026-10-06
 
 **Regra anterior:** o organizador gerava um link por campeonato. O endereço era `/inscricao/campeonato/{token}`. O token tem 32 caracteres hexadecimais e não é o id da liga. Um campeonato tem um registro em `LinkInscricaoCampeonato`. Gerar de novo devolve o mesmo token. Regenerar troca o token e o anterior deixa de abrir a página. Desativar mostra inscrições indisponíveis. O período (`inscricoesAberturaEm`, `inscricoesEncerramentoEm`, `inscricoesAbertas` e o status do campeonato) é conferido no servidor. A equipe usa o formulário já existente de inscrição rápida. Nome repetido na mesma liga responde que a equipe já está inscrita. A finalização continua no rascunho atual e não cria uma segunda fila de aprovação. O convite exclusivo por equipe, antes de `Equipe` existir, permanece a regra aprovada e pendente de `docs/requisitos/INSCRICOES-POR-EQUIPE.md`.
 
-**Estado anterior:** requisito aprovado, implementação final pendente. Há rascunhos e tokens em `src/lib/team-registration-draft.ts`, rotas `src/app/api/inscricao-rapida` e migration `supabase/migrations/supabase-inscricao-equipe-rascunho.sql`. Isso não equivale automaticamente ao fluxo aprovado. Desde 26/09/2026 o rascunho recusa, ao salvar o atleta, número de camisa repetido e ausência de foto, nascimento ou documento quando o formulário do campeonato exige esses campos.
+**Estado anterior:** requisito aprovado, implementação final pendente. Há rascunhos e tokens em `src/lib/team-registration-draft.ts`, rotas `src/app/api/inscricao-rapida` e migration `supabase/migrations/202609200015_inscricao-equipe-rascunho.sql`. Isso não equivale automaticamente ao fluxo aprovado. Desde 26/09/2026 o rascunho recusa, ao salvar o atleta, número de camisa repetido e ausência de foto, nascimento ou documento quando o formulário do campeonato exige esses campos.
 
 **Histórico de 27/09/2026:** o painel mostrava `/inscricao-rapida?ligaId={id}`. Esse atalho saiu do fluxo em 4 de outubro de 2026. O rascunho já aberto em `/inscricao-rapida/{token}` continua editável.
 

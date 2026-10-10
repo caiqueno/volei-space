@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { isAdminSession } from '@/lib/admin-access'
+import { lerToken } from '@/lib/token-verify'
 
 const ADMIN_PREFIX = '/admin'
 const LOGIN_PATH = '/login'
@@ -56,29 +56,17 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('luva_token')?.value
   if (!token) return redirectToLogin(req)
 
-  try {
-    const secret = process.env.JWT_SECRET
-    if (!secret) return redirectToLogin(req)
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
-    if (!isAdminSession(payload)) {
-      return redirectToLogin(req)
-    }
-    return nextResponse(pathname)
-  } catch {
-    return redirectToLogin(req)
-  }
+  const payload = await lerToken<Record<string, unknown>>(token, 'admin')
+  if (!payload || !isAdminSession(payload)) return redirectToLogin(req)
+  return nextResponse(pathname)
 }
 
 async function organizerMustReplacePassword(req: NextRequest) {
   const token = req.cookies.get('luva_token')?.value
-  const secret = process.env.JWT_SECRET
-  if (!token || !secret) return false
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
-    return (payload.tipo === 'organizador' || payload.tipo === 'arbitro') && payload.trocarSenha === true
-  } catch {
-    return false
-  }
+  if (!token) return false
+  const payload = await lerToken<{ tipo?: unknown; trocarSenha?: unknown }>(token, 'public')
+  if (!payload) return false
+  return (payload.tipo === 'organizador' || payload.tipo === 'arbitro') && payload.trocarSenha === true
 }
 
 function redirectToLogin(req: NextRequest) {

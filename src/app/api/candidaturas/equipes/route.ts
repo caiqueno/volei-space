@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     const duplicateError = duplicateDatabaseMessage(detail)
     if (duplicateError) return error(duplicateError, 409)
     console.error('[candidaturas/equipes] erro ao registrar candidatura', err)
-    return error(`Erro ao registrar candidatura: ${detail}`, 500)
+    return error('Erro ao registrar candidatura.', 500)
   }
 }
 

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
+import { exigirOrganizadorOuAdminDaPartida } from '@/lib/organizador-isolamento'
+import { regrasDaConfiguracao, validateCategoryResult } from '@/lib/category-match-rules'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const acesso = await exigirOrganizadorDaPartida(req, Number(id))
+  const acesso = await exigirOrganizadorOuAdminDaPartida(req, Number(id))
   if (acesso instanceof NextResponse) return acesso
 
   try {
@@ -22,15 +23,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
 
-    // Calculate sets won
-    const sets = (partida.sets ?? []) as any[]
-    let setsPorA = 0, setsPorB = 0
-    for (const s of sets) {
-      if (s.pontosA > s.pontosB) setsPorA++
-      else if (s.pontosB > s.pontosA) setsPorB++
+    const sets = ((partida.sets ?? []) as any[]).map((set) => ({
+      numero: Number(set.numero),
+      pontosA: Number(set.pontosA),
+      pontosB: Number(set.pontosB),
+    }))
+    const { data: liga } = await supabase
+      .from('Liga')
+      .select('setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato')
+      .eq('id', partida.ligaId)
+      .maybeSingle()
+    let regras = regrasDaConfiguracao(liga)
+    if (partida.categoriaCampeonatoId) {
+      const { data: categoria } = await supabase
+        .from('CategoriaConfiguracao')
+        .select('setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato')
+        .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId)
+        .maybeSingle()
+      if (categoria) regras = regrasDaConfiguracao(categoria)
+    }
+    const placarInvalido = validateCategoryResult(sets, regras)
+    if (placarInvalido) return error(placarInvalido, 422)
+
+    let setsPorA = 0
+    let setsPorB = 0
+    let pontosPorA = 0
+    let pontosPorB = 0
+    for (const set of sets) {
+      pontosPorA += set.pontosA
+      pontosPorB += set.pontosB
+      if (set.pontosA > set.pontosB) setsPorA += 1
+      else if (set.pontosB > set.pontosA) setsPorB += 1
     }
 
     const vencedorId = setsPorA > setsPorB ? partida.equipeAId : setsPorB > setsPorA ? partida.equipeBId : null
+    if (!vencedorId) return error('A partida precisa ter um vencedor antes da aprovação.', 422)
 
     const { data: updated, error: updateErr } = await supabase
       .from('Partida')
@@ -38,6 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         status: 'ENCERRADA',
         setsPorA,
         setsPorB,
+        pontosPorA,
+        pontosPorB,
         vencedorId,
         sumulaAprovadaEm: new Date().toISOString(),
       })
@@ -47,11 +76,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (updateErr) throw updateErr
 
-    // Update classification for both teams
-    await recalculateLeagueClassification(partida.ligaId)
+    try {
+      await recalculateLeagueClassification(partida.ligaId)
+    } catch (err) {
+      console.error('[partidas/aprovar] partida aprovada; classificação não recalculada', err)
+    }
 
     return success(updated)
-  } catch {
+  } catch (err) {
+    console.error('[partidas/aprovar] erro', err)
     return error('Erro ao aprovar partida', 500)
   }
 }

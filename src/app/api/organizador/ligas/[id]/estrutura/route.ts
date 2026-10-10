@@ -371,7 +371,7 @@ function validateGroups(groups: Required<GrupoInput>[], equipes: EquipeRecord[],
 function categoriaComum(equipes: EquipeRecord[]) {
   const ids = new Set(equipes.map((equipe) => equipe.categoriaCampeonatoId).filter(Boolean))
   if (ids.size !== 1) return null
-  return [...ids][0] as string
+  return Array.from(ids)[0] as string
 }
 
 function buildGroupMatches(

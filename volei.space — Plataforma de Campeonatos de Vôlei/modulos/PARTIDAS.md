@@ -16,7 +16,7 @@ updated: 2026-10-09
 
 As partidas pertencem a um campeonato e envolvem equipes compatíveis com sua estrutura. Resultado oficial alimenta classificação e rankings. O calendário e confrontos não devem surgir como efeito de **gerar convite** de inscrição; somente etapas operacionais adequadas depois do cadastro e da configuração.
 
-A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e `serie` nula. `Partida.atualizadoEm` precisa do default `now()` (`202610090001_partida_atualizado_em_default.sql`); o Prisma marca a coluna como obrigatória e o `@updatedAt` não vira default no Postgres. A migration está no repositório e ainda não foi aplicada em produção.
+A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e `serie` nula. `Partida.atualizadoEm` precisa do default `now()` (`202610090004_partida_atualizado_em_default.sql`); o Prisma marca a coluna como obrigatória e o `@updatedAt` não vira default no Postgres. A migration está no repositório e ainda não foi aplicada em produção.
 
 **Aprovado, pendente:** encerramento, vencedor, último set, MVP e correção seguem [[modulos/SUMULA-DIGITAL]]. Quando resultado mudar, rever [[modulos/CLASSIFICACAO]] e [[modulos/SCOUTS]].
 

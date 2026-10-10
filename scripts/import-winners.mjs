@@ -2,7 +2,8 @@
 //
 // O script fala com o Next em APP_URL. Ele não escolhe o banco: o processo
 // do app precisa já estar no alvo, com as migrations aplicadas — inclusive
-// supabase/migrations/202610090001_partida_atualizado_em_default.sql.
+// supabase/migrations/202610090004_partida_atualizado_em_default.sql.
+// O prefixo 202610090001 já pertence à revogação de EXECUTE. Não reutilize.
 //
 // Variáveis:
 //   APP_URL                 base do Next (ex.: http://127.0.0.1:3000)
@@ -20,8 +21,12 @@
 //
 // Ordem para rodar no alvo (inclusive produção, de propósito):
 //   1. Backup do banco. Confira o ledger de supabase_migrations.
-//   2. Aplique só 202610090001 se "Partida"."atualizadoEm" não tiver default.
-//      Não reaplique a pasta inteira de migrations.
+//   2. Se o ledger ainda não tiver, aplique nesta ordem, sem reaplicar a pasta:
+//      202610090001_revogar_execute_public_default.sql,
+//      202610090002_indices_chaves_estrangeiras.sql,
+//      202610090003_classificacao_entrada_unica_por_liga.sql,
+//      202610090004_partida_atualizado_em_default.sql
+//      (default now() em "Partida"."atualizadoEm").
 //   3. Publique antes o código que grava categoriaCampeonatoId e deixa serie nula.
 //   4. Aponte APP_URL para esse deploy e rode o script uma vez.
 //   5. Winners Oficial e Winner QA ficam só com elenco. Winners Teste é jogado
@@ -133,7 +138,7 @@ async function garantirOrganizador() {
   const sessao = await login(ORGANIZADOR_EMAIL, ORGANIZADOR_SENHA, 'organizador')
   const organizadorId = sessao.data?.user?.candidaturaId
   if (!organizadorId) throw new Error('A sessão do organizador não devolveu o id.')
-  return { jar: sessao.jar, organizadorId }
+  return { jar: sessao.jar, organizadorId, adminJar: admin.jar }
 }
 
 function corpoLiga(item, organizadorId) {
@@ -175,7 +180,7 @@ async function garantirLiga(jar, item, organizadorId) {
   return call(jar, 'POST', '/api/ligas', corpoLiga(item, organizadorId))
 }
 
-async function configurarCategoria(jar, liga) {
+async function configurarCategoria(jar, liga, adminJar) {
   let categorias = await call(jar, 'GET', `/api/organizador/ligas/${liga.id}/categorias`)
   let categoria = (categorias ?? []).find((item) => item.codigo === 'MASCULINO' && !item.removidaEm)
   if (!categoria) {
@@ -236,7 +241,7 @@ async function configurarCategoria(jar, liga) {
     }
   }
   if (liga.status !== 'FINALIZADO' && !liga.pagamentoConfirmadoEm) {
-    await call(jar, 'POST', `/api/organizador/ligas/${liga.id}/pagamento/confirmar`, {})
+    await call(adminJar, 'POST', `/api/organizador/ligas/${liga.id}/pagamento/confirmar`, {})
   }
   return categoria
 }
@@ -405,12 +410,12 @@ async function main() {
     throw new Error(`O JSON precisa ter 10 times e 140 jogadores. Veio ${times.length} times e ${atletas} jogadores.`)
   }
 
-  const { jar: organizador, organizadorId } = await garantirOrganizador()
+  const { jar: organizador, organizadorId, adminJar } = await garantirOrganizador()
 
   let campeao = null
   for (const item of CAMPEONATOS) {
     const liga = await garantirLiga(organizador, item, organizadorId)
-    const categoria = await configurarCategoria(organizador, liga)
+    const categoria = await configurarCategoria(organizador, liga, adminJar)
     await inscreverTimes(organizador, liga, categoria, times)
     const estruturaElenco = await lerEstrutura(organizador, liga.id)
     const jogadores = (estruturaElenco.equipes ?? []).reduce((total, equipe) => total + (equipe.jogadores?.length ?? 0), 0)

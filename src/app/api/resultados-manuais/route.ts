@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
+import { regrasDaConfiguracao, validateCategoryResult } from '@/lib/category-match-rules'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: partida, error: partidaErr } = await supabase
       .from('Partida')
-      .select('id,ligaId,equipeAId,equipeBId,liga:Liga(id,organizadorId,setsPorPartida,pontosPorSet)')
+      .select('id,ligaId,equipeAId,equipeBId,categoriaCampeonatoId,liga:Liga(id,organizadorId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato)')
       .eq('id', partidaId)
       .single()
 
@@ -87,40 +88,27 @@ export async function PATCH(req: NextRequest) {
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
 
-    const setsPorPartida = Math.max(1, Number(liga?.setsPorPartida ?? 3))
-    const setsParaVencer = Math.floor(setsPorPartida / 2) + 1
-    if (normalizedSets.length === 0 || normalizedSets.length > setsPorPartida) {
-      return error(`Informe de 1 a ${setsPorPartida} set(s) para esta partida.`, 422)
+    let regras = regrasDaConfiguracao(liga)
+    if (partida.categoriaCampeonatoId) {
+      const { data: categoria } = await supabase
+        .from('CategoriaConfiguracao')
+        .select('setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato')
+        .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId)
+        .maybeSingle()
+      if (categoria) regras = regrasDaConfiguracao(categoria)
     }
+    const placarInvalido = validateCategoryResult(normalizedSets, regras)
+    if (placarInvalido) return error(placarInvalido, 422)
 
-    const usedNumbers = new Set<number>()
     let setsPorA = 0
     let setsPorB = 0
     let pontosPorA = 0
     let pontosPorB = 0
-
     for (const set of normalizedSets) {
-      if (!Number.isInteger(set.numero) || set.numero < 1 || set.numero > setsPorPartida || usedNumbers.has(set.numero)) {
-        return error('A numeração dos sets está inválida.', 422)
-      }
-      if (![set.pontosA, set.pontosB].every((value) => Number.isInteger(value) && value >= 0)) {
-        return error('Informe apenas pontos inteiros e positivos por set.', 422)
-      }
-      if (set.pontosA === set.pontosB) {
-        return error(`O set ${set.numero} precisa ter um vencedor.`, 422)
-      }
-      usedNumbers.add(set.numero)
       pontosPorA += set.pontosA
       pontosPorB += set.pontosB
       if (set.pontosA > set.pontosB) setsPorA += 1
       if (set.pontosB > set.pontosA) setsPorB += 1
-    }
-
-    if (setsPorA === setsPorB || Math.max(setsPorA, setsPorB) < setsParaVencer) {
-      return error(`O resultado precisa ter uma equipe com ${setsParaVencer} set(s) vencidos.`, 422)
-    }
-    if (setsPorA > setsParaVencer || setsPorB > setsParaVencer) {
-      return error('O placar de sets ultrapassa o limite da partida.', 422)
     }
 
     const vencedorId = setsPorA > setsPorB ? partida.equipeAId : partida.equipeBId
