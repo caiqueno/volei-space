@@ -205,7 +205,8 @@ assert.ok(files.indexOf(arquivoWo) < files.indexOf(arquivoSancoes), 'o W.O. prec
 assert.ok(files.indexOf(arquivoSancoes) < files.indexOf(arquivoNovo), 'a suspensão precisa ficar antes da migration de RLS')
 assert.ok(files.indexOf(arquivoNovo) < files.indexOf(arquivoLeitura), 'a leitura precisa ficar depois da migration de RLS')
 const posteriores = files.filter((name) => name > arquivoNovo)
-assert.deepEqual(posteriores, [arquivoLeitura])
+assert.equal(posteriores[0], arquivoLeitura, 'a leitura pública é o primeiro arquivo depois da RLS')
+assert.ok(posteriores.includes('20261010142000_vaga_a_definir.sql'), 'a vaga a definir fica depois da leitura pública')
 for (const nome of posteriores) {
   const sqlPosterior = sqlSemComentario(fs.readFileSync(path.join(dir, nome), 'utf8'))
   assert.doesNotMatch(sqlPosterior, /create\s+table/i, `${nome} cria tabela depois da migration de RLS`)
