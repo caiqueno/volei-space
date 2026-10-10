@@ -12,6 +12,7 @@ const CAMPO_LIMITE = 'limiteSubstituicoesPorSet'
 const CAMPO_RODIZIO = 'alertaRodizioIlegal'
 const CAMPOS_TEMPOS = 'limiteTemposPorSet,separarTempos'
 const CAMPOS_LESAO = 'tempoMedico,substituicaoPorLesao'
+const CAMPOS_LIBERO = 'exigirLiberoInicial,quantidadeLiberos'
 
 function primeiro(valor: unknown) {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
@@ -19,10 +20,14 @@ function primeiro(valor: unknown) {
 
 function colunaDeFaseAusente(erro: { message?: string; code?: string; details?: string } | null) {
   const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|alertaRodizioIlegal|limiteTemposPorSet|separarTempos|tempoMedico|substituicaoPorLesao|PGRST204|42703/i.test(texto)
+  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|alertaRodizioIlegal|limiteTemposPorSet|separarTempos|tempoMedico|substituicaoPorLesao|exigirLiberoInicial|quantidadeLiberos|PGRST204|42703/i.test(texto)
 }
 
 async function lerLinha(tabela: 'Liga' | 'CategoriaConfiguracao', campos: string, coluna: string, valor: number | string) {
+  const comLibero = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE},${CAMPO_RODIZIO},${CAMPOS_TEMPOS},${CAMPOS_LESAO},${CAMPOS_LIBERO}`).eq(coluna, valor).maybeSingle()
+  if (!comLibero.error) return comLibero.data as Record<string, unknown> | null
+  if (!colunaDeFaseAusente(comLibero.error)) throw new Error(comLibero.error.message)
+  // O líbero configurável ainda não existe em produção. A leitura seguinte mantém lesão, tempos, alerta, limite e fases.
   const comLesao = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE},${CAMPO_RODIZIO},${CAMPOS_TEMPOS},${CAMPOS_LESAO}`).eq(coluna, valor).maybeSingle()
   if (!comLesao.error) return comLesao.data as Record<string, unknown> | null
   if (!colunaDeFaseAusente(comLesao.error)) throw new Error(comLesao.error.message)

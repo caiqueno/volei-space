@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | líbero configurável
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Sem configuração, a súmula continua pedindo um líbero inicial. A troca não conta como substituição. `20261010139990_libero_sumula.sql` não foi aplicada.
+
 ## [2026-10-10] feat | tempo médico e lesão
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

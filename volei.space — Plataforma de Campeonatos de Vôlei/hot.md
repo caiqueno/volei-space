@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Tempo médico e substituição por lesão só aparecem com a opção ligada. Sem isso, o limite de tempos continua 2 e o par de substituição fecha na volta.
+  Sem configuração, a súmula continua pedindo um líbero inicial e a troca não conta como substituição. Só o valor false dispensa o líbero.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a escalação continua pedindo um líbero inicial enquanto `exigirLiberoInicial` não está false. A quantidade 1 ou 2 limita a lista; vazio não limita. A troca de líbero não conta como substituição e não cria par. Sem as colunas, a súmula segue como está. `20261010139990_libero_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139980` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o tempo médico e a substituição por lesão só entram na súmula quando `tempoMedico` ou `substituicaoPorLesao` está true. Desligados, ausentes ou sem a coluna, não há botão novo, o tempo continua no teto de 2 e a substituição continua no limite, com o par fechando na volta. Uma ocorrência `lesao` sem a opção conta como substituição comum. `20261010139980_lesao_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139970` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 

@@ -16,6 +16,7 @@ import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limit
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
 import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
+import { quantidadeDeLiberos } from '@/lib/libero-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -108,6 +109,8 @@ type MatchRules = {
   temposSeparados: boolean
   tempoMedico: boolean
   substituicaoPorLesao: boolean
+  exigirLiberoInicial: boolean
+  quantidadeLiberos: 1 | 2 | null
 }
 
 type SetEndPrompt = {
@@ -662,7 +665,7 @@ export default function SumulaPage() {
       return
     }
 
-    if (!selectedLibero) {
+    if (!selectedLibero && matchRules.exigirLiberoInicial) {
       addToast(`Defina o líbero inicial do ${team.name} para o set ${currentSet}.`)
       return
     }
@@ -674,7 +677,9 @@ export default function SumulaPage() {
 
     const setConfirmed = teamId === 'teamA' ? setLineupConfirmedA : setLineupConfirmedB
     setConfirmed(true)
-    addMatchEvent('system', `Escalação do ${team.name} conferida para o set ${currentSet}. Líbero inicial: #${selectedLibero}.`)
+    addMatchEvent('system', selectedLibero
+      ? `Escalação do ${team.name} conferida para o set ${currentSet}. Líbero inicial: #${selectedLibero}.`
+      : `Escalação do ${team.name} conferida para o set ${currentSet}.`)
 
     const otherTeamConfirmed = teamId === 'teamA' ? lineupConfirmedB : lineupConfirmedA
     if (!otherTeamConfirmed) {
@@ -1469,6 +1474,7 @@ export default function SumulaPage() {
             setStartingLibero={setStartingLibero}
             executeSubstitution={executeSubstitution}
             permiteLesao={matchRules.substituicaoPorLesao}
+            quantidadeLiberos={matchRules.quantidadeLiberos}
             allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
             substitutionNotice={avisoDoModal()}
             closeSubModal={() => setSubModal(null)}
@@ -2349,6 +2355,7 @@ function EscalacaoTab(props: {
   sidesInverted: boolean
   initialServers: Record<number, TeamId | null>
   onRegistrarSorteio: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
+  quantidadeLiberos?: 1 | 2 | null
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId>('teamA')
   const [pickedNumber, setPickedNumber] = useState<string | null>(null)
@@ -2370,7 +2377,7 @@ function EscalacaoTab(props: {
   const lineup = selectedTeamId === 'teamA' ? props.lineupA : props.lineupB
   const bench = (selectedTeamId === 'teamA' ? props.benchA : props.benchB).filter((number) => number !== (props.startingLiberos[selectedTeamId] ?? ''))
   const selectedLibero = props.startingLiberos[selectedTeamId] ?? ''
-  const liberoOptions = getLiberoOptions(team, lineup)
+  const liberoOptions = getLiberoOptions(team, lineup, props.quantidadeLiberos)
   const posicoes = ['P4', 'P3', 'P2', 'P5', 'P6', 'P1']
   const selectedTeamConfirmed = selectedTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
   const reviewLibero = props.startingLiberos[selectedTeamId] ?? ''
@@ -3967,10 +3974,12 @@ function getBenchNumbers(team: Team, lineup: string[], selectedLibero = '') {
     .filter((number, index, list) => number && list.indexOf(number) === index)
 }
 
-function getLiberoOptions(team: Team, lineup: string[] = []) {
+function getLiberoOptions(team: Team, lineup: string[] = [], quantidade?: number | null) {
   const roster = [...team.players, ...team.reserves].filter((player) => !lineup.includes(player.number))
   const liberos = roster.filter((player) => player.isLibero)
-  return liberos.length ? liberos : roster
+  const lista = liberos.length ? liberos : roster
+  if (quantidade !== 1 && quantidade !== 2) return lista
+  return lista.slice(0, quantidade)
 }
 
 function rotateVolleyballLineup(lineup: string[]) {
@@ -4045,6 +4054,8 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     temposSeparados: source?.separarTempos === true,
     tempoMedico: source?.tempoMedico === true,
     substituicaoPorLesao: source?.substituicaoPorLesao === true,
+    exigirLiberoInicial: source?.exigirLiberoInicial !== false,
+    quantidadeLiberos: quantidadeDeLiberos(source?.quantidadeLiberos),
   }
 }
 

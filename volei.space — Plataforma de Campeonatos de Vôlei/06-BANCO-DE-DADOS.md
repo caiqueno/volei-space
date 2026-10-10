@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010139980 acrescenta tempo médico e lesão, nulos. Ainda sem aplicar. Sem as colunas, a súmula não muda. 20261010142000 deixa o time da partida nulo quando há origem de vaga e já está em produção.
+  20261010139990 acrescenta a regra do líbero, nula. Ainda sem aplicar. Sem as colunas, a súmula continua pedindo um líbero inicial. 20261010142000 deixa o time da partida nulo quando há origem de vaga e já está em produção.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -52,6 +52,8 @@ As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produç
 `20261010137000_sumula_transacional.sql` também não foi aplicada. O prefixo fica depois de `20261010136000` e antes de `20261010138000`. Ela cria `gravar_sumula_partida` e `gravar_classificacao_calculada`. A primeira apaga e reinsere sets, presenças, ocorrências e destaques e atualiza o placar na mesma transação, com `pg_advisory_xact_lock` da liga e depois da partida. A segunda grava as linhas de classificação que o servidor já calculou, com a mesma trava da liga, inclusive `punicoes`. Não recria `recalcular_classificacao_liga`. `REVOKE` de `public` e, se o papel existir, de `anon` e `authenticated`. `GRANT` só para `service_role`, se o papel existir. Não apaga linha fora da execução da função.
 
 `20261010138000_confronto_categoria_vencedor.sql` também não foi aplicada. O prefixo fica depois de `20261010137000` e antes de `20261010139000`. Ela só faz `CREATE OR REPLACE` de `criar_confronto_categoria`: WO com sets iguais passa a valer se `vencedorId` for uma das duas equipes. O `GRANT` é só para `service_role`. Não apaga linha.
+
+`20261010139990_libero_sumula.sql` também não foi aplicada. O prefixo fica depois de `20261010139980` e antes de `20261010140000`. Ela acrescenta `exigirLiberoInicial` e `quantidadeLiberos` em `Liga` e em `CategoriaConfiguracao`. Os dois nascem nulos. A quantidade, se existir, fica entre 1 e 2. Não recria função, não cria tabela, não apaga linha e não concede a `anon`, `authenticated` nem `public`. Sem as colunas, a súmula continua pedindo um líbero inicial e a troca não conta como substituição.
 
 `20261010139980_lesao_sumula.sql` também não foi aplicada. O prefixo fica depois de `20261010139970` e antes de `20261010140000`. Ela acrescenta `tempoMedico` e `substituicaoPorLesao` em `Liga` e em `CategoriaConfiguracao`, nulas, sem valor padrão. Não recria função, não cria tabela, não apaga linha e não concede a `anon`, `authenticated` nem `public`. Sem as colunas, a súmula não mostra tempo médico nem substituição excepcional.
 

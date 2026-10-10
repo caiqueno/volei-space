@@ -46,6 +46,8 @@ model Liga {
   separarTempos                   Boolean?
   tempoMedico                     Boolean?
   substituicaoPorLesao            Boolean?
+  exigirLiberoInicial             Boolean?
+  quantidadeLiberos               Int?
   pontosPorSet                    Int       @default(25)
   diferencaMinimaSet              Int       @default(2)
   tieBreakUltimoSet               Boolean   @default(false)
@@ -787,6 +789,8 @@ model CategoriaConfiguracao {
   separarTempos                   Boolean?
   tempoMedico                     Boolean?
   substituicaoPorLesao            Boolean?
+  exigirLiberoInicial             Boolean?
+  quantidadeLiberos               Int?
   pontosPorSet                    Int       @default(25)
   tieBreakUltimoSet               Boolean   @default(true)
   pontosUltimoSet                 Int       @default(15)

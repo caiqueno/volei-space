@@ -197,6 +197,11 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
             <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula não mostra tempo médico e o limite de tempos não muda.</p>
             <CheckboxRow label="Substituição por lesão" checked={data.substituicaoPorLesao === true} onChange={(v) => updateNow({ substituicaoPorLesao: v })} />
             <p className="-mt-2 text-sm text-slate-400">Desligado, toda substituição conta no limite e o par fecha na volta.</p>
+            <Field label="Quantidade de líberos" hint="Em branco, a lista de líberos não é cortada. 1 ou 2 limita quantos aparecem para a escalação. A troca de líbero não conta como substituição.">
+              <NumberInput value={data.quantidadeLiberos} min={1} max={2} placeholder="Sem limite" onChange={(v) => updateNow({ quantidadeLiberos: v })} />
+            </Field>
+            <CheckboxRow label="Exigir líbero inicial" checked={data.exigirLiberoInicial !== false} onChange={(v) => updateNow({ exigirLiberoInicial: v })} />
+            <p className="-mt-2 text-sm text-slate-400">Marcado ou em branco, a súmula continua pedindo o líbero para confirmar a escalação. Desmarcado, a escalação confirma sem ele.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Pontos por set">
                 <NumberInput value={data.pontosPorSet} min={1} max={99} onChange={(v) => updateNow({ pontosPorSet: v })} />

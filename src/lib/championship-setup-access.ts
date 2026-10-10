@@ -151,6 +151,8 @@ const EDITABLE_AFTER_START: Partial<Record<SetupSection, string[]>> = {
     'separarTempos',
     'tempoMedico',
     'substituicaoPorLesao',
+    'exigirLiberoInicial',
+    'quantidadeLiberos',
     'sumulaScoutsEnabled',
   ],
   classificacao: [],

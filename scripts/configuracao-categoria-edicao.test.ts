@@ -77,6 +77,7 @@ assert.equal(motivoBloqueioEdicao('estrutura', { alertaRodizioIlegal: true }, [{
 assert.equal(motivoBloqueioEdicao('estrutura', { limiteSubstituicoesPorSet: 6, alertaRodizioIlegal: false }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), null)
 assert.equal(motivoBloqueioEdicao('estrutura', { limiteTemposPorSet: 2, separarTempos: false }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), null)
 assert.equal(motivoBloqueioEdicao('estrutura', { tempoMedico: false, substituicaoPorLesao: false }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), null)
+assert.equal(motivoBloqueioEdicao('estrutura', { exigirLiberoInicial: false, quantidadeLiberos: 2 }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), null)
 assert.equal(motivoBloqueioEdicao('estrutura', { limiteSubstituicoesPorSet: 6, setsPorPartida: 5 }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), MENSAGEM_EDICAO_BLOQUEADA)
 assert.deepEqual(secoesDependentes('estrutura', { limiteSubstituicoesPorSet: 6 }), [])
 assert.deepEqual(camposParaEspelharNaLiga({ limiteSubstituicoesPorSet: null }), { limiteSubstituicoesPorSet: null })
