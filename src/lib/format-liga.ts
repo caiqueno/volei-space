@@ -11,6 +11,7 @@ export function formatLigaStatus(status?: string | null) {
 export function formatLigaFormato(formato?: string | null) {
   const map: Record<string, string> = {
     PONTOS_CORRIDOS: 'Pontos corridos',
+    GRUPOS: 'Grupos',
     GRUPOS_MATA_MATA: 'Grupos + mata-mata',
     MATA_MATA: 'Mata-mata',
     COPA_CURTA: 'Mata-mata',

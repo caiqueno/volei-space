@@ -387,8 +387,8 @@ model SumulaPresenca {
   partidaId Int
   jogadorId Int
   equipeId  Int
-  presente  Boolean @default(true)
-  numero    Int? // número de camisa usado nesta partida, quando diferente do cadastro do atleta
+  presente  Boolean? @default(true) // nulo = presença ainda não decidida; a linha pode existir só pelo número
+  numero    Int? // número de camisa desta partida; nulo usa o cadastro do atleta
   partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
   jogador   Jogador @relation(fields: [jogadorId], references: [id])
   equipe    Equipe  @relation(fields: [equipeId], references: [id])

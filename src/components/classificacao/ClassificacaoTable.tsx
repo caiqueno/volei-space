@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { ActionBar } from '@/components/ui/action-bar'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import mi from '@/styles/microinteracoes.module.css'
 
 type Entrada = {
   posicao: number
@@ -119,8 +120,8 @@ export function ClassificacaoTable({
         </div>
       )}
 
-      {tableGroups.map((group) => (
-        <section key={group.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+      {tableGroups.map((group, groupIndex) => (
+        <section key={group.id} className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)] ${mi.entrar}`} style={{ animationDelay: `${Math.min(groupIndex, 4) * 40}ms` }}>
           {groupedMode && (
             <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
               <h3 className="font-display text-xl font-black text-slate-950">{group.nome}</h3>
@@ -155,9 +156,9 @@ export function ClassificacaoTable({
                   const canClassify = organizerMode && ligaId && !locked && hasManualSlots && !classificado
                   const posicao = groupedMode ? index + 1 : entrada.posicao
                   return (
-                    <tr key={entrada.equipe.id} className="transition-colors hover:bg-amber-50/55">
+                    <tr key={entrada.equipe.id} className={`hover:bg-amber-50/55 ${mi.linha} ${posicao === 1 ? mi.lider : ''}`}>
                       <td data-label="Posição" className="px-4 py-3 text-center">
-                        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-black ${classificado ? 'bg-luva-amber text-[#050914] shadow-lg shadow-amber-500/20' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-black ${mi.numero} ${classificado ? 'bg-luva-amber text-[#050914] shadow-lg shadow-amber-500/20' : 'bg-slate-100 text-slate-500'}`}>
                           {posicao}
                         </span>
                       </td>
@@ -171,7 +172,7 @@ export function ClassificacaoTable({
                           </div>
                         </div>
                       </td>
-                      <td data-label="Pontos" className="px-4 py-3 text-center text-xl font-black text-slate-950">{entrada.pontos}</td>
+                      <td data-label="Pontos" className={`px-4 py-3 text-center text-xl font-black text-slate-950 ${mi.numero}`}>{entrada.pontos}</td>
                       <td data-label="Jogos" className="px-4 py-3 text-center font-bold text-slate-400">{entrada.jogos}</td>
                       <td data-label="Vitórias" className="px-4 py-3 text-center font-black text-emerald-300">{entrada.vitorias}</td>
                       <td data-label="Derrotas" className="px-4 py-3 text-center font-bold text-red-300">{entrada.derrotas}</td>

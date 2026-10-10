@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 
 type Jogador = { id: number; nome: string; numero?: number | string | null; posicao?: string | null }
 type Equipe = { id: number; nome: string; jogadores?: Jogador[] }
@@ -172,7 +173,10 @@ function ListaEquipe({ equipe, presencas }: { equipe: Equipe; presencas: NonNull
       <h3>{equipe.nome}</h3>
       {atletas.length ? (
         <ul>
-          {atletas.map((jogador) => <li key={jogador.id}>#{jogador.numero ?? '—'} {jogador.nome}{jogador.posicao ? ` · ${jogador.posicao}` : ''}</li>)}
+          {atletas.map((jogador) => {
+            const numero = numeroNaPartida(jogador, presencas)
+            return <li key={jogador.id}>#{numero ?? '—'} {jogador.nome}{jogador.posicao ? ` · ${jogador.posicao}` : ''}</li>
+          })}
         </ul>
       ) : <p>Nenhum atleta confirmado.</p>}
     </article>
@@ -194,8 +198,11 @@ function textoDaOcorrencia(descricao?: string | null) {
   return partesDaDescricao(descricao).texto
 }
 
-function nomePeloNumero(equipe: Equipe | null | undefined, numero: string) {
-  const atleta = equipe?.jogadores?.find((jogador) => String(jogador.numero ?? '') === numero)
+function nomePeloNumero(equipe: Equipe | null | undefined, numero: string, presencas: NonNullable<Registro['presencas']> = []) {
+  const atleta = equipe?.jogadores?.find((jogador) => {
+    const efetivo = numeroNaPartida(jogador, presencas)
+    return String(efetivo ?? '') === numero || String(jogador.numero ?? '') === numero
+  })
   return atleta ? `${atleta.nome}` : `#${numero}`
 }
 
@@ -207,8 +214,8 @@ function liberosPorSet(registro: Registro) {
     const iniciais = texto.match(/Líberos iniciais:\s*(.+?)\s+#(\S+)\s+e\s+(.+?)\s+#(\S+)/i)
     if (iniciais) {
       const mapa = porSet.get(set) ?? new Map<string, string>()
-      mapa.set(iniciais[1].trim(), nomePeloNumero(equipePeloNome(registro, iniciais[1]), iniciais[2].replace(/\D/g, '')))
-      mapa.set(iniciais[3].trim(), nomePeloNumero(equipePeloNome(registro, iniciais[3]), iniciais[4].replace(/\D/g, '')))
+      mapa.set(iniciais[1].trim(), nomePeloNumero(equipePeloNome(registro, iniciais[1]), iniciais[2].replace(/\D/g, ''), registro.presencas ?? []))
+      mapa.set(iniciais[3].trim(), nomePeloNumero(equipePeloNome(registro, iniciais[3]), iniciais[4].replace(/\D/g, ''), registro.presencas ?? []))
       porSet.set(set, mapa)
     }
     const troca = texto.match(/Troca de líbero\s+(.+?):\s*sai\s+#\S+.+?entra\s+#(\S+)\s+(.+?)(?:\.|$)/i)
