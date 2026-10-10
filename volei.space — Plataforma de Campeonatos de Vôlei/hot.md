@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Quartas e oitavas herdam a quantidade de sets do campeonato. Um número de 1 a 5 só vale quando o organizador grava o campo.
+  A tela do juiz e a chave pública mostram a vaga. O preenchimento ao oficializar a súmula não depende do pagamento. Quartas e oitavas herdam os sets do campeonato.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a tela do juiz mostra a origem da vaga, por exemplo `Vencedor Semi 1`, no lugar de «Equipe × Equipe». `/api/portal/mata-mata?ligaId=` liga semifinal, final e 3º lugar pela fase e pela rodada quando a liga tem uma categoria. Oficializar a súmula, aprovar, lançar resultado manual ou abrir a chave preenche os times no mesmo jogo. O 403 de pagamento de `POST .../mata-mata/vagas` não impede essa sincronização. `20261010142000_vaga_a_definir.sql` já está em produção. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 quartas e oitavas podem ter quantidade de sets própria, de 1 a 5. Vazio herda `setsPorPartida`. Dezesseis avos e grupos continuam no padrão. Sem as colunas, a súmula lê final, semifinal e 3º lugar como antes e as quartas seguem o campeonato. `20261010139900_sets_quartas_oitavas.sql` não foi aplicada. O prefixo fica depois de `20261010139800` e antes de `20261010140000`. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
@@ -27,7 +29,7 @@ Em 10 de outubro de 2026 a geração da chave usa o método gravado na categoria
 
 Em 10 de outubro de 2026 a classificação aceita média de sets e média de pontos. O padrão continua pontos, vitórias, saldo de sets e saldo de pontos. O confronto direto não muda. Sem a checagem nova, o salvamento da categoria tira esses dois critérios e grava o resto. `20261010139800_quociente_classificacao.sql` não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Fonte: [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
-Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` não foi aplicada. Sem as colunas, a leitura não as pede e nada disso aparece. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` já está em produção. Sem as colunas, a leitura não as pede. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
 

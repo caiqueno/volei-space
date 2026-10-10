@@ -72,6 +72,30 @@ export function textoDoLado(equipe?: { nome?: string | null; vaga?: boolean } | 
   return nome || vazio
 }
 
+export function rotuloDoLado(equipe: unknown, origem: unknown, vazio = 'Equipe') {
+  const item = (Array.isArray(equipe) ? equipe[0] : equipe) as { nome?: string | null } | null
+  const nome = String(item?.nome ?? '').trim()
+  if (nome) return nome
+  return rotuloValido(origem) ?? vazio
+}
+
+export function encontrarPartidaDaVaga<T extends { fase?: string | null; rodada?: number | null; categoriaCampeonatoId?: string | null }>(
+  partidas: T[],
+  fase: string,
+  rodada: number,
+  categoriaCampeonatoId?: string | null,
+): T | null {
+  const faseAlvo = String(fase ?? '').toUpperCase()
+  const candidatos = partidas.filter((partida) => String(partida.fase ?? '').toUpperCase() === faseAlvo && Number(partida.rodada) === Number(rodada))
+  if (categoriaCampeonatoId) {
+    return candidatos.find((partida) => partida.categoriaCampeonatoId === categoriaCampeonatoId) ?? null
+  }
+  if (candidatos.length === 0) return null
+  const categorias = new Set(candidatos.map((partida) => partida.categoriaCampeonatoId).filter((id): id is string => Boolean(id)))
+  if (categorias.size > 1) return null
+  return candidatos[0]
+}
+
 export function sugerirVagasSemifinal(grupos: string[], disputaTerceiro: boolean) {
   const nomes = grupos.map((nome) => nome.trim()).filter(Boolean)
   const primeiro = nomes[0] || 'Grupo A'

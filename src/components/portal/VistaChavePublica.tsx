@@ -43,6 +43,11 @@ export function VistaChavePublica({ ligaId, chave }: { ligaId: number; chave: Ch
   )
 }
 
+function NomeDoLado({ equipe }: { equipe: { nome: string; vaga?: boolean } }) {
+  if (equipe.vaga) return <>{equipe.nome}</>
+  return <NomeEquipe nome={equipe.nome} />
+}
+
 function CartaoResultado({ titulo, slot }: { titulo: string; slot: SlotPublico }) {
   const partida = slot?.partida ?? null
   const sets = [...(partida?.sets ?? [])].sort((a, b) => a.numero - b.numero)
@@ -54,7 +59,7 @@ function CartaoResultado({ titulo, slot }: { titulo: string; slot: SlotPublico }
       ) : (
         <>
           <p className="mt-3 text-lg font-black text-white">
-            <NomeEquipe nome={partida.equipeA.nome} /> {partida.setsPorA ?? 0} × {partida.setsPorB ?? 0} <NomeEquipe nome={partida.equipeB.nome} />
+            <NomeDoLado equipe={partida.equipeA} /> {partida.setsPorA ?? 0} × {partida.setsPorB ?? 0} <NomeDoLado equipe={partida.equipeB} />
           </p>
           {sets.length > 0 && (
             <p className="mt-2 text-sm font-bold text-slate-300">{sets.map((set) => `${set.pontosA}–${set.pontosB}`).join(' · ')}</p>

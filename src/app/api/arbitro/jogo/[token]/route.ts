@@ -10,15 +10,16 @@ import {
   registrarEventoAcesso,
 } from '@/lib/acesso-arbitro-jogo'
 import { destinoDepoisDoCodigo } from '@/lib/arbitro-responsavel'
+import { consultarComVaga } from '@/lib/consulta-vaga'
+import { rotuloDoLado } from '@/lib/vaga-a-definir'
 
 const corpoSchema = z.object({ codigo: z.string().min(1).max(32) })
 
 const MENSAGEM_REVOGADO = 'Este link de acesso ao jogo foi revogado pelo organizador.'
 const MENSAGEM_CODIGO = 'Código de acesso inválido. Confira o código enviado pelo organizador e tente novamente.'
 
-function nomeEquipe(valor: unknown) {
-  const equipe = Array.isArray(valor) ? valor[0] : valor
-  return (equipe as { nome?: string } | null)?.nome ?? 'Equipe'
+function nomeEquipe(valor: unknown, origem: unknown) {
+  return rotuloDoLado(valor, origem)
 }
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ token: string }> }) {
@@ -31,8 +32,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
   }
   return success({
     jogo: {
-      equipeA: nomeEquipe(acesso.partida.equipeA),
-      equipeB: nomeEquipe(acesso.partida.equipeB),
+      equipeA: nomeEquipe(acesso.partida.equipeA, acesso.partida.origemVagaA),
+      equipeB: nomeEquipe(acesso.partida.equipeB, acesso.partida.origemVagaB),
       dataHora: acesso.partida.dataHora,
       localNome: acesso.partida.localNome,
     },
@@ -90,10 +91,9 @@ async function carregar(token: string) {
     .maybeSingle()
   if (falha) return 'falha' as const
   if (!data) return null
-  const { data: partida } = await supabase
-    .from('Partida')
-    .select('id,status,sumulaToken,dataHora,localNome,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)')
-    .eq('id', data.partidaId)
-    .maybeSingle()
-  return { ...data, partida: partida ?? { id: data.partidaId, status: null, sumulaToken: null, dataHora: null, localNome: null, equipeA: null, equipeB: null } }
+  const base = 'id,status,sumulaToken,dataHora,localNome,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)'
+  const { data: partida } = await consultarComVaga(base, (colunas) => (
+    supabase.from('Partida').select(colunas).eq('id', data.partidaId).maybeSingle()
+  ))
+  return { ...data, partida: partida ?? { id: data.partidaId, status: null, sumulaToken: null, dataHora: null, localNome: null, equipeA: null, equipeB: null, origemVagaA: null, origemVagaB: null } }
 }

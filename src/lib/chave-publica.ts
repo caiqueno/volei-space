@@ -2,8 +2,8 @@ export type SlotPublico = {
   fase?: string
   partida: {
     status: string
-    equipeA: { id?: number; nome: string }
-    equipeB: { id?: number; nome: string }
+    equipeA: { id?: number; nome: string; vaga?: boolean }
+    equipeB: { id?: number; nome: string; vaga?: boolean }
     setsPorA: number | null
     setsPorB: number | null
     sets: Array<{ numero: number; pontosA: number; pontosB: number }>

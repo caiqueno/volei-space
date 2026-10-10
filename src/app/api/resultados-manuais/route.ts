@@ -7,7 +7,7 @@ import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
-import { sincronizarVagas } from '@/lib/preencher-vagas'
+import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
 
 type ManualSetInput = {
   numero: number
@@ -143,7 +143,7 @@ export async function PATCH(req: NextRequest) {
     await recalculateLeagueClassification(partida.ligaId)
     await syncLeagueLifecycle(partida.ligaId)
     try {
-      await sincronizarVagas(Number(partida.ligaId), partida.categoriaCampeonatoId ?? null)
+      await sincronizarVagasDaPartida({ id: partida.id, ligaId: partida.ligaId, categoriaCampeonatoId: partida.categoriaCampeonatoId })
     } catch (err) {
       console.error('[vaga] resultado manual gravado; vagas não preenchidas', err)
     }

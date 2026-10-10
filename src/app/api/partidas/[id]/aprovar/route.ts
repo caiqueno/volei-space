@@ -7,7 +7,7 @@ import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
-import { sincronizarVagas } from '@/lib/preencher-vagas'
+import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       console.error('[partidas/aprovar] partida aprovada; classificação não recalculada', err)
     }
     try {
-      await sincronizarVagas(Number(partida.ligaId), partida.categoriaCampeonatoId ?? null)
+      await sincronizarVagasDaPartida({ id: partida.id, ligaId: partida.ligaId, categoriaCampeonatoId: partida.categoriaCampeonatoId })
     } catch (err) {
       console.error('[vaga] partida aprovada; vagas não preenchidas', err)
     }
