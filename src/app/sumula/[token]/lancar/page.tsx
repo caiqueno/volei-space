@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { escalacaoParaJogo } from '@/lib/escalacao-inicial'
+import { camisaDaSumula, destaqueDoJogador, equipeIdPeloNome, mvpDasOcorrencias, passoDeFechamento } from '@/lib/mvp-partida'
 import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
@@ -296,7 +297,19 @@ export default function SumulaPage() {
         const numerosDaPartida = restoreMatchNumberOverrides(teamA, teamB, savedPresence)
         setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida, loadedRules.substitutionLimit))
         const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
-        if (destaqueMvp?.jogadorId) setMvpId(String(destaqueMvp.jogadorId))
+        const vencedoraRestaurada = restored.setsWon.teamA === restored.setsWon.teamB
+          ? null
+          : restored.setsWon.teamA > restored.setsWon.teamB ? teamA : teamB
+        const mvpDaAta = idMvpSalvo(savedOccurrences, teamA, teamB, numerosDaPartida)
+        const mvpDaAtaNaVencedora = Boolean(
+          vencedoraRestaurada
+          && mvpDaAta
+          && [...vencedoraRestaurada.players, ...vencedoraRestaurada.reserves].some((player) => String(player.id) === mvpDaAta),
+        )
+        const mvpSalvo = destaqueMvp?.jogadorId
+          ? String(destaqueMvp.jogadorId)
+          : mvpDaAtaNaVencedora ? mvpDaAta : ''
+        if (mvpSalvo) setMvpId(mvpSalvo)
         setSidesInverted(countSavedSideInversions(savedOccurrences) % 2 === 1)
 
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
@@ -365,6 +378,7 @@ export default function SumulaPage() {
     partida?.sumulaAprovadaEm ?? '',
     setScores.map((set) => `${set.teamA}:${set.teamB}:${set.confirmed ? 1 : 0}`).join(','),
     JSON.stringify(matchNumberOverrides),
+    mvpId,
   ].join('|')
   if (assinaturaAndamento !== assinaturaRef.current) {
     assinaturaRef.current = assinaturaAndamento
@@ -1034,6 +1048,11 @@ export default function SumulaPage() {
     addMatchEvent('anotacao', textoTempoMedico(team.name), teamId)
   }
 
+  function escolherMvp(jogadorId: string) {
+    setMvpId(jogadorId)
+    if (jogadorId) addToast('MVP da equipe vencedora gravado na súmula.')
+  }
+
   function saveNote(payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) {
     if (!teamA || !teamB) return
     const redCard = normalizeName(payload.tipo) === 'cartao vermelho'
@@ -1057,7 +1076,13 @@ export default function SumulaPage() {
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
     }
     setAnotacoes((current) => [item, ...current])
-    const noteEventId = addMatchEvent('anotacao', `[${item.tipo}] ${item.equipeRelacionada} - ${item.pessoaRelacionada}: ${item.descricao}`, penalizedTeamId, nextScore)
+    const textoDaNota = `[${item.tipo}] ${item.equipeRelacionada} - ${item.pessoaRelacionada}: ${item.descricao}`
+    const mvpDaNota = idMvpSalvo([{ descricao: textoDaNota }], teamA, teamB, matchNumberOverrides)
+    if (mvpDaNota && jogadoresVencedores.some((player) => String(player.id) === mvpDaNota)) {
+      setMvpId(mvpDaNota)
+      addToast('MVP da equipe vencedora gravado na súmula.')
+    }
+    const noteEventId = addMatchEvent('anotacao', textoDaNota, penalizedTeamId, nextScore)
     if (redCard && benefitingTeamId && penalizedTeamId) {
       const benefitingTeam = benefitingTeamId === 'teamA' ? teamA : teamB
       setCurrentScore(nextScore)
@@ -1128,7 +1153,7 @@ export default function SumulaPage() {
         set: event.set,
         jogadorId: event.jogadorId ?? null,
       }))
-    const destaques = mvpId ? [{ jogadorId: Number(mvpId), tipo: 'MVP' }] : []
+    const destaques = destaqueDoJogador(mvpId)
     return { presencas, sets, ocorrencias, destaques }
   }
 
@@ -1231,11 +1256,26 @@ export default function SumulaPage() {
     return () => {
       if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     }
-  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao, submitted, submitting, partida?.sumulaAprovadaEm])
+  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao, mvpId, submitted, submitting, partida?.sumulaAprovadaEm])
+
+  function mvpParaOficializar() {
+    if (!teamA || !teamB) return ''
+    const daVencedora = (id: string) => jogadoresVencedores.some((player) => String(player.id) === id)
+    if (mvpId && daVencedora(mvpId)) return mvpId
+    const textos = [
+      ...anotacoes.map((note) => ({ descricao: `[${note.tipo}] ${note.equipeRelacionada} - ${note.pessoaRelacionada}: ${note.descricao}` })),
+      ...events.map((event) => ({ descricao: event.text })),
+    ]
+    const id = idMvpSalvo(textos, teamA, teamB, matchNumberOverrides)
+    if (!id || !daVencedora(id)) return ''
+    setMvpId(id)
+    if (rascunhoRef.current) rascunhoRef.current = { ...rascunhoRef.current, mvpId: id }
+    return id
+  }
 
   function pedirOficializacao() {
     if (matchStatus !== 'finished') return
-    if (!mvpId || !jogadoresVencedores.some((player) => String(player.id) === String(mvpId))) {
+    if (!mvpParaOficializar()) {
       setActiveTab('anotacoes')
       setSidebarOpen(false)
       setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
@@ -1251,7 +1291,7 @@ export default function SumulaPage() {
       addToast('A súmula só pode ser enviada depois que a partida for encerrada.')
       return false
     }
-    if (!mvpId || !jogadoresVencedores.some((player) => String(player.id) === String(mvpId))) {
+    if (!mvpParaOficializar()) {
       setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
       if (!automatic) addToast('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
       return false
@@ -1351,6 +1391,31 @@ export default function SumulaPage() {
   const leftTeam = leftTeamId === 'teamA' ? teamA : teamB
   const rightTeam = rightTeamId === 'teamA' ? teamA : teamB
   const podeEncerrarSet = matchStatus === 'live' && Boolean(getSetWinner(currentScore)) && canCloseSetByRules(currentScore, pointsForSet(matchRules, currentSet))
+  const vencedorDoSetAtual = getSetWinner(currentScore) ?? null
+  const passoFechamento = passoDeFechamento({
+    partidaEncerrada: matchStatus === 'finished',
+    setsA: setsWon.teamA,
+    setsB: setsWon.teamB,
+    setsParaVencer: matchRules.setsToWin,
+    setAtualPodeFechar: podeEncerrarSet,
+    vencedorDoSetAtual,
+  })
+
+  function acaoFechamento() {
+    if (matchStatus === 'finished') {
+      pedirOficializacao()
+      return
+    }
+    if (podeEncerrarSet) {
+      requestCloseCurrentSet()
+      return
+    }
+    if (setsWon.teamA >= matchRules.setsToWin || setsWon.teamB >= matchRules.setsToWin) {
+      addMatchEvent('system', TEXTO_AGUARDANDO_OFICIALIZACAO)
+      setMatchStatus('finished')
+      addToast('Partida pronta para envio final.')
+    }
+  }
 
   return (
     <main className={`official-sumula ${activeTab === 'pontuacao' ? 'has-floating-score' : ''}`}>
@@ -1420,9 +1485,9 @@ export default function SumulaPage() {
           {partida.sumulaAprovadaEm ? (
             <a className="official-public-sumula" href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer">Ver súmula pública</a>
           ) : (
-            <ActionBar type="button" onClick={pedirOficializacao} loading={submitting} loadingLabel="Enviando" disabled={matchStatus !== 'finished'} title={matchStatus !== 'finished' ? 'Disponível somente após encerrar a partida' : 'Escolhe o MVP na aba Anotações quando ele ainda não foi definido'}>
+            <ActionBar type="button" onClick={acaoFechamento} loading={submitting} loadingLabel="Enviando" disabled={passoFechamento !== 'encerrar-partida' && passoFechamento !== 'oficializar'} title={passoFechamento === 'encerrar-partida' ? 'A partida já tem vencedor. Confirme para encerrar.' : passoFechamento === 'oficializar' ? 'Grava o MVP e publica o resultado.' : 'Disponível quando a partida tiver um vencedor'}>
               <Send size={14} />
-              {matchStatus === 'finished' ? 'Oficializar súmula' : 'Aguardando fim'}
+              {passoFechamento === 'oficializar' ? 'Oficializar súmula' : passoFechamento === 'encerrar-partida' ? 'Encerrar partida' : 'Aguardando fim'}
             </ActionBar>
           )}
           {erroOficial && <p className="official-submit-error" role="alert">{erroOficial}</p>}
@@ -1446,11 +1511,11 @@ export default function SumulaPage() {
                 type="button"
                 onClick={requestCloseCurrentSet}
                 className="official-close-set-alert"
-                aria-label="Encerrar set atual"
-                title="O placar já bateu a regra deste set"
+                aria-label={passoFechamento === 'encerrar-partida' ? 'Encerrar partida' : 'Encerrar set atual'}
+                title={passoFechamento === 'encerrar-partida' ? 'Este set fecha a partida' : 'O placar já bateu a regra deste set'}
               >
                 <CheckCircle2 size={16} />
-                Encerrar set
+                {passoFechamento === 'encerrar-partida' ? 'Encerrar partida' : 'Encerrar set'}
               </button>
             )}
             <button
@@ -1465,6 +1530,19 @@ export default function SumulaPage() {
             </button>
           </div>
         </header>
+
+        {passoFechamento === 'encerrar-partida' && (
+          <div className="official-match-close" role="region" aria-label="Encerrar partida">
+            <strong>A partida já tem vencedor.</strong>
+            <button type="button" onClick={acaoFechamento}>Encerrar partida</button>
+          </div>
+        )}
+        {passoFechamento === 'oficializar' && !partida.sumulaAprovadaEm && (
+          <div className="official-match-close" role="region" aria-label="Oficializar súmula">
+            <strong>{mvpId ? 'MVP definido. A súmula pode ser oficializada.' : 'A partida já tem vencedor. Escolha o MVP e oficialize a súmula.'}</strong>
+            <button type="button" onClick={acaoFechamento}>Oficializar súmula</button>
+          </div>
+        )}
 
         {activeTab === 'pre' && (
           <PrePartidaTab
@@ -1598,7 +1676,7 @@ export default function SumulaPage() {
         )}
 
         {activeTab === 'anotacoes' && (
-          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={jogadoresVencedores} mvpTeamId={setsWon.teamA > setsWon.teamB ? 'teamA' : 'teamB'} getMatchNumber={getMatchNumber} />
+          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={escolherMvp} allPlayers={jogadoresVencedores} mvpTeamId={setsWon.teamA > setsWon.teamB ? 'teamA' : 'teamB'} getMatchNumber={getMatchNumber} />
         )}
       </section>
 
@@ -2946,7 +3024,22 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
             <option>Não se aplica</option>
             {playerTargets.map((player) => <option key={player.value} value={player.value}>{player.label}</option>)}
           </select>
-          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da equipe vencedora</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{numeroMvpDaLista(player.number, getMatchNumber(mvpTeamId, player.number))} - {player.name}</option>)}</select>
+          <label className="official-mvp-field">
+            <span>MVP da equipe vencedora</span>
+            <select aria-label="MVP da equipe vencedora" value={mvpId} onChange={(event) => setMvpId(event.target.value)}>
+              <option value="">{allPlayers.length ? 'Selecione o atleta' : 'Disponível quando a partida tiver vencedor'}</option>
+              {allPlayers.map((player) => {
+                const camisa = camisaDaSumula({
+                  id: player.id,
+                  equipeId: mvpTeamId,
+                  nome: player.name,
+                  numeroCadastro: player.number,
+                  numeroSumula: getMatchNumber(mvpTeamId, player.number),
+                })
+                return <option key={player.id} value={player.id}>#{camisa} - {player.name}</option>
+              })}
+            </select>
+          </label>
           <textarea value={descricao} onChange={(event) => setDescricao(event.target.value)} placeholder="Digite o registro oficial..." />
           <button className="official-primary" onClick={() => { if (descricao.trim()) { saveNote({ tipo, equipeRelacionada: resolvedEquipe, pessoaRelacionada: resolvedPessoa, descricao }); setDescricao('') } }}>Salvar anotação na súmula</button>
         </div>
@@ -3789,6 +3882,34 @@ function tituloFalhaSumula(mensagem: string) {
 
 function Status({ icon, title, description, success = false, onRetry, action }: { icon: ReactNode; title: string; description: string; success?: boolean; onRetry?: () => void; action?: ReactNode }) {
   return <main className="official-sumula official-status"><div className="official-panel"><span className={success ? 'success' : ''}>{icon}</span><h1>{title}</h1><p>{description}</p>{action}<div className="mt-4">{onRetry ? <button type="button" onClick={onRetry} className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950">Tentar novamente</button> : null}</div></div></main>
+}
+
+function atletasParaMvp(teamA: Team, teamB: Team, overrides: Record<TeamId, Record<number, string>>) {
+  const lado = (team: Team, teamId: TeamId) => [...team.players, ...team.reserves].map((player) => ({
+    id: player.id,
+    equipeId: team.dbId,
+    nome: player.name,
+    numeroCadastro: player.number,
+    numeroSumula: overrides[teamId]?.[player.id] ?? null,
+  }))
+  return [...lado(teamA, 'teamA'), ...lado(teamB, 'teamB')]
+}
+
+function idMvpSalvo(
+  ocorrencias: Array<{ descricao?: string | null }>,
+  teamA: Team,
+  teamB: Team,
+  overrides: Record<TeamId, Record<number, string>>,
+) {
+  const achado = mvpDasOcorrencias(
+    ocorrencias,
+    atletasParaMvp(teamA, teamB, overrides),
+    (nome) => equipeIdPeloNome(nome, [
+      { id: teamA.dbId, nome: teamA.name },
+      { id: teamB.dbId, nome: teamB.name },
+    ]),
+  )
+  return achado ? String(achado.id) : ''
 }
 
 function restoreMatchNumberOverrides(teamA: Team, teamB: Team, savedPresence: any[]): Record<TeamId, Record<number, string>> {

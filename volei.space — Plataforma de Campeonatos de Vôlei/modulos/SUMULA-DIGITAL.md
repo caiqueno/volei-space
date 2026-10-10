@@ -5,14 +5,16 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Corrigir um ponto do set em andamento não copia o placar do set anterior. O saque alterna até o penúltimo set da fase e o último sai de sorteio. Sem migration.
+  Corrigir um ponto do set em andamento não copia o placar do set anterior. Escolher o MVP grava o destaque oficial pela camisa da súmula. Com vencedor, Encerrar partida e Oficializar súmula ficam na tela. O saque alterna até o penúltimo set da fase e o último sai de sorteio. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
 
-**Placar do set seguinte — correção no código, sem merge:** ao encerrar o set, o histórico usado por «Corrigir último ponto» zera. A correção também recusa uma entrada de outro set ou um placar maior que o atual. Na partida 1035 o set 2 estava 0×1 (versões 97 a 101) e a correção seguinte gravou 23×13, o placar do set 1 dois pontos antes do 25×13. O set 2 foi a 25×13, fechou e a partida foi para oficialização. O versionamento só gravou o estado que a tela mandou. A regra de saque do último set não entra nesse salto. Não há migration nem alteração de banco neste PR.
+**MVP na oficialização — implementado:** escolher o atleta no campo «MVP da equipe vencedora» grava `DestaquesPartida` com `tipo` MVP, o mesmo registro do `POST` que oficializa. A escolha entra no salvamento do andamento e não envia a súmula sozinha. Uma anotação no formato da partida 1036, `[Observação] TARGET - #10 …: MVP`, também vira esse destaque: o `#10` é `SumulaPresenca.numero`, não `Jogador.numero`. Naquela partida o cadastro 9 jogou de 10 e o cadastro 10 jogou de 13; a ata citava o 10 da súmula e o destaque ficou vazio, então a partida seguiu `EM_ANDAMENTO` com os sets já fechados em 2×1. Com vencedor, a tela mostra «Encerrar partida» e, depois do fim, «Oficializar súmula». Sem o MVP, oficializar continua pedindo a escolha. Não há migration nem alteração de banco.
+
+**Placar do set seguinte — implementado:** ao encerrar o set, o histórico usado por «Corrigir último ponto» zera. A correção também recusa uma entrada de outro set ou um placar maior que o atual. Na partida 1035 o set 2 estava 0×1 (versões 97 a 101) e a correção seguinte gravou 23×13, o placar do set 1 dois pontos antes do 25×13. O set 2 foi a 25×13, fechou e a partida foi para oficialização. O versionamento só gravou o estado que a tela mandou. A regra de saque do último set não entra nesse salto. Não há migration nem alteração de banco.
 
 **Saque inicial — implementado no código, sem merge:** o set 1 é escolha da mesa. Nos sets seguintes, até o penúltimo da fase, o sistema define quem não sacou no set anterior e não aceita outra escolha. O último set sai de sorteio quando a fase tem mais de um set: a mesa registra o resultado ou o aplicativo sorteia. Melhor de 3 alterna nos sets 1 e 2 e sorteia o 3º. Melhor de 5 alterna nos sets 1 a 4 e sorteia o 5º. A quantidade é a da fase (`FINAL`, `SEMIFINAL`, `QUARTAS`, `OITAVAS`, `TERCEIRO_LUGAR` ou o `setsPorPartida` do campeonato). `PUT` e `POST` de `/api/sumula/{token}` usam a mesma quantidade e recusam a alternância quebrada nos sets do meio. A marca `[[SAQUE:timestamp:teamA|teamB]]` acompanha a frase «começa sacando». Não há coluna nova. `setsPorPartidaQuartas` e `setsPorPartidaOitavas` já estão em produção.
 
@@ -50,7 +52,7 @@ updated: 2026-10-10
 
 **Sessão antes de oficializar — implementado:** confirmar a papeleta e encerrar a partida gravam ocorrências `system`. O filtro que tirava esse tipo do `PUT` saiu, então o recarregamento restaura a conferência e o estado «encerrada, aguardando oficialização» enquanto `Partida.status` segue `EM_ANDAMENTO`. A consulta pública e o ao vivo escondem `system` e as linhas «Registro de ». Oficializar continua no `POST`.
 
-**MVP — implementado:** a lista da equipe vencedora mostra `SumulaPresenca.numero` quando a partida tem número próprio. Sem esse valor, continua o número do cadastro. O valor enviado segue sendo o id do atleta. Escolher o MVP não envia a súmula. Oficializar abre uma confirmação. Sem MVP, o mesmo botão muda para a aba Anotações e pede a escolha. A lista de atletas dessa aba usa o número da partida, o mesmo do seletor.
+**MVP — implementado:** a lista da equipe vencedora mostra `SumulaPresenca.numero` quando a partida tem número próprio. Sem esse valor, continua o número do cadastro. O valor enviado segue sendo o id do atleta. Escolher o MVP grava o destaque e não envia a súmula. A anotação «#camisa …: MVP» usa essa mesma camisa da súmula. Oficializar abre uma confirmação. Sem MVP, o mesmo botão muda para a aba Anotações e pede a escolha. Com a partida já decidida, «Encerrar partida» e «Oficializar súmula» aparecem no conteúdo e na barra lateral.
 
 **Últimos pontos — implementado:** cada lance guarda o placar como equipe A × equipe B. A lista mostra o lado que a quadra tinha naquele momento. Um ponto anterior à troca de lado não inverte junto com o placar principal.
 

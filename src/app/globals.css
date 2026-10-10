@@ -7956,6 +7956,47 @@ button.referee-number.is-saved {
   padding-top: 12px;
 }
 
+.official-mvp-field {
+  display: grid;
+  gap: 6px;
+}
+
+.official-mvp-field span {
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.official-match-close {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  border: 1px solid rgba(52, 211, 153, 0.55);
+  border-radius: 14px;
+  background: rgba(52, 211, 153, 0.12);
+  color: #d1fae5;
+  padding: 12px 16px;
+}
+
+.official-match-close strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.official-match-close button {
+  border: 0;
+  border-radius: 999px;
+  background: #34d399;
+  color: #052e1a;
+  font-weight: 800;
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+
 .official-serve {
   min-height: 220px;
   display: grid;

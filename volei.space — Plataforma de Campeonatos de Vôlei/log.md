@@ -13,10 +13,15 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | MVP da anotação oficializa pela camisa da súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`
+- Na partida 1036 a ata «TARGET - #10 …: MVP» não gravou `DestaquesPartida`. O 10 era a camisa da súmula, não a do cadastro. A escolha passa a gravar o destaque da oficialização, e Encerrar partida / Oficializar súmula aparecem quando já há vencedor. Nenhuma migration.
+
 ## [2026-10-10] fix | correção de ponto não copia o set anterior
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
-- Na partida 1035 o set 2 foi de 0×1 para 23×13 porque o histórico do set 1 ainda estava na tela. A correção passa a valer só no set em andamento. Nenhuma migration. Sem merge.
+- Na partida 1035 o set 2 foi de 0×1 para 23×13 porque o histórico do set 1 ainda estava na tela. A correção passa a valer só no set em andamento. Nenhuma migration.
 
 ## [2026-10-10] feat | saque alterna até o último set da fase
 
