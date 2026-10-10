@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Média de sets e média de pontos desempata só quando o organizador escolhe. Sem a migration, a categoria grava sem esses dois critérios. O mata-mata agenda vaga a definir; 20261010142000 não foi aplicada.
+  O método de chaveamento monta a primeira rodada. Manual deixa essa rodada com o organizador. Sem a coluna, o cruzamento atual continua.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a geração da chave usa o método gravado na categoria. Cruzamento de grupos mantém 1º A × 2º B. Ranking geral faz 1º × último entre os classificados. Sorteio embaralha esses classificados. Manual não cria a primeira rodada. Final e 3º lugar continuam saindo dos jogos decididos. Se a coluna `metodoChaveamento` não vier na leitura, o cruzamento atual segue e a fase da categoria não se perde. Não houve migration. Fonte: [[modulos/MATA-MATA]].
 
 Em 10 de outubro de 2026 a classificação aceita média de sets e média de pontos. O padrão continua pontos, vitórias, saldo de sets e saldo de pontos. O confronto direto não muda. Sem a checagem nova, o salvamento da categoria tira esses dois critérios e grava o resto. `20261010139800_quociente_classificacao.sql` não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Fonte: [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 

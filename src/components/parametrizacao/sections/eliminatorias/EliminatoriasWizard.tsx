@@ -33,9 +33,9 @@ const STEPS: WizardStepDef[] = [
 
 const CHAVEAMENTO_OPTIONS = [
   { value: 'MANUAL' as const, label: 'Manual' },
-  { value: 'RANKING_GERAL' as const, label: 'Ranking geral (em breve)' },
-  { value: 'CRUZAMENTO_GRUPOS' as const, label: 'Cruzamento de grupos (em breve)' },
-  { value: 'SORTEIO' as const, label: 'Sorteio (em breve)' },
+  { value: 'RANKING_GERAL' as const, label: 'Ranking geral' },
+  { value: 'CRUZAMENTO_GRUPOS' as const, label: 'Cruzamento de grupos' },
+  { value: 'SORTEIO' as const, label: 'Sorteio' },
 ]
 
 export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
@@ -177,7 +177,7 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
 
         {stepIndex === 1 && (
           temEliminatoria ? (
-            <Field label="Método de chaveamento" hint="Só o método manual tem execução automática hoje — os demais ficam configurados para quando o gerador automático estiver disponível.">
+            <Field label="Método de chaveamento" hint="Cruzamento de grupos faz 1º A × 2º B e 1º B × 2º A. Ranking geral enfrenta 1º × último. Sorteio sorteia os classificados. Manual não monta a primeira rodada; as fases seguintes continuam saindo dos jogos já decididos.">
               <ChoiceChips value={data.metodoChaveamento} onChange={(value) => updateNow({ metodoChaveamento: value })} options={CHAVEAMENTO_OPTIONS} />
             </Field>
           ) : (

@@ -4,7 +4,7 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { getBracketRounds } from '@/lib/mata-mata'
-import { montarConfrontosAutomaticos, ranquearGrupo } from '@/lib/chave-grupos'
+import { metodoChaveamentoInformado, montarConfrontosAutomaticos, ranquearGrupo } from '@/lib/chave-grupos'
 import { gruposEncerradosNaCategoria } from '@/lib/operacao-categoria'
 import { faseContaNaClassificacao, type PartidaClassificacao } from '@/lib/classificacao'
 import { gerarSumulaToken } from '@/lib/sumula-token'
@@ -28,24 +28,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
       ? body.categoriaCampeonatoId.trim()
       : null
 
-    const { data: liga, error: ligaErr } = await supabase
-      .from('Liga')
-      .select('id,organizadorId,faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo')
-      .eq('id', ligaId)
-      .maybeSingle()
-    if (ligaErr || !liga) return error('Campeonato não encontrado.', 404)
+    const ligaLida = await lerLinha(
+      () => supabase.from('Liga').select('id,organizadorId,faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,metodoChaveamento').eq('id', ligaId).maybeSingle(),
+      () => supabase.from('Liga').select('id,organizadorId,faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo').eq('id', ligaId).maybeSingle(),
+    )
+    const liga = ligaLida.data
+    if (ligaLida.error || !liga) return error('Campeonato não encontrado.', 404)
     if (liga.organizadorId !== auth.userId) return error('Você não pode alterar o chaveamento deste campeonato.', 403)
     const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
     if (bloqueio) return bloqueio
 
-    const { data: config } = categoriaInformada
-      ? await supabase
-        .from('CategoriaConfiguracao')
-        .select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato')
-        .eq('ligaId', ligaId)
-        .eq('categoriaCampeonatoId', categoriaInformada)
-        .maybeSingle()
-      : { data: null }
+    const configLida = categoriaInformada
+      ? await lerLinha(
+        () => supabase.from('CategoriaConfiguracao').select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato,metodoChaveamento').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaInformada).maybeSingle(),
+        () => supabase.from('CategoriaConfiguracao').select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaInformada).maybeSingle(),
+      )
+      : { data: null, error: null }
+    const config = configLida.data
     const faseEliminatoria = config?.faseEliminatoria || liga.faseEliminatoria
     const disputaTerceiro = (config?.disputaTerceiroLugar ?? liga.disputaTerceiroLugar) !== false
     const rounds = getBracketRounds(faseEliminatoria)
@@ -95,11 +94,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .filter((partida) => !faseContaNaClassificacao(partida.fase))
       .map((partida) => ({ fase: String(partida.fase), rodada: Number(partida.rodada) }))
     const gruposEncerrados = gruposEncerradosNaCategoria(partidas ?? [], categoriaInformada, config?.formato, Boolean(categoriaInformada))
+    const metodo = metodoChaveamentoInformado(config?.metodoChaveamento ?? liga.metodoChaveamento)
+    const classificados = gruposRanqueados.flatMap((grupo) => grupo.classificados)
     const sugestoes = montarConfrontosAutomaticos({
       grupos: gruposEncerrados ? gruposRanqueados : [],
       faseInicial: rounds[0].fase,
       rounds,
       disputaTerceiro,
+      metodo,
+      ranking: metodo === 'RANKING_GERAL' ? ranquearGrupo(classificados, partidasGrupo, classificados.length) : undefined,
       existentes,
       partidas: (partidas ?? [])
         .filter((partida) => !faseContaNaClassificacao(partida.fase))
@@ -157,4 +160,28 @@ export async function POST(req: NextRequest, context: RouteContext) {
     console.error('[mata-mata] erro ao gerar chave', err)
     return error('Erro ao gerar a chave.', 500)
   }
+}
+
+function colunaDeMetodoAusente(erro: { code?: string; message?: string } | null) {
+  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''}`
+  return /42703|PGRST204/i.test(texto) && /metodoChaveamento/i.test(texto)
+}
+
+async function lerLinha(
+  comMetodo: () => PromiseLike<{ data: LinhaChave | null; error: { code?: string; message?: string } | null }>,
+  semMetodo: () => PromiseLike<{ data: LinhaChave | null; error: { code?: string; message?: string } | null }>,
+) {
+  const primeira = await comMetodo()
+  if (!primeira.error || !colunaDeMetodoAusente(primeira.error)) return primeira
+  return semMetodo()
+}
+
+type LinhaChave = {
+  id?: number
+  organizadorId?: string
+  faseEliminatoria?: string | null
+  disputaTerceiroLugar?: boolean | null
+  classificadosPorGrupo?: number | null
+  formato?: string | null
+  metodoChaveamento?: string | null
 }
