@@ -5,15 +5,17 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sessão, webhook e súmula fecharam junto da API. Build, seed e migrations seguem na main.
+  O +1 da súmula registra o ponto sem jogador. ACE, bloqueio e ataque no atleta continuam.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Hot
 
 ## Foco atual
+
+Na faixa de placar da súmula, cada equipe ficou com um único `+1`. Ele registra o ponto sem jogador: sem modal, sem `jogadorId` e com o histórico «Sem jogador». O modal de saque, bloqueio ou ataque saiu, porque só o `+1` antigo o abria. ACE, o toque no atleta, o bloqueio da rede e a quadra 3D continuam atribuindo o ponto. Tempos, desfazer, placar e rodízio não mudaram. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Correção de segurança no back-end, sem UI nem migration. O JWT de administrador agora tem `scope: admin`; token com `purpose` (reset, ativação) não abre sessão. O reset guarda fingerprint da senha, não o hash bcrypt. `ADMIN_EMAIL` passou a ser obrigatório em produção e no preview. O login usa «Usuário ou senha não conferem.» antes da senha conferir, limita 30 tentativas por IP e 8 por IP e e-mail, e não devolve o JWT. `ILIKE` de e-mail escapa `%` e `_`. O webhook InfinitePay recusa chamada sem segredo fora do dev local, confere valor (reais ou centavos do valor gravado, sem o caminho inverso) e vínculo com `Pagamento`, e não transforma erro de banco em 200. A súmula tenta restaurar o conteúdo se a gravação quebra no meio; a transação única continua pendente no banco. `?consulta=1` segue público de propósito. Tokens demo da súmula não respondem em produção. A confirmação simulada de pagamento segue desligada por padrão. Fonte: [[07-SEGURANCA]], [[modulos/PAGAMENTOS]], [[modulos/SUMULA-DIGITAL]].
 

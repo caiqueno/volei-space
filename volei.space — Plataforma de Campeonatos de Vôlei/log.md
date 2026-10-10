@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] fix | um só +1 na pontuação da súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- O botão `+1` da faixa de placar passou a registrar o ponto sem jogador, no lugar do par `+1` / Sem jogador. ACE, tempos, desfazer, placar e rodízio ficam. O modal de origem e atleta saiu junto com o único caminho que o abria. Ataque no atleta, bloqueio na rede e ACE continuam atribuindo o ponto.
 
 ## [2026-10-09] fix | sessão, webhook e súmula
 
