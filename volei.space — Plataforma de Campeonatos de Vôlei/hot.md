@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O mesmo atleta não entra em duas equipes da categoria. Documento, ou nome e nascimento. Sem migration.
+  Média de sets e média de pontos desempata só quando o organizador escolhe. O padrão não muda. Sem a migration, a categoria grava sem esses dois critérios.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a classificação aceita média de sets e média de pontos. O padrão continua pontos, vitórias, saldo de sets e saldo de pontos. O confronto direto não muda. Sem a checagem nova, o salvamento da categoria tira esses dois critérios e grava o resto. `20261010139800_quociente_classificacao.sql` não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Fonte: [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
 

@@ -89,4 +89,6 @@ export const CLASSIFICATION_CRITERIA_LABELS: Record<string, string> = {
   SALDO_PONTOS: 'Saldo de pontos',
   SETS_PRO: 'Sets vencidos',
   PONTOS_PRO: 'Pontos marcados',
+  SET_AVERAGE: 'Média de sets',
+  POINT_AVERAGE: 'Média de pontos',
 }

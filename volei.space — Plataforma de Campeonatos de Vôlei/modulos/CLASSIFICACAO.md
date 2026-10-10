@@ -5,7 +5,7 @@ category: modulo
 tags: [classificacao]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A tabela sai por categoria e, com dois grupos, um bloco por grupo com confronto direto. A equipe pública traz só id, nome, cor e logo.
+  A tabela sai por categoria. Média de sets e média de pontos só desempata quando escolhida. O padrão não muda.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -19,6 +19,8 @@ updated: 2026-10-10
 **Divergência no banco:** a função `recalcular_classificacao_liga` que prevalece em `supabase-recalcular-classificacao-liga-atomico.sql` ainda pontua 4/3/1/0, mistura o mata-mata e não lê o set ao vivo. O servidor não chama essa RPC nem a recria. `recalcular_classificacao_categoria` em `202610060003_classificacao_ao_vivo.sql` chega perto da regra, mas o set ao vivo só credita o vencedor e WO fica de fora. `calcular_pontos_resultado` ainda casa o placar exato.
 
 **Trava — implementado no código, migration pendente:** `gravar_classificacao_calculada` grava as linhas já calculadas por `src/lib/classificacao.ts` dentro de `pg_advisory_xact_lock(liga)`, a mesma trava de `gravar_sumula_partida`. A linha leva `punicoes` do W.O. Partida com categoria usa as faixas, o tie-break e o placar de W.O. de `CategoriaConfiguracao`. Sem categoria, o set ao vivo usa as colunas da `Liga` (pontos e tie-break dela; terceiro set obrigatório desligado). `20261010137000_sumula_transacional.sql` não foi aplicada. Enquanto a função não existir, a gravação volta ao upsert sem trava e ainda grava `punicoes`.
+
+**Média de sets e média de pontos — implementado no cálculo, gravação condicional:** `SET_AVERAGE` e `POINT_AVERAGE` entram em `valorCriterio`. Sets contra zero e pontos a favor viram o maior quociente; zero a zero fica em zero. O padrão continua `PONTOS`, `VITORIAS`, `SALDO_SETS`, `SALDO_PONTOS`. O confronto direto segue o caminho anterior. A tela oferece os dois rótulos. A coluna da categoria ainda rejeita esses tokens na checagem de `202609220001`. Nesse caso o salvamento repete uma vez sem eles e o restante da seção grava. `Liga.criteriosClassificacao` já é texto livre. `20261010139800_quociente_classificacao.sql` não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Não cria tabela e não concede a `anon`.
 
 **Confronto direto — implementado na leitura:** quando a categoria tem dois ou mais grupos, cada item de `categorias` traz `grupos` além de `linhas`. Cada bloco reordena as equipes daquele grupo. Empate nos critérios anteriores ao confronto direto usa os jogos encerrados só entre os empatados. A posição gravada em `ClassificacaoEntrada` continua global e não inclui esse critério, para não mudar a tabela de quem não tem grupos. A função SQL ainda ignora `CONFRONTO_DIRETO`.
 
