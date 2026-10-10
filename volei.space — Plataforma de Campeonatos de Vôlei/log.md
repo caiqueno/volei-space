@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] decisao | par de substituição fecha na volta
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `03-REGRAS-DE-NEGOCIO`, `11-DECISOES`, `references/SUMULA-DIGITAL-E-CLASSIFICACAO`, `hot`, `log`
+- O modal lista só reservas elegíveis. Quem entrou no set só sai para o titular voltar. Depois da volta o par fecha. Líbero não conta. A API recusa a troca inválida e a 9ª substituição. O requisito bruto ainda descreve a repetição do par.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 
