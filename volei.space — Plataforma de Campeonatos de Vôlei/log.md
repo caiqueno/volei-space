@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] fix | chave, pódio e rótulos públicos
+
+- pages_updated=`09-UI-UX`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `hot`, `log`
+- A página do campeonato mostra a chave e, finalizado, o pódio. Inscrição some com o campeonato fechado. Jogos e portal nomeiam a fase. Classificação abre pelo `ligaId`. Formato, nome de atleta e status usam os mesmos rótulos.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 
