@@ -19,6 +19,7 @@ import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
+import { consultarComVaga } from '@/lib/consulta-vaga'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { createPageMetadata } from '@/lib/seo'
 import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
@@ -75,18 +76,18 @@ export default async function JogosPage({ searchParams }: PageProps) {
       if (params.candidaturaId) {
         equipeCapitao = await ensureEquipeForCandidatura(params.candidaturaId)
         if (equipeCapitao) {
-          let query = supabaseAdmin
-            .from('Partida')
-            .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
-            .or(`equipeAId.eq.${equipeCapitao.id},equipeBId.eq.${equipeCapitao.id}`)
-            .order('dataHora', { ascending: true, nullsFirst: false })
-            .order('rodada', { ascending: true })
-            .order('id', { ascending: true })
-
-          if (params.ligaId) query = query.eq('ligaId', Number(params.ligaId))
-          query = query.limit(24)
-
-          const { data, error } = await query
+          const colunasCapitao = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`
+          const { data, error } = await consultarComVaga(colunasCapitao, (colunas) => {
+            let query = supabaseAdmin
+              .from('Partida')
+              .select(colunas)
+              .or(`equipeAId.eq.${equipeCapitao.id},equipeBId.eq.${equipeCapitao.id}`)
+              .order('dataHora', { ascending: true, nullsFirst: false })
+              .order('rodada', { ascending: true })
+              .order('id', { ascending: true })
+            if (params.ligaId) query = query.eq('ligaId', Number(params.ligaId))
+            return query.limit(24)
+          })
           if (error) throw error
           partidas = normalizePartidas(data).filter((partida) => partida.liga?.simulacao !== true)
         } else {

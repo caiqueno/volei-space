@@ -3,7 +3,9 @@ import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { idsForaDaVitrine } from '@/lib/campeonatos-publicos'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
+import { consultarComVaga } from '@/lib/consulta-vaga'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
+import { ladoExposto } from '@/lib/vaga-a-definir'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import mi from '@/styles/microinteracoes.module.css'
@@ -35,8 +37,10 @@ type Linha = {
   setsPorB: number | null
   liga: { id?: number; nome?: string | null; slug?: string | null; descricao?: string | null; simulacao?: boolean | null } | Array<{ id?: number; nome?: string | null; slug?: string | null; descricao?: string | null; simulacao?: boolean | null }> | null
   sets: Array<{ numero: number; pontosA: number; pontosB: number }>
-  equipeA: { id: number; nome: string; corHex: string | null } | null
-  equipeB: { id: number; nome: string; corHex: string | null } | null
+  equipeA: { id: number; nome: string; corHex: string | null; vaga?: boolean } | null
+  equipeB: { id: number; nome: string; corHex: string | null; vaga?: boolean } | null
+  origemVagaA?: string | null
+  origemVagaB?: string | null
 }
 
 export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagina?: string }) {
@@ -56,20 +60,18 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
   const status = ativo === 'todos' ? null : STATUS[ativo]
   const colunas = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,slug,descricao,simulacao)`
   let contagem = supabaseAdmin.from('Partida').select('id', { count: 'exact', head: true })
-  let lista = supabaseAdmin.from('Partida').select(colunas)
-  if (fora) {
-    contagem = contagem.not('ligaId', 'in', fora)
-    lista = lista.not('ligaId', 'in', fora)
-  }
-  if (status) {
-    contagem = contagem.in('status', status)
-    lista = lista.in('status', status)
-  }
+  if (fora) contagem = contagem.not('ligaId', 'in', fora)
+  if (status) contagem = contagem.in('status', status)
 
   const inicio = (numeroPagina - 1) * TAMANHO
   const [totalResposta, listaResposta] = await Promise.all([
     contagem,
-    lista.order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).range(inicio, inicio + TAMANHO - 1),
+    consultarComVaga(colunas, (select) => {
+      let lista = supabaseAdmin.from('Partida').select(select)
+      if (fora) lista = lista.not('ligaId', 'in', fora)
+      if (status) lista = lista.in('status', status)
+      return lista.order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).range(inicio, inicio + TAMANHO - 1)
+    }),
   ])
 
   if (totalResposta.error || listaResposta.error) {
@@ -83,9 +85,16 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
   const partidas = ordenarJogos(((listaResposta.data ?? []) as unknown as Linha[])
     .map((partida) => {
       const liga = Array.isArray(partida.liga) ? partida.liga[0] : partida.liga
-      return { ...partida, liga: liga ?? null, dataHora: dataHoraUtc(partida.dataHora), sets: Array.isArray(partida.sets) ? partida.sets : [] }
+      return {
+        ...partida,
+        liga: liga ?? null,
+        dataHora: dataHoraUtc(partida.dataHora),
+        sets: Array.isArray(partida.sets) ? partida.sets : [],
+        equipeA: ladoExposto(partida.equipeA, partida.origemVagaA),
+        equipeB: ladoExposto(partida.equipeB, partida.origemVagaB),
+      }
     })
-    .filter((partida) => partida.equipeA?.id && partida.equipeB?.id && !campeonatoDeTeste(partida.liga) && partida.liga?.simulacao !== true))
+    .filter((partida) => (partida.equipeA?.id || partida.equipeA?.vaga) && (partida.equipeB?.id || partida.equipeB?.vaga) && !campeonatoDeTeste(partida.liga) && partida.liga?.simulacao !== true))
 
   const total = totalResposta.count ?? partidas.length
 

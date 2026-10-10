@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
+import { consultarComVaga } from '@/lib/consulta-vaga'
 import { normalizarPartidaPublica, PARTIDA_PUBLICA_COLUNAS, type PartidaPublica } from '@/lib/partida-publica'
 
 const COLUNAS = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`
@@ -26,17 +27,19 @@ export type FatiaAgenda = {
 }
 
 async function fatiaAgenda(ligaId: number, status: string[], offset: number, limite: number, categoriaCampeonatoId?: string | null): Promise<FatiaAgenda> {
-  let consulta = supabaseAdmin
-    .from('Partida')
-    .select(COLUNAS)
-    .eq('ligaId', ligaId)
-    .in('status', status)
-  if (categoriaCampeonatoId) consulta = consulta.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-  const { data, error } = await consulta
-    .order('dataHora', { ascending: true, nullsFirst: false })
-    .order('rodada', { ascending: true })
-    .order('id', { ascending: true })
-    .range(offset, offset + limite)
+  const { data, error } = await consultarComVaga(COLUNAS, (colunas) => {
+    let consulta = supabaseAdmin
+      .from('Partida')
+      .select(colunas)
+      .eq('ligaId', ligaId)
+      .in('status', status)
+    if (categoriaCampeonatoId) consulta = consulta.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    return consulta
+      .order('dataHora', { ascending: true, nullsFirst: false })
+      .order('rodada', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + limite)
+  })
   if (error) return { partidas: [], temMais: false, erro: true }
   const linhas = normalizar(data)
   return { partidas: linhas.slice(0, limite), temMais: linhas.length > limite, erro: false }
@@ -73,22 +76,24 @@ export async function buscarPartidasPublicas(ligaIds: number[], completo: boolea
   ligaIds = publico.ids
   if (ligaIds.length === 0) return { partidas: [] as PartidaPublica[], erro: false }
   if (completo) {
-    const { data, error } = await supabaseAdmin
-      .from('Partida')
-      .select(COLUNAS)
-      .in('ligaId', ligaIds)
-      .order('dataHora', { ascending: true, nullsFirst: false })
-      .order('rodada', { ascending: true })
-      .order('id', { ascending: true })
+    const { data, error } = await consultarComVaga(COLUNAS, (colunas) => (
+      supabaseAdmin
+        .from('Partida')
+        .select(colunas)
+        .in('ligaId', ligaIds)
+        .order('dataHora', { ascending: true, nullsFirst: false })
+        .order('rodada', { ascending: true })
+        .order('id', { ascending: true })
+    ))
     if (error) return { partidas: [] as PartidaPublica[], erro: true }
     return { partidas: normalizar(data), erro: false }
   }
 
   const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const [aoVivo, proximos, recentes] = await Promise.all([
-    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).eq('status', 'EM_ANDAMENTO').order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }),
-    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).in('status', ['AGENDADA', 'PENDENTE']).gte('dataHora', desde).order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).limit(40),
-    supabaseAdmin.from('Partida').select(COLUNAS).in('ligaId', ligaIds).in('status', ['ENCERRADA', 'WO']).order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).limit(20),
+    consultarComVaga(COLUNAS, (colunas) => supabaseAdmin.from('Partida').select(colunas).in('ligaId', ligaIds).eq('status', 'EM_ANDAMENTO').order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true })),
+    consultarComVaga(COLUNAS, (colunas) => supabaseAdmin.from('Partida').select(colunas).in('ligaId', ligaIds).in('status', ['AGENDADA', 'PENDENTE']).gte('dataHora', desde).order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).limit(40)),
+    consultarComVaga(COLUNAS, (colunas) => supabaseAdmin.from('Partida').select(colunas).in('ligaId', ligaIds).in('status', ['ENCERRADA', 'WO']).order('dataHora', { ascending: true, nullsFirst: false }).order('rodada', { ascending: true }).order('id', { ascending: true }).limit(20)),
   ])
   const falha = aoVivo.error || proximos.error || recentes.error
   if (falha) return { partidas: [] as PartidaPublica[], erro: true }

@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010139800 amplia a checagem dos critérios da categoria com média de sets e média de pontos. Ainda sem aplicar.
+  20261010139800 amplia a checagem dos critérios com média de sets e média de pontos. 20261010142000 deixa o time da partida nulo quando há origem de vaga. As duas ainda sem aplicar.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -39,7 +39,7 @@ A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authentic
 
 `Partida.atualizadoEm` não tinha default. O cliente do Supabase insere a partida sem essa coluna e o banco recusava o confronto de grupos e o mata-mata. A migration `202610090004_partida_atualizado_em_default.sql` define `default now()`. O prefixo `202610090001` continua sendo a revogação de EXECUTE. Ela está no repositório e ainda não foi aplicada em produção: aplique só esse arquivo se a coluna continuar sem default. Não reaplique a pasta inteira.
 
-`SumulaPresenca.numero` já é o número da camisa desta partida. `202610100001_sumula_presenca_presente_nulo.sql` só tira o `NOT NULL` de `presente`, para a linha poder existir antes da confirmação. O default de `presente` continua `true`. Em produção essa coluna já é anulável. A tabela continua sem unicidade em `(partidaId, jogadorId)` e sem `default` em `id`, embora a sequence `SumulaPresenca_id_seq` exista. O comentário de `20261010015632` que tratava essa dupla como unicidade estava errado. Nenhuma migration do repositório cria essa constraint nem o `default` do id. O mesmo vale para `OcorrenciaPartida.id`.
+`SumulaPresenca.numero` já é o número da camisa desta partida. `202610100001_sumula_presenca_presente_nulo.sql` só tira o `NOT NULL` de `presente`, para a linha poder existir antes da confirmação. O default de `presente` continua `true`. Em produção essa coluna já é anulável. A tabela continua sem unicidade em `(partidaId, jogadorId)`. O `id` é identity `BY DEFAULT`, então um insert sem `id` funciona; o que falha é o `upsert` com `on_conflict` nessa dupla. O comentário de `20261010015632` que tratava essa dupla como unicidade estava errado. Nenhuma migration do repositório cria essa constraint. `OcorrenciaPartida.id` também é identity `BY DEFAULT`.
 
 `revoke ... from anon, authenticated` não alcança a concessão que o Postgres dá a `PUBLIC` quando a função é criada. Por isso a chave publicável continuava chamando `/rest/v1/rpc/recalcular_classificacao_liga` e recalculando a tabela de qualquer campeonato sem sessão. A migration `202610060005_fechar_rpc_anonimo.sql` percorre as funções do schema `public` que não pertencem a extensão, revoga de `public`, `anon` e `authenticated`, e concede `execute` ao `service_role`. Função de gatilho não perde nada: o `EXECUTE` é conferido na criação do gatilho, não a cada disparo.
 
@@ -62,6 +62,8 @@ Em 10 de outubro de 2026 a leitura de `information_schema` e de `pg_proc` no pro
 `20261010139000_wo_configuravel.sql` também não foi aplicada. O prefixo antigo era `20261010150000`; o SQL não mudou. Este arquivo entra depois de `20261010138000` e antes de `20261010139500`, de `20261010140000` e de `20261010141000`. Ela não cria tabela nem concede leitura a `anon`. Acrescenta `woSetsVencedor`, `woSetsPerdedor`, `woPontosSetVencedor`, `woPontosSetPerdedor` e `woPunicaoPontos` em `Liga` e `CategoriaConfiguracao`, todos opcionais. O placar nulo preserva o W.O. atual. A punição nasce 0. A função `recalcular_classificacao_categoria` passa a ler o W.O. e a gravar `punicoes`. O `CREATE OR REPLACE` de `salvar_configuracao_categoria` já inclui os sets da final, da semifinal e do 3º lugar. Não apaga linha. O recálculo do aplicativo continua em `src/lib/classificacao.ts` e não chama essa função.
 
 `20261010139500_sancoes_suspensao.sql` também não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. Ela cria `SuspensaoAtleta`, liga RLS nessa tabela, revoga `public`, `anon` e `authenticated` e concede só a `service_role`. Não apaga linha. A súmula não grava nessa tabela: a suspensão sai das ocorrências. A leitura ao vivo continua em `20261010141000`, depois da RLS.
+
+`20261010142000_vaga_a_definir.sql` também não foi aplicada. O prefixo fica depois de `20261010141000`. Ela tira o `NOT NULL` de `Partida.equipeAId` e `Partida.equipeBId`, cria `origemVagaA` e `origemVagaB` e exige time ou origem em cada lado. Não apaga linha e não concede a `anon` nem a `authenticated`. O aplicativo não grava vaga enquanto essas colunas não existem.
 
 `20261010141000_leitura_publica_sets_classificacao.sql` também não foi aplicada. O prefixo fica depois de `20261010140000`. O W.O. é `20261010139000` e a suspensão é `20261010139500`, os dois antes da RLS. Ela devolve `SELECT` de `SetPartida` e `ClassificacaoEntrada` a `anon` e `authenticated`, cria `public_read_sets` e `public_read_classificacao` se faltarem (`FOR SELECT`, `USING (true)`), põe `replica identity full` e, se a publicação `supabase_realtime` existir, inclui a tabela que ainda não estiver nela. Não concede escrita, não mexe em `Partida` e não altera coluna nem função do W.O. nem de `SuspensaoAtleta`. Não use `db push` da pasta inteira. Em produção a ordem do prefixo vale: `139000`, `139500`, depois `140000` e em seguida esta. Sozinha, a `140000` revoga a leitura. Não reaplique a `140000` depois desta.
 

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Média de sets e média de pontos desempata só quando o organizador escolhe. O padrão não muda. Sem a migration, a categoria grava sem esses dois critérios.
+  Média de sets e média de pontos desempata só quando o organizador escolhe. Sem a migration, a categoria grava sem esses dois critérios. O mata-mata agenda vaga a definir; 20261010142000 não foi aplicada.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -17,13 +17,15 @@ updated: 2026-10-10
 
 Em 10 de outubro de 2026 a classificação aceita média de sets e média de pontos. O padrão continua pontos, vitórias, saldo de sets e saldo de pontos. O confronto direto não muda. Sem a checagem nova, o salvamento da categoria tira esses dois critérios e grava o resto. `20261010139800_quociente_classificacao.sql` não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Fonte: [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
+Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` não foi aplicada. Sem as colunas, a leitura não as pede e nada disso aparece. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+
 Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
 
 Em 10 de outubro de 2026 `/painel/elenco` mostra o seletor de campeonato e abre o campeonato ativo do painel. Sem `ligaId` na consulta, entra o primeiro campeonato do organizador. Fonte: [[modulos/EQUIPES-E-ATLETAS]].
 
 Em 10 de outubro de 2026 corrigir o último ponto continua valendo depois de recarregar a súmula. O histórico do set em andamento é refeito pelos eventos gravados. Fonte: [[modulos/SUMULA-DIGITAL]].
 
-Em 10 de outubro de 2026 a confirmação de atleta deixa de usar `upsert` em `SumulaPresenca`. Produção só tem chave primária em `id`, sem `default`, e a sequence existe sem estar ligada à coluna. O PostgREST respondia 400 (`42P10`) e a rota devolvia 500. `updatedAt` e `tokenSumula` não são colunas desta gravação. Nenhuma migration foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 a confirmação de atleta deixa de usar `upsert` em `SumulaPresenca`. Produção só tem chave primária em `id`. O `id` já nasce por identity `BY DEFAULT`. O PostgREST respondia 400 (`42P10`) e a rota devolvia 500. `updatedAt` e `tokenSumula` não são colunas desta gravação. Nenhuma migration foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a categoria pode restringir gênero e faixa de idade. Os dois nascem vazios. A inscrição só confere o sexo quando a categoria é masculina ou feminina e o atleta informou o sexo. A idade só entra quando há data de nascimento e a faixa está preenchida. Misto aceita os dois sexos. Sexo vazio e nascimento vazio continuam válidos. Sem as colunas, a leitura volta nula por dez minutos e o salvamento da inscrição segue. Gênero e idade não entram em `salvar_configuracao_categoria` nem em `Liga`. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 

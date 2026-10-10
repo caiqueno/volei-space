@@ -18,6 +18,16 @@ updated: 2026-10-10
 - pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - O desempate por quociente entra em `src/lib/classificacao.ts`. O padrão da categoria não muda. `20261010139800_quociente_classificacao.sql` não foi aplicada. Enquanto a checagem antiga recusar os tokens, o salvamento grava a categoria sem eles.
 
+## [2026-10-10] lint | id da presença é identity
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- `SumulaPresenca.id` e `OcorrenciaPartida.id` são identity `BY DEFAULT`. O 500 da presença continua sendo a falta de unicidade em `(partidaId, jogadorId)`, não a falta de default.
+
+## [2026-10-10] feat | vaga a definir no mata-mata
+
+- pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O jogo do mata-mata pode nascer sem os dois times, com origem da vaga, data, horário e quadra. O link do juiz permanece na mesma partida. A súmula não inicia até os times entrarem. `20261010142000_vaga_a_definir.sql` não foi aplicada; sem as colunas a função fica desligada.
+
 ## [2026-10-10] feat | atleta único na categoria
 
 - pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `hot`, `log`

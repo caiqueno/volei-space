@@ -5,6 +5,7 @@ import { exigirOrganizadorOuAdminDaLiga } from '@/lib/organizador-isolamento'
 import { idInteiroPositivoSchema, partidaSchema } from '@/lib/schemas'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { PARTIDA_PUBLICA_COLUNAS, normalizarPartidaPublica } from '@/lib/partida-publica'
+import { consultarComVaga } from '@/lib/consulta-vaga'
 import { categoriaCampeonatoDaPartida, equipesPertencemALiga } from '@/lib/partida-equipes'
 import { grupoComumDasEquipes, recusarJogoDeGrupoCruzado } from '@/lib/confronto-grupo'
 import { v4 as uuidv4 } from 'uuid'
@@ -37,22 +38,24 @@ export async function GET(req: NextRequest) {
     const { data: simuladas } = await supabase.from('Liga').select('id').eq('simulacao', true)
     const simulacaoIds = (simuladas ?? []).map((liga) => liga.id)
 
-    let q = supabase
-      .from('Partida')
-      .select(`${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`)
-      .order('dataHora', { ascending: true, nullsFirst: false })
-      .order('rodada', { ascending: true })
-      .order('id', { ascending: true })
+    const colunas = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`
+    const { data, error: err } = await consultarComVaga(colunas, (select) => {
+      let q = supabase
+        .from('Partida')
+        .select(select)
+        .order('dataHora', { ascending: true, nullsFirst: false })
+        .order('rodada', { ascending: true })
+        .order('id', { ascending: true })
 
-    if (ligaId.valor) q = q.eq('ligaId', ligaId.valor)
-    if (simulacaoIds.length) q = q.not('ligaId', 'in', `(${simulacaoIds.join(',')})`)
-    if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-    if (categoria) q = q.eq('categoria', categoria)
-    if (rodada.valor) q = q.eq('rodada', rodada.valor)
-
-    const { data, error: err } = await q
+      if (ligaId.valor) q = q.eq('ligaId', ligaId.valor)
+      if (simulacaoIds.length) q = q.not('ligaId', 'in', `(${simulacaoIds.join(',')})`)
+      if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+      if (categoria) q = q.eq('categoria', categoria)
+      if (rodada.valor) q = q.eq('rodada', rodada.valor)
+      return q
+    })
     if (err) throw err
-    const partidas = (data ?? []).map(normalizarPartidaPublica).filter((partida): partida is NonNullable<typeof partida> => Boolean(partida))
+    const partidas = (data ?? []).map((partida: any) => normalizarPartidaPublica(partida)).filter((partida: any): partida is NonNullable<typeof partida> => Boolean(partida))
     return success(partidas)
   } catch (err) {
     console.error('[api/partidas] erro ao buscar partidas', err)

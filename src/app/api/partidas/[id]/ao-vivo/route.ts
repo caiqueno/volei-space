@@ -3,6 +3,8 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { verifyPublicToken } from '@/lib/auth'
 import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
+import { consultarComVaga } from '@/lib/consulta-vaga'
+import { ladoExposto } from '@/lib/vaga-a-definir'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -12,26 +14,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!Number.isFinite(partidaId)) return error('Partida inválida', 400)
 
   try {
-    const { data, error: partidaErr } = await supabase
-      .from('Partida')
-      .select(`
-        id,
-        ligaId,
-        rodada,
-        fase,
-        dataHora,
-        localNome,
-        status,
-        setsPorA,
-        setsPorB,
-        pontosPorA,
-        pontosPorB,
-        sumulaAprovadaEm,
-        equipeA:Equipe!Partida_equipeAId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)),
-        equipeB:Equipe!Partida_equipeBId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl))
-      `)
-      .eq('id', partidaId)
-      .single()
+    const selectPartida = 'id,ligaId,rodada,fase,dataHora,localNome,status,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaAprovadaEm,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl))'
+    const { data, error: partidaErr } = await consultarComVaga(selectPartida, (colunas) => (
+      supabase.from('Partida').select(colunas).eq('id', partidaId).single()
+    ))
 
     if ((partidaErr || !data) && partidaId === 9001) {
       return noStore(success(makeDemoLivePartida()))
@@ -45,8 +31,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (liga?.simulacao && !(await operadorDestaPartida(_req, partidaId, data.ligaId))) {
       return error('Partida não encontrada', 404)
     }
-    data.equipeA = primeiro(data.equipeA)
-    data.equipeB = primeiro(data.equipeB)
+    data.equipeA = ladoExposto(primeiro(data.equipeA), data.origemVagaA) ?? { id: 0, nome: 'A definir', vaga: true, jogadores: [] }
+    data.equipeB = ladoExposto(primeiro(data.equipeB), data.origemVagaB) ?? { id: 0, nome: 'A definir', vaga: true, jogadores: [] }
 
     const [setsRes, presencasRes, ocorrenciasRes, destaquesRes] = await Promise.all([
       supabase.from('SetPartida').select('id,numero,pontosA,pontosB').eq('partidaId', partidaId),

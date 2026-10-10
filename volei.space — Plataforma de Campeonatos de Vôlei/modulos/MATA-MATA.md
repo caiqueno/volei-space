@@ -5,12 +5,14 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A chave da categoria nasce dos grupos. O POST chama criar_confronto_categoria. Os cartões claros usam texto escuro.
+  A chave pode nascer com vaga a definir. 20261010142000 não foi aplicada; sem as colunas a função fica desligada.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Mata-mata
+
+**Vaga a definir — implementado no código, migration pendente:** o organizador agenda semifinal, 3º lugar e final com data, horário e quadra antes dos times. Cada lado guarda a origem, por exemplo `1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1` ou `Perdedor Semi 2`. O jogo e o link do juiz permanecem os mesmos. Quando a fase de grupos da categoria encerra, a origem de grupo vira o time classificado. Quando a semi encerra, vencedor e perdedor entram na final e no 3º lugar. A súmula não inicia enquanto um lado estiver sem time. A página pública, a chave e o painel mostram o texto da vaga. `20261010142000_vaga_a_definir.sql` deixa `equipeAId` e `equipeBId` nulos e cria `origemVagaA` e `origemVagaB`. Não foi aplicada. O prefixo fica depois de `20261010141000`. Sem essas colunas, a agenda some e o restante da chave continua como hoje. A geração automática da primeira rodada espera o fim dos grupos, para não ocupar a vaga com um ranque ainda aberto.
 
 **Sets por fase — implementado no código, migration pendente:** `setsPorPartida` continua valendo para grupos, quartas, oitavas e dezesseis avos. Final, semifinal e disputa de 3º lugar aceitam um inteiro de 1 a 5 em `setsPorPartidaFinal`, `setsPorPartidaSemifinal` e `setsPorPartidaTerceiroLugar`. Null herda o campeonato. O tie-break, quando ligado, é o último set dessa quantidade. A súmula, a validação, o resultado manual e a aprovação usam essa quantidade. O campo fica em Eliminatórias e continua editável depois que os grupos começam; trava só se o jogo daquela fase já começou, encerrou ou tem súmula. A migration `20261010136000_sets_por_fase_mata_mata.sql` ainda não foi aplicada. Sem ela, a leitura cai no padrão do campeonato e gravar o campo novo falha.
 

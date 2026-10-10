@@ -6,6 +6,8 @@ import { validateCategoryResult } from '@/lib/category-match-rules'
 import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
+import { sincronizarVagas } from '@/lib/preencher-vagas'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -20,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single()
 
     if (fetchErr || !partida) return error('Partida não encontrada', 404)
+    if (!timesDefinidos(partida)) return error(MENSAGEM_SUMULA_SEM_TIMES, 422)
     if (partida.status !== 'PENDENTE_APROVACAO') return error('Partida não está pendente de aprovação', 400)
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
@@ -68,6 +71,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await recalculateLeagueClassification(partida.ligaId)
     } catch (err) {
       console.error('[partidas/aprovar] partida aprovada; classificação não recalculada', err)
+    }
+    try {
+      await sincronizarVagas(Number(partida.ligaId), partida.categoriaCampeonatoId ?? null)
+    } catch (err) {
+      console.error('[vaga] partida aprovada; vagas não preenchidas', err)
     }
 
     return success(updated)

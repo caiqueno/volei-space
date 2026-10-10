@@ -1,4 +1,6 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { consultarComVaga } from '@/lib/consulta-vaga'
+import { rotuloValido } from '@/lib/vaga-a-definir'
 import { selecionarClassificados } from '@/lib/classificados'
 import { FASES_ELIMINATORIAS, type FaseEliminatoria, formatEliminatoryPhase, getRequiredEliminatoryTeams, normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { chaveDaVaga } from '@/lib/operacao-categoria'
@@ -126,20 +128,17 @@ export async function getMataMataBracket(
   const fasesParaBuscar = semifinalRound ? [...fases, THIRD_PLACE_FASE] : fases
 
   let entradasQuery = supabase.from('ClassificacaoEntrada').select('equipeId,equipe:Equipe(id,nome,corHex,logoUrl)').eq('ligaId', ligaId)
-  let partidasQuery = supabase
-    .from('Partida')
-    .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,vencedorId,sumulaToken,categoriaCampeonatoId,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
-    .eq('ligaId', ligaId)
-    .in('fase', fasesParaBuscar)
-  if (categoriaCampeonatoId) {
-    entradasQuery = entradasQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-    partidasQuery = partidasQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-  }
+  if (categoriaCampeonatoId) entradasQuery = entradasQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+  const selectPartidas = 'id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,vencedorId,sumulaToken,categoriaCampeonatoId,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)'
 
   const [{ data: entradas }, classifiedIds, { data: partidas }] = await Promise.all([
     entradasQuery,
     getClassifiedTeamIds(ligaId, categoriaCampeonatoId),
-    partidasQuery,
+    consultarComVaga(selectPartidas, (colunas) => {
+      let partidasQuery = supabase.from('Partida').select(colunas).eq('ligaId', ligaId).in('fase', fasesParaBuscar)
+      if (categoriaCampeonatoId) partidasQuery = partidasQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+      return partidasQuery
+    }),
   ])
 
   const teamById = new Map<number, TeamOption>()
@@ -163,8 +162,8 @@ export async function getMataMataBracket(
     for (const partida of partidas ?? []) {
       const mesmaCategoria = !categoriaCampeonatoId || partida.categoriaCampeonatoId === categoriaCampeonatoId
       if (partida.fase === round.fase && mesmaCategoria) {
-        usedInThisRound.add(Number(partida.equipeAId))
-        usedInThisRound.add(Number(partida.equipeBId))
+        if (Number(partida.equipeAId) > 0) usedInThisRound.add(Number(partida.equipeAId))
+        if (Number(partida.equipeBId) > 0) usedInThisRound.add(Number(partida.equipeBId))
       }
     }
 
@@ -194,8 +193,8 @@ export async function getMataMataBracket(
           ? {
               id: partida.id,
               status: partida.status,
-              equipeA: normalizeTeam(partida.equipeA),
-              equipeB: normalizeTeam(partida.equipeB),
+              equipeA: ladoDoConfronto(partida.equipeA, partida.origemVagaA),
+              equipeB: ladoDoConfronto(partida.equipeB, partida.origemVagaB),
               setsPorA: partida.setsPorA,
               setsPorB: partida.setsPorB,
               sets: partida.sets ?? [],
@@ -239,8 +238,8 @@ export async function getMataMataBracket(
         ? {
             id: partida.id,
             status: partida.status,
-            equipeA: normalizeTeam(partida.equipeA),
-            equipeB: normalizeTeam(partida.equipeB),
+            equipeA: ladoDoConfronto(partida.equipeA, partida.origemVagaA),
+            equipeB: ladoDoConfronto(partida.equipeB, partida.origemVagaB),
             setsPorA: partida.setsPorA,
             setsPorB: partida.setsPorB,
             sets: partida.sets ?? [],
@@ -254,7 +253,11 @@ export async function getMataMataBracket(
   return { rounds, champion, thirdPlace }
 }
 
-function normalizeTeam(value: any): TeamOption {
+function ladoDoConfronto(value: any, origem: unknown): TeamOption {
   const equipe = Array.isArray(value) ? value[0] : value
-  return { id: Number(equipe?.id), nome: equipe?.nome ?? 'Equipe', corHex: equipe?.corHex ?? null, logoUrl: equipe?.logoUrl ?? null }
+  const id = Number(equipe?.id)
+  if (equipe && Number.isInteger(id) && id > 0) {
+    return { id, nome: equipe.nome ?? 'Equipe', corHex: equipe.corHex ?? null, logoUrl: equipe.logoUrl ?? null }
+  }
+  return { id: 0, nome: rotuloValido(origem) ?? 'A definir', corHex: null, logoUrl: null, vaga: true }
 }

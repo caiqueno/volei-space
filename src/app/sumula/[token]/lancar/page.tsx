@@ -204,7 +204,11 @@ export default function SumulaPage() {
       .then((json) => {
         if (!ativo) return
         const data = json.data
-        if (!data?.equipeA || !data?.equipeB) throw new Error('A partida não tem as duas equipes cadastradas.')
+        if (!data?.equipeA?.id || !data?.equipeB?.id) {
+          const vagaA = String(data?.origemVagaA ?? data?.equipeA?.nome ?? 'A definir')
+          const vagaB = String(data?.origemVagaB ?? data?.equipeB?.nome ?? 'A definir')
+          throw new Error(`A súmula não pode iniciar enquanto os times não estiverem definidos. ${vagaA} × ${vagaB}.`)
+        }
         const teamA = makeTeam('teamA', data.equipeA)
         const teamB = makeTeam('teamB', data.equipeB)
         const loadedRules = getMatchRules(data.liga, data.fase)
@@ -3773,7 +3777,7 @@ function makeTeam(id: TeamId, data: any): Team {
   }))
   return {
     id,
-    dbId: data.id,
+    dbId: data?.id ?? 0,
     name: normalizarNomeEquipe(String(data?.nome ?? '')),
     players: players.slice(0, 6),
     reserves: players.slice(6),

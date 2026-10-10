@@ -21,8 +21,8 @@ type LiveMatch = {
   pontosPorA?: number | null
   pontosPorB?: number | null
   atualizadoEm?: string
-  equipeA: { id: number; nome: string; jogadores?: LivePlayer[] } | null
-  equipeB: { id: number; nome: string; jogadores?: LivePlayer[] } | null
+  equipeA: { id: number; nome: string; vaga?: boolean; jogadores?: LivePlayer[] } | null
+  equipeB: { id: number; nome: string; vaga?: boolean; jogadores?: LivePlayer[] } | null
   sets?: Array<{ id: number; numero: number; pontosA: number; pontosB: number }>
   presencas?: Array<{ id: number; presente: boolean; equipeId: number; jogadorId: number; numero?: number | null; jogador?: LivePlayer | null }>
   ocorrencias?: Array<{ id: number; tipo: string; descricao: string; set?: number | null; createdAt?: string | null; jogadorId?: number | null }>
@@ -36,6 +36,11 @@ type LivePlayer = {
   numero?: number | string | null
   fotoRostoUrl?: string | null
   fotoUrl?: string | null
+}
+
+function NomeLado({ equipe }: { equipe: { nome?: string | null; vaga?: boolean } | null }) {
+  if (equipe?.vaga) return <span>{equipe.nome || 'A definir'}</span>
+  return <NomeEquipe nome={equipe?.nome} />
 }
 
 export default function LiveMatchView({ partidaId, embutido = false }: { partidaId: string; embutido?: boolean }) {
@@ -131,15 +136,15 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
             <span><Radio size={15} /> {finished && match.oficial ? 'Súmula oficial' : 'Placar em tempo real'}</span>
             <em>{formatStatus(match.status)}</em>
           </div>
-          <h1><NomeEquipe nome={match.equipeA.nome} /> <small>vs</small> <NomeEquipe nome={match.equipeB.nome} /></h1>
+          <h1><NomeLado equipe={match.equipeA} /> <small>vs</small> <NomeLado equipe={match.equipeB} /></h1>
           <p><CalendarDays size={16} /> {agenda.rotulo}{agenda.data ? ` · ${agenda.data}` : ''}</p>
           {agenda.local ? <p><Clock size={16} /> {agenda.local}</p> : null}
           {finished && match.oficial ? <p>Resultado oficial, visível sem login.</p> : null}
         </div>
         <div className="live-match-scoreboard">
-          <div><strong><NomeEquipe nome={match.equipeA.nome} /></strong><b>{scoreA}</b></div>
+          <div><strong><NomeLado equipe={match.equipeA} /></strong><b>{scoreA}</b></div>
           <span>{match.setsPorA ?? 0} x {match.setsPorB ?? 0}<em>sets</em></span>
-          <div><strong><NomeEquipe nome={match.equipeB.nome} /></strong><b>{scoreB}</b></div>
+          <div><strong><NomeLado equipe={match.equipeB} /></strong><b>{scoreB}</b></div>
         </div>
       </section>
 
