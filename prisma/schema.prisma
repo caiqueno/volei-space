@@ -42,6 +42,8 @@ model Liga {
   setsPorPartidaTerceiroLugar     Int?
   limiteSubstituicoesPorSet       Int?
   alertaRodizioIlegal             Boolean?
+  limiteTemposPorSet              Int?
+  separarTempos                   Boolean?
   pontosPorSet                    Int       @default(25)
   diferencaMinimaSet              Int       @default(2)
   tieBreakUltimoSet               Boolean   @default(false)
@@ -779,6 +781,8 @@ model CategoriaConfiguracao {
   setsPorPartidaTerceiroLugar     Int?
   limiteSubstituicoesPorSet       Int?
   alertaRodizioIlegal             Boolean?
+  limiteTemposPorSet              Int?
+  separarTempos                   Boolean?
   pontosPorSet                    Int       @default(25)
   tieBreakUltimoSet               Boolean   @default(true)
   pontosUltimoSet                 Int       @default(15)

@@ -147,6 +147,8 @@ const EDITABLE_AFTER_START: Partial<Record<SetupSection, string[]>> = {
     'pontosUltimoSet',
     'limiteSubstituicoesPorSet',
     'alertaRodizioIlegal',
+    'limiteTemposPorSet',
+    'separarTempos',
     'sumulaScoutsEnabled',
   ],
   classificacao: [],

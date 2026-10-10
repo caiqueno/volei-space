@@ -90,6 +90,10 @@ export interface EstruturaSectionDTO extends SectionPatchMeta {
   limiteSubstituicoesPorSet?: number | null
   /** Só true mostra o aviso. Ausente ou false não altera a súmula. */
   alertaRodizioIlegal?: boolean
+  /** Null ou ausente mantém 2 tempos por set. */
+  limiteTemposPorSet?: number | null
+  /** Só true mostra o tempo de equipe. Ausente ou false mantém um único tempo. */
+  separarTempos?: boolean
   pontosPorSet: number | null
   diferencaMinimaSet: number
   tieBreakUltimoSet: boolean

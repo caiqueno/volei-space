@@ -275,6 +275,7 @@ function liveEventTypeLabel(tipo: string, text: string) {
   if (normalized.includes('attack')) return 'Ataque'
   if (normalized.includes('point') && lowerText.includes('bloqueio para')) return 'Bloqueio'
   if (normalized.includes('point') && lowerText.includes('ataque para')) return 'Ataque'
+  if (lowerText.includes('tempo de equipe')) return 'Tempo de equipe'
   if (normalized.includes('timeout') || lowerText.includes('tempo técnico')) return 'Tempo técnico'
   if (normalized.includes('set end') || lowerText.includes('set encerrado')) return 'Set encerrado'
   if (normalized.includes('set start') || lowerText.includes('set iniciado')) return 'Início de set'

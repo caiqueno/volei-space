@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O aviso de rodízio ilegal só aparece quando o organizador liga a opção. Desligado, a súmula não avisa e não impede o ponto. A tela do juiz e a chave pública mostram a vaga. O preenchimento ao oficializar a súmula não depende do pagamento.
+  Sem número gravado, a súmula continua com 2 tempos e um único botão. O tempo de equipe só aparece se a opção estiver ligada. O aviso de rodízio ilegal só aparece quando o organizador liga a opção.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o limite de tempos continua 2 e o botão continua único enquanto `limiteTemposPorSet` está vazio e `separarTempos` não está true. Um inteiro de 1 a 4 troca só o teto. O tempo de equipe é um segundo botão e não entra na conta do tempo técnico. Sem as colunas, a súmula segue com 2. `20261010139970_tempos_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139960` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o aviso de rodízio ilegal só entra na súmula quando `alertaRodizioIlegal` está true. Desligado, ausente ou sem a coluna, o ponto segue e nenhum aviso aparece. O aviso não recusa o lance. `20261010139960_alerta_rodizio.sql` não foi aplicada. O prefixo fica depois de `20261010139950` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
