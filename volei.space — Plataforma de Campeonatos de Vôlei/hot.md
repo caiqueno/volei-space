@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A súmula de lançamento ganha pulsos visuais. Microinterações públicas ficam sobre a base Noite de final.
+  Índices das consultas de campeonato, equipe, atleta, partida e súmula estão na migration, sem aplicar no banco. A súmula e o público já têm as microinterações visuais.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+A migration `20261010015632_indices_consultas_quentes.sql` só cria índice, se ainda não existir, nas consultas de campeonato, equipe, atleta, partida e súmula. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` passam a ser a primeira coluna de um índice. Os compostos cobrem fase e rodada, status e horário, elenco por equipe, e ocorrência por partida e set. Pontos e presença já estavam cobertos pela unicidade. O `@@index` está no Prisma; a vitrine com `simulacao = false` fica só no SQL. Nada foi aplicado em produção nem em desenvolvimento. Fonte: [[06-BANCO-DE-DADOS]].
 
 A súmula de lançamento ganha microinterações só visuais: ACE, toque no atleta, bloqueio B, troca de set e abertura/fechamento do modal de substituição. São opacidade e transform em `sumula-micro.css`, desligadas com `prefers-reduced-motion`. O lance entra na hora. O `+1` continua com a bola. Fonte: [[09-UI-UX]], [[modulos/SUMULA-DIGITAL]].
 
