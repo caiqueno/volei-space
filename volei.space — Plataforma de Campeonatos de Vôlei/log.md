@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | índices das consultas de campeonato, equipe, partida e súmula
+
+- pages_updated=`06-BANCO-DE-DADOS`, `hot`, `log`
+- `20261010015632_indices_consultas_quentes.sql` cria índice se ainda não existir. Não apaga linha. O `@@index` correspondente está no Prisma, exceto a vitrine parcial de `Liga` com `simulacao = false`. Não foi aplicada em produção nem em desenvolvimento.
+
 ## [2026-10-10] fix | senha idempotente na importação Winners
 
 - pages_updated=`hot`, `log`

@@ -91,6 +91,51 @@ const numeroPartida = fs.readFileSync(path.join(dir, '202610100001_sumula_presen
 assert.match(numeroPartida, /alter column presente drop not null/i)
 assert.doesNotMatch(numeroPartida, /\b(delete|truncate|drop table)\b/i)
 
+const consultas = fs.readFileSync(path.join(dir, '20261010015632_indices_consultas_quentes.sql'), 'utf8')
+const indicesQuentes = [
+  '"Liga_publica_criadoEm_idx"',
+  '"Liga_publica_status_criadoEm_idx"',
+  '"Liga_organizadorId_criadoEm_idx"',
+  '"CategoriaCampeonato_ligaId_ordem_idx"',
+  '"Equipe_ligaId_statusEquipe_nome_idx"',
+  '"GrupoEquipeCampeonato_equipeId_idx"',
+  '"Jogador_equipeId_numero_nome_idx"',
+  '"Jogador_equipeId_banido_criadoEm_idx"',
+  '"Partida_grupoId_idx"',
+  '"Partida_ligaId_fase_rodada_idx"',
+  '"Partida_ligaId_status_dataHora_idx"',
+  '"Partida_status_dataHora_idx"',
+  '"Partida_ligaId_rodada_dataHora_idx"',
+  '"OcorrenciaPartida_partidaId_set_idx"',
+  '"OcorrenciaPartida_partidaId_tipo_idx"',
+]
+for (const nome of indicesQuentes) {
+  assert.ok(consultas.includes(`CREATE INDEX IF NOT EXISTS ${nome}`), `índice ausente: ${nome}`)
+}
+const consultasSql = sqlSemComentario(consultas)
+assert.equal((consultasSql.match(/CREATE INDEX IF NOT EXISTS/g) ?? []).length, indicesQuentes.length)
+assert.doesNotMatch(consultasSql, /\b(delete|truncate|drop|alter table)\b/i)
+assert.match(consultas, /WHERE simulacao = false/)
+
+const schema = fs.readFileSync(path.join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8')
+for (const trecho of [
+  '@@index([organizadorId, criadoEm])',
+  '@@index([ligaId, ordem])',
+  '@@index([ligaId, statusEquipe, nome])',
+  '@@index([equipeId, numero, nome])',
+  '@@index([equipeId, banido, criadoEm])',
+  '@@index([grupoId])',
+  '@@index([ligaId, fase, rodada])',
+  '@@index([ligaId, status, dataHora])',
+  '@@index([status, dataHora])',
+  '@@index([ligaId, rodada, dataHora])',
+  '@@index([partidaId, set])',
+  '@@index([partidaId, tipo])',
+]) {
+  assert.ok(schema.includes(trecho), `Prisma sem ${trecho}`)
+}
+assert.doesNotMatch(schema, /WHERE simulacao = false/)
+
 assert.equal(fs.existsSync(path.join(process.cwd(), 'setup-db.mjs')), false)
 
 console.log(`migrations ok: ${files.length} arquivos versionados`)
