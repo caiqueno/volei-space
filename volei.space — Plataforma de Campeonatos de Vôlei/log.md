@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/SCOUTS`, `05-MODULOS`, `hot`, `log`
 - `/rankings` lista todos os atletas por ataque, bloqueio e saque da súmula, com releitura a cada 12 segundos na aba visível. Sem migration, sem Realtime novo e sem merge.
 
+## [2026-10-10] fix | camisa repetida esvazia o outro atleta e a papeleta abre vazia
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`
+- Atribuir uma camisa já usada passa o número para o atleta editado e deixa o anterior sem número, no mesmo salvamento. A papeleta não pré-preenche as seis posições. Nenhuma migration.
+
 ## [2026-10-10] fix | seletor de líbero usa a camisa da súmula
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`

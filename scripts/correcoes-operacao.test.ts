@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { escalacaoParaJogo } from '../src/lib/escalacao-inicial'
+import { atletaRepetidoNaPapeleta, escalacaoParaJogo, papeletaCompleta } from '../src/lib/escalacao-inicial'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '../src/lib/placar-orientacao'
 import { resumirPontos, textoPontoSemJogador, textoResumoScout } from '../src/lib/ponto-sumula'
 import { manterPaginaAberta } from '../src/lib/pagina-aberta'
@@ -8,8 +8,13 @@ import { chavePorPosicao, cruzarGrupos, montarConfrontosAutomaticos, ranquearGru
 import { numeroMvpDaLista } from '../src/lib/numero-camisa-partida'
 
 assert.deepEqual(escalacaoParaJogo(null, ['1', '2', '3', '4', '5', '6'], true), ['', '', '', '', '', ''])
-assert.deepEqual(escalacaoParaJogo(['', '', '', '', '', ''], ['7', '8', '9', '10', '11', '12'], false).slice(0, 2), ['7', '8'])
+assert.deepEqual(escalacaoParaJogo(['', '', '', '', '', ''], ['7', '8', '9', '10', '11', '12'], false), ['', '', '', '', '', ''])
 assert.equal(escalacaoParaJogo(['4', '5'], ['1'], false)[0], '4')
+assert.equal(atletaRepetidoNaPapeleta(['4', '', '', '', '', ''], 2, '4'), true)
+assert.equal(atletaRepetidoNaPapeleta(['4', '', '', '', '', ''], 0, '4'), false)
+assert.equal(papeletaCompleta(['1', '2', '3', '4', '5', '6']), true)
+assert.equal(papeletaCompleta(['1', '2', '3', '4', '5', '']), false)
+assert.equal(papeletaCompleta(['1', '2', '3', '4', '5', '1']), false)
 
 assert.equal(placarNaOrientacao('25 x 00', false), '25 x 00')
 assert.equal(placarNaOrientacao('25 x 00', true), '00 x 25')

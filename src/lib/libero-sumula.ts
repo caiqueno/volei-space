@@ -9,6 +9,7 @@ export function entraNoSeletorDeLibero(numeroCadastro: string, escalacao: readon
 }
 
 export function rotuloSeletorLibero(nome: string, camisaDaSumula: string) {
+  if (!String(camisaDaSumula ?? '').trim()) return `sem número - ${nome}`
   return `#${camisaDaSumula} - ${nome}`
 }
 

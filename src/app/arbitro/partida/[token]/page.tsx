@@ -279,14 +279,22 @@ export default function OperacaoArbitroPage() {
         return
       }
       const nome = atletas.find((item: { id: number }) => item.id === jogadorId)?.nome ?? 'Atleta'
+      const deslocados = Array.isArray(json.data?.deslocados) ? json.data.deslocados : []
+      const { aviso: _aviso, deslocados: _deslocados, ...presencaEditada } = json.data ?? {}
       setPartida((current: any) => {
-        if (!current || !json.data?.id) return current
-        const anterior = (current.presencas ?? []).find((item: any) => item.jogadorId === jogadorId)
-        const demais = (current.presencas ?? []).filter((item: any) => item.jogadorId !== jogadorId)
-        return { ...current, presencas: [...demais, { ...anterior, ...json.data }] }
+        if (!current || !presencaEditada?.id) return current
+        const ids = new Set([jogadorId, ...deslocados.map((item: { jogadorId: number }) => item.jogadorId)])
+        const demais = (current.presencas ?? []).filter((item: any) => !ids.has(item.jogadorId))
+        const linhas = [presencaEditada, ...deslocados].map((linha: any) => {
+          const anterior = (current.presencas ?? []).find((item: any) => item.jogadorId === linha.jogadorId)
+          return { ...anterior, ...linha }
+        })
+        return { ...current, presencas: [...demais, ...linhas] }
       })
-      const texto = numero == null ? `Número de ${nome} voltou ao cadastro.` : `Número de ${nome} atualizado para ${numero}.`
+      const texto = json.data?.aviso
+        || (numero == null ? `Número de ${nome} voltou ao cadastro.` : `Número de ${nome} atualizado para ${numero}.`)
       setAvisoNumero(texto)
+      if (json.data?.aviso) setMsg(json.data.aviso)
       setNumeroSalvoId(jogadorId)
       window.setTimeout(() => setNumeroSalvoId((atual) => (atual === jogadorId ? null : atual)), 2500)
       const elenco = (partida.equipeA?.jogadores ?? []).some((item: { id: number }) => item.id === jogadorId)

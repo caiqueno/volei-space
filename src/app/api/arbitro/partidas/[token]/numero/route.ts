@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
-import { numeroNaPartida, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
+import { NUMERO_SEM_CAMISA, numeroNaPartida, passagemDeNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { inserirSumulaPresenca, registrarOcorrencia } from '@/lib/sumula-presenca'
 
 const bodySchema = z.object({
@@ -41,34 +41,66 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   if (leituraErr) return error('Não foi possível conferir os números desta equipe.', 500)
 
   const presencas = presencasEquipe ?? []
-  const mensagem = validarTrocaNumeroCamisa({
-    jogadorId: atleta.id,
-    numero: parsed.data.numero,
-    atletas: atletas.filter((jogador: { equipeId: number }) => Number(jogador.equipeId) === Number(atleta.equipeId)),
-    presencas,
-  })
-  if (mensagem) return error(mensagem, 422)
-
+  const daEquipe = atletas.filter((jogador: { equipeId: number }) => Number(jogador.equipeId) === Number(atleta.equipeId))
   const atual = presencas.find((item: { jogadorId: number }) => Number(item.jogadorId) === Number(atleta.id))
   const efetivo = numeroNaPartida(atleta, presencas)
-  if (parsed.data.numero === efetivo || (parsed.data.numero == null && (atual == null || atual.numero == null))) {
-    return success(atual ?? {
-      id: null,
-      jogadorId: atleta.id,
-      equipeId: atleta.equipeId,
-      presente: null,
-      numero: null,
-    })
+
+  if (parsed.data.numero == null) {
+    if (atual == null || atual.numero == null) {
+      return success(atual ?? vazio(atleta))
+    }
+    const gravado = await gravarNumero(access.partida.id, atleta, null, atual)
+    if (!gravado) return error('Não foi possível salvar o número da camisa.', 500)
+    await registrarTroca(access, atleta.id, efetivo, null)
+    return success(gravado)
   }
 
+  const plano = passagemDeNumeroCamisa({
+    jogadorId: atleta.id,
+    numero: parsed.data.numero,
+    atletas: daEquipe,
+    presencas,
+  })
+  if ('erro' in plano) return error(plano.erro, 422)
+  if (parsed.data.numero === efetivo && plano.atribuicoes.length === 1) {
+    return success({ ...(atual ?? vazio(atleta)), aviso: null, deslocados: [] })
+  }
+
+  const deslocados = []
+  let editado = null
+  for (const item of plano.atribuicoes) {
+    const alvo = daEquipe.find((jogador: { id: number }) => Number(jogador.id) === item.jogadorId)
+    if (!alvo) return error('Este atleta não joga esta partida.', 422)
+    const linha = presencas.find((presenca: { jogadorId: number }) => Number(presenca.jogadorId) === item.jogadorId)
+    const valor = item.numero == null ? NUMERO_SEM_CAMISA : item.numero
+    const gravado = await gravarNumero(access.partida.id, alvo, valor, linha)
+    if (!gravado) return error('Não foi possível salvar o número da camisa.', 500)
+    if (item.jogadorId === Number(atleta.id)) editado = gravado
+    else deslocados.push(gravado)
+  }
+
+  await registrarTroca(access, atleta.id, efetivo, parsed.data.numero)
+  return success({ ...(editado ?? vazio(atleta)), aviso: plano.aviso, deslocados })
+}
+
+function vazio(atleta: { id: number; equipeId: number }) {
+  return { id: null, jogadorId: atleta.id, equipeId: atleta.equipeId, presente: null, numero: null }
+}
+
+async function gravarNumero(
+  partidaId: number,
+  atleta: { id: number; equipeId: number },
+  numero: number | null,
+  atual: { id: number } | undefined,
+) {
   const gravado = atual
-    ? await supabase.from('SumulaPresenca').update({ numero: parsed.data.numero }).eq('id', atual.id).select(COLUNAS).single()
+    ? await supabase.from('SumulaPresenca').update({ numero }).eq('id', atual.id).select(COLUNAS).single()
     : await inserirSumulaPresenca(supabase, {
-      partidaId: access.partida.id,
+      partidaId,
       jogadorId: atleta.id,
       equipeId: atleta.equipeId,
       presente: null,
-      numero: parsed.data.numero,
+      numero,
     })
 
   let data = gravado.data
@@ -76,8 +108,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   if (falha && !atual && falha.code === '23505') {
     const repetido = await supabase
       .from('SumulaPresenca')
-      .update({ numero: parsed.data.numero })
-      .eq('partidaId', access.partida.id)
+      .update({ numero })
+      .eq('partidaId', partidaId)
       .eq('jogadorId', atleta.id)
       .select(COLUNAS)
       .single()
@@ -87,17 +119,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   if (falha || !data) {
     console.error('[numero-camisa] falha ao gravar', falha)
-    return error('Não foi possível salvar o número da camisa.', 500)
+    return null
   }
+  return data
+}
 
-  const anterior = efetivo == null ? 'sem número' : String(efetivo)
-  const proximo = data.numero == null ? 'sem número' : String(data.numero)
+async function registrarTroca(
+  access: { partida: { id: number }; candidatura: { arbitroId?: number | null } },
+  jogadorId: number,
+  anterior: number | null,
+  proximo: number | null,
+) {
+  const de = anterior == null ? 'sem número' : String(anterior)
+  const para = proximo == null ? 'sem número' : String(proximo)
   await registrarOcorrencia(supabase, {
     partidaId: access.partida.id,
     tipo: 'OBSERVACAO',
-    jogadorId: atleta.id,
-    descricao: `Registro de número de camisa pelo árbitro ${access.candidatura.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: atleta ${atleta.id} passou de ${anterior} para ${proximo}`,
+    jogadorId,
+    descricao: `Registro de número de camisa pelo árbitro ${access.candidatura.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: atleta ${jogadorId} passou de ${de} para ${para}`,
   })
-
-  return success(data)
 }

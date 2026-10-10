@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
-import { escalacaoParaJogo } from '@/lib/escalacao-inicial'
+import { atletaRepetidoNaPapeleta, escalacaoParaJogo, papeletaCompleta } from '@/lib/escalacao-inicial'
 import { camisaDaSumula, destaqueDoJogador, equipeIdPeloNome, mvpDasOcorrencias, passoDeFechamento } from '@/lib/mvp-partida'
-import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
+import { MARCA_SEM_NUMERO, NUMERO_SEM_CAMISA, numeroMvpDaLista, numeroSemCamisa, passagemDeNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
@@ -259,9 +259,8 @@ export default function SumulaPage() {
 
         setPartida(data)
         const savedRotation = parseSavedRotationState(savedOccurrences, restored.currentSet)
-        const preJogo = restored.matchStatus === 'pre-game'
-        const initialLineupA = escalacaoParaJogo(savedRotation?.lineupA, getDefaultLineupNumbers(teamA), preJogo)
-        const initialLineupB = escalacaoParaJogo(savedRotation?.lineupB, getDefaultLineupNumbers(teamB), preJogo)
+        const initialLineupA = escalacaoParaJogo(savedRotation?.lineupA)
+        const initialLineupB = escalacaoParaJogo(savedRotation?.lineupB)
         setLineupA(initialLineupA)
         setLineupB(initialLineupB)
         setBenchA(getBenchNumbers(teamA, initialLineupA, restored.startingLiberos[restored.currentSet]?.teamA))
@@ -405,7 +404,9 @@ export default function SumulaPage() {
     const team = teamId === 'teamA' ? teamA : teamB
     const player = team ? getAnyPlayer(team, number) : null
     if (!player) return number
-    return matchNumberOverrides[teamId]?.[player.id] || player.number
+    const override = matchNumberOverrides[teamId]?.[player.id]
+    if (numeroSemCamisa(override)) return ''
+    return override || player.number
   }
 
   function updateMatchNumber(teamId: TeamId, rosterNumber: string, value: string) {
@@ -413,20 +414,37 @@ export default function SumulaPage() {
     const player = team ? getAnyPlayer(team, rosterNumber) : null
     if (!team || !player) return
     const sanitized = value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4)
-    const effectiveNumber = sanitized || player.number
-    const isDuplicate = [...team.players, ...team.reserves].some((other) => (
-      other.id !== player.id && getMatchNumber(teamId, other.number) === effectiveNumber
-    ))
-    if (isDuplicate) {
-      addToast(`Já existe um atleta com o número ${effectiveNumber} nesta equipe.`)
+    const roster = [...team.players, ...team.reserves]
+    const plano = passagemDeNumeroCamisa({
+      jogadorId: player.id,
+      numero: sanitized || player.number,
+      atletas: roster.map((item) => ({
+        id: item.id,
+        equipeId: team.dbId,
+        numero: item.number,
+        nome: displayPlayerName(item.name, team.name),
+      })),
+      presencas: roster.map((item) => ({
+        jogadorId: item.id,
+        numero: presencaDaCamisa(matchNumberOverrides[teamId]?.[item.id]),
+      })),
+    })
+    if ('erro' in plano) {
+      addToast(plano.erro)
       return
     }
     setMatchNumberOverrides((current) => {
       const teamOverrides = { ...(current[teamId] ?? {}) }
-      if (sanitized) teamOverrides[player.id] = sanitized
-      else delete teamOverrides[player.id]
+      for (const item of plano.atribuicoes) {
+        const dono = roster.find((atleta) => atleta.id === item.jogadorId)
+        if (!dono) continue
+        if (item.numero == null) teamOverrides[item.jogadorId] = MARCA_SEM_NUMERO
+        else if (String(item.numero) === String(dono.number)) delete teamOverrides[item.jogadorId]
+        else teamOverrides[item.jogadorId] = String(item.numero)
+      }
       return { ...current, [teamId]: teamOverrides }
     })
+    if (plano.aviso) addToast(plano.aviso)
   }
 
   const preGameValidated = Boolean(teamA && teamB && validatedA.length >= 6 && validatedB.length >= 6)
@@ -473,23 +491,8 @@ export default function SumulaPage() {
     addMatchEvent('anotacao', 'Equipes inverteram os lados da quadra.')
   }
 
-  function preencherEscalacaoSeVazia() {
-    if (!teamA || !teamB) return
-    if (!lineupA.some((item) => item)) {
-      const numeros = getDefaultLineupNumbers(teamA)
-      setLineupA(numeros)
-      setBenchA(getBenchNumbers(teamA, numeros, startingLiberos[currentSet]?.teamA))
-    }
-    if (!lineupB.some((item) => item)) {
-      const numeros = getDefaultLineupNumbers(teamB)
-      setLineupB(numeros)
-      setBenchB(getBenchNumbers(teamB, numeros, startingLiberos[currentSet]?.teamB))
-    }
-  }
-
   function handleSkipSetup() {
     if (!teamA || !teamB) return
-    preencherEscalacaoSeVazia()
     const starter = initialServerBySet[currentSet] ?? 'teamA'
     setCaptA(teamA.players[0]?.number ?? '')
     setCaptB(teamB.players[0]?.number ?? '')
@@ -509,7 +512,6 @@ export default function SumulaPage() {
 
   async function handleConfirmSetup() {
     if (!teamA || !teamB) return
-    preencherEscalacaoSeVazia()
     if (!stepChecklist.conferido || !stepChecklist.capitaes || !stepChecklist.saque) {
       addToast('Confirme os capitães, o saque inicial e pelo menos 6 atletas validados por equipe.')
       return
@@ -903,7 +905,6 @@ export default function SumulaPage() {
     const team = teamId === 'teamA' ? teamA : teamB
     const selectedLibero = startingLiberos[currentSet]?.[teamId] ?? ''
     const nextLineup = [...currentLineup]
-    const outgoing = nextLineup[index]
     const existingCourtIndex = nextLineup.findIndex((item) => item === number)
 
     if (existingCourtIndex === index) {
@@ -911,12 +912,13 @@ export default function SumulaPage() {
       return
     }
 
-    if (existingCourtIndex >= 0) {
-      nextLineup[index] = number
-      nextLineup[existingCourtIndex] = outgoing
-    } else {
-      nextLineup[index] = number
+    if (atletaRepetidoNaPapeleta(nextLineup, index, number)) {
+      addToast('Este atleta já está em outra posição.')
+      setEditingSlot(null)
+      return
     }
+
+    nextLineup[index] = number
 
     setLineup(nextLineup)
     setBench(getBenchNumbers(team, nextLineup, selectedLibero))
@@ -2653,7 +2655,7 @@ function EscalacaoTab(props: {
                     onBlur={() => { props.onMatchNumberChange(teamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
                   />
                 ) : (
-                  <strong>{number ? `#${displayNumber}` : 'Sem atleta'}</strong>
+                  <strong>{number ? rotuloCamisa(displayNumber) : 'Sem atleta'}</strong>
                 )}
                 {number && number === sideLibero && <em>Líbero</em>}
                 <small>{player ? displayPlayerName(player.name, sideTeam.name) : 'Clique para escalar'}</small>
@@ -2784,7 +2786,7 @@ function EscalacaoTab(props: {
                         onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
                       />
                     ) : (
-                      <strong>{number ? `#${displayNumber}` : 'Sem atleta'}</strong>
+                      <strong>{number ? rotuloCamisa(displayNumber) : 'Sem atleta'}</strong>
                     )}
                     {number && number === selectedLibero && <em>Líbero</em>}
                     <small>{player ? displayPlayerName(player.name, team.name) : 'Clique para escalar'}</small>
@@ -2826,7 +2828,7 @@ function EscalacaoTab(props: {
           <div className="official-libero-start">
             <div>
               <span>Líbero inicial</span>
-              <strong>{selectedLibero ? `#${props.getMatchNumber(selectedTeamId, selectedLibero)} ${displayPlayerName(getAnyPlayer(team, selectedLibero)?.name ?? 'Atleta', team.name)}` : 'Defina antes de confirmar'}</strong>
+              <strong>{selectedLibero ? `${rotuloCamisa(props.getMatchNumber(selectedTeamId, selectedLibero))} ${displayPlayerName(getAnyPlayer(team, selectedLibero)?.name ?? 'Atleta', team.name)}` : 'Defina antes de confirmar'}</strong>
             </div>
             <select value={selectedLibero} onChange={(event) => props.setStartingLibero(selectedTeamId, event.target.value)}>
               <option value="">Selecionar líbero</option>
@@ -2867,7 +2869,7 @@ function EscalacaoTab(props: {
           )}
           {!props.lineupConfirmed && (
             <div className="official-lineup-actions">
-              <button className="official-primary" disabled={!reviewLibero || !servidorExibido || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>
+              <button className="official-primary" disabled={!papeletaCompleta(lineup) || !reviewLibero || !servidorExibido || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>
               <button type="button" className="official-secondary" onClick={() => setSelectedTeamId(otherTeamId)}>
                 {otherConfirmed ? `Ver ${otherTeam.name}` : `Conferir ${otherTeam.name}`}
               </button>
@@ -2893,7 +2895,7 @@ function EscalacaoTab(props: {
                   dispararPulso(setPulsoAtleta, `banco-${number}`)
                 }}
               >
-                <strong>#{props.getMatchNumber(selectedTeamId, number)}</strong>
+                <strong>{rotuloCamisa(props.getMatchNumber(selectedTeamId, number))}</strong>
                 <span>{getAnyPlayer(team, number)?.name ?? 'Atleta'}</span>
               </button>
             ))}
@@ -2904,10 +2906,13 @@ function EscalacaoTab(props: {
         <PlayerModal
           title="Escalar atleta"
           team={props.selectedSlot.teamId === 'teamA' ? props.teamA : props.teamB}
+          teamId={props.selectedSlot.teamId}
           lineup={props.selectedSlot.teamId === 'teamA' ? props.lineupA : props.lineupB}
           bench={props.selectedSlot.teamId === 'teamA' ? props.benchA : props.benchB}
           selectedLibero={props.startingLiberos[props.selectedSlot.teamId] ?? ''}
           hideLiberos
+          bloquearEmQuadra
+          getMatchNumber={props.getMatchNumber}
           onSelect={(number) => props.changeSlot(props.selectedSlot!.teamId, props.selectedSlot!.index, number)}
           onClose={() => props.setEditingSlot(null)}
         />
@@ -3639,7 +3644,7 @@ function RosterClickers({
               </div>
               <div className={`official-player-identity${pulso === `${index}:tap` ? ' sumula-micro-tap' : ''}`} onAnimationEnd={(event) => limparPulso(event, setPulso)}>
                 {number ? (
-                  <span className="official-player-number-edit">{getMatchNumber(teamId, number)}</span>
+                  <span className="official-player-number-edit">{rotuloCamisa(getMatchNumber(teamId, number))}</span>
                 ) : (
                   <span>--</span>
                 )}
@@ -3793,8 +3798,19 @@ function normalizeJerseyNumber(value: string | number | null | undefined) {
 }
 
 function parseMatchNumberOverride(value: string | undefined): number | null {
+  if (numeroSemCamisa(value)) return NUMERO_SEM_CAMISA
   if (!value || !/^\d+$/.test(value)) return null
   return Number(value)
+}
+
+function presencaDaCamisa(override: string | undefined): number | null {
+  if (numeroSemCamisa(override)) return NUMERO_SEM_CAMISA
+  if (override && /^\d+$/.test(override)) return Number(override)
+  return null
+}
+
+function rotuloCamisa(numero: string) {
+  return numero ? `#${numero}` : 'sem número'
 }
 
 function normalizeName(value: string) {
@@ -3810,7 +3826,7 @@ function TimeoutCard({ team, used, set, onRequest, limite = 2, rotulo = 'Registr
   return <section className="official-panel"><div className="official-section-row"><h3>{team.name}</h3><span>Set {set}</span></div><div className="official-timeout-boxes">{caixas.map((n) => <div key={n} className={used >= n ? 'is-used' : ''}><Clock size={15} />Tempo {n}</div>)}</div><button className="official-primary" disabled={used >= limite} onClick={onRequest}>{rotulo}</button></section>
 }
 
-function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, permiteLesao = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; permiteLesao?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string, porLesao?: boolean) => void; onClose: () => void }) {
+function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, bloquearEmQuadra = false, permiteLesao = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; bloquearEmQuadra?: boolean; permiteLesao?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string, porLesao?: boolean) => void; onClose: () => void }) {
   const [lesao, setLesao] = useState(false)
   const substitutionMode = onlyBench != null
   const players = [...team.players, ...team.reserves].filter((player) => !(hideLiberos && player.isLibero))
@@ -3835,7 +3851,7 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
             const isBench = bench.includes(player.number)
             const isSelectedLibero = selectedLibero === player.number
             const isLibero = Boolean(player.isLibero || isSelectedLibero)
-            const isSelectable = !isSelectedLibero && (!substitutionMode || onlyBench.includes(player.number))
+            const isSelectable = !isSelectedLibero && !(bloquearEmQuadra && isCourt) && (!substitutionMode || onlyBench.includes(player.number))
             const playerName = displayPlayerName(player.name, team.name)
             const displayNumber = teamId && getMatchNumber ? getMatchNumber(teamId, player.number) : player.number
             return (
@@ -3849,7 +3865,7 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
                   else onSelect(player.number)
                 }}
               >
-                <span>#{displayNumber} - {playerName}</span>
+                <span>{rotuloCamisa(displayNumber)} - {playerName}</span>
                 <em>{isSelectedLibero ? 'Líbero definido' : isLibero ? 'Líbero' : isCourt ? 'Em quadra' : isBench ? 'Reserva' : 'Elenco'}</em>
               </button>
             )
@@ -3918,9 +3934,13 @@ function restoreMatchNumberOverrides(teamA: Team, teamB: Team, savedPresence: an
   for (const { teamId, team } of teams) {
     const players = [...team.players, ...team.reserves]
     for (const presenca of savedPresence) {
-      if (presenca.numero == null) continue
       const player = players.find((item) => item.id === presenca.jogadorId)
       if (!player) continue
+      if (numeroSemCamisa(presenca.numero)) {
+        overrides[teamId][player.id] = MARCA_SEM_NUMERO
+        continue
+      }
+      if (presenca.numero == null) continue
       const overrideNumber = String(presenca.numero)
       if (overrideNumber !== player.number) overrides[teamId][player.id] = overrideNumber
     }
@@ -4181,18 +4201,6 @@ function makeTeam(id: TeamId, data: any): Team {
 
 function getAnyPlayer(team: Team, number: string) {
   return [...team.players, ...team.reserves].find((player) => player.number === number)
-}
-
-function createEmptyLineup() {
-  return Array.from({ length: 6 }, () => '')
-}
-
-function getDefaultLineupNumbers(team: Team) {
-  const numbers = [...team.players, ...team.reserves]
-    .filter((player) => !player.isLibero)
-    .slice(0, 6)
-    .map((player) => player.number)
-  return numbers.concat(createEmptyLineup()).slice(0, 6)
 }
 
 function getBenchNumbers(team: Team, lineup: string[], selectedLibero = '') {
