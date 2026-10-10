@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | bugs E2E da súmula, prévia e início
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/PARAMETRIZACAO`, `modulos/PARTIDAS`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `07-SEGURANCA`, `hot`, `log`
+- A papeleta e o encerramento antes da oficialização persistem. O MVP mostra o número da partida. Tokens novos são aleatórios e os antigos continuam. A geração de grupos e a chave seguem isoladas por categoria. A prévia válida não conta «0 de N áreas». Campeonato finalizado não anuncia próximo jogo. Aviso idêntico da súmula não se repete.
+
 ## [2026-10-10] fix | edição da categoria até o jogo começar
 
 - pages_updated=`modulos/PARAMETRIZACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `hot`, `log`

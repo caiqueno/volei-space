@@ -57,6 +57,15 @@ export function criarFilaAvisos(tempo: { marcar: MarcarTempo; cancelar: Cancelar
     },
     publicar(message: string) {
       if (morto) return null
+      const existente = itens.find((item) => item.message === message)
+      if (existente) {
+        const timer = timers.get(existente.id)
+        if (timer !== undefined) tempo.cancelar(timer)
+        timers.set(existente.id, tempo.marcar(() => dispensar(existente.id), DURACAO_AVISO_SUMULA_MS))
+        itens = [...itens.filter((item) => item.id !== existente.id), existente]
+        emitir()
+        return existente.id
+      }
       const id = `toast-${++seq}`
       const proximo = [...itens, { id, message }]
       for (const antigo of proximo.slice(0, -LIMITE_AVISOS_SUMULA)) {

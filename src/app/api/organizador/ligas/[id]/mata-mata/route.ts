@@ -7,6 +7,7 @@ import { getBracketRounds, getClassifiedTeamIds, THIRD_PLACE_FASE } from '@/lib/
 import { confrontoRepetidoNaCategoria } from '@/lib/isolamento-categoria'
 import { perdedoresDasSemifinais, vencedoresDosAlimentadores } from '@/lib/resultado-partida'
 import { FASES_ELIMINATORIAS } from '@/lib/eliminatorias'
+import { gerarSumulaToken } from '@/lib/sumula-token'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         status: 'AGENDADA',
         dataHora: null,
         localNome: 'A definir',
-        sumulaToken: `luv-${ligaId}-${fase.toLowerCase()}-${rodada}-${equipeAId}-${equipeBId}`,
+        sumulaToken: gerarSumulaToken(),
         grupoId: null,
         fase,
       })

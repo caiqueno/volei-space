@@ -103,6 +103,11 @@ export function computeAllEffectiveStatuses(
   return effective
 }
 
+export function textoResumoPrevia(completedSections: number, totalSections: number, valida: boolean) {
+  if (valida) return 'Resumo consolidado — a configuração está pronta para publicar.'
+  return `Resumo consolidado — ${completedSections} de ${totalSections} áreas disponíveis. Aceita dados parciais.`
+}
+
 export function computeSetupProgress(effective: Record<SetupSection, ChampionshipSetupStatus>, formato?: string | null) {
   const sections = secoesContadas(formato)
   const completedSections = sections.filter((section) => effective[section] === 'completed').length

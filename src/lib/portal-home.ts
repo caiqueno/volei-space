@@ -9,6 +9,7 @@ import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sy
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import { listarCategoriasDoCampeonato, type CategoriaDoCampeonato } from '@/lib/categorias-do-campeonato'
 import { escolherCategoria } from '@/lib/isolamento-categoria'
+import { escolherPartidaDestaque } from '@/lib/proximo-jogo'
 
 const demoEquipes = [
   { id: 1, nome: 'Kimura Vôlei', corHex: '#0F2C52', logoUrl: null, jogadores: Array.from({ length: 12 }, (_, id) => ({ id })) },
@@ -100,7 +101,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
   }
   const temMais = { aoVivo: agenda.aoVivo.temMais, proximos: agenda.proximos.temMais, encerradas: agenda.encerradas.temMais }
   const partidas = [...grupos.aoVivo, ...grupos.proximos, ...grupos.encerradas]
-  const partidaDestaque = grupos.aoVivo[0] ?? grupos.proximos[0] ?? grupos.encerradas[0] ?? null
+  const partidaDestaque = escolherPartidaDestaque({ aoVivo: grupos.aoVivo, proximos: grupos.proximos }, liga?.status)
   const emAndamento = grupos.aoVivo.length > 0
   const partidasFalha = agenda.erro
   const enxuto = !params.organizador

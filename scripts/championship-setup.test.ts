@@ -4,6 +4,7 @@ import {
   computeAllEffectiveStatuses,
   computeEffectiveSectionStatus,
   computeSetupProgress,
+  textoResumoPrevia,
   decidirAvanco,
   formatoPulaClassificacao,
   getMissingSectionFields,
@@ -262,5 +263,8 @@ void (async () => {
   assert.equal(ficou, false)
   assert.equal(destino, 1, 'falha de salvamento não troca a etapa')
   assert.equal(avisos[0], 'Nome curto demais para o limite.')
+  assert.equal(textoResumoPrevia(0, 6, true), 'Resumo consolidado — a configuração está pronta para publicar.')
+  assert.equal(textoResumoPrevia(0, 6, false), 'Resumo consolidado — 0 de 6 áreas disponíveis. Aceita dados parciais.')
+  assert.equal(textoResumoPrevia(0, 6, true).includes('0 de 6'), false)
   console.log('Central de Parametrização validada: status por sessão, validação cruzada, QR, calendário, elenco, ida-e-volta e salto do mata-mata.')
 })()

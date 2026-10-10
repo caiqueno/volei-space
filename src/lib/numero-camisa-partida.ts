@@ -34,6 +34,11 @@ function inteiroOuNulo(valor: unknown): number | null {
 }
 
 // SumulaPresenca.numero é o número desta partida. Sem ele, vale o cadastro.
+export function numeroMvpDaLista(numeroCadastro: string, numeroDaPartida?: string | null) {
+  const partida = numeroDaPartida == null ? '' : String(numeroDaPartida).trim()
+  return partida || numeroCadastro
+}
+
 export function numeroNaPartida(atleta: { id: number; numero?: unknown }, presencas: PresencaNumeroPartida[]): number | null {
   const registro = presencas.find((item) => Number(item.jogadorId) === Number(atleta.id))
   if (registro && registro.numero != null && registro.numero !== '') {
