@@ -16,7 +16,12 @@ updated: 2026-10-10
 ## [2026-10-10] fix | sets por fase do mata-mata e pódio público
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `modulos/PARAMETRIZACAO`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
-- A final, a semifinal e o 3º lugar podem ter quantidade de sets própria. O portal e a classificação mostram pódio, final, 3º lugar e chave. `20261010135000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica antes da migration de RLS.
+- A final, a semifinal e o 3º lugar podem ter quantidade de sets própria. O portal e a classificação mostram pódio, final, 3º lugar e chave. `20261010136000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica depois de `20261010135000` e antes da migration de RLS.
+
+## [2026-10-10] fix | nascimento e documento do atleta opcionais
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O default da liga e da categoria nasce opcional. Link da vaga, rascunho, inscrição rápida e capitão não exigem data de nascimento nem documento. `20261010135000_nascimento_documento_atleta_opcional.sql` não foi aplicada.
 
 ## [2026-10-10] fix | foto do atleta opcional na inscrição
 

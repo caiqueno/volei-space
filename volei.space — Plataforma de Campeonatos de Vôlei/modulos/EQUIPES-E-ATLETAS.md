@@ -20,4 +20,4 @@ O nome da equipe é gravado em maiúsculas no servidor, com `normalizarNomeEquip
 
 **Isolamento aprovado, pendente:** a equipe deverá pertencer a uma `CategoriaCampeonato` da `Liga` por `categoriaCampeonatoId` sempre que aplicável. A string `Equipe.categoria` e a série legada não garantem esse isolamento; equipes de categorias diferentes não podem compartilhar grupos, classificação ou confrontos. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
 
-Atenção a jogadores banidos, números de camisa e presença. A foto do atleta é opcional na inscrição e no painel do capitão, mesmo com QR; o envio continua quando a imagem é escolhida. Não confunda cadastro de atletas com autorização de participação em outra equipe ou campeonato. Ver [[modulos/INSCRICOES]] e [[modulos/SUMULA-DIGITAL]].
+Atenção a jogadores banidos, números de camisa e presença. A foto, a data de nascimento e o documento do atleta (CPF, RG e os outros tipos) são opcionais na inscrição e no painel do capitão. O envio continua quando o dado é informado. Não confunda cadastro de atletas com autorização de participação em outra equipe ou campeonato. Ver [[modulos/INSCRICOES]] e [[modulos/SUMULA-DIGITAL]].

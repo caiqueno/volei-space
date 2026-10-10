@@ -10,6 +10,7 @@ import {
   type RegistrationLeague,
 } from '../src/lib/team-registration-draft'
 import { resolveFormularioRapidaConfig } from '../src/lib/inscricao-rapida'
+import { getDefaultFormularioInscricaoConfig } from '../src/lib/championship-setup-defaults'
 import { criarJogadorInscricaoRascunhoSchema, jogadorSchema, playerInscricaoSchema } from '../src/lib/schemas'
 
 const now = new Date('2026-09-18T12:00:00.000Z')
@@ -116,9 +117,10 @@ function testPersistenceApiContract() {
 }
 
 function testFotoAtletaOpcional() {
-  const exigida = resolveFormularioRapidaConfig({ atleta: { foto: 'required', dataNascimento: 'required' } })
+  const exigida = resolveFormularioRapidaConfig({ atleta: { foto: 'required', dataNascimento: 'required', documento: 'required' } })
   assert.equal(exigida.atleta.foto, 'optional', 'config required vira opcional na inscrição')
-  assert.equal(exigida.atleta.dataNascimento, 'required', 'nascimento continua obrigatório')
+  assert.equal(exigida.atleta.dataNascimento, 'optional', 'nascimento required vira opcional')
+  assert.equal(exigida.atleta.documento, 'optional', 'documento required vira opcional')
   assert.equal(resolveFormularioRapidaConfig({ atleta: { foto: 'disabled' } }).atleta.foto, 'disabled')
   assert.equal(resolveFormularioRapidaConfig(null).atleta.foto, 'optional')
   assert.equal(resolveFormularioRapidaConfig({ atleta: { foto: 'optional' } }).atleta.foto, 'optional')
@@ -170,10 +172,72 @@ function testFotoAtletaOpcional() {
   assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+authenticated\b/i)
 }
 
+function testNascimentoDocumentoOpcionais() {
+  const padrao = getDefaultFormularioInscricaoConfig()
+  assert.equal(padrao.atleta.dataNascimento, 'optional', 'default da liga nasce opcional')
+  assert.equal(padrao.atleta.documento, 'optional', 'default do documento nasce opcional')
+  assert.equal(resolveFormularioRapidaConfig(null).atleta.dataNascimento, 'optional')
+  assert.equal(resolveFormularioRapidaConfig(null).atleta.documento, 'optional')
+  assert.equal(resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'disabled', documento: 'disabled' } }).atleta.dataNascimento, 'disabled')
+  assert.equal(resolveFormularioRapidaConfig({ atleta: { dataNascimento: 'disabled', documento: 'disabled' } }).atleta.documento, 'disabled')
+
+  for (const dataNascimento of [undefined, null, '', '1990-01-02']) {
+    const parsed = criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana', dataNascimento, documentoTipo: null, documentoNumero: '' })
+    assert.equal(parsed.success, true, `nascimento ${String(dataNascimento)} deve passar`)
+  }
+  assert.equal(criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana', dataNascimento: '02/01/1990' }).success, false)
+  assert.equal(criarJogadorInscricaoRascunhoSchema.safeParse({ nome: 'Ana' }).success, true)
+
+  const base = {
+    nome: 'Ana',
+    email: 'ana@example.com',
+    celular: '11999999999',
+    telefoneEmergencia: '11988888888',
+  }
+  assert.equal(playerInscricaoSchema.safeParse(base).success, true)
+  assert.equal(playerInscricaoSchema.safeParse({ ...base, dataNascimento: null, documentoNumero: null, documentoTipo: '' }).success, true)
+  assert.equal(playerInscricaoSchema.safeParse({ ...base, dataNascimento: '1990-01-02', documentoTipo: 'RG', documentoNumero: '123' }).success, true)
+  assert.equal(playerInscricaoSchema.safeParse({ ...base, dataNascimento: 'nao-e-data' }).success, false)
+
+  const domain = fs.readFileSync(path.join(process.cwd(), 'src/lib/team-registration-draft.ts'), 'utf8')
+  const form = fs.readFileSync(path.join(process.cwd(), 'src/components/inscricao-rapida/FormularioInscricaoRapida.tsx'), 'utf8')
+  const capitao = fs.readFileSync(path.join(process.cwd(), 'src/app/capitao/page.tsx'), 'utf8')
+  const capitaoApi = fs.readFileSync(path.join(process.cwd(), 'src/app/api/capitao/jogadores/route.ts'), 'utf8')
+  const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010135000_nascimento_documento_atleta_opcional.sql'), 'utf8')
+
+  assert.match(domain, /dataNascimento: input\.dataNascimento \|\| null/)
+  assert.match(domain, /documentoNumero: input\.documentoNumero \|\| null/)
+  assert.doesNotMatch(domain, /Data de nascimento do jogador é obrigatória/)
+  assert.doesNotMatch(domain, /data de nascimento é obrigatória/)
+  assert.doesNotMatch(domain, /Documento do jogador é obrigatório/)
+  assert.doesNotMatch(domain, /documento é obrigatório/)
+  assert.match(form, /Data de nascimento \(opcional\)/)
+  assert.match(form, /Número do documento \(opcional\)/)
+  assert.doesNotMatch(form, /nascimentoRequired/)
+  assert.doesNotMatch(form, /documentoRequired/)
+  assert.match(capitao, /Nascimento \(opcional\)/)
+  assert.match(capitao, /Documento \(opcional\)/)
+  assert.match(capitaoApi, /dataNascimento: z\.string\(\)\.regex\(/)
+  assert.match(capitaoApi, /documentoNumero: z\.string\(\)\.max\(80\)\.optional\(\)\.nullable\(\)/)
+  assert.match(capitaoApi, /dataNascimento: data\.dataNascimento \? new Date/)
+  assert.match(sql, /create or replace function public\.finalizar_inscricao_equipe_rascunho/)
+  assert.match(sql, /create or replace function public\.validar_jogador_formulario_categoria/)
+  assert.doesNotMatch(sql, /Data de nascimento e obrigatoria/)
+  assert.doesNotMatch(sql, /Documento do jogador e obrigatorio/)
+  assert.doesNotMatch(sql, /'dataNascimento', 'dataNascimento', 'required'/)
+  assert.doesNotMatch(sql, /'documento', 'documentoNumero', 'required'/)
+  assert.match(sql, /v_jogador\."dataNascimento"/)
+  assert.match(sql, /v_jogador\."documentoNumero"/)
+  assert.match(sql, /grant execute on function public\.finalizar_inscricao_equipe_rascunho\(uuid, text\) to service_role/)
+  assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+anon\b/i)
+  assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+authenticated\b/i)
+}
+
 testRegistrationWindow()
 testEditRules()
 testMigrationContract()
 testPersistenceApiContract()
 testFotoAtletaOpcional()
+testNascimentoDocumentoOpcionais()
 
 console.log('team-registration-draft tests: ok')

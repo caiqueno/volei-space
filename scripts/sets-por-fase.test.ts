@@ -57,7 +57,7 @@ assert.equal(resumo.terceiro?.partida?.setsPorB, 0)
 assert.equal(resumirChavePublica([], null).temMataMata, false)
 assert.equal(resumirChavePublica([{ fase: 'SEMIFINAL', slots: [] }], null).final, null)
 
-const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010135000_sets_por_fase_mata_mata.sql'), 'utf8')
+const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010136000_sets_por_fase_mata_mata.sql'), 'utf8')
 assert.match(sql, /add column if not exists "setsPorPartidaFinal"/)
 assert.match(sql, /add column if not exists "setsPorPartidaSemifinal"/)
 assert.match(sql, /add column if not exists "setsPorPartidaTerceiroLugar"/)

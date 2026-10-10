@@ -180,9 +180,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
   const cpfEnabled = config.atleta.cpf !== 'disabled'
   const cpfRequired = config.atleta.cpf === 'required'
   const nascimentoEnabled = config.atleta.dataNascimento !== 'disabled'
-  const nascimentoRequired = config.atleta.dataNascimento === 'required'
   const documentoEnabled = config.atleta.documento !== 'disabled'
-  const documentoRequired = config.atleta.documento === 'required'
 
   useEffect(() => {
     if (!token || !canEdit) return
@@ -388,8 +386,8 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             <FloatingInput id="jogadorNome" label="Nome completo" value={draft.nome} onChange={(value) => setDraft((current) => ({ ...current, nome: value }))} required />
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">{numeroEnabled && <FloatingInput id="jogadorNumero" label="Número" type="number" value={draft.numero} onChange={(value) => setDraft((current) => ({ ...current, numero: value }))} required={numeroRequired} />}{posicaoEnabled && <FloatingSelect id="jogadorPosicao" label="Posição" value={draft.posicao} onChange={(value) => setDraft((current) => ({ ...current, posicao: value }))} required={posicaoRequired} options={POSICOES.map((position) => ({ value: position, label: position }))} />}</div>
             {cpfEnabled && <FloatingInput id="jogadorCpf" label="CPF" value={draft.cpf} onChange={(value) => setDraft((current) => ({ ...current, cpf: value }))} required={cpfRequired} />}
-            {nascimentoEnabled && <FloatingInput id="jogadorNascimento" label="Data de nascimento" type="date" value={draft.dataNascimento} onChange={(value) => setDraft((current) => ({ ...current, dataNascimento: value }))} required={nascimentoRequired} />}
-            {documentoEnabled && <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"><FloatingSelect id="jogadorDocTipo" label="Documento" value={draft.documentoTipo} onChange={(value) => setDraft((current) => ({ ...current, documentoTipo: value }))} required={documentoRequired} options={DOCUMENT_TYPES} /><FloatingInput id="jogadorDocNumero" label="Número do documento" value={draft.documentoNumero} onChange={(value) => setDraft((current) => ({ ...current, documentoNumero: value }))} required={documentoRequired} /></div>}
+            {nascimentoEnabled && <FloatingInput id="jogadorNascimento" label="Data de nascimento (opcional)" type="date" value={draft.dataNascimento} onChange={(value) => setDraft((current) => ({ ...current, dataNascimento: value }))} />}
+            {documentoEnabled && <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"><FloatingSelect id="jogadorDocTipo" label="Documento (opcional)" value={draft.documentoTipo} onChange={(value) => setDraft((current) => ({ ...current, documentoTipo: value }))} options={DOCUMENT_TYPES} /><FloatingInput id="jogadorDocNumero" label="Número do documento (opcional)" value={draft.documentoNumero} onChange={(value) => setDraft((current) => ({ ...current, documentoNumero: value }))} /></div>}
             {fotoEnabled && <div className="flex items-center gap-3">{draft.fotoUrl ? <img src={draft.fotoUrl} alt="Foto do jogador" className="h-10 w-10 rounded-full border border-white/10 object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-white/15 text-slate-500"><ImagePlus size={14} /></span>}{uploadingFotoJogador ? <LoadingTrack label="Enviando" className="min-w-[12rem]" /> : <label className="cursor-pointer text-xs font-black uppercase tracking-wide text-luva-amber">Foto (opcional)<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => handleJogadorFotoUpload(event.target.files?.[0] ?? null)} /></label>}</div>}
             <ActionBar type="button" onClick={salvarJogador} loading={savingPlayer} loadingLabel="Salvando" disabled={!draft.nome.trim()} className="mt-1 w-full rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{editingId !== null ? 'Salvar alterações' : 'Salvar jogador'}</ActionBar>
           </div>}

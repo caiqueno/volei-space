@@ -342,19 +342,10 @@ async function editableRosterContext(token: string) {
 }
 
 function assertRosterPlayer(input: Record<string, unknown>, context: Awaited<ReturnType<typeof getRegistrationDraftByToken>>, playerId?: string) {
-  const config = resolveFormularioRapidaConfig(context.liga.formularioInscricaoConfig)
   const current = playerId ? context.players.find((player) => String(player.id) === String(playerId)) : undefined
   const numero = input.numero !== undefined ? input.numero : current?.numero
   if (numero != null && numero !== '' && context.players.some((player) => String(player.id) !== String(playerId ?? '') && player.numero === Number(numero))) {
     throw new RegistrationDraftError('Já existe um jogador ativo com esse número nesta equipe.', 409)
-  }
-
-  const nascimento = input.dataNascimento !== undefined ? input.dataNascimento : current?.dataNascimento
-  const documentoTipo = input.documentoTipo !== undefined ? input.documentoTipo : current?.documentoTipo
-  const documentoNumero = input.documentoNumero !== undefined ? input.documentoNumero : current?.documentoNumero
-  if (isFieldRequired(config.atleta.dataNascimento) && !nascimento) throw new RegistrationDraftError('Data de nascimento do jogador é obrigatória.', 422)
-  if (isFieldRequired(config.atleta.documento) && (!documentoTipo || !documentoNumero)) {
-    throw new RegistrationDraftError('Documento do jogador é obrigatório.', 422)
   }
 }
 
@@ -424,8 +415,6 @@ function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDra
     if (isFieldRequired(config.atleta.numeroCamisa) && player.numero == null) issues.push(`${label}: número da camisa é obrigatório.`)
     if (isFieldRequired(config.atleta.posicao) && !player.posicao) issues.push(`${label}: posição é obrigatória.`)
     if (isFieldRequired(config.atleta.cpf) && !player.cpf) issues.push(`${label}: CPF é obrigatório.`)
-    if (isFieldRequired(config.atleta.dataNascimento) && !player.dataNascimento) issues.push(`${label}: data de nascimento é obrigatória.`)
-    if (isFieldRequired(config.atleta.documento) && (!player.documentoTipo || !player.documentoNumero)) issues.push(`${label}: documento é obrigatório.`)
   })
   if (issues.length) throw new RegistrationDraftError('Não foi possível concluir o cadastro.', 422, issues)
 }
