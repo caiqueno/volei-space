@@ -7,6 +7,7 @@ import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
 import { JogosPublicos } from '@/components/portal/JogosPublicos'
 import { PortalAgenda } from '@/components/portal/PortalAgenda'
+import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
 import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/LeagueScope'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
@@ -18,6 +19,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { createPageMetadata } from '@/lib/seo'
+import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
+import { escolherCategoria } from '@/lib/isolamento-categoria'
 import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
@@ -40,7 +43,7 @@ const demoPartidas = [
 ]
 
 type PageProps = {
-  searchParams?: Promise<{ organizador?: string; ligaId?: string; candidaturaId?: string; filtro?: string; pagina?: string }>
+  searchParams?: Promise<{ organizador?: string; ligaId?: string; candidaturaId?: string; filtro?: string; pagina?: string; categoria?: string }>
 }
 
 export default async function JogosPage({ searchParams }: PageProps) {
@@ -61,6 +64,8 @@ export default async function JogosPage({ searchParams }: PageProps) {
   let equipeCapitao: any | null = null
   let loadError = false
   let escolherCampeonato = false
+  let categoriasPublicas: { id: string; nome: string }[] = []
+  let categoriaId: string | null = null
 
   if (isSupabaseConfigured) {
     try {
@@ -87,9 +92,14 @@ export default async function JogosPage({ searchParams }: PageProps) {
       } else if (scope.organizadorId && !scope.selectedLiga) {
         partidas = []
       } else if (scope.selectedLiga) {
-        const busca = await buscarAgendaCampeonato(scope.selectedLiga.id, { campeonatoInformado: Boolean(params.ligaId) })
+        const lista = await listarCategoriasDoCampeonato(scope.selectedLiga.id)
+        categoriasPublicas = lista.categorias
+        categoriaId = escolherCategoria(params.categoria, lista.categorias)
+        const busca = await buscarAgendaCampeonato(scope.selectedLiga.id, { campeonatoInformado: Boolean(params.ligaId), categoriaCampeonatoId: categoriaId })
         if (busca.erro) throw new Error('agenda')
-        const contagem = await supabaseAdmin.from('Partida').select('id', { count: 'exact', head: true }).eq('ligaId', scope.selectedLiga.id)
+        let contagemConsulta = supabaseAdmin.from('Partida').select('id', { count: 'exact', head: true }).eq('ligaId', scope.selectedLiga.id)
+        if (categoriaId) contagemConsulta = contagemConsulta.eq('categoriaCampeonatoId', categoriaId)
+        const contagem = await contagemConsulta
         totalPartidas = contagem.count ?? 0
         agenda = { aoVivo: busca.aoVivo.partidas, proximos: busca.proximos.partidas, encerradas: busca.encerradas.partidas, analise: [], outras: [] }
         temMais = { aoVivo: busca.aoVivo.temMais, proximos: busca.proximos.temMais, encerradas: busca.encerradas.temMais }
@@ -142,7 +152,20 @@ export default async function JogosPage({ searchParams }: PageProps) {
         ) : escolherCampeonato ? (
           <EstadoVazio titulo="Escolha um campeonato" descricao="A agenda abre dentro do campeonato, sem carregar os jogos de todas as competições." acao={<a href="/portal" className="inline-flex rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950">Ir ao portal</a>} />
         ) : agenda && scope.selectedLiga ? (
-          <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} />
+          <div className="grid gap-4">
+            <LinksCategoriaPublica
+              categorias={categoriasPublicas}
+              atual={categoriaId}
+              href={(id) => {
+                const consulta = new URLSearchParams()
+                if (params.organizador) consulta.set('organizador', params.organizador)
+                consulta.set('ligaId', String(scope.selectedLiga.id))
+                consulta.set('categoria', id)
+                return `/jogos?${consulta.toString()}`
+              }}
+            />
+            <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} categoriaId={categoriaId} />
+          </div>
         ) : partidas.length === 0 ? (
           <EstadoVazio titulo={equipeCapitao ? 'Nenhum jogo para sua equipe' : 'Nenhum jogo cadastrado'} descricao={equipeCapitao ? 'As partidas do seu time aparecerão aqui quando o campeonato montar o calendário.' : 'As partidas aparecerão aqui quando a organização montar o calendário.'} />
         ) : !scope.selectedLiga && !equipeCapitao ? (

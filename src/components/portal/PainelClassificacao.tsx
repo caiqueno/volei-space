@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
+import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import mi from '@/styles/microinteracoes.module.css'
 
 type Linha = {
@@ -14,40 +15,51 @@ type Linha = {
   setsPro: number
 }
 
-export function PainelClassificacao({ ligaId }: { ligaId: number }) {
+export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaId: number; categoriaInicial?: string | null }) {
   const [linhas, setLinhas] = useState<Linha[] | null>(null)
   const [erro, setErro] = useState('')
+  const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(ligaId, categoriaInicial)
 
   const carregar = useCallback(async (sinal?: AbortSignal) => {
-    const resposta = await fetch(`/api/portal/classificacao?ligaId=${ligaId}&t=${Date.now()}`, { cache: 'no-store', signal: sinal })
+    const resposta = await fetch(`/api/portal/classificacao?ligaId=${ligaId}${queryCategoria(categoriaId)}&t=${Date.now()}`, { cache: 'no-store', signal: sinal })
     const json = await resposta.json()
     if (!resposta.ok) throw new Error(json.error || 'Falha')
     setLinhas(json.data?.linhas ?? [])
     setErro('')
-  }, [ligaId])
+  }, [ligaId, categoriaId])
 
   useEffect(() => {
+    if (!pronto) return
     const controle = new AbortController()
     carregar(controle.signal).catch((causa) => {
       if (causa instanceof DOMException && causa.name === 'AbortError') return
       setErro('Erro ao carregar dados')
     })
     return () => controle.abort()
-  }, [carregar])
+  }, [carregar, pronto])
 
   useBancoAoVivo(
-    `classificacao-${ligaId}`,
+    `classificacao-${ligaId}-${categoriaId ?? 'todas'}`,
     [{ tabela: 'ClassificacaoEntrada', filtro: `ligaId=eq.${ligaId}` }],
-    () => { void carregar().catch(() => setErro('Erro ao carregar dados')) },
+    () => { if (pronto) void carregar().catch(() => setErro('Erro ao carregar dados')) },
   )
 
   if (erro) return <p className="text-sm font-bold text-red-200">{erro}</p>
-  if (!linhas) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
-  if (linhas.length === 0) return <p className="text-sm font-semibold text-slate-300">Nenhuma equipe inscrita neste campeonato</p>
+  if (!pronto || !linhas) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
+  if (linhas.length === 0) {
+    return (
+      <div className="grid gap-3">
+        <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
+        <p className="text-sm font-semibold text-slate-300">{categoriaId ? 'Nenhuma equipe inscrita nesta categoria' : 'Nenhuma equipe inscrita neste campeonato'}</p>
+      </div>
+    )
+  }
   const semJogos = linhas.every((linha) => (linha.jogos ?? 0) === 0)
 
   return (
-    <div>
+    <div className="grid gap-3">
+      <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
+      <div>
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffb331]">Classificação</p>
       {semJogos && (
         <p className="mt-2 text-sm font-semibold text-slate-300">Ainda não há jogos. A tabela começa zerada com as equipes.</p>
@@ -66,6 +78,7 @@ export function PainelClassificacao({ ligaId }: { ligaId: number }) {
           </li>
         ))}
       </ol>
+      </div>
     </div>
   )
 }

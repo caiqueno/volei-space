@@ -8,7 +8,7 @@ summary: >-
   Confrontos entre equipes.
 status: misto
 created: 2026-09-20
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 # Partidas e calendário
 
@@ -16,8 +16,8 @@ updated: 2026-10-09
 
 As partidas pertencem a um campeonato e envolvem equipes compatíveis com sua estrutura. Resultado oficial alimenta classificação e rankings. O calendário e confrontos não devem surgir como efeito de **gerar convite** de inscrição; somente etapas operacionais adequadas depois do cadastro e da configuração.
 
-A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e `serie` nula. `Partida.atualizadoEm` precisa do default `now()` (`202610090004_partida_atualizado_em_default.sql`); o Prisma marca a coluna como obrigatória e o `@updatedAt` não vira default no Postgres. A migration está no repositório e ainda não foi aplicada em produção.
+A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e `serie` nula. O calendário automático emparelha equipes da mesma categoria. `PATCH` do calendário exige `categoriaCampeonatoId` e recusa jogo de outra categoria. Portal, `/jogos` e a lista do organizador filtram a agenda por essa categoria; a URL pública aceita `categoria`. O fluxo do capitão, com `candidaturaId`, continua pelos jogos da equipe. `Partida.atualizadoEm` precisa do default `now()` (`202610090004_partida_atualizado_em_default.sql`); o Prisma marca a coluna como obrigatória e o `@updatedAt` não vira default no Postgres. A migration está no repositório e ainda não foi aplicada em produção. O filtro por categoria não criou migration.
 
 **Aprovado, pendente:** encerramento, vencedor, último set, MVP e correção seguem [[modulos/SUMULA-DIGITAL]]. Quando resultado mudar, rever [[modulos/CLASSIFICACAO]] e [[modulos/SCOUTS]].
 
-**Categorias — aprovado, pendente:** a gravação da partida já exige uma categoria comum. Leituras que ainda filtram pela string `categoria` não têm a mesma garantia. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
+**Categorias — aprovado, pendente:** a agenda pública e a do organizador já filtram por `categoriaCampeonatoId`. Leituras que ainda usam a string `categoria` fora desse fluxo não têm a mesma garantia. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].

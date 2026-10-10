@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Microinterações de 150–250ms entram fora da súmula e das páginas públicas. A migration 202610100002 ainda não foi aplicada.
+  Grupos, calendário e chave isolam uma categoria. Portal, tabela, jogos, ranking e pódio filtram por ela. Sem migration nova.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Gerar grupos, calendário e chave vale para uma categoria e não apaga as outras. Portal, tabela, jogos, ranking e pódio filtram por `categoriaCampeonatoId`. Sem migration nova e sem reaplicar o SQL de setembro. Fonte: [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]], [[modulos/PARTIDAS]].
 
 Encerrar um set que não fecha a partida inverte os lados da quadra na súmula e grava «Equipes inverteram os lados da quadra.». O saque dos sets 2 a 4 continua com quem não sacou no set anterior; o 5º set continua no sorteio. O pulso do rótulo segue `sumula-micro-set`. Fonte: [[modulos/SUMULA-DIGITAL]].
 

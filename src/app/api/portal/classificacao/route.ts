@@ -1,25 +1,36 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
+import { categoriaDaUrl } from '@/lib/isolamento-categoria'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const ligaId = Number(new URL(req.url).searchParams.get('ligaId'))
+  const params = new URL(req.url).searchParams
+  const ligaId = Number(params.get('ligaId'))
   if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Informe o campeonato.', 422)
+  const categoria = categoriaDaUrl(params)
+  if ('erro' in categoria) return error(categoria.erro, 422)
+
+  let tabela = supabaseAdmin
+    .from('ClassificacaoEntrada')
+    .select('posicao,pontos,jogos,vitorias,derrotas,setsPro,setsContra,pontosPro,pontosContra,equipeId,equipe:Equipe(id,nome)')
+    .eq('ligaId', ligaId)
+    .order('posicao', { ascending: true })
+  let equipesConsulta = supabaseAdmin
+    .from('Equipe')
+    .select('id,nome')
+    .eq('ligaId', ligaId)
+    .eq('statusEquipe', 'ATIVA')
+    .order('nome', { ascending: true })
+  if (categoria.id) {
+    tabela = tabela.eq('categoriaCampeonatoId', categoria.id)
+    equipesConsulta = equipesConsulta.eq('categoriaCampeonatoId', categoria.id)
+  }
 
   const [{ data, error: falha }, equipesResposta] = await Promise.all([
-    supabaseAdmin
-      .from('ClassificacaoEntrada')
-      .select('posicao,pontos,jogos,vitorias,derrotas,setsPro,setsContra,pontosPro,pontosContra,equipeId,equipe:Equipe(id,nome)')
-      .eq('ligaId', ligaId)
-      .order('posicao', { ascending: true }),
-    supabaseAdmin
-      .from('Equipe')
-      .select('id,nome')
-      .eq('ligaId', ligaId)
-      .eq('statusEquipe', 'ATIVA')
-      .order('nome', { ascending: true }),
+    tabela,
+    equipesConsulta,
   ])
 
   if (falha) return error('Não foi possível carregar a classificação.', 500)

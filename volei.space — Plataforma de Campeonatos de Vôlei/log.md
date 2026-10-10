@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] update | isolamento operacional por categoria
+
+- pages_updated=`modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `modulos/PARTIDAS`, `hot`, `log`, `docs/requisitos/CATEGORIAS-COMO-COMPETICOES`
+- Gerar grupos e calendário passa a exigir uma categoria e só remove grupos e jogos de grupos dela. A chave e o calendário automático não cruzam categorias. Portal, tabela, jogos, ranking e pódio leem uma categoria. Nenhuma migration foi adicionada e o SQL de setembro não foi reaplicado. Funções SQL de recálculo continuam como estavam.
+
 ## [2026-10-10] decisao | troca de lado ao encerrar o set
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

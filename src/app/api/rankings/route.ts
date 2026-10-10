@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+import { categoriaDaUrl } from '@/lib/isolamento-categoria'
 
 const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
 
@@ -8,11 +9,12 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     if (searchParams.has('serie')) return error('A série não separa mais a categoria. Use a categoria do campeonato.', 422)
-    const categoria = searchParams.get('categoria')
-    const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
+    const categoria = categoriaDaUrl(searchParams)
+    if ('erro' in categoria) return error(categoria.erro, 422)
+    const categoriaCampeonatoId = categoria.id
 
     let votosQuery = supabase.from('VotoMVP').select('jogadorId,categoria,categoriaCampeonatoId')
-    if (!categoriaCampeonatoId && categoria) votosQuery = votosQuery.eq('categoria', categoria)
+    if (categoriaCampeonatoId) votosQuery = votosQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
 
     const { data: votos, error: votosErr } = await votosQuery
     if (votosErr) throw votosErr
