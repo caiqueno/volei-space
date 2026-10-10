@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { exigirOrganizadorDaLiga, exigirOrganizadorDaPartida } from '@/lib/organizador-isolamento'
 import { partidaAtualizacaoSchema } from '@/lib/schemas'
+import { camposEditaveisDaPartida } from '@/lib/partida-escrita'
 import { categoriaCampeonatoDaPartida, equipesPertencemALiga } from '@/lib/partida-equipes'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
@@ -44,32 +45,36 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(atual.ligaId))
     if (bloqueio) return bloqueio
 
-    const ligaId = Number(parsed.data.ligaId ?? atual.ligaId)
-    if (parsed.data.equipeAId != null || parsed.data.equipeBId != null || parsed.data.ligaId != null) {
+    const patch = camposEditaveisDaPartida(parsed.data)
+    const ligaId = Number(patch.ligaId ?? atual.ligaId)
+
+    if (patch.equipeAId !== undefined || patch.equipeBId !== undefined || patch.ligaId !== undefined) {
       const equipesInvalidas = await equipesPertencemALiga(
-        parsed.data.equipeAId ?? Number(atual.equipeAId),
-        parsed.data.equipeBId ?? Number(atual.equipeBId),
+        Number(patch.equipeAId ?? atual.equipeAId),
+        Number(patch.equipeBId ?? atual.equipeBId),
         ligaId,
       )
       if (equipesInvalidas) return error(equipesInvalidas, 422)
     }
 
-    const atualizacao: Record<string, unknown> = { ...parsed.data }
     if (parsed.data.categoria || parsed.data.ligaId) {
-      const categoriaId = await categoriaCampeonatoDaPartida(ligaId, parsed.data.categoria ?? String(atual.categoria))
+      const categoriaId = await categoriaCampeonatoDaPartida(ligaId, String(parsed.data.categoria ?? atual.categoria))
       if (!categoriaId) return error('Esta categoria não está disponível no campeonato.', 422)
-      atualizacao.categoriaCampeonatoId = categoriaId
+      patch.categoriaCampeonatoId = categoriaId
     }
+
+    if (Object.keys(patch).length === 0) return error('Dados inválidos', 422)
 
     const { data, error: err } = await supabase
       .from('Partida')
-      .update(atualizacao)
+      .update(patch)
       .eq('id', Number(id))
       .select()
       .single()
     if (err) throw err
     return success(data)
-  } catch {
+  } catch (err) {
+    console.error('[api/partidas/id] erro ao atualizar partida', err)
     return error('Erro ao atualizar partida', 500)
   }
 }

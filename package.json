@@ -24,6 +24,7 @@
     "test:simulacao": "node scripts/with-ts-node.mjs scripts/simulacao.test.ts",
     "test:api-layer": "node scripts/with-ts-node.mjs scripts/api-layer.test.ts",
     "test:seguranca": "node scripts/with-ts-node.mjs scripts/seguranca-backend.test.ts",
+    "test:auth-security": "node scripts/with-ts-node.mjs scripts/auth-security.test.ts",
     "seed:simulacao": "node scripts/with-ts-node.mjs scripts/recriar-simulacao.ts"
   },
   "prisma": {

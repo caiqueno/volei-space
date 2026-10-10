@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sessão, webhook e súmula fecharam junto da API. Build, seed e migrations seguem na main.
+  Sessão com audiência, webhook e leitura de atleta fecharam junto da API. Build, seed e migrations seguem na main.
 status: implementado
 created: 2026-09-25
 updated: 2026-10-09
@@ -15,7 +15,7 @@ updated: 2026-10-09
 
 ## Foco atual
 
-Correção de segurança no back-end, sem UI nem migration. O JWT de administrador agora tem `scope: admin`; token com `purpose` (reset, ativação) não abre sessão. O reset guarda fingerprint da senha, não o hash bcrypt. `ADMIN_EMAIL` passou a ser obrigatório em produção e no preview. O login usa «Usuário ou senha não conferem.» antes da senha conferir, limita 30 tentativas por IP e 8 por IP e e-mail, e não devolve o JWT. `ILIKE` de e-mail escapa `%` e `_`. O webhook InfinitePay recusa chamada sem segredo fora do dev local, confere valor (reais ou centavos do valor gravado, sem o caminho inverso) e vínculo com `Pagamento`, e não transforma erro de banco em 200. A súmula tenta restaurar o conteúdo se a gravação quebra no meio; a transação única continua pendente no banco. `?consulta=1` segue público de propósito. Tokens demo da súmula não respondem em produção. A confirmação simulada de pagamento segue desligada por padrão. Fonte: [[07-SEGURANCA]], [[modulos/PAGAMENTOS]], [[modulos/SUMULA-DIGITAL]].
+Endurecimento de autenticação em 9 de outubro de 2026, junto da correção de segurança do back-end, sem migration nova. O JWT de administrador tem `scope: admin`, `typ: admin` e audiência `volei-admin`. Recuperação, sessão pública e ativação têm audiência e tipo próprios. Token com `purpose` não abre sessão. O reset guarda fingerprint HMAC da senha, não o hash bcrypt. `ADMIN_EMAIL` é obrigatório em produção e no preview; no `next dev` local a tabela `Admin` continua valendo. O login usa «Usuário ou senha não conferem.» antes da senha conferir, limita 30 tentativas por IP e 8 por IP e e-mail, e não devolve o JWT. A recuperação limita 5 pedidos por IP e 3 por e-mail a cada hora. O logout limpa `luva_token` com os mesmos atributos do cookie. `ILIKE` de e-mail escapa `%` e `_`. O webhook InfinitePay recusa chamada sem segredo fora do dev local, confere valor (reais ou centavos do valor gravado, sem o caminho inverso) e vínculo com `Pagamento`, e não transforma erro de banco em 200. A massa de QA exige sessão de administrador. Quadras do organizador ficam restritas aos campeonatos dele. Súmula e árbitro não leem CPF, documento, telefone nem QR do atleta. O GET da inscrição rápida mascara CPF e nascimento, e concluir a inscrição troca o token. Partida nova ou editada só aceita equipes da própria liga, e o PUT grava uma lista fechada de campos e recalcula a categoria. Rotas de liga não devolvem `err.message`. A súmula tenta restaurar o conteúdo se a gravação quebra no meio; a transação única continua pendente no banco. `?consulta=1` segue público de propósito. Tokens demo da súmula não respondem em produção. A confirmação simulada de pagamento segue desligada por padrão. Fonte: [[07-SEGURANCA]], [[modulos/PAGAMENTOS]], [[modulos/SUMULA-DIGITAL]].
 
 A camada de API fechou confirmação simulada de pagamento, webhook sem segredo, login que revelava administrador e consultas públicas de equipe com `select` aberto.
 

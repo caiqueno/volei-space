@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { fingerprintsMatch, passwordResetFingerprint, verifyPasswordResetToken } from '@/lib/auth'
+import { verifyPasswordResetToken } from '@/lib/auth'
+import { fingerprintSenha, fingerprintsConferem } from '@/lib/password-fingerprint'
 
 const schema = z.object({
   token: z.string().min(20),
@@ -27,7 +28,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (leituraErr) throw leituraErr
-    if (!admin?.senhaHash || !fingerprintsMatch(passwordResetFingerprint(admin.senhaHash), payload.senhaFingerprint)) {
+    const fingerprint = admin?.senhaHash ? fingerprintSenha(admin.senhaHash) : ''
+    if (!admin?.senhaHash || !fingerprintsConferem(fingerprint, payload.senhaFingerprint)) {
       return error('Link inválido ou já utilizado', 400)
     }
 
