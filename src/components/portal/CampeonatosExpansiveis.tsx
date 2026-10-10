@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { capaDoCampeonato } from '@/lib/capa-publica'
+import { formatLigaStatus } from '@/lib/format-liga'
 import { PainelClassificacao } from '@/components/portal/PainelClassificacao'
 import { PainelGaleria } from '@/components/portal/PainelGaleria'
 import { PainelRanking } from '@/components/portal/PainelRanking'
@@ -16,11 +17,9 @@ type Campeonato = {
   status?: string | null
 }
 
-function situacao(status?: string | null) {
-  const valor = String(status ?? '').toUpperCase()
-  if (valor === 'FINALIZADO' || valor === 'ENCERRADA') return 'Concluído'
-  if (valor === 'EM_BREVE') return 'Não iniciado'
-  return 'Em andamento'
+function campeonatoEncerrado(status?: string | null) {
+  const valor = String(status ?? '').trim().toUpperCase()
+  return valor === 'FINALIZADO' || valor === 'ENCERRADA'
 }
 
 export function CampeonatosExpansiveis({
@@ -29,36 +28,61 @@ export function CampeonatosExpansiveis({
   descricao,
   vazioLista,
   modulo,
+  ligaIdInicial = null,
 }: {
   kicker: string
   titulo: string
   descricao: string
   vazioLista: string
   modulo: 'classificacao' | 'rankings' | 'galeria'
+  ligaIdInicial?: number | null
 }) {
   const [campeonatos, setCampeonatos] = useState<Campeonato[]>([])
   const [abertos, setAbertos] = useState<number[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
+  const rolou = useRef(false)
 
   useEffect(() => {
     const controle = new AbortController()
-    fetch('/api/portal/campeonatos?limite=24', { signal: controle.signal })
-      .then(async (resposta) => {
-        const json = await resposta.json()
-        if (!resposta.ok) throw new Error(json.error || 'Falha ao carregar')
-        setCampeonatos(json.data?.campeonatos ?? [])
+    async function carregar() {
+      const acumulado: Campeonato[] = []
+      let offset = 0
+      try {
+        for (let guarda = 0; guarda < 8; guarda += 1) {
+          const resposta = await fetch(`/api/portal/campeonatos?limite=24&offset=${offset}`, { signal: controle.signal })
+          const json = await resposta.json()
+          if (!resposta.ok) throw new Error(json.error || 'Falha ao carregar')
+          const pagina = (json.data?.campeonatos ?? []) as Campeonato[]
+          acumulado.push(...pagina)
+          const temMais = Boolean(json.data?.temMais)
+          const proximo = Number(json.data?.proximoOffset ?? offset + pagina.length)
+          const achou = ligaIdInicial != null && acumulado.some((item) => item.id === ligaIdInicial)
+          if (!ligaIdInicial || achou || !temMais || proximo <= offset) break
+          offset = proximo
+        }
+        setCampeonatos(acumulado)
+        if (ligaIdInicial != null && acumulado.some((item) => item.id === ligaIdInicial)) {
+          setAbertos([ligaIdInicial])
+        }
         setErro('')
-      })
-      .catch((causa) => {
+      } catch (causa) {
         if (causa instanceof DOMException && causa.name === 'AbortError') return
         setErro('Erro ao carregar dados')
-      })
-      .finally(() => {
+      } finally {
         if (!controle.signal.aborted) setCarregando(false)
-      })
+      }
+    }
+    carregar()
     return () => controle.abort()
-  }, [])
+  }, [ligaIdInicial])
+
+  useEffect(() => {
+    if (ligaIdInicial == null || rolou.current || carregando) return
+    if (!campeonatos.some((item) => item.id === ligaIdInicial)) return
+    rolou.current = true
+    document.getElementById(`campeonato-${ligaIdInicial}`)?.scrollIntoView({ block: 'nearest' })
+  }, [campeonatos, carregando, ligaIdInicial])
 
   function alternar(id: number) {
     setAbertos((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id])
@@ -76,14 +100,14 @@ export function CampeonatosExpansiveis({
         {campeonatos.map((campeonato) => {
           const aberto = abertos.includes(campeonato.id)
           return (
-            <article key={campeonato.id} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
+            <article id={`campeonato-${campeonato.id}`} key={campeonato.id} className={`scroll-mt-24 overflow-hidden rounded-3xl border bg-white/[0.04] ${campeonato.id === ligaIdInicial ? 'border-[#ffb331]' : 'border-white/10'}`}>
               <button type="button" aria-expanded={aberto} onClick={() => alternar(campeonato.id)} className="flex w-full items-center gap-4 p-4 text-left">
                 <img src={capaDoCampeonato(campeonato.id, campeonato.capaUrl, campeonato.logoUrl)} alt="" className="h-16 w-24 shrink-0 rounded-2xl object-cover sm:w-28" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-black text-white">{campeonato.nome}</span>
                   {modulo === 'rankings' && (
-                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-black ${situacao(campeonato.status) === 'Concluído' ? 'bg-luva-amber' : 'border border-white/15 text-slate-300'}`}>
-                      {situacao(campeonato.status)}
+                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-black ${campeonatoEncerrado(campeonato.status) ? 'bg-luva-amber text-slate-950' : 'border border-white/15 text-slate-300'}`}>
+                      {formatLigaStatus(campeonato.status)}
                     </span>
                   )}
                 </span>
@@ -92,7 +116,7 @@ export function CampeonatosExpansiveis({
               {aberto && (
                 <div className="border-t border-white/10 px-4 py-4">
                   {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} />}
-                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={situacao(campeonato.status) === 'Concluído'} />}
+                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} />}
                   {modulo === 'galeria' && <PainelGaleria ligaId={campeonato.id} />}
                 </div>
               )}

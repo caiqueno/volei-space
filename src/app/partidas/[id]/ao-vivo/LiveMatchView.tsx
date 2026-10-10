@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { Activity, CalendarDays, Clock, LogIn, LogOut, Radio, ShieldCheck, Trophy } from 'lucide-react'
 import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
+import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 
 type LiveMatch = {
   id: number
@@ -19,7 +20,7 @@ type LiveMatch = {
   equipeA: { id: number; nome: string; jogadores?: LivePlayer[] } | null
   equipeB: { id: number; nome: string; jogadores?: LivePlayer[] } | null
   sets?: Array<{ id: number; numero: number; pontosA: number; pontosB: number }>
-  presencas?: Array<{ id: number; presente: boolean; equipeId: number; jogadorId: number; jogador?: LivePlayer | null }>
+  presencas?: Array<{ id: number; presente: boolean; equipeId: number; jogadorId: number; numero?: number | null; jogador?: LivePlayer | null }>
   ocorrencias?: Array<{ id: number; tipo: string; descricao: string; set?: number | null; createdAt?: string | null; jogadorId?: number | null }>
   destaques?: Array<{ id: number; tipo: string; jogador?: LivePlayer | null }>
   oficial?: boolean
@@ -352,8 +353,9 @@ function buildIndividualScout(match: LiveMatch) {
     if (teamIdByPlayer && event.jogadorId != null) {
       const rosterPlayer = teams.find((item) => item.id === teamId)?.players.find((item) => item.id === event.jogadorId)
       key = event.jogadorId
+      const numeroPartida = rosterPlayer ? numeroNaPartida(rosterPlayer, match.presencas ?? []) : null
       player = {
-        number: String(rosterPlayer?.numero ?? pointMatch?.[3] ?? ''),
+        number: numeroPartida == null ? String(pointMatch?.[3] ?? rosterPlayer?.numero ?? '') : String(numeroPartida),
         name: rosterPlayer?.nome ?? pointMatch?.[4]?.trim() ?? 'Atleta',
       }
     } else if (pointMatch) {
