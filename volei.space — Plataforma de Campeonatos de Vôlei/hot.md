@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Microinterações públicas leves sobre a base Noite de final. A importação Winners mantém a senha do organizador ativo.
+  A súmula de lançamento ganha pulsos visuais. Microinterações públicas ficam sobre a base Noite de final.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+A súmula de lançamento ganha microinterações só visuais: ACE, toque no atleta, bloqueio B, troca de set e abertura/fechamento do modal de substituição. São opacidade e transform em `sumula-micro.css`, desligadas com `prefers-reduced-motion`. O lance entra na hora. O `+1` continua com a bola. Fonte: [[09-UI-UX]], [[modulos/SUMULA-DIGITAL]].
 
 Microinterações públicas em `src/styles/microinteracoes.module.css`, em cima da base «Noite de final». Home, campeonato, classificação, jogos, chaveamento, perfil da equipe, pódio e a aparência do painel do organizador. Animação só com `transform` e `opacity`, 160–280ms. `prefers-reduced-motion` desliga. O líder da tabela tem faixa dourada. O campeão do pódio e do chaveamento tem brilho dourado curto. Súmula, menu, toasts, loading e os utilitários de `globals.css` não mudam. Sem API, banco ou permissão. Fonte: [[09-UI-UX]].
 
@@ -31,7 +33,7 @@ Correções de interface no campeonato público, sem API, Prisma nem cálculo de
 
 Na faixa de placar da súmula, cada equipe ficou com um único `+1`. Ele registra o ponto sem jogador: sem modal, sem `jogadorId` e com o histórico «Sem jogador». O modal de saque, bloqueio ou ataque saiu, porque só o `+1` antigo o abria. ACE, o toque no atleta, o bloqueio da rede e a quadra 3D continuam atribuindo o ponto. Tempos, desfazer, placar e rodízio não mudaram. Fonte: [[modulos/SUMULA-DIGITAL]].
 
-Movimento reutilizável em `src/styles/vs-motion.css` e `VolleyballBurst`. O +1 da súmula usa press, foco e a bola. O clique registra antes da animação. ACE, atleta, bloqueio, set, modal e o resto das telas ainda não entram. Sem API, banco ou data fetching. Fonte: [[09-UI-UX]].
+Movimento reutilizável em `src/styles/vs-motion.css` e `VolleyballBurst`. O +1 da súmula usa press, foco e a bola. O clique registra antes da animação. Sem API, banco ou data fetching. Fonte: [[09-UI-UX]].
 
 A geração de grupos, o mata-mata e o calendário automático passam a gravar `categoriaCampeonatoId` e `serie` nula. Sem isso o gatilho recusa a partida. `Partida.atualizadoEm` ganha default `now()` na migration `202610090004_partida_atualizado_em_default.sql`, ainda não aplicada em produção. O prefixo `202610090001` continua sendo a revogação de EXECUTE. O `GET` da estrutura devolve `sumulaToken`. O script `scripts/import-winners.mjs` cria Winners Oficial, Winners Teste e Winner QA pelo HTTP do app: inscrição aprovada, grupos, súmula e mata-mata em jogo único. A confirmação simulada de pagamento sai da sessão de administrador, porque o organizador não confirma com o gateway desligado. No Winners Teste o campeão sai da final, e finalizar exige essa final e o 3º lugar. A tabela continua só com a fase de grupos. O script não foi executado neste merge. Fonte: [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 

@@ -1,0 +1,89 @@
+/* Microinterações locais da súmula. Só transform e opacity.
+   O +1 (official-score-pop / official-point-float) fica fora daqui. */
+
+@keyframes sumula-micro-ace {
+  0% { opacity: 1; transform: scale(1); }
+  22% { opacity: 1; transform: scale(1.22); }
+  68% { opacity: 1; transform: scale(1.22); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sumula-micro-block {
+  0% { opacity: 1; transform: scale(1) translateY(0); }
+  22% { opacity: 0.75; transform: scale(1.24) translateY(-6px); }
+  68% { opacity: 0.75; transform: scale(1.24) translateY(-6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes sumula-micro-tap {
+  0% { opacity: 1; transform: scale(1); }
+  28% { opacity: 0.86; transform: scale(0.9); }
+  62% { opacity: 0.86; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sumula-micro-set {
+  0% { opacity: 0.45; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sumula-sub-in {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sumula-sub-out {
+  0% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.9) translateY(16px); }
+}
+
+.sumula-micro-ace,
+.volley-half .volley-marker.is-server.sumula-micro-ace {
+  animation: sumula-micro-ace 520ms ease;
+}
+
+.sumula-micro-block,
+.volley-half .volley-marker.sumula-micro-block {
+  animation: sumula-micro-block 480ms ease;
+}
+
+.sumula-micro-tap,
+.volley-half .volley-marker.is-server.sumula-micro-tap {
+  animation: sumula-micro-tap 320ms ease;
+}
+
+.sumula-micro-set {
+  animation: sumula-micro-set 320ms ease;
+}
+
+em.sumula-micro-set,
+small.sumula-micro-set,
+span.sumula-micro-set {
+  display: inline-block;
+}
+
+.sumula-sub-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  animation: sumula-sub-in 200ms ease;
+}
+
+.sumula-sub-shell.is-leaving {
+  animation: sumula-sub-out 180ms ease forwards;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sumula-micro-ace,
+  .volley-half .volley-marker.is-server.sumula-micro-ace,
+  .sumula-micro-block,
+  .volley-half .volley-marker.sumula-micro-block,
+  .sumula-micro-tap,
+  .volley-half .volley-marker.is-server.sumula-micro-tap,
+  .sumula-micro-set,
+  .sumula-sub-shell,
+  .sumula-sub-shell.is-leaving {
+    animation: none;
+  }
+}
