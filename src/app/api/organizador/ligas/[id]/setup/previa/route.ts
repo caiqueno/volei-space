@@ -40,6 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     turnoReturno: liga.turnoReturno as boolean | null,
     faseEliminatoria: liga.faseEliminatoria as string | null,
     disputaTerceiroLugar: liga.disputaTerceiroLugar as boolean | null,
+    eliminatoriaIdaVolta: liga.eliminatoriaIdaVolta as boolean | null,
   })
   const pricing = calculateChampionshipPrice({
     matchCount: estimativaPartidas.disponivel ? estimativaPartidas.total : 0,

@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | ida e volta
+
+- pages_updated=`modulos/MATA-MATA`, `hot`, `log`
+- O segundo jogo da chave usa a rodada 1000 acima da ida. O agregado soma os sets. O calendário automático respeita `turnoReturno`. Sem o flag, ou sem a coluna, permanece um jogo. Sem migration.
+
 ## [2026-10-10] feat | método de chaveamento
 
 - pages_updated=`modulos/MATA-MATA`, `hot`, `log`

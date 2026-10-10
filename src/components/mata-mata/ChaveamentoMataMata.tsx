@@ -28,6 +28,7 @@ export type BracketSlot = {
     sumulaToken: string | null
   } | null
   eligibleOptions: TeamOption[] | null
+  volta?: BracketSlot['partida']
 }
 
 export type BracketRoundView = { fase: string; label: string; slots: BracketSlot[] }
@@ -177,6 +178,17 @@ function SlotCard({
         </div>
         <TeamRow team={partida.equipeA} score={partida.setsPorA} isWinner={winnerId === partida.equipeA.id && !partida.equipeA.vaga} />
         <TeamRow team={partida.equipeB} score={partida.setsPorB} isWinner={winnerId === partida.equipeB.id && !partida.equipeB.vaga} />
+        {slot.volta ? (
+          <p className="mt-2 text-[11px] font-bold text-slate-500">
+            Volta: {slot.volta.setsPorA ?? 0}–{slot.volta.setsPorB ?? 0}
+            {slot.volta.sumulaToken ? (
+              <>
+                {' · '}
+                <a href={`/sumula/${encodeURIComponent(slot.volta.sumulaToken)}`} target="_blank" rel="noreferrer" className="underline">súmula</a>
+              </>
+            ) : null}
+          </p>
+        ) : null}
         {partida.sets.length > 0 && (
           <p className={`mt-2 border-t border-slate-100 pt-2 text-[11px] font-bold text-slate-400 ${mi.numero}`}>
             {partida.sets.map((s) => `${s.pontosA}-${s.pontosB}`).join(' · ')}

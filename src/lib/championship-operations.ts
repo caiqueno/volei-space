@@ -201,8 +201,9 @@ async function inserirCalendario(
 
   if (existingErr) throw existingErr
   const daLista = (existing ?? []).filter((partida: any) => ids.has(partida.equipeAId) && ids.has(partida.equipeBId))
+  const turnoReturno = await querTurnoReturno(liga.id, equipes.find((equipe) => equipe.categoriaCampeonatoId)?.categoriaCampeonatoId ?? null)
   const existingPairs = new Set(
-    daLista.map((partida: any) => pairKey(partida.equipeAId, partida.equipeBId)),
+    daLista.map((partida: any) => turnoReturno ? `${Number(partida.equipeAId)}>${Number(partida.equipeBId)}` : pairKey(partida.equipeAId, partida.equipeBId)),
   )
   const jaGravados: JogoExistente[] = daLista.map((partida: any) => ({
     aId: Number(partida.equipeAId),
@@ -210,8 +211,8 @@ async function inserirCalendario(
     rodada: Number(partida.rodada),
   }))
 
-  const pairings = buildPairings(equipes, liga.formato, jaGravados)
-    .filter((pair) => !existingPairs.has(pairKey(pair.a.id, pair.b.id)))
+  const pairings = buildPairings(equipes, liga.formato, jaGravados, turnoReturno)
+    .filter((pair) => !existingPairs.has(turnoReturno ? `${pair.a.id}>${pair.b.id}` : pairKey(pair.a.id, pair.b.id)))
   if (pairings.length === 0) return
 
   const start = nextSaturdayAtFive()
@@ -243,7 +244,7 @@ function pairKey(a: number, b: number) {
   return [a, b].sort((left, right) => left - right).join(':')
 }
 
-function buildPairings(equipes: EquipeRecord[], formato?: string | null, existentes: JogoExistente[] = []) {
+function buildPairings(equipes: EquipeRecord[], formato?: string | null, existentes: JogoExistente[] = [], turnoReturno = false) {
   if (formato === 'MATA_MATA' || formato === 'COPA_CURTA') {
     const rows: Array<{ a: EquipeRecord; b: EquipeRecord; rodada: number }> = []
     for (let index = 0; index + 1 < equipes.length; index += 2) {
@@ -252,7 +253,31 @@ function buildPairings(equipes: EquipeRecord[], formato?: string | null, existen
     return rows
   }
 
-  return montarConfrontos(equipes, existentes)
+  return montarConfrontos(equipes, existentes, turnoReturno)
+}
+
+async function querTurnoReturno(ligaId: number, categoriaId: string | null) {
+  if (categoriaId) {
+    const categoria = await supabase
+      .from('CategoriaConfiguracao')
+      .select('turnoReturno')
+      .eq('ligaId', ligaId)
+      .eq('categoriaCampeonatoId', categoriaId)
+      .maybeSingle()
+    if (!categoria.error) return categoria.data?.turnoReturno === true
+    if (!colunaAusente(categoria.error)) throw categoria.error
+  }
+  const liga = await supabase.from('Liga').select('turnoReturno').eq('id', ligaId).maybeSingle()
+  if (liga.error) {
+    if (colunaAusente(liga.error)) return false
+    throw liga.error
+  }
+  return liga.data?.turnoReturno === true
+}
+
+function colunaAusente(erro: { code?: string; message?: string } | null) {
+  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''}`
+  return /42703|PGRST204/i.test(texto)
 }
 
 function nextSaturdayAtFive() {

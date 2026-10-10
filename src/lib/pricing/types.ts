@@ -5,6 +5,7 @@ export interface MatchEstimateInput {
   turnoReturno?: boolean | null
   faseEliminatoria?: string | null
   disputaTerceiroLugar?: boolean | null
+  eliminatoriaIdaVolta?: boolean | null
 }
 
 export interface MatchEstimate {

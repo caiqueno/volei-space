@@ -120,9 +120,9 @@ assert.equal(semFormato.total, 0)
 const semEquipes = estimateMatchCount({ formato: 'PONTOS_CORRIDOS', quantidadeEquipes: 1 })
 assert.equal(semEquipes.disponivel, false)
 
-// Borda: ida e volta NÃO dobra as eliminatórias (não há gerador de jogo de
-// volta hoje — cobrar dobrado seria cobrar por partida inexistente).
-const eliminatoriaIdaVolta = estimateMatchCount({ formato: 'MATA_MATA', faseEliminatoria: 'SEMIFINAL', disputaTerceiroLugar: false })
-assert.equal(eliminatoriaIdaVolta.eliminatorias, 3)
+const eliminatoriaJogoUnico = estimateMatchCount({ formato: 'MATA_MATA', faseEliminatoria: 'SEMIFINAL', disputaTerceiroLugar: false })
+assert.equal(eliminatoriaJogoUnico.eliminatorias, 3)
+const eliminatoriaIdaVolta = estimateMatchCount({ formato: 'MATA_MATA', faseEliminatoria: 'SEMIFINAL', disputaTerceiroLugar: false, eliminatoriaIdaVolta: true })
+assert.equal(eliminatoriaIdaVolta.eliminatorias, 6)
 
 console.log('Pricing Engine validada: valores oficiais, faixas de desconto, cálculo e estimativa de partidas.')
