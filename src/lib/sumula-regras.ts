@@ -85,6 +85,7 @@ export function validarSubstituicoes(input: {
   equipes: EquipeNome[]
   jogadorEquipe?: Map<number, number>
   limite?: number
+  substituicaoPorLesao?: boolean
 }): string | null {
   const limite = limiteDeSubstituicoes(input.limite)
   const controles = new Map<string, ControleSubstituicao>()
@@ -92,7 +93,9 @@ export function validarSubstituicoes(input: {
   for (const ocorrencia of input.ocorrencias ?? []) {
     const tipo = String(ocorrencia.tipo ?? '').trim().toLowerCase()
     if (tipo === 'troca_libero' || tipo === 'libero_exchange') continue
-    if (tipo !== 'substitution' && tipo !== 'substituicao') continue
+    const lesao = tipo === 'lesao' || tipo === 'injury_substitution'
+    if (lesao && input.substituicaoPorLesao === true) continue
+    if (!lesao && tipo !== 'substitution' && tipo !== 'substituicao') continue
 
     const set = Number(ocorrencia.set ?? 1)
     const equipeId = equipeDaOcorrencia(ocorrencia, input.equipes, input.jogadorEquipe)

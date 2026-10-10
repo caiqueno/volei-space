@@ -76,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const validationError = validateSumulaPayload(partida, parsed.data, {
       requireMinimumPresencas: !campeonatoDeSimulacao(partida),
       limiteSubstituicoes: limiteDeSubstituicoes(fonteOficial.limiteSubstituicoesPorSet),
+      substituicaoPorLesao: fonteOficial.substituicaoPorLesao === true,
     })
     if (validationError) return error(validationError, 422)
     const suspenso = await mensagemDeSuspensao(partida, presencas)
@@ -165,6 +166,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     const validationError = validateSumulaPayload(partida, parsed.data, {
       requireMinimumPresencas: false,
       limiteSubstituicoes: limiteDeSubstituicoes(fonteAndamento.limiteSubstituicoesPorSet),
+      substituicaoPorLesao: fonteAndamento.substituicaoPorLesao === true,
     })
     if (validationError) return error(validationError, 422)
     const suspenso = await mensagemDeSuspensao(partida, presencas)
@@ -293,7 +295,7 @@ function campeonatoDeSimulacao(partida: any) {
   return liga?.simulacao === true
 }
 
-function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean; limiteSubstituicoes?: number }) {
+function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean; limiteSubstituicoes?: number; substituicaoPorLesao?: boolean }) {
   const equipeAId = Number(partida.equipeAId)
   const equipeBId = Number(partida.equipeBId)
   const jogadoresA = Array.isArray(partida.equipeA?.jogadores) ? partida.equipeA.jogadores : []
@@ -355,6 +357,7 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
     ],
     jogadorEquipe: jogadoresPorId,
     limite: options.limiteSubstituicoes,
+    substituicaoPorLesao: options.substituicaoPorLesao === true,
   })
   if (substituicoesInvalidas) return substituicoesInvalidas
 

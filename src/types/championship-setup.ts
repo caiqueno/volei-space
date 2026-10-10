@@ -94,6 +94,10 @@ export interface EstruturaSectionDTO extends SectionPatchMeta {
   limiteTemposPorSet?: number | null
   /** Só true mostra o tempo de equipe. Ausente ou false mantém um único tempo. */
   separarTempos?: boolean
+  /** Só true mostra o tempo médico. Ausente ou false não altera os tempos. */
+  tempoMedico?: boolean
+  /** Só true permite substituição por lesão fora do limite. Ausente ou false mantém o par e o teto. */
+  substituicaoPorLesao?: boolean
   pontosPorSet: number | null
   diferencaMinimaSet: number
   tieBreakUltimoSet: boolean
