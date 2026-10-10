@@ -84,7 +84,11 @@
   animation: mi-pop 220ms ease-out backwards;
 }
 
-.numero {
+.numero,
+:global(.timeline-item) strong.numero,
+:global(.luva-card) .numero,
+:global(.championship-card) .numero,
+:global(.public-panel) .numero {
   font-family: var(--font-display), 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
