@@ -2,9 +2,11 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { Barlow_Condensed, Manrope } from 'next/font/google'
 import './globals.css'
+import './micro-interactions.css'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { IndicadorDemora } from '@/components/ui/IndicadorDemora'
+import { TransicaoDeTela } from '@/components/ui/TransicaoDeTela'
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
 
 const sans = Manrope({
@@ -109,7 +111,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <Header />
         </Suspense>
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          <TransicaoDeTela>{children}</TransicaoDeTela>
+        </div>
         <Footer />
       </body>
     </html>

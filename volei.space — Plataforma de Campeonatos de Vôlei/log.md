@@ -13,6 +13,12 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | microinterações visuais
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Entrada de tela, botões, menu hambúrguer, abas legais, aviso e fade de carregamento usam só `transform` e `opacity`, entre 180 e 220ms.
+- `prefers-reduced-motion: reduce` desliga essas animações. Súmula, páginas públicas, pódio, painel e identificação ficam de fora. Os keyframes da base em `globals.css` não mudam.
+
 ## [2026-10-10] decisao | base visual Noite de final
 
 - pages_updated=`09-UI-UX`, `hot`, `log`

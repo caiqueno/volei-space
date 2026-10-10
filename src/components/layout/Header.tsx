@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   ClipboardCheck,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { InstagramIcon } from '@/components/landing/InstagramIcon'
 import { OrganizadorSidebar } from '@/components/painel/organizador/OrganizadorSidebar'
+import { rotaSemMicroInteracao } from '@/lib/motion-rotas'
 import { encerrarSessaoPublica } from '@/lib/sessao-publica'
 
 type HeaderSession = {
@@ -54,6 +55,10 @@ export function Header() {
   const ligaId = ligaInformada && /^\d+$/.test(ligaInformada) ? ligaInformada : null
   const [hydrated, setHydrated] = useState(false)
   const [session, setSession] = useState<HeaderSession | null>(null)
+  const [menuAberto, setMenuAberto] = useState(false)
+  const [menuVisivel, setMenuVisivel] = useState(false)
+  const menuTimer = useRef<number | null>(null)
+  const semMotion = rotaSemMicroInteracao(pathname)
   const panelHref = session?.tipo === 'equipe'
     ? '/capitao'
     : session?.tipo === 'publico'
@@ -86,6 +91,24 @@ export function Header() {
     [scopedLinks, panelHref, telaDoPortal],
   )
 
+  const fecharMenu = useCallback(() => {
+    if (!menuAberto) return
+    if (menuTimer.current) window.clearTimeout(menuTimer.current)
+    setMenuAberto(false)
+    menuTimer.current = window.setTimeout(() => setMenuVisivel(false), 180)
+  }, [menuAberto])
+
+  const alternarMenu = useCallback(() => {
+    if (menuTimer.current) window.clearTimeout(menuTimer.current)
+    if (menuAberto) {
+      setMenuAberto(false)
+      menuTimer.current = window.setTimeout(() => setMenuVisivel(false), 180)
+      return
+    }
+    setMenuVisivel(true)
+    setMenuAberto(true)
+  }, [menuAberto])
+
   useEffect(() => {
     try {
       setSession(JSON.parse(window.localStorage.getItem('luva_session') ?? 'null'))
@@ -94,6 +117,25 @@ export function Header() {
     }
     setHydrated(true)
   }, [pathname])
+
+  useEffect(() => {
+    if (menuTimer.current) window.clearTimeout(menuTimer.current)
+    setMenuAberto(false)
+    setMenuVisivel(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuAberto) return
+    const fechar = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') fecharMenu()
+    }
+    window.addEventListener('keydown', fechar)
+    return () => window.removeEventListener('keydown', fechar)
+  }, [fecharMenu, menuAberto])
+
+  useEffect(() => () => {
+    if (menuTimer.current) window.clearTimeout(menuTimer.current)
+  }, [])
 
   useEffect(() => {
     const root = document.body
@@ -284,7 +326,44 @@ export function Header() {
               </div>
             )}
           </nav>
+
+          {!semMotion && (
+            <button
+              type="button"
+              className="vs-menu-toggle lg:hidden"
+              aria-expanded={menuAberto}
+              aria-controls="menu-principal"
+              aria-label={menuAberto ? 'Fechar menu' : 'Abrir menu'}
+              onClick={alternarMenu}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          )}
         </div>
+
+        {!semMotion && menuVisivel && (
+          <nav
+            id="menu-principal"
+            aria-label="Menu"
+            className={`vs-menu-panel grid gap-1 px-4 pb-4 lg:hidden ${menuAberto ? '' : 'is-closing'}`}
+          >
+            {mobileLinks.map(({ href, label }) => {
+              const active = isActivePath(pathname, href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={fecharMenu}
+                  className={`flex min-h-11 items-center rounded-xl px-3 text-sm font-black ${active ? 'is-active text-white' : 'text-slate-300'}`}
+                >
+                  {label}
+                </Link>
+              )
+            })}
+          </nav>
+        )}
       </header>
 
       {!pathname.startsWith('/partidas') && (

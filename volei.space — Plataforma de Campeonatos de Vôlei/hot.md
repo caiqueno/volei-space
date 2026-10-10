@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Base visual com tokens --vs-*, Barlow Condensed e Manrope só via next/font. Sem !important nem redefinição de utilitários.
+  Microinterações de 150–250ms em transform e opacity, com reduced-motion. Súmula, páginas públicas, pódio e painel ficam de fora.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Microinterações só visuais em `src/app/micro-interactions.css`: entrada de tela, botão (hover, clique e foco), menu hambúrguer, abas dos documentos legais, aviso e fade de carregamento. Durações de 180–220ms, só `transform` e `opacity`. `prefers-reduced-motion: reduce` zera essas regras. Súmula, páginas públicas, pódio, painel e identificação não recebem a troca de tela nem o menu novo. Os keyframes de `globals.css` da base Noite de final ficam como estão. Fonte: [[09-UI-UX]].
 
 Base visual «Noite de final», sem mudar telas, rotas, API ou banco. Tokens `--vs-*` em `globals.css` e `tailwind.config.ts`. Fontes só por `next/font`: Barlow Condensed 600/700 e Manrope 400–700. Saiu o `@import` duplicado da Manrope, a redefinição de utilitários Tailwind e os `!important` dos passes de override. `--luva-*`, `--landing-*` e `--dark-*` ficam como aliases. Fonte: [[09-UI-UX]].
 

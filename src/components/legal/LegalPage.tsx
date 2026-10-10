@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ArrowLeft, CalendarDays, FileCheck2, ShieldCheck } from 'lucide-react'
+import { AbasDocumentos } from './AbasDocumentos'
 
 export type LegalSection = {
   id: string
@@ -48,6 +49,12 @@ export function LegalPage({ eyebrow, title, description, updatedAt, sections, ic
         </div>
       </section>
 
+      <div className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-3">
+          <AbasDocumentos />
+        </div>
+      </div>
+
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 lg:grid-cols-[270px_minmax(0,1fr)] lg:py-14">
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <nav aria-label="Nesta página" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -64,7 +71,7 @@ export function LegalPage({ eyebrow, title, description, updatedAt, sections, ic
           </nav>
         </aside>
 
-        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <article id="documento-legal" role="tabpanel" className="vs-tab-panel overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           {sections.map((section, index) => (
             <section id={section.id} key={section.id} className="scroll-mt-28 border-b border-slate-200 px-6 py-8 last:border-b-0 md:px-10 md:py-10">
               <div className="flex items-start gap-4">

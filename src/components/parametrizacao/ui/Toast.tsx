@@ -12,7 +12,9 @@ type ToastInput = {
   variant?: ToastVariant
 }
 
-type ToastItem = ToastInput & { id: string; variant: ToastVariant }
+type ToastItem = ToastInput & { id: string; variant: ToastVariant; leaving?: boolean }
+
+const SAIDA_MS = 180
 
 // Mesma paleta de FormAlert.tsx (border-*/bg-*/text-* por variante) — não
 // existe nenhuma lib de toast neste projeto (sonner/react-toastify/etc.
@@ -44,8 +46,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
+  const saindo = useRef(new Set<string>())
+
   const dismiss = useCallback((id: string) => {
-    setToasts((current) => current.filter((item) => item.id !== id))
+    if (saindo.current.has(id)) return
+    saindo.current.add(id)
+    setToasts((current) => current.map((item) => (item.id === id ? { ...item, leaving: true } : item)))
+    window.setTimeout(() => {
+      saindo.current.delete(id)
+      setToasts((lista) => lista.filter((item) => item.id !== id))
+    }, SAIDA_MS)
   }, [])
 
   const showToast = useCallback(
@@ -76,7 +86,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <div
                   key={toast.id}
                   role="alert"
-                  className={`flex w-full max-w-sm gap-3 rounded-xl border p-4 shadow-lg shadow-slate-950/30 ${classes}`}
+                  className={`flex w-full max-w-sm gap-3 rounded-xl border p-4 shadow-lg shadow-slate-950/30 ${toast.leaving ? 'vs-toast-out' : 'vs-toast-in'} ${classes}`}
                 >
                   <Icon className="mt-0.5 shrink-0" size={18} />
                   <div className="min-w-0 flex-1">
