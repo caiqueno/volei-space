@@ -5,6 +5,7 @@ import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import mi from '@/styles/microinteracoes.module.css'
 
 const TAMANHO = 24
 
@@ -94,7 +95,7 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {partidas.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
+            {partidas.map((partida, index) => <PartidaCard key={partida.id} partida={partida} atraso={`${Math.min(index, 8) * 30}ms`} />)}
           </div>
           {inicio + TAMANHO < total && (
             <Link href={hrefDoFiltro(ativo, numeroPagina + 1)} className="mt-6 inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-black text-white">
@@ -111,7 +112,7 @@ function Moldura({ filtro, pagina, total, children }: { filtro: Filtro; pagina: 
   return (
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <section className="mx-auto max-w-7xl px-4 py-10">
-        <h1 className="font-display text-4xl font-black text-white">Jogos</h1>
+        <h1 className={`font-display text-4xl font-black text-white ${mi.entrar}`}>Jogos</h1>
         <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">{textoDoTotal(filtro, total)}</p>
         <nav className="mt-6 flex flex-wrap gap-2" aria-label="Filtros dos jogos">
           {FILTROS.map((item) => {
@@ -121,7 +122,7 @@ function Moldura({ filtro, pagina, total, children }: { filtro: Filtro; pagina: 
                 key={item.id}
                 href={hrefDoFiltro(item.id, 1)}
                 aria-current={ligado ? 'page' : undefined}
-                className={`rounded-full px-4 py-2 text-sm font-black ${ligado ? 'bg-[#ffb331] text-[#061426]' : 'border border-white/15 text-white'}`}
+                className={`rounded-full px-4 py-2 text-sm font-black ${mi.toque} ${ligado ? 'bg-[#ffb331] text-[#061426]' : 'border border-white/15 text-white'}`}
               >
                 {item.rotulo}
               </Link>

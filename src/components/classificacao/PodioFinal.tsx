@@ -1,6 +1,7 @@
 import { Trophy } from 'lucide-react'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import type { PodiumTeam } from '@/lib/championship-podium'
+import mi from '@/styles/microinteracoes.module.css'
 
 type Posicao = 1 | 2 | 3
 
@@ -44,9 +45,12 @@ function PodioSpot({ team, isHero }: { team: PodiumTeam; isHero: boolean }) {
     : ({ 1: 'h-28', 2: 'h-20', 3: 'h-16' } as const)[team.posicao]
   const markCompact = isHero || team.posicao !== 1
 
+  const celebracao = team.posicao === 1
+  const atraso = team.posicao === 2 ? '0ms' : team.posicao === 1 ? '70ms' : '35ms'
+
   return (
-    <div role="listitem" className="flex flex-col items-center">
-      <Trophy size={isHero ? 14 : 20} className={`mb-1 shrink-0 ${accent}`} aria-hidden="true" />
+    <div role="listitem" className={`flex flex-col items-center ${celebracao ? `${mi.campeao} ${mi.entrar}` : mi.entrar}`} style={{ animationDelay: atraso }}>
+      <Trophy size={isHero ? 14 : 20} className={`mb-1 shrink-0 ${accent} ${celebracao ? mi.pop : ''}`} aria-hidden="true" />
       <TeamIdentity nome={team.nome} cor={team.corHex} logoUrl={team.logoUrl} compact={markCompact} showName={false} />
       <p className={`mt-1.5 max-w-[86px] truncate text-center font-black text-white ${isHero ? 'text-[11px]' : 'text-sm'}`}>
         {team.nome}

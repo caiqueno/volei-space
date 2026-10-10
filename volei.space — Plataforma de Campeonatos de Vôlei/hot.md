@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Índices das consultas de campeonato, equipe, atleta, partida e súmula estão na migration, sem aplicar no banco.
+  Índices das consultas de campeonato, equipe, atleta, partida e súmula estão na migration, sem aplicar no banco. A súmula e o público já têm as microinterações visuais.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,12 @@ updated: 2026-10-10
 ## Foco atual
 
 A migration `20261010015632_indices_consultas_quentes.sql` só cria índice, se ainda não existir, nas consultas de campeonato, equipe, atleta, partida e súmula. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` passam a ser a primeira coluna de um índice. Os compostos cobrem fase e rodada, status e horário, elenco por equipe, e ocorrência por partida e set. Pontos e presença já estavam cobertos pela unicidade. O `@@index` está no Prisma; a vitrine com `simulacao = false` fica só no SQL. Nada foi aplicado em produção nem em desenvolvimento. Fonte: [[06-BANCO-DE-DADOS]].
+
+A súmula de lançamento ganha microinterações só visuais: ACE, toque no atleta, bloqueio B, troca de set e abertura/fechamento do modal de substituição. São opacidade e transform em `sumula-micro.css`, desligadas com `prefers-reduced-motion`. O lance entra na hora. O `+1` continua com a bola. Fonte: [[09-UI-UX]], [[modulos/SUMULA-DIGITAL]].
+
+Microinterações públicas em `src/styles/microinteracoes.module.css`, em cima da base «Noite de final». Home, campeonato, classificação, jogos, chaveamento, perfil da equipe, pódio e a aparência do painel do organizador. Animação só com `transform` e `opacity`, 160–280ms. `prefers-reduced-motion` desliga. O líder da tabela tem faixa dourada. O campeão do pódio e do chaveamento tem brilho dourado curto. Súmula, menu, toasts, loading e os utilitários de `globals.css` não mudam. Sem API, banco ou permissão. Fonte: [[09-UI-UX]].
+
+Base visual «Noite de final», sem mudar telas, rotas, API ou banco. Tokens `--vs-*` em `globals.css` e `tailwind.config.ts`. Fontes só por `next/font`: Barlow Condensed 600/700 e Manrope 400–700. Saiu o `@import` duplicado da Manrope, a redefinição de utilitários Tailwind e os `!important` dos passes de override. `--luva-*`, `--landing-*` e `--dark-*` ficam como aliases. O seletor do árbitro exclui `.referee-feedback`, e a papeleta ganha as regras novas de linha, saque e número. Fonte: [[09-UI-UX]].
 
 `scripts/import-winners.mjs` deixa de redefinir a senha em toda execução. Se o organizador já está `ATIVA`, o script entra com `ORGANIZADOR_SENHA` e não chama `POST /api/admin/organizadores`. A senha temporária só entra ao criar a conta. `--reset-senha` força a troca. Conta existente fora de `ATIVA` também fica sem troca, até essa flag. O teste `scripts/import-winners.test.mjs` usa chamadas falsas e não abre banco. O script não foi executado contra produção.
 
@@ -28,6 +34,8 @@ A conferência da papeleta na súmula mostra um time por vez, com indicação de
 Correções de interface no campeonato público, sem API, Prisma nem cálculo de tabela. A página do slug mostra a chave e, se `FINALIZADO`, o pódio da final e do 3º lugar. Inscrições fechadas escondem «Inscrever equipe» e «Já tenho conta». O status usa `formatLigaStatus` também em Rankings. Jogos e portal nomeiam a fase (`3º lugar`) e omitem data ou local ausente em partida encerrada. `/classificacao?ligaId=` expande o campeonato da lista pública. O perfil da equipe quebra o nome do atleta e usa rótulo de formato. Fonte: [[09-UI-UX]], [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]].
 
 Na faixa de placar da súmula, cada equipe ficou com um único `+1`. Ele registra o ponto sem jogador: sem modal, sem `jogadorId` e com o histórico «Sem jogador». O modal de saque, bloqueio ou ataque saiu, porque só o `+1` antigo o abria. ACE, o toque no atleta, o bloqueio da rede e a quadra 3D continuam atribuindo o ponto. Tempos, desfazer, placar e rodízio não mudaram. Fonte: [[modulos/SUMULA-DIGITAL]].
+
+Movimento reutilizável em `src/styles/vs-motion.css` e `VolleyballBurst`. O +1 da súmula usa press, foco e a bola. O clique registra antes da animação. Sem API, banco ou data fetching. Fonte: [[09-UI-UX]].
 
 A geração de grupos, o mata-mata e o calendário automático passam a gravar `categoriaCampeonatoId` e `serie` nula. Sem isso o gatilho recusa a partida. `Partida.atualizadoEm` ganha default `now()` na migration `202610090004_partida_atualizado_em_default.sql`, ainda não aplicada em produção. O prefixo `202610090001` continua sendo a revogação de EXECUTE. O `GET` da estrutura devolve `sumulaToken`. O script `scripts/import-winners.mjs` cria Winners Oficial, Winners Teste e Winner QA pelo HTTP do app: inscrição aprovada, grupos, súmula e mata-mata em jogo único. A confirmação simulada de pagamento sai da sessão de administrador, porque o organizador não confirma com o gateway desligado. No Winners Teste o campeão sai da final, e finalizar exige essa final e o 3º lugar. A tabela continua só com a fase de grupos. O script não foi executado neste merge. Fonte: [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 

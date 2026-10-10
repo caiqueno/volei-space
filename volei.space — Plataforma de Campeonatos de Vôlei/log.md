@@ -18,6 +18,27 @@ updated: 2026-10-10
 - pages_updated=`06-BANCO-DE-DADOS`, `hot`, `log`
 - `20261010015632_indices_consultas_quentes.sql` cria índice se ainda não existir. Não apaga linha. O `@@index` correspondente está no Prisma, exceto a vitrine parcial de `Liga` com `simulacao = false`. Não foi aplicada em produção nem em desenvolvimento.
 
+## [2026-10-10] query | microinterações da súmula
+
+- pages_updated=`09-UI-UX`, `modulos/SUMULA-DIGITAL`, `hot`, `log`
+- ACE, toque no atleta, bloqueio B, troca de set e o modal de substituição ganham pulso local de opacidade e transform. O ponto continua no mesmo clique. O `+1` continua com a bola.
+
+## [2026-10-10] decisao | microinterações públicas
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Camada visual em `src/styles/microinteracoes.module.css`. Entrada, hover, toque, líder, chaveamento e brilho do campeão usam só `transform` e `opacity`, entre 160ms e 280ms. `prefers-reduced-motion` desliga. Não altera súmula, menu, toasts, loading, API, banco nem os utilitários da base do PR #17.
+
+## [2026-10-10] decisao | base de movimento e bola no +1
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Tokens `--vs-motion-*` e classes `.vs-press`, `.vs-tap`, `.vs-tap-play`, `.vs-hover`, `.vs-focus` em `src/styles/vs-motion.css`. `VolleyballBurst` (`children`, `enabled`) no +1 da súmula. Só transform e opacity; `prefers-reduced-motion` desliga. O ponto não espera a bola. Sem API, banco, auth ou data fetching.
+
+## [2026-10-10] decisao | base visual Noite de final
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Tokens `--vs-*` passam a ser a paleta única. `--luva-*`, `--landing-*` e `--dark-*` viram aliases. Barlow Condensed e Manrope carregam só por `next/font`.
+- `globals.css` deixa de redefinir utilitários Tailwind e de usar `!important` nos passes de override. Lógica, rotas, API e banco não mudam. As regras novas da papeleta e do número da camisa entram junto.
+
 ## [2026-10-10] fix | senha idempotente na importação Winners
 
 - pages_updated=`hot`, `log`

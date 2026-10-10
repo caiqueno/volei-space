@@ -31,6 +31,9 @@ import {
   Users,
 } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
+import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
+import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
+import './sumula-micro.css'
 
 type TeamId = 'teamA' | 'teamB'
 type TabId = 'pre' | 'resumo' | 'pontuacao' | 'escalacao' | 'tempos' | 'anotacoes'
@@ -1167,7 +1170,7 @@ export default function SumulaPage() {
           <div className="official-live-card">
             <div className="official-live-status">
               <span><i /> Partida ao vivo</span>
-              <em>Set {currentSet}</em>
+              <em key={currentSet} className="sumula-micro-set">Set {currentSet}</em>
             </div>
             <strong>{leftTeam.name} <small>vs</small> {rightTeam.name}</strong>
             <div className="official-live-score">
@@ -2105,20 +2108,22 @@ function PontuacaoTab(props: {
         />
       </div>
       )}
-      {props.subModal && (
-        <PlayerModal
-          title="Substituir atleta"
-          team={substitutionTeam}
-          lineup={substitutionLineup}
-          bench={substitutionBench}
-          onlyBench={props.allowedSubstitutions}
-          notice={props.substitutionNotice}
-          teamId={props.subModal.teamId}
-          getMatchNumber={props.getMatchNumber}
-          onSelect={props.onSelectSubstitution}
-          onClose={props.onCloseSubstitution}
-        />
-      )}
+      <SumulaSubShell aberto={Boolean(props.subModal)}>
+        {props.subModal ? (
+          <PlayerModal
+            title="Substituir atleta"
+            team={substitutionTeam}
+            lineup={substitutionLineup}
+            bench={substitutionBench}
+            onlyBench={props.allowedSubstitutions}
+            notice={props.substitutionNotice}
+            teamId={props.subModal.teamId}
+            getMatchNumber={props.getMatchNumber}
+            onSelect={props.onSelectSubstitution}
+            onClose={props.onCloseSubstitution}
+          />
+        ) : null}
+      </SumulaSubShell>
       <section className="official-point-history" aria-label="Últimos pontos">
         <h3>Últimos pontos</h3>
         <ol>
@@ -2188,6 +2193,7 @@ function EscalacaoTab(props: {
   const [substitutionMode, setSubstitutionMode] = useState(false)
   const [editingNumberSlot, setEditingNumberSlot] = useState<number | null>(null)
   const [editingNumberDraft, setEditingNumberDraft] = useState('')
+  const [pulsoAtleta, setPulsoAtleta] = useState<string | null>(null)
   useEffect(() => {
     if (props.lineupConfirmed) return
     if (props.lineupConfirmedA && !props.lineupConfirmedB) setSelectedTeamId('teamB')
@@ -2265,13 +2271,17 @@ function EscalacaoTab(props: {
                 key={`${teamId}-${slot.label}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => abrirPosicao(teamId, slot.index)}
+                onClick={() => {
+                  abrirPosicao(teamId, slot.index)
+                  dispararPulso(setPulsoAtleta, `${teamId}-${slot.index}`)
+                }}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter' && event.key !== ' ') return
                   event.preventDefault()
                   abrirPosicao(teamId, slot.index)
                 }}
-                className={`${number ? 'is-filled' : ''} ${teamId === selectedTeamId && substitutionMode ? 'is-substitution-mode' : ''} ${number && number === sideLibero ? 'is-libero-start' : ''}`}
+                className={`${number ? 'is-filled' : ''} ${teamId === selectedTeamId && substitutionMode ? 'is-substitution-mode' : ''} ${number && number === sideLibero ? 'is-libero-start' : ''} ${pulsoAtleta === `${teamId}-${slot.index}` ? 'sumula-micro-tap' : ''}`}
+                onAnimationEnd={(event) => limparPulso(event, setPulsoAtleta)}
               >
                 <span>{slot.label}</span>
                 {number && canEditNumber && editingNumberSlot === slot.index ? (
@@ -2342,7 +2352,7 @@ function EscalacaoTab(props: {
       <div className="official-grid">
         <section className="official-mini-panel official-span-8">
           <div className="official-section-row official-lineup-heading">
-            <h3>Papeleta de distribuição tática - Set {props.currentSet}</h3>
+            <h3 key={props.currentSet} className="sumula-micro-set">Papeleta de distribuição tática - Set {props.currentSet}</h3>
             <div>
               {props.lineupConfirmed && (
                 <button
@@ -2517,12 +2527,16 @@ function EscalacaoTab(props: {
                 key={number}
                 type="button"
                 draggable={!props.lineupConfirmed}
-                className={pickedNumber === number ? 'is-picked' : ''}
+                className={`${pickedNumber === number ? 'is-picked' : ''} ${pulsoAtleta === `banco-${number}` ? 'sumula-micro-tap' : ''}`}
+                onAnimationEnd={(event) => limparPulso(event, setPulsoAtleta)}
                 onDragStart={(event) => {
                   event.dataTransfer.setData('text/plain', number)
                   event.dataTransfer.effectAllowed = 'move'
                 }}
-                onClick={() => setPickedNumber((atual) => atual === number ? null : number)}
+                onClick={() => {
+                  setPickedNumber((atual) => atual === number ? null : number)
+                  dispararPulso(setPulsoAtleta, `banco-${number}`)
+                }}
               >
                 <strong>#{props.getMatchNumber(selectedTeamId, number)}</strong>
                 <span>{getAnyPlayer(team, number)?.name ?? 'Atleta'}</span>
@@ -2543,18 +2557,20 @@ function EscalacaoTab(props: {
           onClose={() => props.setEditingSlot(null)}
         />
       )}
-      {props.subModal && (
-        <PlayerModal
-          title="Anotar substituição"
-          team={props.subModal.teamId === 'teamA' ? props.teamA : props.teamB}
-          lineup={props.subModal.teamId === 'teamA' ? props.lineupA : props.lineupB}
-          bench={props.subModal.teamId === 'teamA' ? props.benchA : props.benchB}
-          onlyBench={props.allowedSubstitutions}
-          notice={props.substitutionNotice}
-          onSelect={props.executeSubstitution}
-          onClose={props.closeSubModal}
-        />
-      )}
+      <SumulaSubShell aberto={Boolean(props.subModal)}>
+        {props.subModal ? (
+          <PlayerModal
+            title="Anotar substituição"
+            team={props.subModal.teamId === 'teamA' ? props.teamA : props.teamB}
+            lineup={props.subModal.teamId === 'teamA' ? props.lineupA : props.lineupB}
+            bench={props.subModal.teamId === 'teamA' ? props.benchA : props.benchB}
+            onlyBench={props.allowedSubstitutions}
+            notice={props.substitutionNotice}
+            onSelect={props.executeSubstitution}
+            onClose={props.closeSubModal}
+          />
+        ) : null}
+      </SumulaSubShell>
     </div>
   )
 }
@@ -2842,7 +2858,7 @@ function CompactScoreDock({
         <strong>{currentScore.teamA}</strong>
         <em>Sacador #{serverA || '--'}</em>
       </div>
-      <div className="official-score-dock-center">
+      <div key={currentSet} className="official-score-dock-center sumula-micro-set">
         <small>Set {currentSet}</small>
         <b>{setsWon.teamA} x {setsWon.teamB}</b>
         <span>sets</span>
@@ -2854,6 +2870,17 @@ function CompactScoreDock({
       </div>
     </div>
   )
+}
+
+function dispararPulso(setPulso: (valor: string | null) => void, id: string) {
+  setPulso(null)
+  queueMicrotask(() => setPulso(id))
+}
+
+function limparPulso(event: { target: EventTarget | null; currentTarget: EventTarget | null; animationName: string }, setPulso: (valor: string | null) => void) {
+  if (event.target !== event.currentTarget) return
+  if (!event.animationName.startsWith('sumula-micro')) return
+  setPulso(null)
 }
 
 function CompactTeamControl({
@@ -2881,6 +2908,7 @@ function CompactTeamControl({
   onTimeout: () => void
   events: MatchEvent[]
 }) {
+  const [pulsoAce, setPulsoAce] = useState(false)
   const ultimo = events.find((event) => event.teamId === teamId && (event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)))
   const rotulo = ultimo ? lerRotuloPonto(ultimo.text) ?? ROTULO_PONTO[ultimo.type as OrigemPonto] : null
   const jogador = ultimo ? lerJogadorPonto(ultimo.text) : null
@@ -2893,7 +2921,7 @@ function CompactTeamControl({
       <span className="official-compact-score-team-name">{team.name}</span>
       <strong>{score.toString().padStart(2, '0')}</strong>
       {serving ? (
-        <button className="official-compact-icon-action is-ace" type="button" onClick={onAce} aria-label={`ACE para ${team.name}`}>ACE</button>
+        <button className={`official-compact-icon-action is-ace${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
       ) : (
         <i aria-hidden="true" />
       )}
@@ -2902,7 +2930,9 @@ function CompactTeamControl({
         {timeoutsUsed}/2
       </button>
       <div className="official-point-actions">
-        <button className="official-compact-point-action" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
+        <VolleyballBurst>
+          <button className="official-compact-point-action vs-press vs-focus" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
+        </VolleyballBurst>
       </div>
       <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (
@@ -2999,7 +3029,7 @@ function FloatingScoreBar({
         <strong>{currentScore.teamA}</strong>
         <em>#{serverA || '--'}</em>
       </div>
-      <div className="official-floating-score-set">
+      <div key={currentSet} className="official-floating-score-set sumula-micro-set">
         <span>Set {currentSet}</span>
         <strong>{setsWon.teamA} x {setsWon.teamB}</strong>
       </div>
@@ -3135,6 +3165,7 @@ function RosterClickers({
   onBlock: (number: string) => void
   onSubstitution: (teamId: TeamId, index: number) => void
 }) {
+  const [pulso, setPulso] = useState<string | null>(null)
   const visualSlots = !mirrored
     ? [
       { label: 'P5', index: 3 },
@@ -3171,12 +3202,17 @@ function RosterClickers({
               className={`official-player-card ${frontRow ? 'is-front-row' : 'is-back-row'} ${servingTeam && index === serverIndex ? 'is-serving' : ''} ${scored ? 'is-scored' : ''}`}
               role="button"
               tabIndex={0}
-              onClick={() => number && onAttack(number)}
+              onClick={() => {
+                if (!number) return
+                onAttack(number)
+                dispararPulso(setPulso, `${index}:tap`)
+              }}
               onKeyDown={(event) => {
                 if (!number) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
                   onAttack(number)
+                  dispararPulso(setPulso, `${index}:tap`)
                 }
               }}
               aria-label={`Ponto de ataque do atleta ${number}`}
@@ -3184,7 +3220,7 @@ function RosterClickers({
               <div className="official-player-card-top">
                 <i>{slot.label}</i>
               </div>
-              <div className="official-player-identity">
+              <div className={`official-player-identity${pulso === `${index}:tap` ? ' sumula-micro-tap' : ''}`} onAnimationEnd={(event) => limparPulso(event, setPulso)}>
                 {number ? (
                   <span className="official-player-number-edit">{getMatchNumber(teamId, number)}</span>
                 ) : (
@@ -3193,7 +3229,7 @@ function RosterClickers({
                 {nome && <small className="official-player-name">{nome}</small>}
               </div>
               <div className="official-player-actions">
-                {frontRow && number && <button className="official-point-action is-block" type="button" onClick={(event) => { event.stopPropagation(); onBlock(number) }} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
+                {frontRow && number && <button className={`official-point-action is-block${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
                 {number && <button className="official-sub-action is-icon" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
               </div>
               {scored && <b>+1</b>}
