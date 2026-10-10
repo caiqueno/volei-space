@@ -9,20 +9,32 @@ import {
   validarSaquesIniciais,
   type LadoSaque,
 } from '../src/lib/saque-inicial'
+import { setsDaFase } from '../src/lib/sets-por-fase'
 
 const equipes = { teamA: 'Vôlei Ícaro 05', teamB: 'Vôlei Cume 05' }
 
-assert.equal(modoSaqueInicial(1), 'escolha')
-assert.equal(modoSaqueInicial(2), 'alternancia')
-assert.equal(modoSaqueInicial(3), 'alternancia')
-assert.equal(modoSaqueInicial(4), 'alternancia')
-assert.equal(modoSaqueInicial(5), 'sorteio')
-assert.equal(saqueObrigatorio(2, 'teamA'), 'teamB')
-assert.equal(saqueObrigatorio(3, 'teamB'), 'teamA')
-assert.equal(saqueObrigatorio(4, 'teamA'), 'teamB')
-assert.equal(saqueObrigatorio(1, 'teamA'), null)
-assert.equal(saqueObrigatorio(5, 'teamB'), null)
-assert.equal(saqueObrigatorio(2, null), null)
+assert.equal(modoSaqueInicial(1, 3), 'escolha')
+assert.equal(modoSaqueInicial(2, 3), 'alternancia')
+assert.equal(modoSaqueInicial(3, 3), 'sorteio')
+assert.equal(modoSaqueInicial(1, 5), 'escolha')
+assert.equal(modoSaqueInicial(2, 5), 'alternancia')
+assert.equal(modoSaqueInicial(3, 5), 'alternancia')
+assert.equal(modoSaqueInicial(4, 5), 'alternancia')
+assert.equal(modoSaqueInicial(5, 5), 'sorteio')
+assert.equal(modoSaqueInicial(2), 'alternancia', 'sem quantidade, o padrão da fase é melhor de 3')
+assert.equal(modoSaqueInicial(3), 'sorteio')
+assert.equal(saqueObrigatorio(2, 'teamA', 3), 'teamB')
+assert.equal(saqueObrigatorio(3, 'teamB', 3), null)
+assert.equal(saqueObrigatorio(2, 'teamA', 5), 'teamB')
+assert.equal(saqueObrigatorio(3, 'teamB', 5), 'teamA')
+assert.equal(saqueObrigatorio(4, 'teamA', 5), 'teamB')
+assert.equal(saqueObrigatorio(1, 'teamA', 5), null)
+assert.equal(saqueObrigatorio(5, 'teamB', 5), null)
+assert.equal(saqueObrigatorio(2, null, 5), null)
+assert.equal(modoSaqueInicial(4, 4), 'sorteio')
+assert.equal(modoSaqueInicial(3, 4), 'alternancia')
+assert.equal(modoSaqueInicial(2, 2), 'sorteio')
+assert.equal(modoSaqueInicial(3, 0), 'sorteio', 'quantidade inválida volta ao padrão de 3')
 assert.equal(ladoOposto('teamA'), 'teamB')
 assert.equal(sortearLado(0), 'teamA')
 assert.equal(sortearLado(0.49), 'teamA')
@@ -43,7 +55,7 @@ const sequencia = [
   ocorrencia(4, 'teamB', equipes.teamB),
   ocorrencia(5, 'teamA', equipes.teamA, 'Sorteio do tie-break. '),
 ]
-assert.equal(validarSaquesIniciais(sequencia, equipes), null)
+assert.equal(validarSaquesIniciais(sequencia, equipes, 5), null)
 assert.deepEqual(extrairSaquesIniciais(sequencia, equipes), {
   1: 'teamA',
   2: 'teamB',
@@ -56,21 +68,27 @@ assert.match(
   validarSaquesIniciais([
     ocorrencia(1, 'teamA', equipes.teamA),
     ocorrencia(2, 'teamA', equipes.teamA),
-  ], equipes) ?? '',
+  ], equipes, 3) ?? '',
   /set 2/,
 )
+
+assert.equal(validarSaquesIniciais([
+  ocorrencia(1, 'teamA', equipes.teamA),
+  ocorrencia(2, 'teamB', equipes.teamB),
+  ocorrencia(3, 'teamB', equipes.teamB),
+], equipes, 3), null, 'melhor de 3 sorteia o 3º, que pode repetir o lado do 2º')
 
 assert.match(
   validarSaquesIniciais([
     ocorrencia(1, 'teamB', equipes.teamB),
     ocorrencia(2, 'teamA', equipes.teamA),
     ocorrencia(3, 'teamA', equipes.teamA),
-  ], equipes) ?? '',
+  ], equipes, 5) ?? '',
   /set 3/,
 )
 
 assert.match(
-  validarSaquesIniciais([ocorrencia(2, 'teamB', equipes.teamB)], equipes) ?? '',
+  validarSaquesIniciais([ocorrencia(2, 'teamB', equipes.teamB)], equipes, 3) ?? '',
   /set 2/,
 )
 
@@ -78,7 +96,7 @@ assert.match(
   validarSaquesIniciais([
     ocorrencia(1, 'teamA', equipes.teamA),
     ocorrencia(4, 'teamB', equipes.teamB),
-  ], equipes) ?? '',
+  ], equipes, 5) ?? '',
   /set 4/,
   'set 4 exige o saque do set 3',
 )
@@ -89,7 +107,7 @@ assert.match(
     ocorrencia(2, 'teamB', equipes.teamB),
     ocorrencia(3, 'teamA', equipes.teamA),
     ocorrencia(4, 'teamA', equipes.teamA),
-  ], equipes) ?? '',
+  ], equipes, 5) ?? '',
   /set 4/,
 )
 
@@ -100,7 +118,29 @@ const tieBreakIgualAoAnterior = [
   ocorrencia(4, 'teamB', equipes.teamB),
   ocorrencia(5, 'teamB', equipes.teamB),
 ]
-assert.equal(validarSaquesIniciais(tieBreakIgualAoAnterior, equipes), null)
+assert.equal(validarSaquesIniciais(tieBreakIgualAoAnterior, equipes, 5), null)
+
+const quartas = setsDaFase({ setsPorPartida: 3, setsPorPartidaQuartas: 5 }, 'QUARTAS')
+assert.equal(quartas, 5)
+assert.equal(modoSaqueInicial(4, quartas), 'alternancia')
+assert.equal(modoSaqueInicial(5, quartas), 'sorteio')
+assert.equal(saqueObrigatorio(4, 'teamA', quartas), 'teamB')
+assert.equal(saqueObrigatorio(5, 'teamA', quartas), null)
+
+const oitavasHerdadas = setsDaFase({ setsPorPartida: 3, setsPorPartidaOitavas: null }, 'OITAVAS')
+assert.equal(oitavasHerdadas, 3)
+assert.equal(modoSaqueInicial(2, oitavasHerdadas), 'alternancia')
+assert.equal(modoSaqueInicial(3, oitavasHerdadas), 'sorteio')
+
+const finalCurta = setsDaFase({ setsPorPartida: 5, setsPorPartidaFinal: 3 }, 'FINAL')
+assert.equal(finalCurta, 3)
+assert.equal(modoSaqueInicial(2, finalCurta), 'alternancia')
+assert.equal(modoSaqueInicial(3, finalCurta), 'sorteio')
+assert.equal(validarSaquesIniciais([
+  ocorrencia(1, 'teamA', equipes.teamA),
+  ocorrencia(2, 'teamB', equipes.teamB),
+  ocorrencia(3, 'teamA', equipes.teamA),
+], equipes, finalCurta), null)
 
 const trocaDeSaque = {
   tipo: 'anotacao',
@@ -137,4 +177,4 @@ assert.equal(
 assert.equal(validarSaquesIniciais([], equipes), null)
 assert.equal(validarSaquesIniciais(null, equipes), null)
 
-console.log('Saque inicial: escolha no set 1, alternância nos sets 2 a 4 e sorteio livre no 5º.')
+console.log('Saque inicial: melhor de 3 alterna nos sets 1 e 2 e sorteia o 3º; melhor de 5 alterna até o 4º e sorteia o 5º.')

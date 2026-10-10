@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Corrigir o último ponto permanece depois de recarregar. Um PUT atrasado não regrava o placar antigo. Se o salvamento mais novo falhar, a súmula mostra o erro.
+  O saque alterna até o penúltimo set da fase e o último sai de sorteio. Melhor de 3 sorteia o 3º; melhor de 5 sorteia o 5º. Não há migration nem merge.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o saque inicial segue a quantidade de sets da fase. O set 1 é escolha da mesa. Do set 2 até o penúltimo, saca quem não sacou no set anterior. O último set, se a fase tem mais de um, sai de sorteio. Melhor de 3 sorteia o 3º; melhor de 5 sorteia o 5º. Quartas, oitavas, semifinal, final e 3º lugar usam a quantidade já resolvida por `setsDaFase`. `setsPorPartidaQuartas` e `setsPorPartidaOitavas` já estão em produção. Esta mudança não cria coluna, não aplica migration e não entra na main sem autorização. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 corrigir o último ponto da partida 1095 deixava o 1x0 na tela e, ao recarregar, voltava o 2x0. O `PUT` das 11:46:55 UTC gravou `1:1-0` com 204. O `PUT` das 11:46:57 gravou `1:2-0` por cima e reinseriu os dois pontos. `gravar_sumula_partida` não guarda o ponto apagado: ela grava o corpo que chegou por último. A tela agora manda `versao` e, se o placar mudar no meio do envio, manda de novo o estado atual. O servidor recusa versão menor ou reserva mais antiga e responde 409. A falha do salvamento mais novo aparece no aviso. A marca `[[V:N]]` fica no texto do registro de placar. A reserva é uma ocorrência `Registro de andamento`. Nenhuma coluna nova. A página do árbitro precisa ser recarregada para pegar esse envio. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 

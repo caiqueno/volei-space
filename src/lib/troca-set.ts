@@ -10,8 +10,8 @@ export type TransicaoSet = {
 
 /**
  * Encerrar um set que ainda não fecha a partida troca o lado da quadra.
- * O saque do set seguinte reusa a regra já aprovada: alternância nos sets
- * 2 a 4 e sorteio no 5º. O lado é só visual; o id da equipe que saca não muda.
+ * O saque do set seguinte usa a quantidade da fase: alterna até o penúltimo
+ * e o último set fica para o sorteio. O lado é só visual; o id da equipe que saca não muda.
  */
 export function transicaoAoEncerrarSet(input: {
   setAtual: number
@@ -31,7 +31,7 @@ export function transicaoAoEncerrarSet(input: {
       proximoSet: null,
       ladosInvertidos: input.ladosInvertidos,
       saque: null,
-      modoSaque: modoSaqueInicial(input.setAtual),
+      modoSaque: modoSaqueInicial(input.setAtual, input.setsPorPartida),
     }
   }
   const proximoSet = input.setAtual + 1
@@ -39,7 +39,7 @@ export function transicaoAoEncerrarSet(input: {
     segue: true,
     proximoSet,
     ladosInvertidos: !input.ladosInvertidos,
-    saque: saqueObrigatorio(proximoSet, input.saqueInicialDoSet),
-    modoSaque: modoSaqueInicial(proximoSet),
+    saque: saqueObrigatorio(proximoSet, input.saqueInicialDoSet, input.setsPorPartida),
+    modoSaque: modoSaqueInicial(proximoSet, input.setsPorPartida),
   }
 }

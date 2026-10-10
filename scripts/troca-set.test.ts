@@ -27,7 +27,21 @@ const aposSet2 = transicaoAoEncerrarSet({
 })
 assert.equal(aposSet2.proximoSet, 3)
 assert.equal(aposSet2.ladosInvertidos, false)
-assert.equal(aposSet2.saque, 'teamA')
+assert.equal(aposSet2.modoSaque, 'sorteio')
+assert.equal(aposSet2.saque, null)
+
+const aposSet2DeCinco = transicaoAoEncerrarSet({
+  setAtual: 2,
+  setsPorPartida: 5,
+  setsParaVencer: 3,
+  setsA: 1,
+  setsB: 1,
+  ladosInvertidos: true,
+  saqueInicialDoSet: 'teamB',
+})
+assert.equal(aposSet2DeCinco.proximoSet, 3)
+assert.equal(aposSet2DeCinco.modoSaque, 'alternancia')
+assert.equal(aposSet2DeCinco.saque, 'teamA')
 
 const fimEmDoisSets = transicaoAoEncerrarSet({
   setAtual: 2,
@@ -57,4 +71,4 @@ assert.equal(tieBreak.ladosInvertidos, true)
 assert.equal(tieBreak.modoSaque, 'sorteio')
 assert.equal(tieBreak.saque, null)
 
-console.log('Troca de set: o lado inverte quando o jogo segue; o saque alterna até o 4º e o 5º fica no sorteio.')
+console.log('Troca de set: o lado inverte quando o jogo segue; o último set da fase fica no sorteio.')

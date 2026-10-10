@@ -6,7 +6,7 @@ import { recalculateLeagueClassification, syncLeagueLifecycle } from '@/lib/cham
 import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-access'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
-import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { regrasParaFase, validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
 import { carregarFonteDeSets, regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { mensagemSancaoInvalida } from '@/lib/sancoes'
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       requireMinimumPresencas: !campeonatoDeSimulacao(partida),
       limiteSubstituicoes: limiteDeSubstituicoes(fonteOficial.limiteSubstituicoesPorSet),
       substituicaoPorLesao: fonteOficial.substituicaoPorLesao === true,
+      setsPorPartida: regrasParaFase(fonteOficial, partida.fase).setsPorPartida,
     })
     if (validationError) return error(validationError, 422)
     const suspenso = await mensagemDeSuspensao(partida, presencas)
@@ -170,6 +171,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
       requireMinimumPresencas: false,
       limiteSubstituicoes: limiteDeSubstituicoes(fonteAndamento.limiteSubstituicoesPorSet),
       substituicaoPorLesao: fonteAndamento.substituicaoPorLesao === true,
+      setsPorPartida: regrasParaFase(fonteAndamento, partida.fase).setsPorPartida,
     })
     if (validationError) return error(validationError, 422)
     const suspenso = await mensagemDeSuspensao(partida, presencas)
@@ -308,7 +310,7 @@ function campeonatoDeSimulacao(partida: any) {
   return liga?.simulacao === true
 }
 
-function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean; limiteSubstituicoes?: number; substituicaoPorLesao?: boolean }) {
+function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean; limiteSubstituicoes?: number; substituicaoPorLesao?: boolean; setsPorPartida?: number }) {
   const equipeAId = Number(partida.equipeAId)
   const equipeBId = Number(partida.equipeBId)
   const jogadoresA = Array.isArray(partida.equipeA?.jogadores) ? partida.equipeA.jogadores : []
@@ -377,7 +379,7 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
   return validarSaquesIniciais(payload.ocorrencias, {
     teamA: String(equipeA?.nome ?? ''),
     teamB: String(equipeB?.nome ?? ''),
-  })
+  }, options.setsPorPartida)
 }
 
 function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB: number }>, rules: CategoryMatchRules) {

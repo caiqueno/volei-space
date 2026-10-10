@@ -1,3 +1,5 @@
+import { inteiroDeSets } from '@/lib/sets-por-fase'
+
 export type LadoSaque = 'teamA' | 'teamB'
 export type ModoSaqueInicial = 'escolha' | 'alternancia' | 'sorteio'
 
@@ -13,21 +15,29 @@ export type NomesEquipeSaque = {
 }
 
 /**
- * Set 1 é escolha. Sets 2, 3 e 4 alternam com o set anterior.
- * O 5º set é tie-break e sai de um sorteio novo.
+ * O set 1 é a escolha da mesa. Os sets do meio alternam com quem não sacou
+ * no set anterior. O último set da fase, quando ela tem mais de um set, sai
+ * de um sorteio novo. Melhor de 3 sorteia o 3º; melhor de 5 sorteia o 5º.
+ * A quantidade é a da fase, já resolvida por `setsDaFase`.
  */
-export function modoSaqueInicial(setNumero: number): ModoSaqueInicial {
+export function modoSaqueInicial(setNumero: number, setsDaFase: number | null | undefined = 3): ModoSaqueInicial {
+  const quantidade = inteiroDeSets(setsDaFase) ?? 3
   if (!Number.isInteger(setNumero) || setNumero <= 1) return 'escolha'
-  if (setNumero >= 5) return 'sorteio'
-  return 'alternancia'
+  if (quantidade > 1 && setNumero >= quantidade) return 'sorteio'
+  if (setNumero > 1 && setNumero < quantidade) return 'alternancia'
+  return 'escolha'
 }
 
 export function ladoOposto(lado: LadoSaque): LadoSaque {
   return lado === 'teamA' ? 'teamB' : 'teamA'
 }
 
-export function saqueObrigatorio(setNumero: number, saqueAnterior: LadoSaque | null | undefined): LadoSaque | null {
-  if (modoSaqueInicial(setNumero) !== 'alternancia') return null
+export function saqueObrigatorio(
+  setNumero: number,
+  saqueAnterior: LadoSaque | null | undefined,
+  setsDaFase: number | null | undefined = 3,
+): LadoSaque | null {
+  if (modoSaqueInicial(setNumero, setsDaFase) !== 'alternancia') return null
   if (saqueAnterior !== 'teamA' && saqueAnterior !== 'teamB') return null
   return ladoOposto(saqueAnterior)
 }
@@ -78,9 +88,11 @@ export function extrairSaquesIniciais(
 export function validarSaquesIniciais(
   ocorrencias: OcorrenciaSaque[] | null | undefined,
   equipes: NomesEquipeSaque,
+  setsDaFase: number | null | undefined = 3,
 ): string | null {
+  const quantidade = inteiroDeSets(setsDaFase) ?? 3
   const saques = extrairSaquesIniciais(ocorrencias, equipes)
-  for (const set of [2, 3, 4]) {
+  for (let set = 2; set < quantidade; set += 1) {
     const atual = saques[set]
     if (!atual) continue
     const anterior = saques[set - 1]

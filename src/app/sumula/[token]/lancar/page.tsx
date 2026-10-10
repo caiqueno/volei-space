@@ -789,10 +789,11 @@ export default function SumulaPage() {
     setActiveTab('pontuacao')
     const starterName = chosenServer === 'teamA' ? teamA?.name : teamB?.name
     const anterior = initialServerBySet[currentSet - 1]
-    const motivo = modoSaqueInicial(currentSet) === 'alternancia' && (anterior === 'teamA' || anterior === 'teamB')
+    const modoSaque = modoSaqueInicial(currentSet, matchRules.setsPerMatch)
+    const motivo = modoSaque === 'alternancia' && (anterior === 'teamA' || anterior === 'teamB')
       ? ` Alternância: ${starterName ?? 'A equipe'} não sacou no set ${currentSet - 1}.`
-      : modoSaqueInicial(currentSet) === 'sorteio'
-        ? ' Sorteio do tie-break definiu o saque deste set.'
+      : modoSaque === 'sorteio'
+        ? ` Sorteio do set ${currentSet} definiu o saque deste set.`
         : ''
     addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
     if (currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO') {
@@ -814,12 +815,12 @@ export default function SumulaPage() {
   }
 
   function setInitialServerForCurrentSet(teamId: TeamId) {
-    if (modoSaqueInicial(currentSet) === 'alternancia') return
+    if (modoSaqueInicial(currentSet, matchRules.setsPerMatch) === 'alternancia') return
     setInitialServerBySet((current) => ({ ...current, [currentSet]: teamId }))
   }
 
   function registrarSorteioTieBreak(teamId: TeamId, origem: 'aplicativo' | 'mesa') {
-    if (modoSaqueInicial(currentSet) !== 'sorteio' || !teamA || !teamB) return
+    if (modoSaqueInicial(currentSet, matchRules.setsPerMatch) !== 'sorteio' || !teamA || !teamB) return
     setInitialServerBySet((current) => ({ ...current, [currentSet]: teamId }))
     const nome = teamId === 'teamA' ? teamA.name : teamB.name
     const frase = origem === 'aplicativo'
@@ -830,8 +831,8 @@ export default function SumulaPage() {
 
   function resolverSaqueInicial(setNumero: number) {
     const anterior = initialServerBySet[setNumero - 1] ?? null
-    if (modoSaqueInicial(setNumero) === 'alternancia') {
-      const obrigatorio = saqueObrigatorio(setNumero, anterior)
+    if (modoSaqueInicial(setNumero, matchRules.setsPerMatch) === 'alternancia') {
+      const obrigatorio = saqueObrigatorio(setNumero, anterior, matchRules.setsPerMatch)
       if (!obrigatorio) return { lado: null as TeamId | null, erro: `O saque do set ${setNumero} depende de quem sacou no set ${setNumero - 1}.` }
       return { lado: obrigatorio, erro: null as string | null }
     }
@@ -839,8 +840,8 @@ export default function SumulaPage() {
     if (!escolhido) {
       return {
         lado: null as TeamId | null,
-        erro: modoSaqueInicial(setNumero) === 'sorteio'
-          ? 'Registre o sorteio do 5º set antes de liberar a pontuação.'
+        erro: modoSaqueInicial(setNumero, matchRules.setsPerMatch) === 'sorteio'
+          ? `Registre o sorteio do set ${setNumero} antes de liberar a pontuação.`
           : `Defina quem começa sacando no set ${setNumero} antes de liberar a pontuação.`,
       }
     }
@@ -848,7 +849,7 @@ export default function SumulaPage() {
   }
 
   useEffect(() => {
-    if (currentSet < 2 || currentSet > 4 || !teamA || !teamB) return
+    if (modoSaqueInicial(currentSet, matchRules.setsPerMatch) !== 'alternancia' || !teamA || !teamB) return
     const anterior = initialServerBySet[currentSet - 1]
     if (anterior !== 'teamA' && anterior !== 'teamB') return
     const obrigatorio = ladoOposto(anterior)
@@ -860,7 +861,7 @@ export default function SumulaPage() {
     if (jaMarcado) return
     const nome = obrigatorio === 'teamA' ? teamA.name : teamB.name
     addMatchEvent('anotacao', `Alternância do set ${currentSet}: ${nome} começa sacando. ${marcarSaqueInicial(obrigatorio)}`)
-  }, [currentSet, initialServerBySet, matchStatus, teamA, teamB, events])
+  }, [currentSet, initialServerBySet, matchStatus, teamA, teamB, events, matchRules.setsPerMatch])
 
   function setStartingLibero(teamId: TeamId, number: string) {
     if (teamId === 'teamA') setLineupConfirmedA(false)
@@ -1589,6 +1590,7 @@ export default function SumulaPage() {
             sidesInverted={sidesInverted}
             initialServers={initialServerBySet}
             onRegistrarSorteio={registrarSorteioTieBreak}
+            setsPerMatch={matchRules.setsPerMatch}
           />
         )}
 
@@ -2461,6 +2463,7 @@ function EscalacaoTab(props: {
   initialServers: Record<number, TeamId | null>
   onRegistrarSorteio: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
   quantidadeLiberos?: 1 | 2 | null
+  setsPerMatch: number
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId>('teamA')
   const [pickedNumber, setPickedNumber] = useState<string | null>(null)
@@ -2491,9 +2494,9 @@ function EscalacaoTab(props: {
   const otherTeam = otherTeamId === 'teamA' ? props.teamA : props.teamB
   const otherConfirmed = otherTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
   const confirmedCount = Number(props.lineupConfirmedA) + Number(props.lineupConfirmedB)
-  const modoSaque = modoSaqueInicial(props.currentSet)
+  const modoSaque = modoSaqueInicial(props.currentSet, props.setsPerMatch)
   const saqueAnterior = props.initialServers[props.currentSet - 1] ?? null
-  const saqueAlternado = saqueObrigatorio(props.currentSet, saqueAnterior)
+  const saqueAlternado = saqueObrigatorio(props.currentSet, saqueAnterior, props.setsPerMatch)
   const servidorExibido: TeamId | null = modoSaque === 'alternancia' ? saqueAlternado : props.initialServer
   const nomeServidor = servidorExibido === 'teamA' ? props.teamA.name : servidorExibido === 'teamB' ? props.teamB.name : ''
   const nomeAnterior = saqueAnterior === 'teamA' ? props.teamA.name : saqueAnterior === 'teamB' ? props.teamB.name : ''
@@ -2779,6 +2782,7 @@ function EscalacaoTab(props: {
                   teamA={props.teamA}
                   teamB={props.teamB}
                   servidor={props.initialServer}
+                  setNumero={props.currentSet}
                   onRegistrar={props.onRegistrarSorteio}
                 />
               )}
@@ -3085,17 +3089,19 @@ function SorteioTieBreak({
   teamA,
   teamB,
   servidor,
+  setNumero,
   onRegistrar,
 }: {
   teamA: Team
   teamB: Team
   servidor: TeamId | null
+  setNumero: number
   onRegistrar: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
 }) {
   const nome = servidor === 'teamA' ? teamA.name : servidor === 'teamB' ? teamB.name : ''
   return (
     <div className="official-toss-setup">
-      <p>No 5º set o saque sai de um sorteio novo. Registre o resultado da mesa ou sorteie no aplicativo.</p>
+      <p>No {setNumero}º set o saque sai de um sorteio novo. Registre o resultado da mesa ou sorteie no aplicativo.</p>
       <button type="button" className="official-secondary" onClick={() => onRegistrar(sortearLado(Math.random()), 'aplicativo')}>
         Sortear no aplicativo
       </button>
@@ -3109,7 +3115,7 @@ function SorteioTieBreak({
           <span>Registrar sorteio da mesa</span>
         </button>
       </div>
-      <strong>{nome ? `${nome} começa sacando neste tie-break.` : 'O sorteio ainda não definiu quem saca.'}</strong>
+      <strong>{nome ? `${nome} começa sacando neste set.` : 'O sorteio ainda não definiu quem saca.'}</strong>
     </div>
   )
 }

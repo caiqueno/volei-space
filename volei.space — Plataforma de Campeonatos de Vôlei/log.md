@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | saque alterna até o último set da fase
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Melhor de 3 alterna nos sets 1 e 2 e sorteia o 3º. Melhor de 5 alterna até o 4º e sorteia o 5º. A quantidade é a da fase, inclusive quartas e oitavas. Nenhuma migration. Sem merge.
+
 ## [2026-10-10] fix | corrigir último ponto permanece
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
