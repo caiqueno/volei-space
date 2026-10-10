@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | avisos da súmula somem sozinhos
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- Cada aviso fica no máximo 3 segundos e a fila guarda dois. O temporizador sai no unmount. O aviso não cobre a faixa do placar. A demonstração não chama `POST …/iniciar`, que não tem o atalho do token demo.
+
 ## [2026-10-10] decisao | RLS em todas as tabelas public
 
 - pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `03-REGRAS-DE-NEGOCIO`, `hot`, `log`

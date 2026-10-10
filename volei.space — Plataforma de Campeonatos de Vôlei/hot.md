@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010140000 liga RLS em cada tabela public e ainda não foi aplicada. Partida mantém o SELECT de placar.
+  20261010140000 liga RLS nas tabelas public e ainda não foi aplicada. Avisos da súmula somem em 3 s.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,8 @@ updated: 2026-10-10
 ## Foco atual
 
 `20261010140000_habilitar_rls_tabelas_publicas.sql` liga RLS em cada tabela do schema `public`. O histórico anterior deixa nove sem RLS (`CandidaturaArbitro`, `CandidaturaEquipe`, `CandidaturaPartidaArbitro`, `CandidaturaQuadra`, `ClassificacaoEliminatoria`, `CodigoAcessoOrganizador`, `ContaPublico`, `ConviteEquipe`, `Interessado`); o ENABLE das outras está repetido porque o QA ainda viu cerca de 39 tabelas abertas. Não há `FORCE`. `service_role` não muda. A policy nova é só `public_read_partidas`, se faltar. `anon` perde privilégio fora das colunas de placar de `Partida`. `202610100002` não foi editada nem é pré-requisito. Nada foi aplicado em produção. Fonte: [[07-SEGURANCA]], [[06-BANCO-DE-DADOS]].
+
+Os avisos da súmula de lançamento somem sozinhos em 3 segundos e não passam de dois na tela. O mais novo empurra o mais antigo e o temporizador é cancelado ao desmontar. Na pontuação eles ficam acima da faixa do placar e do `+1`. `prefers-reduced-motion: reduce` tira o deslocamento de entrada. A frase sem acento era o `catch` de `POST /api/arbitro/partidas/{token}/iniciar`. A súmula da captura (Set Point x Líbero FC, rodada 6, Ginásio Municipal, 15/08/2026) é a demonstração `token-demo-…`. O GET e o PUT de `/api/sumula/{token}` têm atalho e não gravam partida; o POST de iniciar não tem. Sem sessão de árbitro a rota responde 401; com sessão e sem essa partida, 404. A demonstração agora marca `EM_ANDAMENTO` localmente e não chama essa rota. Partida real que falhar de verdade mostra a frase com acento. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Encerrar um set que não fecha a partida inverte os lados da quadra na súmula e grava «Equipes inverteram os lados da quadra.». O saque dos sets 2 a 4 continua com quem não sacou no set anterior; o 5º set continua no sorteio. O pulso do rótulo segue `sumula-micro-set`. Fonte: [[modulos/SUMULA-DIGITAL]].
 
