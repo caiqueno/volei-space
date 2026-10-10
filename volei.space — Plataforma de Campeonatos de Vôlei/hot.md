@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O aviso de rodízio ilegal só aparece quando o organizador liga a opção. Desligado, a súmula não avisa e não impede o ponto.
+  O aviso de rodízio ilegal só aparece quando o organizador liga a opção. Desligado, a súmula não avisa e não impede o ponto. A tela do juiz e a chave pública mostram a vaga. O preenchimento ao oficializar a súmula não depende do pagamento.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,8 @@ updated: 2026-10-10
 ## Foco atual
 
 Em 10 de outubro de 2026 o aviso de rodízio ilegal só entra na súmula quando `alertaRodizioIlegal` está true. Desligado, ausente ou sem a coluna, o ponto segue e nenhum aviso aparece. O aviso não recusa o lance. `20261010139960_alerta_rodizio.sql` não foi aplicada. O prefixo fica depois de `20261010139950` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 a tela do juiz mostra a origem da vaga, por exemplo `Vencedor Semi 1`, no lugar de «Equipe × Equipe». `/api/portal/mata-mata?ligaId=` liga semifinal, final e 3º lugar pela fase e pela rodada quando a liga tem uma categoria. Oficializar a súmula, aprovar, lançar resultado manual ou abrir a chave preenche os times no mesmo jogo. O 403 de pagamento de `POST .../mata-mata/vagas` não impede essa sincronização. `20261010142000_vaga_a_definir.sql` já está em produção. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o organizador pode gravar o limite de substituições por set, de 1 a 30. Vazio continua 8. A troca de líbero não entra na conta e o par fecha na volta. Sem a coluna, a súmula segue com 8. `20261010139950_limite_substituicoes.sql` não foi aplicada. O prefixo fica depois de `20261010139900` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
@@ -31,7 +33,7 @@ Em 10 de outubro de 2026 a geração da chave usa o método gravado na categoria
 
 Em 10 de outubro de 2026 a classificação aceita média de sets e média de pontos. O padrão continua pontos, vitórias, saldo de sets e saldo de pontos. O confronto direto não muda. Sem a checagem nova, o salvamento da categoria tira esses dois critérios e grava o resto. `20261010139800_quociente_classificacao.sql` não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Fonte: [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
-Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` não foi aplicada. Sem as colunas, a leitura não as pede e nada disso aparece. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` já está em produção. Sem as colunas, a leitura não as pede. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
 

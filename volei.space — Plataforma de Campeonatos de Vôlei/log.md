@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - O aviso só aparece com a opção ligada e não recusa o ponto. `20261010139960_alerta_rodizio.sql` não foi aplicada. Sem a coluna, a súmula não muda.
 
+## [2026-10-10] fix | vaga na tela do juiz e na chave pública
+
+- pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A tela do juiz mostra a origem da vaga. A chave pública liga o jogo pela fase e pela rodada. Oficializar a súmula preenche os times sem passar pelo pagamento. `20261010142000` já está em produção.
+
 ## [2026-10-10] feat | limite de substituições
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

@@ -1,9 +1,9 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { consultarComVaga } from '@/lib/consulta-vaga'
-import { rotuloValido } from '@/lib/vaga-a-definir'
+import { sincronizarVagas } from '@/lib/preencher-vagas'
+import { encontrarPartidaDaVaga, rotuloValido } from '@/lib/vaga-a-definir'
 import { selecionarClassificados } from '@/lib/classificados'
 import { FASES_ELIMINATORIAS, type FaseEliminatoria, formatEliminatoryPhase, getRequiredEliminatoryTeams, normalizeEliminatoryPhase } from '@/lib/eliminatorias'
-import { chaveDaVaga } from '@/lib/operacao-categoria'
 import { rodadaDaVolta, vencedorAgregado } from '@/lib/ida-volta'
 import { perdedorDaPartida, vencedorDaPartida } from '@/lib/resultado-partida'
 import type { BracketRoundView, BracketSlot, TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
@@ -91,6 +91,11 @@ export async function getMataMataBracket(
   organizerMode: boolean,
   categoriaCampeonatoId?: string | null,
 ): Promise<{ rounds: BracketRoundView[]; champion: TeamOption | null; thirdPlace: BracketSlot | null }> {
+  try {
+    await sincronizarVagas(ligaId, categoriaCampeonatoId ?? null)
+  } catch (err) {
+    console.error('[vaga] chave aberta; times não preenchidos', err)
+  }
   const [{ data: ligaCfg }, { data: config }] = await Promise.all([
     supabase.from('Liga').select('disputaTerceiroLugar,faseEliminatoria').eq('id', ligaId).maybeSingle(),
     categoriaCampeonatoId
@@ -130,12 +135,8 @@ export async function getMataMataBracket(
     if (equipe?.id != null) teamById.set(Number(equipe.id), { id: Number(equipe.id), nome: equipe.nome, corHex: equipe.corHex, logoUrl: equipe.logoUrl })
   }
 
-  const categoriaChave = categoriaCampeonatoId ?? ''
-  const partidaBySlot = new Map<string, any>()
-  for (const partida of partidas ?? []) {
-    partidaBySlot.set(chaveDaVaga(partida.categoriaCampeonatoId ?? categoriaChave, partida.fase, partida.rodada), partida)
-  }
-  const vaga = (fase: string, rodada: number) => partidaBySlot.get(chaveDaVaga(categoriaChave, fase, rodada))
+  const lista = (Array.isArray(partidas) ? partidas : []) as any[]
+  const vaga = (fase: string, rodada: number) => encontrarPartidaDaVaga(lista, fase, rodada, categoriaCampeonatoId)
   const vencedorDoSlot = (fase: string, rodada: number) => {
     const ida = vaga(fase, rodada)
     if (!ida) return null

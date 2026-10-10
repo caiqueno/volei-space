@@ -4,8 +4,10 @@ import path from 'node:path'
 import { normalizarPartidaPublica } from '../src/lib/partida-publica'
 import {
   aplicarVagas,
+  encontrarPartidaDaVaga,
   lerOrigemVaga,
   MENSAGEM_SUMULA_SEM_TIMES,
+  rotuloDoLado,
   rotuloValido,
   sugerirVagasSemifinal,
   timesDefinidos,
@@ -134,6 +136,23 @@ assert.equal(publica?.equipeA?.vaga, true)
 assert.equal(publica?.equipeA?.nome, '1º Grupo A')
 assert.equal(publica?.equipeB?.nome, '2º Grupo B')
 assert.equal(publica?.dataHora, '2026-10-18T21:00:00.000Z')
+
+assert.equal(rotuloDoLado(null, 'Vencedor Semi 1'), 'Vencedor Semi 1')
+assert.equal(rotuloDoLado({ nome: 'Alpha' }, 'Vencedor Semi 1'), 'Alpha')
+assert.equal(rotuloDoLado(null, null), 'Equipe')
+
+const categoria = '5ba7d064-1813-46a0-b1fd-f42137f26dcf'
+const jogosSql = [
+  { id: 1098, fase: 'SEMIFINAL', rodada: 1, categoriaCampeonatoId: categoria },
+  { id: 1099, fase: 'SEMIFINAL', rodada: 2, categoriaCampeonatoId: categoria },
+  { id: 1097, fase: 'FINAL', rodada: 1, categoriaCampeonatoId: categoria },
+]
+assert.equal(encontrarPartidaDaVaga(jogosSql, 'SEMIFINAL', 1, null)?.id, 1098)
+assert.equal(encontrarPartidaDaVaga(jogosSql, 'FINAL', 1, categoria)?.id, 1097)
+assert.equal(encontrarPartidaDaVaga([
+  ...jogosSql,
+  { id: 2098, fase: 'SEMIFINAL', rodada: 1, categoriaCampeonatoId: '7ec8a218-d7d0-4cab-9ab4-15778adf3519' },
+], 'SEMIFINAL', 1, null), null)
 
 const sql = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010142000_vaga_a_definir.sql'), 'utf8')
 assert.match(sql, /alter column "equipeAId" drop not null/i)

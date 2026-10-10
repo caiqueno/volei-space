@@ -15,7 +15,7 @@ import { correcaoPeloLinkPermitida, limiteDeSubstituicoes, validarSubstituicoes 
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
-import { sincronizarVagas } from '@/lib/preencher-vagas'
+import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
 
 const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
 
@@ -207,9 +207,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
   }
 }
 
-async function preencherVagasDaPartida(partida: { ligaId?: number | null; categoriaCampeonatoId?: string | null }) {
+async function preencherVagasDaPartida(partida: { id?: number | null; ligaId?: number | null; categoriaCampeonatoId?: string | null }) {
   try {
-    await sincronizarVagas(Number(partida.ligaId), partida.categoriaCampeonatoId ?? null)
+    await sincronizarVagasDaPartida(partida)
   } catch (err) {
     console.error('[vaga] resultado gravado; vagas não preenchidas', err)
   }

@@ -81,7 +81,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const { data: liga } = await supabase.from('Liga').select('id,organizadorId,pagamentoConfirmadoEm').eq('id', ligaId).maybeSingle()
     if (!liga) return error('Campeonato não encontrado.', 404)
     if (liga.organizadorId !== auth.userId) return error('Você não pode alterar o chaveamento deste campeonato.', 403)
-    if (!liga.pagamentoConfirmadoEm) return error('Confirme o pagamento do campeonato antes de montar a chave.', 403)
+    if (!liga.pagamentoConfirmadoEm) {
+      try {
+        await sincronizarVagas(ligaId, categoria.id)
+      } catch (err) {
+        console.error('[vaga] pagamento pendente; times não preenchidos', err)
+      }
+      return error('Confirme o pagamento do campeonato antes de montar a chave.', 403)
+    }
     const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
     if (bloqueio) return bloqueio
 

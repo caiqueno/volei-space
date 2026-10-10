@@ -5,14 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O aviso de rodízio só aparece com a opção ligada. O limite de substituições continua 8 enquanto o campo estiver vazio.
+  O aviso de rodízio só aparece com a opção ligada. A súmula não inicia enquanto a vaga do mata-mata estiver sem os dois times. Ao oficializar, as vagas da mesma categoria são preenchidas sem consultar o pagamento.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
 
-**Vaga sem time — implementado no código:** iniciar a partida, gravar o andamento, oficializar, aprovar ou lançar resultado manual responde 422 enquanto `equipeAId` ou `equipeBId` estiver vazio. A tela de lançamento mostra a origem da vaga e não abre a quadra. Com os dois times preenchidos, o fluxo não muda. Antes da migration `20261010142000`, os dois lados continuam obrigatórios no banco, então esta trava não altera jogo já marcado.
+**Vaga sem time — implementado no código:** iniciar a partida, gravar o andamento, oficializar, aprovar ou lançar resultado manual responde 422 enquanto `equipeAId` ou `equipeBId` estiver vazio. A tela de lançamento mostra a origem da vaga e não abre a quadra. Oficializar, aprovar ou lançar o resultado manual chama `sincronizarVagasDaPartida` em seguida: a última súmula da fase de grupos preenche as semis, e o fim de cada semi preenche final e 3º lugar, no mesmo `Partida.id`. Esse preenchimento não lê `pagamentoConfirmadoEm`. Com os dois times preenchidos, o fluxo não muda. Sem as colunas de origem, os dois lados continuam obrigatórios no banco.
 
 **Sanções — implementado:** advertência, penalidade, expulsão e desqualificação entram na ocorrência da súmula. No mesmo jogo a sequência sobe sozinha; uma sanção mais grave pode ser aplicada direto. A segunda advertência precisa ser gravada como penalidade. Expulsão, desqualificação e cada duas advertências suspendem o atleta na partida seguinte da categoria. A súmula recusa a presença dele. Penalidade pesa 1 na coluna `punicoes`, expulsão pesa 1 e desqualificação pesa 2. Advertência pesa 0. O peso não tira ponto de campeonato. O cartão amarelo antigo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A decisão de cumprimento lê as ocorrências e não grava essa tabela.
 

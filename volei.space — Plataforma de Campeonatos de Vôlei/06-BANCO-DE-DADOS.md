@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010139960 acrescenta o aviso de rodízio, nulo. Ainda sem aplicar. Sem a coluna, a súmula não avisa.
+  20261010139960 acrescenta o aviso de rodízio, nulo. Ainda sem aplicar. Sem a coluna, a súmula não avisa. 20261010142000 deixa o time da partida nulo quando há origem de vaga e já está em produção.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -69,7 +69,7 @@ Em 10 de outubro de 2026 a leitura de `information_schema` e de `pg_proc` no pro
 
 `20261010139500_sancoes_suspensao.sql` também não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. Ela cria `SuspensaoAtleta`, liga RLS nessa tabela, revoga `public`, `anon` e `authenticated` e concede só a `service_role`. Não apaga linha. A súmula não grava nessa tabela: a suspensão sai das ocorrências. A leitura ao vivo continua em `20261010141000`, depois da RLS.
 
-`20261010142000_vaga_a_definir.sql` também não foi aplicada. O prefixo fica depois de `20261010141000`. Ela tira o `NOT NULL` de `Partida.equipeAId` e `Partida.equipeBId`, cria `origemVagaA` e `origemVagaB` e exige time ou origem em cada lado. Não apaga linha e não concede a `anon` nem a `authenticated`. O aplicativo não grava vaga enquanto essas colunas não existem.
+`20261010142000_vaga_a_definir.sql` foi aplicada em produção em 10 de outubro de 2026. O prefixo fica depois de `20261010141000`. Ela tira o `NOT NULL` de `Partida.equipeAId` e `Partida.equipeBId`, cria `origemVagaA` e `origemVagaB` e exige time ou origem em cada lado. Não apaga linha e não concede a `anon` nem a `authenticated`. O aplicativo não grava vaga enquanto essas colunas não existem.
 
 `20261010141000_leitura_publica_sets_classificacao.sql` também não foi aplicada. O prefixo fica depois de `20261010140000`. O W.O. é `20261010139000` e a suspensão é `20261010139500`, os dois antes da RLS. Ela devolve `SELECT` de `SetPartida` e `ClassificacaoEntrada` a `anon` e `authenticated`, cria `public_read_sets` e `public_read_classificacao` se faltarem (`FOR SELECT`, `USING (true)`), põe `replica identity full` e, se a publicação `supabase_realtime` existir, inclui a tabela que ainda não estiver nela. Não concede escrita, não mexe em `Partida` e não altera coluna nem função do W.O. nem de `SuspensaoAtleta`. Não use `db push` da pasta inteira. Em produção a ordem do prefixo vale: `139000`, `139500`, depois `140000` e em seguida esta. Sozinha, a `140000` revoga a leitura. Não reaplique a `140000` depois desta.
 

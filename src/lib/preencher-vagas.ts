@@ -11,8 +11,43 @@ function numeroOuNulo(valor: unknown) {
 }
 
 export async function sincronizarVagas(ligaId: number, categoriaCampeonatoId: string | null) {
-  if (!Number.isInteger(ligaId) || ligaId <= 0 || !categoriaCampeonatoId) return { atualizados: 0 }
+  if (!Number.isInteger(ligaId) || ligaId <= 0) return { atualizados: 0 }
   if (!(await colunasDeVagaAtivas())) return { atualizados: 0 }
+  const categorias = categoriaCampeonatoId ? [categoriaCampeonatoId] : await categoriasComVaga(ligaId)
+  let atualizados = 0
+  for (const categoria of categorias) {
+    atualizados += (await sincronizarCategoria(ligaId, categoria)).atualizados
+  }
+  return { atualizados }
+}
+
+export async function sincronizarVagasDaPartida(partida: { id?: number | null; ligaId?: number | null; categoriaCampeonatoId?: string | null }) {
+  let ligaId = Number(partida.ligaId)
+  let categoria = partida.categoriaCampeonatoId ?? null
+  if (partida.id && (!Number.isInteger(ligaId) || ligaId <= 0 || !categoria)) {
+    const { data } = await supabaseAdmin.from('Partida').select('ligaId,categoriaCampeonatoId').eq('id', partida.id).maybeSingle()
+    ligaId = Number(data?.ligaId)
+    categoria = (data?.categoriaCampeonatoId as string | null) ?? categoria
+  }
+  return sincronizarVagas(ligaId, categoria)
+}
+
+async function categoriasComVaga(ligaId: number) {
+  const { data, error } = await supabaseAdmin
+    .from('Partida')
+    .select('categoriaCampeonatoId,origemVagaA,origemVagaB')
+    .eq('ligaId', ligaId)
+    .in('fase', ['SEMIFINAL', 'FINAL', 'TERCEIRO_LUGAR', 'QUARTAS', 'OITAVAS', 'DEZESSEIS_AVOS'])
+  if (error || !data) return []
+  return Array.from(new Set(
+    data
+      .filter((partida) => partida.origemVagaA || partida.origemVagaB)
+      .map((partida) => partida.categoriaCampeonatoId)
+      .filter((id): id is string => Boolean(id)),
+  ))
+}
+
+async function sincronizarCategoria(ligaId: number, categoriaCampeonatoId: string) {
 
   const { data: partidas, error } = await supabaseAdmin
     .from('Partida')
