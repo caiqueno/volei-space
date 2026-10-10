@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A página do campeonato mostra chave e pódio. O +1 da súmula registra o ponto sem jogador.
+  A papeleta da súmula volta a um time por vez. O saque alterna até o 4º set e o 5º sorteia. O +1 registra o ponto sem jogador. A página do campeonato mostra chave e pódio.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+A conferência da papeleta na súmula mostra um time por vez, com indicação de quem já confirmou e um comando para o outro time. A quadra 2D com os dois lados continua na pontuação. O saque do set 1 é escolha; nos sets 2, 3 e 4 o sistema impõe quem não sacou no set anterior; no 5º set há sorteio no aplicativo ou registro do resultado da mesa. A gravação da súmula recusa a alternância quebrada. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Correções de interface no campeonato público, sem API, Prisma nem cálculo de tabela. A página do slug mostra a chave e, se `FINALIZADO`, o pódio da final e do 3º lugar. Inscrições fechadas escondem «Inscrever equipe» e «Já tenho conta». O status usa `formatLigaStatus` também em Rankings. Jogos e portal nomeiam a fase (`3º lugar`) e omitem data ou local ausente em partida encerrada. `/classificacao?ligaId=` expande o campeonato da lista pública. O perfil da equipe quebra o nome do atleta e usa rótulo de formato. Fonte: [[09-UI-UX]], [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]].
 
