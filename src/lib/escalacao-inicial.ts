@@ -2,6 +2,11 @@ export function escalacaoVazia() {
   return Array.from({ length: 6 }, () => '')
 }
 
+/** O set seguinte abre vazio. A formação do set anterior não continua na tela. */
+export function papeletaDoProximoSet() {
+  return escalacaoVazia()
+}
+
 /** Sem formação gravada, a papeleta abre vazia. O elenco não entra nas seis posições. */
 export function escalacaoParaJogo(salva: string[] | null | undefined, _padrao: readonly string[] = [], _preJogo = false) {
   if (salva?.some((item) => String(item ?? '').trim())) {

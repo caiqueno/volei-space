@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A camisa repetida fica com o atleta editado e o anterior fica sem número. A papeleta abre com as seis posições vazias. Sem migration.
+  A camisa repetida fica com o atleta editado e o anterior fica sem número. Cada set abre a papeleta vazia, e a lista segue a camisa da súmula. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -14,7 +14,7 @@ updated: 2026-10-10
 
 **Camisa repetida — implementado no código, sem merge:** ao atribuir um número de 0 a 99 que outro atleta da mesma equipe já usa nesta partida, o editado fica com a camisa e quem tinha o número fica sem camisa. Os dois entram no mesmo salvamento: na súmula, no `PUT` de andamento; no credenciamento, no mesmo `POST /api/arbitro/partidas/{token}/numero`. O aviso é «Camisa 10 passou para Fulano; Beltrano ficou sem número». `SumulaPresenca.numero` nulo continua valendo `Jogador.numero`. A camisa vazia desta partida grava `-1`, sem coluna nova e sem função SQL. A outra equipe pode usar o mesmo número. Não há migration.
 
-**Papeleta vazia — implementado no código, sem merge:** as seis posições abrem vazias. O operador toca na posição e escolhe o atleta, ou arrasta do banco. O mesmo atleta não entra em duas posições. Confirmar a papeleta só fica disponível com as seis preenchidas. O líbero inicial continua no seletor de hoje e, quando a categoria exige, segue obrigatório para confirmar. Enquanto a página permanece aberta, encerrar o set não apaga a formação: o set seguinte começa com a escalação do set anterior. Se a súmula recarregar sem a marca de formação daquele set, as posições ficam vazias de novo e o elenco não é colocado automaticamente. Não há migration.
+**Papeleta vazia — implementado no código, sem merge desta etapa:** as seis posições abrem vazias em todos os sets. Encerrar o set zera as duas escalações na tela; a formação do set anterior não continua. O operador toca na posição e escolhe o atleta, ou arrasta do banco. A lista sai em ordem numérica crescente da camisa da súmula (`SumulaPresenca.numero`; sem número e `-1` por último, e o nome desempata). O seletor de líbero usa a mesma ordem. O mesmo atleta não entra em duas posições. Confirmar a papeleta só fica disponível com as seis preenchidas. O líbero inicial continua obrigatório quando a categoria exige. Se a súmula recarregar sem a marca de formação daquele set, as posições ficam vazias e o elenco não é colocado automaticamente. Formação já gravada naquele set volta ao reabrir. A gravação de pontos não muda. Não há migration.
 
 **Seletor de líbero — implementado:** «Selecionar líbero» lista quem está fora da escalação, como o banco. O banco mostra `SumulaPresenca.numero`. O seletor mostrava `Jogador.numero`. Na ALL BLACK, Daniel está no banco como #1 e no cadastro como 13; a escalação já usa o cadastro 1 de outro atleta, então o #1 do banco não aparecia na lista. O rótulo passa a ser a camisa da súmula. O valor gravado continua o número do cadastro, para a troca e o recarregamento acharem o mesmo atleta. Ninguém no Winners Oficial tem `posicao` LB, e `quantidadeLiberos` não existe nessa base: a lista não estava cortada por essas regras. Não há migration.
 

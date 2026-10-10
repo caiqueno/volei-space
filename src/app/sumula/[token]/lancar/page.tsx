@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
-import { atletaRepetidoNaPapeleta, escalacaoParaJogo, papeletaCompleta } from '@/lib/escalacao-inicial'
+import { atletaRepetidoNaPapeleta, escalacaoParaJogo, papeletaCompleta, papeletaDoProximoSet } from '@/lib/escalacao-inicial'
 import { camisaDaSumula, destaqueDoJogador, equipeIdPeloNome, mvpDasOcorrencias, passoDeFechamento } from '@/lib/mvp-partida'
 import { MARCA_SEM_NUMERO, NUMERO_SEM_CAMISA, numeroMvpDaLista, numeroSemCamisa, passagemDeNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
@@ -21,6 +21,7 @@ import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
 import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
 import { quantidadeDeLiberos, rotuloSeletorLibero } from '@/lib/libero-sumula'
+import { ordenarPorCamisaDaSumula } from '@/lib/ordem-camisa-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -730,6 +731,9 @@ export default function SumulaPage() {
       }
       setLineupConfirmedA(false)
       setLineupConfirmedB(false)
+      setLineupA(papeletaDoProximoSet())
+      setLineupB(papeletaDoProximoSet())
+      setEditingSlot(null)
       setStartingLiberos((current) => ({ ...current, [currentSet + 1]: { teamA: '', teamB: '' } }))
       setActiveTab('escalacao')
     } else {
@@ -2564,7 +2568,11 @@ function EscalacaoTab(props: {
   const lineup = selectedTeamId === 'teamA' ? props.lineupA : props.lineupB
   const bench = (selectedTeamId === 'teamA' ? props.benchA : props.benchB).filter((number) => number !== (props.startingLiberos[selectedTeamId] ?? ''))
   const selectedLibero = props.startingLiberos[selectedTeamId] ?? ''
-  const liberoOptions = getLiberoOptions(team, lineup, props.quantidadeLiberos)
+  const liberoOptions = ordenarPorCamisaDaSumula(
+    getLiberoOptions(team, lineup, props.quantidadeLiberos),
+    (player) => props.getMatchNumber(selectedTeamId, player.number),
+    (player) => displayPlayerName(player.name, team.name),
+  )
   const posicoes = ['P4', 'P3', 'P2', 'P5', 'P6', 'P1']
   const selectedTeamConfirmed = selectedTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
   const reviewLibero = props.startingLiberos[selectedTeamId] ?? ''
@@ -2927,6 +2935,8 @@ function EscalacaoTab(props: {
             onlyBench={props.allowedSubstitutions}
             notice={props.substitutionNotice}
             permiteLesao={props.permiteLesao}
+            teamId={props.subModal.teamId}
+            getMatchNumber={props.getMatchNumber}
             onSelect={props.executeSubstitution}
             onClose={props.closeSubModal}
           />
@@ -3830,9 +3840,14 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
   const [lesao, setLesao] = useState(false)
   const substitutionMode = onlyBench != null
   const players = [...team.players, ...team.reserves].filter((player) => !(hideLiberos && player.isLibero))
-  const visiveis = substitutionMode
+  const candidatos = substitutionMode
     ? players.filter((player) => onlyBench.includes(player.number) && !lineup.includes(player.number))
     : players
+  const visiveis = ordenarPorCamisaDaSumula(
+    candidatos,
+    (player) => (teamId && getMatchNumber ? getMatchNumber(teamId, player.number) : player.number),
+    (player) => displayPlayerName(player.name, team.name),
+  )
   return (
     <div className="official-modal" role="dialog" aria-modal="true" aria-label={title}>
       <div>

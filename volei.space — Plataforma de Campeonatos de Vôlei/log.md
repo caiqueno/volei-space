@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | papeleta vazia em cada set e lista pela camisa
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`
+- Encerrar o set zera as seis posições dos dois times. A lista da posição e o líbero seguem a camisa da súmula, com sem número por último. Sem migration e sem mudança na gravação de pontos.
+
 ## [2026-10-10] feat | quadro de classificação com chave, Top 5 e scouts
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/SCOUTS`, `hot`, `log`

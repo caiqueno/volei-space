@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A classificação pública e o ranking mostram líder, pódio, chave em colunas, Top 5 e scouts. A súmula e o banco não mudam.
+  Cada set abre a papeleta vazia. A lista da posição e o líbero seguem a camisa da súmula. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -15,6 +15,8 @@ updated: 2026-10-10
 
 ## Foco atual
 
+Em 10 de outubro de 2026 a papeleta da súmula abre vazia em todos os sets. Encerrar o set zera as seis posições dos dois times; a formação anterior não permanece na tela. Ao tocar numa posição, a lista de atletas sai pela camisa da súmula, do menor número ao maior. Sem número e `-1` ficam por último, e o nome desempata. O seletor de líbero usa a mesma ordem. Formação já gravada naquele set volta ao reabrir. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
+
 Em 10 de outubro de 2026 `/classificacao` e `/rankings` passam a mostrar o quadro do campeonato: cartão do líder, pódio quando a final tem vencedor, chave eliminatória em colunas que convergem no centro, Top 5 de ataque, bloqueio e saque, scouts gerais de todos os atletas e a tabela de cada grupo. No celular a chave vira abas por fase. A leitura usa as rotas que já existiam. `GET /api/portal/classificacao` passa a devolver sets contra, pontos e punições, que o cálculo já tinha. Nenhuma migration e nenhuma alteração de súmula. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/SCOUTS]].
 
 Em 10 de outubro de 2026 a classificação geral consulta só colunas que existem. `OcorrenciaPartida` não tem `createdAt`, `updatedAt` nem `criadoEm`; a leitura pede `tipo`, `jogadorId` e `descricao`, e a partida entra por `ligaId` e `categoriaCampeonatoId`. O atleta entra por `jogadorId`. `SumulaPresenca.numero = -1` é camisa vazia, o mesmo valor do PR 79, e não vira número na tabela nem chave de ponto. Nenhuma migration. Fonte: [[modulos/SCOUTS]], [[modulos/SUMULA-DIGITAL]].
@@ -23,7 +25,7 @@ Em 10 de outubro de 2026 a classificação geral do Winners Oficial já vinha da
 
 Em 10 de outubro de 2026 `/rankings` ganha a classificação geral de jogadores, na página pública e no menu Rankings do painel. A tabela traz todos os atletas da categoria, com zero, sem fatiar por grupo ou equipe. Ataque, bloqueio e saque saem de `OcorrenciaPartida` (`attack`, `block`, `ace` e os nomes em português). `point` com atleta vira a coluna Ponto. Lance desfeito, anulado, excluído, «Registro de » e ponto sem jogador ficam de fora. Partida de campeonato apagado não entra, porque a leitura exige a `Liga`. A aba visível pede de novo a cada 12 segundos. A rota não guarda cache longo; o processo só reúne leituras por 8 segundos. `OcorrenciaPartida` não está no Realtime, então não houve publicação nem RLS. Nenhuma migration. Fonte: [[modulos/SCOUTS]].
 
-Em 10 de outubro de 2026 atribuir uma camisa já usada na mesma equipe deixa de ser bloqueado. Quem recebe o número fica com ele, e quem tinha a camisa fica sem número nesta partida. O valor gravado para a camisa vazia é `-1` em `SumulaPresenca.numero`; `null` continua valendo o cadastro. Os dois atletas entram no mesmo salvamento. A papeleta abre com as seis posições vazias: o operador escolhe o atleta em cada posição, sem repetir, e só confirma com as seis preenchidas. Com a página aberta, o set seguinte mantém a formação do set anterior. Se a página recarregar sem formação gravada naquele set, as posições voltam vazias, sem puxar o elenco. O líbero segue como está. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
+Em 10 de outubro de 2026 atribuir uma camisa já usada na mesma equipe deixa de ser bloqueado. Quem recebe o número fica com ele, e quem tinha a camisa fica sem número nesta partida. O valor gravado para a camisa vazia é `-1` em `SumulaPresenca.numero`; `null` continua valendo o cadastro. Os dois atletas entram no mesmo salvamento. A papeleta abre com as seis posições vazias em todos os sets: encerrar o set zera as duas escalações, e o operador escolhe o atleta em cada posição, sem repetir, e só confirma com as seis preenchidas. A lista da posição e o seletor de líbero seguem a camisa da súmula, do menor número ao maior; sem número fica por último. Se a página recarregar sem formação gravada naquele set, as posições voltam vazias, sem puxar o elenco. Formação já gravada naquele set volta ao reabrir. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 o seletor «Selecionar líbero» não mostrava a camisa que está no banco. O banco usa `SumulaPresenca.numero` e o seletor usava `Jogador.numero`. Na ALL BLACK o banco tem Daniel como #1, cadastro 13, e o cadastro 1 já está em quadra. A lista passa a mostrar a camisa da súmula. O valor salvo continua o do cadastro. `posicao` está vazia em todo o Winners Oficial e `quantidadeLiberos` não está nessa base. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
