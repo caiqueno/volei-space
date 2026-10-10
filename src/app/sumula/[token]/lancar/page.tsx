@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
+import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import {
   Activity,
@@ -168,8 +169,7 @@ export default function SumulaPage() {
   const [mvpId, setMvpId] = useState('')
   const [editingSlot, setEditingSlot] = useState<{ teamId: TeamId; index: number } | null>(null)
   const [subModal, setSubModal] = useState<{ teamId: TeamId; index: number; outNumber: string } | null>(null)
-  const [substitutionLocks, setSubstitutionLocks] = useState<Record<number, Record<TeamId, Record<string, string>>>>({})
-  const [substitutionsUsed, setSubstitutionsUsed] = useState<Record<number, Record<TeamId, number>>>({})
+  const [controleSubstituicao, setControleSubstituicao] = useState<Record<number, Record<TeamId, ControleSubstituicao>>>({})
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -236,15 +236,15 @@ export default function SumulaPage() {
         const restoredTimeouts = countSavedTimeouts(savedOccurrences, teamA, teamB, restored.currentSet)
         setTimeoutsUsedA(restoredTimeouts.teamA)
         setTimeoutsUsedB(restoredTimeouts.teamB)
-        setSubstitutionsUsed(countSavedSubstitutions(savedOccurrences, teamA, teamB))
-        setSubstitutionLocks(restoreSubstitutionLocks(savedOccurrences, teamA, teamB))
+        const numerosDaPartida = restoreMatchNumberOverrides(teamA, teamB, savedPresence)
+        setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida))
         const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
         if (destaqueMvp?.jogadorId) setMvpId(String(destaqueMvp.jogadorId))
         setSidesInverted(countSavedSideInversions(savedOccurrences) % 2 === 1)
 
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setValidatedB(teamB.players.concat(teamB.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
-        setMatchNumberOverrides(restoreMatchNumberOverrides(teamA, teamB, savedPresence))
+        setMatchNumberOverrides(numerosDaPartida)
         setEvents(savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => {
           const salvo = partirDescricaoSalva(String(o.descricao ?? 'Ocorrência registrada'))
           const jogadorId = o.jogadorId ?? undefined
@@ -777,16 +777,18 @@ export default function SumulaPage() {
     setSubModal({ teamId, index, outNumber: number })
   }
 
-  function getAllowedSubstitutionNumbers(teamId: TeamId, outNumber: string) {
+  function listaDeSubstituicao(teamId: TeamId, outNumber: string) {
     const currentBench = teamId === 'teamA' ? benchA : benchB
-    const teamLocks = substitutionLocks[currentSet]?.[teamId] ?? {}
-    const lockedPartner = teamLocks[outNumber]
-    return currentBench.filter((number) => {
-      const incomingLock = teamLocks[number]
-      if (lockedPartner && number !== lockedPartner) return false
-      if (incomingLock && incomingLock !== outNumber) return false
-      return true
-    })
+    const controle = controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()
+    return reservasElegiveis(controle, outNumber, currentBench)
+  }
+
+  function avisoDoModal() {
+    if (!subModal) return null
+    const lista = listaDeSubstituicao(subModal.teamId, subModal.outNumber)
+    if (!lista.aviso) return null
+    const teamId = subModal.teamId
+    return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero))
   }
 
   function executeSubstitution(inNumber: string) {
@@ -798,20 +800,16 @@ export default function SumulaPage() {
     const outPlayer = getPlayer(team, subModal.outNumber)
     const inPlayer = getPlayer(team, inNumber)
     const currentBench = isA ? benchA : benchB
-    const allowedBench = getAllowedSubstitutionNumbers(subModal.teamId, subModal.outNumber)
     const isLiberoExchange = Boolean(outPlayer?.isLibero || inPlayer?.isLibero)
 
     if (!currentBench.includes(inNumber)) {
       addToast('Escolha um atleta do banco de reservas.')
       return
     }
-    if (!allowedBench.includes(inNumber)) {
-      addToast(`Neste set, este atleta só pode voltar com #${allowedBench[0] ?? '--'}.`)
-      return
-    }
-    const usedSubstitutions = substitutionsUsed[currentSet]?.[subModal.teamId] ?? 0
-    if (!isLiberoExchange && usedSubstitutions >= 8) {
-      addToast('Limite de 8 substituições por set atingido para esta equipe.')
+    const controleAtual = controleSubstituicao[currentSet]?.[subModal.teamId] ?? controleVazio()
+    const proximoControle = isLiberoExchange ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber)
+    if (proximoControle?.falha) {
+      addToast(mensagemFalhaSubstituicao(proximoControle.falha, currentSet))
       return
     }
 
@@ -832,34 +830,20 @@ export default function SumulaPage() {
         : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
       subModal.teamId,
     )
-    if (!isLiberoExchange) {
-      setSubstitutionsUsed((current) => {
-        const currentSetCounts = current[currentSet] ?? { teamA: 0, teamB: 0 }
+    if (proximoControle) {
+      const gravado = proximoControle.controle
+      setControleSubstituicao((current) => {
+        const doSet = current[currentSet] ?? { teamA: controleVazio(), teamB: controleVazio() }
         return {
           ...current,
           [currentSet]: {
-            ...currentSetCounts,
-            [subModal.teamId]: (currentSetCounts[subModal.teamId] ?? 0) + 1,
+            teamA: doSet.teamA ?? controleVazio(),
+            teamB: doSet.teamB ?? controleVazio(),
+            [subModal.teamId]: gravado,
           },
         }
       })
     }
-    setSubstitutionLocks((current) => {
-      const currentSetLocks = current[currentSet] ?? { teamA: {}, teamB: {} }
-      const teamLocks = currentSetLocks[subModal.teamId] ?? {}
-      return {
-        ...current,
-        [currentSet]: {
-          teamA: currentSetLocks.teamA ?? {},
-          teamB: currentSetLocks.teamB ?? {},
-          [subModal.teamId]: {
-            ...teamLocks,
-            [subModal.outNumber]: inNumber,
-            [inNumber]: subModal.outNumber,
-          },
-        },
-      }
-    })
     setSubModal(null)
     addToast(isLiberoExchange ? 'Troca de líbero registrada.' : 'Substituição registrada.')
   }
@@ -1330,7 +1314,8 @@ export default function SumulaPage() {
             pointFlash={pointFlash}
             rules={matchRules}
             subModal={subModal}
-            allowedSubstitutions={subModal ? getAllowedSubstitutionNumbers(subModal.teamId, subModal.outNumber) : []}
+            allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
+            substitutionNotice={avisoDoModal()}
             getMatchNumber={getMatchNumber}
             onAttack={(teamId, number) => logPoint(teamId, number, { kind: 'attack' })}
             onBlock={(teamId, number) => logPoint(teamId, number, { kind: 'block' })}
@@ -1374,7 +1359,8 @@ export default function SumulaPage() {
             confirmLineup={confirmLineup}
             setStartingLibero={setStartingLibero}
             executeSubstitution={executeSubstitution}
-            allowedSubstitutions={subModal ? getAllowedSubstitutionNumbers(subModal.teamId, subModal.outNumber) : []}
+            allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
+            substitutionNotice={avisoDoModal()}
             closeSubModal={() => setSubModal(null)}
             getMatchNumber={getMatchNumber}
             onMatchNumberChange={updateMatchNumber}
@@ -1986,6 +1972,7 @@ function PontuacaoTab(props: {
   rules: MatchRules
   subModal: { teamId: TeamId; index: number; outNumber: string } | null
   allowedSubstitutions: string[]
+  substitutionNotice: string | null
   getMatchNumber: (teamId: TeamId, number: string) => string
   events: MatchEvent[]
   onAttack: (teamId: TeamId, number: string) => void
@@ -2125,6 +2112,7 @@ function PontuacaoTab(props: {
           lineup={substitutionLineup}
           bench={substitutionBench}
           onlyBench={props.allowedSubstitutions}
+          notice={props.substitutionNotice}
           teamId={props.subModal.teamId}
           getMatchNumber={props.getMatchNumber}
           onSelect={props.onSelectSubstitution}
@@ -2186,6 +2174,7 @@ function EscalacaoTab(props: {
   setStartingLibero: (teamId: TeamId, number: string) => void
   executeSubstitution: (number: string) => void
   allowedSubstitutions: string[]
+  substitutionNotice: string | null
   closeSubModal: () => void
   getMatchNumber: (teamId: TeamId, number: string) => string
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
@@ -2561,6 +2550,7 @@ function EscalacaoTab(props: {
           lineup={props.subModal.teamId === 'teamA' ? props.lineupA : props.lineupB}
           bench={props.subModal.teamId === 'teamA' ? props.benchA : props.benchB}
           onlyBench={props.allowedSubstitutions}
+          notice={props.substitutionNotice}
           onSelect={props.executeSubstitution}
           onClose={props.closeSubModal}
         />
@@ -3363,21 +3353,25 @@ function TimeoutCard({ team, used, set, onRequest }: { team: Team; used: number;
   return <section className="official-panel"><div className="official-section-row"><h3>{team.name}</h3><span>Set {set}</span></div><div className="official-timeout-boxes">{[1, 2].map((n) => <div key={n} className={used >= n ? 'is-used' : ''}><Clock size={15} />Tempo {n}</div>)}</div><button className="official-primary" disabled={used >= 2} onClick={onRequest}>Registrar tempo</button></section>
 }
 
-function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, selectedLibero = '', hideLiberos = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; selectedLibero?: string; hideLiberos?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string) => void; onClose: () => void }) {
-  const substitutionMode = Boolean(onlyBench)
+function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string) => void; onClose: () => void }) {
+  const substitutionMode = onlyBench != null
   const players = [...team.players, ...team.reserves].filter((player) => !(hideLiberos && player.isLibero))
+  const visiveis = substitutionMode
+    ? players.filter((player) => onlyBench.includes(player.number) && !lineup.includes(player.number))
+    : players
   return (
-    <div className="official-modal">
+    <div className="official-modal" role="dialog" aria-modal="true" aria-label={title}>
       <div>
         <h3>{title}</h3>
         <p className="official-modal-caption">{team.name}</p>
+        {notice ? <p className="official-modal-note">{notice}</p> : null}
         <div>
-          {players.map((player) => {
+          {visiveis.map((player) => {
             const isCourt = lineup.includes(player.number)
             const isBench = bench.includes(player.number)
             const isSelectedLibero = selectedLibero === player.number
             const isLibero = Boolean(player.isLibero || isSelectedLibero)
-            const isSelectable = !isSelectedLibero && (!onlyBench || onlyBench.includes(player.number))
+            const isSelectable = !isSelectedLibero && (!substitutionMode || onlyBench.includes(player.number))
             const playerName = displayPlayerName(player.name, team.name)
             const displayNumber = teamId && getMatchNumber ? getMatchNumber(teamId, player.number) : player.number
             return (
@@ -3392,6 +3386,7 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
               </button>
             )
           })}
+          {substitutionMode && visiveis.length === 0 && !notice ? <p className="official-modal-empty">Nenhum reserva elegível neste set.</p> : null}
         </div>
         <button onClick={onClose}>Voltar</button>
       </div>
@@ -3588,26 +3583,16 @@ function countSavedTimeouts(savedOccurrences: any[], teamA: Team, teamB: Team, c
   return result
 }
 
-function countSavedSubstitutions(savedOccurrences: any[], teamA: Team, teamB: Team) {
-  const result: Record<number, { teamA: number; teamB: number }> = {}
-  for (const occurrence of savedOccurrences) {
-    if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
-    const setNumber = Number(occurrence.set ?? 1)
-    if (!result[setNumber]) result[setNumber] = { teamA: 0, teamB: 0 }
-    const text = normalizeName(String(occurrence.descricao ?? ''))
-    if (text.includes(normalizeName(teamA.name))) result[setNumber].teamA += 1
-    if (text.includes(normalizeName(teamB.name))) result[setNumber].teamB += 1
-  }
-  return result
-}
-
-function restoreSubstitutionLocks(savedOccurrences: any[], teamA: Team, teamB: Team) {
-  const locks: Record<number, Record<TeamId, Record<string, string>>> = {}
+function restoreControleSubstituicao(
+  savedOccurrences: any[],
+  teamA: Team,
+  teamB: Team,
+  overrides: Record<TeamId, Record<number, string>>,
+) {
+  const controle: Record<number, Record<TeamId, ControleSubstituicao>> = {}
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
     const text = String(occurrence.descricao ?? '')
-    const troca = text.match(/sai #([^\s,]+).+entra #([^\s,]+)/i)
-    if (!troca) continue
     const setNumber = Number(occurrence.set ?? 1)
     const normalized = normalizeName(text)
     const teamId: TeamId | null = normalized.includes(normalizeName(teamA.name))
@@ -3616,10 +3601,28 @@ function restoreSubstitutionLocks(savedOccurrences: any[], teamA: Team, teamB: T
         ? 'teamB'
         : null
     if (!teamId) continue
-    locks[setNumber] = locks[setNumber] ?? { teamA: {}, teamB: {} }
-    locks[setNumber][teamId][troca[1]] = troca[2]
+    const team = teamId === 'teamA' ? teamA : teamB
+    const troca = numerosDaTroca(text)
+    const atual = controle[setNumber]?.[teamId] ?? controleVazio()
+    const proximo = troca
+      ? aplicarSubstituicao(atual, numeroDoElenco(team, troca[0], overrides[teamId]), numeroDoElenco(team, troca[1], overrides[teamId]))
+      : atual.usadas >= LIMITE_SUBSTITUICOES_POR_SET
+        ? null
+        : { controle: { usadas: atual.usadas + 1, pares: atual.pares }, falha: null }
+    if (!proximo || proximo.falha) continue
+    controle[setNumber] = {
+      teamA: controle[setNumber]?.teamA ?? controleVazio(),
+      teamB: controle[setNumber]?.teamB ?? controleVazio(),
+      [teamId]: proximo.controle,
+    }
   }
-  return locks
+  return controle
+}
+
+function numeroDoElenco(team: Team, exibido: string, overrides: Record<number, string> | undefined) {
+  const players = [...team.players, ...team.reserves]
+  const encontrado = players.find((player) => (overrides?.[player.id] || player.number) === exibido)
+  return encontrado?.number ?? exibido
 }
 
 function countSavedSideInversions(savedOccurrences: any[]) {

@@ -391,17 +391,19 @@ function readBoolean(source: any, keys: string[], fallback: boolean) {
 }
 
 function makeDemoPartida(token: string) {
-  const jogadoresA = Array.from({ length: 8 }, (_, index) => ({
+  const jogadoresA = Array.from({ length: 11 }, (_, index) => ({
     id: 100 + index + 1,
     nome: `Jogador ${index + 1} - Set Point`,
     numero: index + 1,
+    posicao: index === 7 ? 'LB' : null,
     fotoRostoUrl: null,
     qrToken: `demo-setpoint-${index + 1}`,
   }))
-  const jogadoresB = Array.from({ length: 8 }, (_, index) => ({
+  const jogadoresB = Array.from({ length: 11 }, (_, index) => ({
     id: 200 + index + 1,
     nome: `Jogador ${index + 1} - Libero FC`,
     numero: index + 1,
+    posicao: index === 7 ? 'LB' : null,
     fotoRostoUrl: null,
     qrToken: `demo-libero-${index + 1}`,
   }))

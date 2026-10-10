@@ -10670,6 +10670,18 @@ button.referee-number.is-saved {
   text-transform: uppercase;
 }
 
+.official-modal-note,
+.official-modal-empty {
+  margin: 0 0 14px;
+  color: #e2e8f0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.official-modal-empty {
+  color: #94a3b8;
+}
+
 .official-modal button {
   width: 100%;
   min-height: 42px;

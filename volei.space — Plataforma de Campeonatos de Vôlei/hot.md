@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O credenciamento grava o número da camisa na partida. A migration 202610100001 não foi aplicada. A papeleta da súmula volta a um time por vez. O saque alterna até o 4º set e o 5º sorteia. O +1 registra o ponto sem jogador.
+  A substituição fecha o par na volta. O credenciamento grava o número da camisa na partida. A migration 202610100001 não foi aplicada. A papeleta é de um time. O saque alterna até o 4º set e o +1 é ponto sem jogador.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a súmula passa a fechar o par de substituição no set. Se o #5 sai e o #9 entra, o #9 só pode sair para o #5 voltar. Depois da volta, nenhum dos dois é substituído de novo naquele set. O modal da quadra lista só reservas elegíveis e nunca quem está em quadra. A troca de líbero não conta e não cria par. O limite continua em 8. Não há substituição excepcional. O `PUT` e o `POST` de `/api/sumula/[token]` recusam troca inválida. O requisito bruto ainda permite repetir o par; a decisão do dono fecha na volta. Fonte: [[modulos/SUMULA-DIGITAL]], [[11-DECISOES]].
 
 O credenciamento pré-partida edita o número da camisa no badge do atleta. O valor fica em `SumulaPresenca.numero` e não altera `Jogador.numero`. A faixa é 0–99 e o número efetivo não repete na mesma equipe naquela partida. `presente` nulo continua Pendente; a migration `202610100001` ainda não foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
