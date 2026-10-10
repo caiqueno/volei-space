@@ -9,13 +9,8 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
-import {
-  categoriaDaUrl,
-  equipesDaCategoria,
-  escopoDaGeracao,
-  partidasDeGrupoDaCategoria,
-  regeneracaoBloqueada,
-} from '@/lib/isolamento-categoria'
+import { jogoImpedeEdicaoDaCategoria, partidaRemovivelAoRecriarGrupos } from '@/lib/configuracao-categoria-edicao'
+import { categoriaDaUrl, equipesDaCategoria, escopoDaGeracao } from '@/lib/isolamento-categoria'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -193,7 +188,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const { data: partidasExistentes, error: partidasErr } = await supabase
       .from('Partida')
-      .select('id,status,fase,grupoId,categoriaCampeonatoId')
+      .select('id,status,fase,grupoId,categoriaCampeonatoId,sumulaSubmetidaEm,sumulaAprovadaEm,setsPorA,setsPorB,vencedorId')
       .eq('ligaId', ligaId)
       .eq('categoriaCampeonatoId', categoriaCampeonatoId)
 
@@ -202,16 +197,25 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return error('Erro ao validar partidas existentes.', 500)
     }
 
-    if (regeneracaoBloqueada(partidasExistentes ?? [], categoriaCampeonatoId)) {
-      return error('Não é possível alterar os grupos desta categoria porque já existem partidas iniciadas ou encerradas.', 409)
+    const lockedMatches = (partidasExistentes ?? []).filter((partida: any) => jogoImpedeEdicaoDaCategoria(partida))
+    if (lockedMatches.length > 0) {
+      return error('Não é possível recriar os confrontos desta categoria: já existe jogo em andamento, encerrado ou com súmula.', 409)
     }
 
-    const removableIds = partidasDeGrupoDaCategoria(partidasExistentes ?? [], categoriaCampeonatoId).map((partida) => Number(partida.id))
+    const removableIds = (partidasExistentes ?? [])
+      .filter((partida: any) => partida.categoriaCampeonatoId === categoriaCampeonatoId && partidaRemovivelAoRecriarGrupos(partida))
+      .map((partida: any) => partida.id)
     if (removableIds.length > 0) {
+      const { error: escalaErr } = await supabase.from('EscalaArbitro').delete().in('partidaId', removableIds)
+      if (escalaErr) console.error('[estrutura] escala do calendário anterior permanece', escalaErr)
       const { error: deletePartidasErr } = await supabase.from('Partida').delete().in('id', removableIds)
       if (deletePartidasErr) {
-        console.error('[estrutura] erro ao remover calendário', deletePartidasErr)
-        return error('Erro ao remover calendário anterior.', 500)
+        console.error('[estrutura] erro ao remover calendário; cancelando jogos não iniciados', deletePartidasErr)
+        const { error: cancelErr } = await supabase.from('Partida').update({ status: 'CANCELADA' }).in('id', removableIds)
+        if (cancelErr) {
+          console.error('[estrutura] erro ao cancelar calendário anterior', cancelErr)
+          return error('Erro ao remover calendário anterior.', 500)
+        }
       }
     }
 
