@@ -8,10 +8,16 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] decisao | base visual Noite de final
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Tokens `--vs-*` passam a ser a paleta única. `--luva-*`, `--landing-*` e `--dark-*` viram aliases. Barlow Condensed e Manrope carregam só por `next/font`.
+- `globals.css` deixa de redefinir utilitários Tailwind e de usar `!important` nos passes de override. Lógica, rotas, API e banco não mudam.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 
