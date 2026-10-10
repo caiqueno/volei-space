@@ -13,6 +13,16 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | teste da súmula aceita a escalação sugerida
+
+- pages_updated=`log`
+- Ao ir para a escalação, a partida deixa de mostrar «Sem atleta» e sugere #1 a #6. O nome da equipe aparece em maiúsculas. O teste da mesa confere essa sugestão, define o líbero e segue. A escalação vazia continua valendo só no pré-jogo.
+
+## [2026-10-10] fix | prefixo do W.O. antes da migration de RLS
+
+- pages_updated=`06-BANCO-DE-DADOS`, `modulos/CLASSIFICACAO`, `hot`, `log`
+- `20261010138000` ficou com o confronto da categoria. `20261010150000_wo_configuravel.sql` passou a `20261010139000_wo_configuravel.sql`, depois desse confronto e antes de `20261010140000`. O SQL não mudou e não foi aplicado.
+
 ## [2026-10-10] fix | merge da operação por categoria com a main
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `06-BANCO-DE-DADOS`, `hot`, `log`
