@@ -11,6 +11,7 @@ import { WizardStepper, type WizardStepDef } from '../../wizard/WizardStepper'
 import { WizardNavigation } from '../../wizard/WizardNavigation'
 import { useSectionWizard } from '../../wizard/useSectionWizard'
 import { Field } from '../../ui/Field'
+import { NumberInput } from '../../ui/NumberInput'
 import { ChoiceChips } from '../../ui/ChoiceChips'
 import { ToggleCards } from '../../ui/ToggleCards'
 import { CheckboxRow } from '../../ui/CheckboxRow'
@@ -19,6 +20,7 @@ import { PricingSummary } from '../../pricing/PricingSummary'
 import PageLoading from '@/components/ui/page-loading'
 import type { EliminatoriasSectionDTO } from '@/types/championship-setup'
 import { formatEliminatoryPhase, getEliminatoryPhaseForTeams, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
+import { rotuloSetsDaFase } from '@/lib/sets-por-fase'
 import { computeTotalClassificadosFormula } from '@/lib/championship-validation'
 import { revealMissingFields } from '../../wizard/missing-fields'
 
@@ -187,6 +189,21 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
           temEliminatoria ? (
             <>
               <CheckboxRow label="Disputa de 3º lugar" checked={data.disputaTerceiroLugar} onChange={(v) => updateNow({ disputaTerceiroLugar: v })} disabled={vagas < 4} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Sets da final" hint="Em branco, a final usa a quantidade de sets do campeonato. O tie-break, quando ligado, vale no último set dessa quantidade.">
+                  <NumberInput value={data.setsPorPartidaFinal} min={1} max={5} placeholder={String(data.setsPorPartida ?? 3)} onChange={(v) => updateNow({ setsPorPartidaFinal: v })} />
+                </Field>
+                {vagas >= 4 && (
+                  <Field label="Sets da semifinal" hint="Em branco, usa a quantidade do campeonato.">
+                    <NumberInput value={data.setsPorPartidaSemifinal} min={1} max={5} placeholder={String(data.setsPorPartida ?? 3)} onChange={(v) => updateNow({ setsPorPartidaSemifinal: v })} />
+                  </Field>
+                )}
+                {vagas >= 4 && data.disputaTerceiroLugar && (
+                  <Field label="Sets do 3º lugar" hint="Em branco, usa a quantidade do campeonato.">
+                    <NumberInput value={data.setsPorPartidaTerceiroLugar} min={1} max={5} placeholder={String(data.setsPorPartida ?? 3)} onChange={(v) => updateNow({ setsPorPartidaTerceiroLugar: v })} />
+                  </Field>
+                )}
+              </div>
               <ToggleCards
                 value={data.eliminatoriaIdaVolta}
                 onChange={(v) => updateNow({ eliminatoriaIdaVolta: v })}
@@ -208,6 +225,9 @@ export function EliminatoriasWizard({ ligaId }: { ligaId: number }) {
                 <ReviewRow icon={Sparkles} label="Chaveamento" value={CHAVEAMENTO_OPTIONS.find((o) => o.value === data.metodoChaveamento)?.label ?? 'Manual'} />
                 <ReviewRow icon={Medal} label="Formato" value={data.eliminatoriaIdaVolta ? 'Ida e volta' : 'Jogo único'} />
                 <ReviewRow icon={Medal} label="Disputa de 3º lugar" value={data.disputaTerceiroLugar ? 'Sim' : 'Não'} />
+                <ReviewRow icon={Medal} label="Sets da final" value={rotuloSetsDaFase(data.setsPorPartidaFinal, data.setsPorPartida)} />
+                {vagas >= 4 && <ReviewRow icon={Medal} label="Sets da semifinal" value={rotuloSetsDaFase(data.setsPorPartidaSemifinal, data.setsPorPartida)} />}
+                {vagas >= 4 && data.disputaTerceiroLugar && <ReviewRow icon={Medal} label="Sets do 3º lugar" value={rotuloSetsDaFase(data.setsPorPartidaTerceiroLugar, data.setsPorPartida)} />}
               </>
             )}
             {!temEliminatoria && <ReviewRow icon={ShieldOff} label="Situação" value="Não aplicável — concluído automaticamente" />}

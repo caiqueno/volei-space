@@ -7,6 +7,7 @@ import {
   jogoImpedeEdicaoDaCategoria,
   MENSAGEM_EDICAO_BLOQUEADA,
   partidaRemovivelAoRecriarGrupos,
+  motivoBloqueioEdicao,
   proximoEstadoSecoes,
   secoesDependentes,
   statusConfiguracaoDaCategoria,
@@ -59,6 +60,14 @@ assert.deepEqual(secoesDependentes('estrutura', { tieBreakUltimoSet: true }), ['
 assert.deepEqual(secoesDependentes('classificacao', { classificadosPorGrupo: 2 }), ['eliminatorias'])
 assert.deepEqual(secoesDependentes('eliminatorias', { faseEliminatoria: 'SEMIFINAL' }), ['classificacao', 'calendario'])
 assert.deepEqual(secoesDependentes('eliminatorias', {}), [])
+assert.deepEqual(secoesDependentes('eliminatorias', { setsPorPartidaFinal: 5, setsPorPartidaSemifinal: null }), [])
+assert.deepEqual(secoesDependentes('eliminatorias', { setsPorPartidaFinal: 5, faseEliminatoria: 'FINAL' }), ['classificacao', 'calendario'])
+
+assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaFinal: 5 }, [{ fase: 'GRUPOS', status: 'ENCERRADA' }]), null)
+assert.match(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaFinal: 5 }, [{ fase: 'FINAL', status: 'ENCERRADA' }]) ?? '', /final já tem jogo/i)
+assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaSemifinal: 3 }, [{ fase: 'FINAL', status: 'ENCERRADA' }]), null)
+assert.match(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaTerceiroLugar: 3 }, [{ fase: 'TERCEIRO_LUGAR', status: 'EM_ANDAMENTO' }]) ?? '', /3º lugar/)
+assert.equal(motivoBloqueioEdicao('eliminatorias', { faseEliminatoria: 'FINAL' }, [{ fase: 'GRUPOS', status: 'ENCERRADA' }]), MENSAGEM_EDICAO_BLOQUEADA)
 
 assert.deepEqual(camposAlterados({ faseEliminatoria: 'NENHUMA', tieBreakUltimoSet: false }, { faseEliminatoria: 'SEMIFINAL', tieBreakUltimoSet: false }), {
   faseEliminatoria: 'SEMIFINAL',
@@ -66,6 +75,10 @@ assert.deepEqual(camposAlterados({ faseEliminatoria: 'NENHUMA', tieBreakUltimoSe
 assert.deepEqual(camposAlterados({ criteriosClassificacao: '["PONTOS"]' }, { criteriosClassificacao: ['PONTOS'] }), {})
 assert.deepEqual(camposParaEspelharNaLiga({ faseEliminatoria: 'SEMIFINAL', terceiroSetObrigatorio: true, pontosVencedorMargem1: 2 }), {
   faseEliminatoria: 'SEMIFINAL',
+})
+assert.deepEqual(camposParaEspelharNaLiga({ setsPorPartidaFinal: 5, setsPorPartidaSemifinal: null, pontosVencedorMargem1: 2 }), {
+  setsPorPartidaFinal: 5,
+  setsPorPartidaSemifinal: null,
 })
 
 const secoes = proximoEstadoSecoes({

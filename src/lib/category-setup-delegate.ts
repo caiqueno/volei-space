@@ -5,9 +5,9 @@ import {
   camposAlterados,
   camposParaEspelharNaLiga,
   erroAoConcluirCategoria,
-  jogoImpedeEdicaoDaCategoria,
-  MENSAGEM_EDICAO_BLOQUEADA,
+  motivoBloqueioEdicao,
   proximoEstadoSecoes,
+  type JogoDaCategoria,
   secoesDependentes,
   statusConfiguracaoDaCategoria,
   type SecaoSetup,
@@ -19,7 +19,7 @@ import { supabaseAdmin as db } from '@/lib/supabase-admin'
 const ALLOWED: Record<string, string[]> = {
   estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled'],
   classificacao: ['criteriosClassificacao', 'classificadosPorGrupo', 'melhoresClassificadosGerais', 'pontosVencedorMargem1', 'pontosPerdedorMargem1', 'pontosVencedorMargem2', 'pontosPerdedorMargem2'],
-  eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet'],
+  eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataInicio', 'dataFim'],
   inscricoes: ['inscricoesAbertas', 'inscricoesAberturaEm', 'inscricoesEncerramentoEm', 'inscricaoPermiteEdicaoAposEnvio', 'inscricaoPrazoEdicaoDias', 'elencoQuantidadeMinima', 'elencoQuantidadeMaxima', 'elencoCadastroDuranteInscricao', 'prazoAlteracaoElencoDias', 'qrCodeEnabled', 'formularioInscricaoConfig'],
 }
@@ -62,9 +62,10 @@ export async function saveCategorySection(args: {
       patch[key] = value
     }
     if (SECOES_COM_TRAVA.has(args.section)) {
-      const bloqueio = await categoriaComJogoIniciado(categoryId)
-      if (bloqueio === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
-      if (bloqueio) return error(MENSAGEM_EDICAO_BLOQUEADA, 409)
+      const jogos = await jogosDaCategoria(categoryId)
+      if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
+      const motivo = motivoBloqueioEdicao(args.section, patch, jogos)
+      if (motivo) return error(motivo, 409)
     }
     const { data, error: rpcError } = await db.rpc('salvar_configuracao_categoria', {
       p_liga_id: args.ligaId,
@@ -77,9 +78,10 @@ export async function saveCategorySection(args: {
     })
     if (rpcError) {
       if (/Operacao iniciada/i.test(rpcError.message) && SECOES_COM_TRAVA.has(args.section)) {
-        const bloqueio = await categoriaComJogoIniciado(categoryId)
-        if (bloqueio === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
-        if (bloqueio) return error(MENSAGEM_EDICAO_BLOQUEADA, 409)
+        const jogos = await jogosDaCategoria(categoryId)
+        if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
+        const motivo = motivoBloqueioEdicao(args.section, patch, jogos)
+        if (motivo) return error(motivo, 409)
         const gravada = await gravarCategoriaComEquipes(args.ligaId, categoryId, args.section, config, patch, args.intent)
         if (gravada instanceof Response) return gravada
         await espelharNaLiga(args.ligaId, patch)
@@ -100,16 +102,16 @@ export async function saveCategorySection(args: {
   }
 }
 
-async function categoriaComJogoIniciado(categoryId: string) {
+async function jogosDaCategoria(categoryId: string) {
   const { data, error: consultaErro } = await db
     .from('Partida')
-    .select('status,sumulaSubmetidaEm,sumulaAprovadaEm,setsPorA,setsPorB,vencedorId')
+    .select('fase,status,sumulaSubmetidaEm,sumulaAprovadaEm,setsPorA,setsPorB,vencedorId')
     .eq('categoriaCampeonatoId', categoryId)
   if (consultaErro) {
     console.error('[setup] erro ao conferir jogos da categoria', consultaErro)
     return 'erro' as const
   }
-  return (data ?? []).some((jogo) => jogoImpedeEdicaoDaCategoria(jogo))
+  return (data ?? []) as JogoDaCategoria[]
 }
 
 async function gravarCategoriaComEquipes(

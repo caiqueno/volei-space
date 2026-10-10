@@ -115,6 +115,11 @@ export interface EliminatoriasSectionDTO extends SectionPatchMeta {
   eliminatoriaIdaVolta: boolean
   disputaTerceiroLugar: boolean
   goldenSet: boolean
+  /** Null herda `setsPorPartida` do campeonato. A súmula usa o valor da fase no último set, inclusive o tie-break. */
+  setsPorPartida?: number | null
+  setsPorPartidaFinal: number | null
+  setsPorPartidaSemifinal: number | null
+  setsPorPartidaTerceiroLugar: number | null
   /** Só leitura — pertencem a Estrutura/Classificação, usados para calcular a fase inicial automaticamente. */
   formato: string | null
   quantidadeEquipes: number | null

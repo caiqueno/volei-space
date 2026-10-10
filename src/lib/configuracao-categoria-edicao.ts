@@ -1,4 +1,5 @@
 import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
+import { CAMPOS_SETS_POR_FASE } from '@/lib/sets-por-fase'
 
 const STATUS_INICIADO_OU_ENCERRADO = new Set(['EM_ANDAMENTO', 'ENCERRADA', 'WO', 'FINALIZADA', 'APROVADA', 'FINISHED'])
 const STATUS_GRUPO_ENCERRADO = new Set(['ENCERRADA', 'WO', 'FINALIZADA', 'APROVADA', 'FINISHED', 'CANCELADA'])
@@ -26,6 +27,9 @@ const CAMPOS_LIGA = new Set([
   'eliminatoriaIdaVolta',
   'disputaTerceiroLugar',
   'goldenSet',
+  'setsPorPartidaFinal',
+  'setsPorPartidaSemifinal',
+  'setsPorPartidaTerceiroLugar',
 ])
 
 export type JogoDaCategoria = {
@@ -93,8 +97,37 @@ export function secoesDependentes(secao: string, patch: Record<string, unknown>)
   if (secao === 'classificacao' && tem(['classificadosPorGrupo', 'melhoresClassificadosGerais'])) {
     return ['eliminatorias']
   }
-  if (secao === 'eliminatorias' && chaves.length > 0) return ['classificacao', 'calendario']
+  if (secao === 'eliminatorias' && chaves.length > 0 && !patchSoDeSetsPorFase(patch)) return ['classificacao', 'calendario']
   return []
+}
+
+const FASE_DO_CAMPO_DE_SETS: Record<(typeof CAMPOS_SETS_POR_FASE)[number], string> = {
+  setsPorPartidaFinal: 'FINAL',
+  setsPorPartidaSemifinal: 'SEMIFINAL',
+  setsPorPartidaTerceiroLugar: 'TERCEIRO_LUGAR',
+}
+
+export function patchSoDeSetsPorFase(patch: Record<string, unknown>) {
+  const chaves = Object.keys(patch)
+  return chaves.length > 0 && chaves.every((chave) => (CAMPOS_SETS_POR_FASE as readonly string[]).includes(chave))
+}
+
+/** A quantidade de sets de uma fase do mata-mata continua editável depois que a fase de grupos começa. Trava só a fase que já tem jogo iniciado. */
+export function motivoBloqueioEdicao(secao: string, patch: Record<string, unknown>, jogos: JogoDaCategoria[]) {
+  if (secao === 'eliminatorias' && patchSoDeSetsPorFase(patch)) {
+    for (const chave of Object.keys(patch) as Array<(typeof CAMPOS_SETS_POR_FASE)[number]>) {
+      const fase = FASE_DO_CAMPO_DE_SETS[chave]
+      const travou = jogos.some((jogo) => String(jogo.fase ?? '').trim().toUpperCase() === fase && jogoImpedeEdicaoDaCategoria(jogo))
+      if (!travou) continue
+      const nome = fase === 'FINAL' ? 'A final' : fase === 'SEMIFINAL' ? 'A semifinal' : 'A disputa de 3º lugar'
+      return `${nome} já tem jogo em andamento, encerrado ou com súmula. A quantidade de sets dessa fase fica travada.`
+    }
+    return null
+  }
+  if (['estrutura', 'classificacao', 'eliminatorias'].includes(secao) && jogos.some((jogo) => jogoImpedeEdicaoDaCategoria(jogo))) {
+    return MENSAGEM_EDICAO_BLOQUEADA
+  }
+  return null
 }
 
 export function camposAlterados(atual: Record<string, unknown>, patch: Record<string, unknown>) {

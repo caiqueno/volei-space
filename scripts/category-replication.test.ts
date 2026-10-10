@@ -20,6 +20,16 @@ assert.ok(!('inscricoesAbertas' in snapshot.inscricoes!))
 snapshot.inscricoes!.formularioInscricaoConfig!.atleta!.foto = 'disabled'
 assert.equal((source.configuration.formularioInscricaoConfig as any).atleta.foto, 'required', 'JSON copy independent')
 assert.throws(() => createReplicationSnapshot({ formularioInscricaoConfig: { atleta: { token: 'secret' } } }, ['inscricoes']), /unrecognized_keys/)
+const eliminatorias = createReplicationSnapshot({
+  faseEliminatoria: 'FINAL',
+  setsPorPartidaFinal: null,
+  setsPorPartidaSemifinal: 3,
+  setsPorPartidaTerceiroLugar: 5,
+}, ['eliminatorias'])
+assert.equal(eliminatorias.eliminatorias!.faseEliminatoria, 'FINAL')
+assert.ok(!('setsPorPartidaFinal' in eliminatorias.eliminatorias!))
+assert.equal(eliminatorias.eliminatorias!.setsPorPartidaSemifinal, 3)
+assert.equal(eliminatorias.eliminatorias!.setsPorPartidaTerceiroLugar, 5)
 assert.throws(() => createReplicationSnapshot(source.configuration, ['estrutura', 'estrutura']))
 assert.throws(() => createReplicationSnapshot({ ...source.configuration, quantidadeEquipes: -1 }, ['estrutura']))
 

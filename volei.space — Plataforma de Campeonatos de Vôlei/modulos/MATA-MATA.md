@@ -5,12 +5,16 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Classificados incluem os melhores gerais; a final define o campeão antes de finalizar.
+  A final pode ter quantidade de sets própria. O portal público mostra pódio e chave quando a final tem vencedor.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Mata-mata
+
+**Sets por fase — implementado no código, migration pendente:** `setsPorPartida` continua valendo para grupos, quartas, oitavas e dezesseis avos. Final, semifinal e disputa de 3º lugar aceitam um inteiro de 1 a 5 em `setsPorPartidaFinal`, `setsPorPartidaSemifinal` e `setsPorPartidaTerceiroLugar`. Null herda o campeonato. O tie-break, quando ligado, é o último set dessa quantidade. A súmula, a validação, o resultado manual e a aprovação usam essa quantidade. O campo fica em Eliminatórias e continua editável depois que os grupos começam; trava só se o jogo daquela fase já começou, encerrou ou tem súmula. A migration `20261010136000_sets_por_fase_mata_mata.sql` ainda não foi aplicada. Sem ela, a leitura cai no padrão do campeonato e gravar o campo novo falha.
+
+**Pódio público — implementado:** `/portal?ligaId=` e `/classificacao` mostram pódio, resultado da final, resultado do 3º lugar e a chave quando a categoria tem mata-mata. O pódio aparece assim que a final tem vencedor, mesmo com o campeonato ainda ativo. A tabela de pontos continua só com `GERAL` e `GRUPOS`. Campeonato de teste ou simulação não entra nessa API.
 
 **Implementado:** funções em `src/lib/mata-mata.ts`, `src/lib/classificados.ts` e `src/lib/eliminatorias.ts`; rotas de estrutura e chaveamento em `src/app/api/organizador/ligas/[id]/mata-mata`. A parametrização define formato e fase eliminatória; as validações de capacidade estão em `src/lib/championship-validation.ts`. O insert da chave grava `categoriaCampeonatoId` da equipe e `serie` nula, e recusa confronto entre categorias diferentes. O `sumulaToken` desse insert é aleatório; a configuração da chave e o pareamento não mudam. Slot, alimentadores e classificados são lidos só nessa categoria, então duas categorias podem ter a mesma final na rodada 1. Com categoria informada, fase e disputa de 3º lugar vêm de `CategoriaConfiguracao`. O mata-mata é jogo único: volta responde 409 na rota e o índice parcial do banco também impede o segundo jogo. A classificação vigente soma só fases `GERAL` e `GRUPOS`; a chave não entra na tabela. A página pública `/campeonatos/[slug]` e `/fase-mata-mata` mostram a chave da categoria escolhida (a primeira, se a URL não pedir outra) e, com status `FINALIZADO`, o pódio de `getChampionshipPodium` dessa categoria (final e disputa de 3º lugar).
 

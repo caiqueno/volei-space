@@ -4,8 +4,17 @@
  * O formato único de 3 sets de 21 de `brain/02 - Regulamento e Regras da Liga/Formato da Temporada.md`
  * não está fixado nesta função.
  */
+import { inteiroDeSets, setsDaFase, type SetsPorFase } from '@/lib/sets-por-fase'
+
 export type CategorySet = { numero: number; pontosA: number; pontosB: number }
-export type CategoryMatchRules = { setsPorPartida: number; pontosPorSet: number; setsFormato?: string; terceiroSetObrigatorio?: boolean; tieBreakUltimoSet?: boolean; pontosUltimoSet?: number }
+export type CategoryMatchRules = SetsPorFase & {
+  setsPorPartida: number
+  pontosPorSet: number
+  setsFormato?: string
+  terceiroSetObrigatorio?: boolean
+  tieBreakUltimoSet?: boolean
+  pontosUltimoSet?: number
+}
 
 export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null): CategoryMatchRules {
   return {
@@ -15,6 +24,20 @@ export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null
     pontosUltimoSet: Number(source?.pontosUltimoSet) > 0 ? Number(source?.pontosUltimoSet) : 15,
     setsFormato: typeof source?.setsFormato === 'string' ? source.setsFormato : undefined,
     terceiroSetObrigatorio: source?.terceiroSetObrigatorio === true,
+    setsPorPartidaFinal: inteiroDeSets(source?.setsPorPartidaFinal),
+    setsPorPartidaSemifinal: inteiroDeSets(source?.setsPorPartidaSemifinal),
+    setsPorPartidaTerceiroLugar: inteiroDeSets(source?.setsPorPartidaTerceiroLugar),
+  }
+}
+
+/** Aplica a quantidade da fase. O tie-break continua no último set dessa quantidade. */
+export function regrasParaFase(source: Partial<CategoryMatchRules> | null | undefined, fase?: string | null): CategoryMatchRules {
+  const regras = regrasDaConfiguracao(source)
+  const setsPorPartida = setsDaFase(regras, fase)
+  return {
+    ...regras,
+    setsPorPartida,
+    terceiroSetObrigatorio: regras.terceiroSetObrigatorio === true && setsPorPartida === 3,
   }
 }
 

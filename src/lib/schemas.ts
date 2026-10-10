@@ -236,6 +236,9 @@ export const ligaSchema = z.object({
   dataFim: z.string().datetime({ offset: true }).optional(),
   prazoAlteracaoElencoDias: z.number().int().min(0).max(365).optional(),
   setsPorPartida: z.number().int().min(1).max(5).optional(),
+  setsPorPartidaFinal: z.number().int().min(1).max(5).nullable().optional(),
+  setsPorPartidaSemifinal: z.number().int().min(1).max(5).nullable().optional(),
+  setsPorPartidaTerceiroLugar: z.number().int().min(1).max(5).nullable().optional(),
   pontosPorSet: z.number().int().min(1).max(99).optional(),
   setsFormato: z.enum(['MELHOR_DE', 'QUANTIDADE_FIXA']).optional(),
   diferencaMinimaSet: z.number().int().min(1).max(10).optional(),
@@ -332,6 +335,9 @@ export const setupEliminatoriasSchema = ligaSchema.pick({
   eliminatoriaIdaVolta: true,
   disputaTerceiroLugar: true,
   goldenSet: true,
+  setsPorPartidaFinal: true,
+  setsPorPartidaSemifinal: true,
+  setsPorPartidaTerceiroLugar: true,
 }).partial()
 
 export const setupCalendarioSchema = ligaSchema.pick({

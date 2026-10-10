@@ -7,6 +7,7 @@ import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-acc
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { carregarFonteDeSets, regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
+  access.partida.liga = await carregarFonteDeSets(access.partida)
   // Consulta pública da página /sumula/{token}. A projeção tira documento, telefone e e-mail.
   // O GET sem ?consulta=1 continua passando por requireSumulaLeitura.
   if (new URL(req.url).searchParams.get('consulta') === '1') {
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!atletaMvp || Number(atletaMvp.equipeId) !== equipeVencedoraId) {
       return error('O MVP precisa ser um atleta da equipe vencedora.', 422)
     }
-    const regra = regrasDaPartida(partida.liga)
+    const regra = await regrasEfetivasDaPartida(partida)
     const placarInvalido = validateCategoryResult(sets, regra)
     if (placarInvalido) return error(placarInvalido, 422)
 
@@ -146,9 +148,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     const { presencas, sets, ocorrencias, destaques } = parsed.data
     const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: false })
     if (validationError) return error(validationError, 422)
-    const andamentoInvalido = validateCategoryProgress(sets, regrasDaPartida(partida.liga))
+    const regraAndamento = await regrasEfetivasDaPartida(partida)
+    const andamentoInvalido = validateCategoryProgress(sets, regraAndamento)
     if (andamentoInvalido) return error(andamentoInvalido, 422)
-    const liveSummary = buildLiveSummary(sets, partida.liga)
+    const liveSummary = buildLiveSummary(sets, regraAndamento)
 
     await gravarSumulaComRestauracao({
       partidaId: partida.id,
@@ -261,18 +264,6 @@ function campeonatoDeSimulacao(partida: any) {
   return liga?.simulacao === true
 }
 
-function regrasDaPartida(liga: any): CategoryMatchRules {
-  const source = Array.isArray(liga) ? liga[0] : liga
-  return {
-    setsPorPartida: readPositiveNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets'], 3),
-    pontosPorSet: readPositiveNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet'], 21),
-    tieBreakUltimoSet: readBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set'], false),
-    pontosUltimoSet: readPositiveNumber(source, ['pontosUltimoSet', 'pontos_ultimo_set'], 15),
-    setsFormato: typeof source?.setsFormato === 'string' ? source.setsFormato : undefined,
-    terceiroSetObrigatorio: source?.terceiroSetObrigatorio === true,
-  }
-}
-
 function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean }) {
   const equipeAId = Number(partida.equipeAId)
   const equipeBId = Number(partida.equipeBId)
@@ -340,8 +331,7 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
   })
 }
 
-function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB: number }>, liga: any) {
-  const rules = getLiveRules(liga)
+function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB: number }>, rules: CategoryMatchRules) {
   const sortedSets = [...sets].sort((a, b) => Number(a.numero) - Number(b.numero))
   const latestSet = sortedSets[sortedSets.length - 1]
   let setsPorA = 0
@@ -350,7 +340,7 @@ function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB
   for (const set of sortedSets) {
     const maxScore = Math.max(set.pontosA, set.pontosB)
     const diff = Math.abs(set.pontosA - set.pontosB)
-    const threshold = Number(set.numero) === rules.setsPerMatch ? rules.lastSetPoints : rules.pointsPerSet
+    const threshold = Number(set.numero) === rules.setsPorPartida && rules.tieBreakUltimoSet ? Number(rules.pontosUltimoSet) : Number(rules.pontosPorSet)
     const isConfirmedByRule = maxScore >= threshold && diff >= 2
     if (!isConfirmedByRule) continue
     if (set.pontosA > set.pontosB) setsPorA += 1
@@ -363,33 +353,6 @@ function buildLiveSummary(sets: Array<{ numero: number; pontosA: number; pontosB
     pontosPorA: latestSet?.pontosA ?? 0,
     pontosPorB: latestSet?.pontosB ?? 0,
   }
-}
-
-function getLiveRules(liga: any) {
-  const source = Array.isArray(liga) ? liga[0] : liga
-  const pointsPerSet = readPositiveNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet'], 21)
-  const setsPerMatch = readPositiveNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets'], 3)
-  const tieBreakEnabled = readBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set'], false)
-  const lastSetPoints = tieBreakEnabled
-    ? readPositiveNumber(source, ['pontosUltimoSet', 'pontos_ultimo_set'], 15)
-    : pointsPerSet
-  return { pointsPerSet, setsPerMatch, lastSetPoints }
-}
-
-function readPositiveNumber(source: any, keys: string[], fallback: number) {
-  for (const key of keys) {
-    const value = Number(source?.[key])
-    if (Number.isFinite(value) && value > 0) return Math.trunc(value)
-  }
-  return fallback
-}
-
-function readBoolean(source: any, keys: string[], fallback: boolean) {
-  for (const key of keys) {
-    const value = source?.[key]
-    if (typeof value === 'boolean') return value
-  }
-  return fallback
 }
 
 function makeDemoPartida(token: string) {

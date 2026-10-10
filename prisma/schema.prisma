@@ -35,6 +35,9 @@ model Liga {
   turnoReturno                    Boolean   @default(false)
   setsFormato                     String    @default("MELHOR_DE")
   setsPorPartida                  Int       @default(3)
+  setsPorPartidaFinal             Int?
+  setsPorPartidaSemifinal         Int?
+  setsPorPartidaTerceiroLugar     Int?
   pontosPorSet                    Int       @default(25)
   diferencaMinimaSet              Int       @default(2)
   tieBreakUltimoSet               Boolean   @default(false)
@@ -756,6 +759,9 @@ model CategoriaConfiguracao {
   turnoReturno                    Boolean   @default(false)
   setsFormato                     String    @default("MELHOR_DE")
   setsPorPartida                  Int       @default(3)
+  setsPorPartidaFinal             Int?
+  setsPorPartidaSemifinal         Int?
+  setsPorPartidaTerceiroLugar     Int?
   pontosPorSet                    Int       @default(25)
   tieBreakUltimoSet               Boolean   @default(true)
   pontosUltimoSet                 Int       @default(15)
