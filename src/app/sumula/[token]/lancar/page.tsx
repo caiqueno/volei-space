@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { escalacaoParaJogo } from '@/lib/escalacao-inicial'
@@ -12,7 +13,8 @@ import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
-import { criarFilaSalvamento } from '@/lib/fila-salvamento'
+import { criarSalvamentoCoalescido } from '@/lib/fila-salvamento'
+import { maiorVersaoRegistro } from '@/lib/versao-sumula'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
@@ -131,6 +133,23 @@ type Anotacao = {
   timestamp: string
 }
 
+type RascunhoAndamento = {
+  versao: number
+  teamA: Team | null
+  teamB: Team | null
+  setScores: SetScore[]
+  currentSet: number
+  currentScore: { teamA: number; teamB: number }
+  validatedA: string[]
+  validatedB: string[]
+  matchNumberOverrides: Record<TeamId, Record<number, string>>
+  events: MatchEvent[]
+  anotacoes: Anotacao[]
+  mvpId: string
+  matchStatus: 'pre-game' | 'live' | 'finished'
+  sumulaAprovadaEm: string | null
+}
+
 const tabs: Array<{ id: TabId; label: string; icon: ReactNode }> = [
   { id: 'pre', label: 'Pré-partida', icon: <QrCode size={16} /> },
   { id: 'resumo', label: 'Resumo', icon: <ClipboardList size={16} /> },
@@ -203,7 +222,10 @@ export default function SumulaPage() {
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const [confirmarOficial, setConfirmarOficial] = useState(false)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const filaSalvamento = useRef(criarFilaSalvamento())
+  const filaSalvamento = useRef(criarSalvamentoCoalescido())
+  const versaoRef = useRef(0)
+  const assinaturaRef = useRef('')
+  const rascunhoRef = useRef<RascunhoAndamento | null>(null)
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
 
@@ -280,6 +302,8 @@ export default function SumulaPage() {
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setValidatedB(teamB.players.concat(teamB.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setMatchNumberOverrides(numerosDaPartida)
+        const gravada = maiorVersaoRegistro(savedOccurrences.map((item: { descricao?: string | null }) => item.descricao))
+        if (gravada > versaoRef.current) versaoRef.current = gravada
         const eventosRestaurados = savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => {
           const salvo = partirDescricaoSalva(String(o.descricao ?? 'Ocorrência registrada'))
           const jogadorId = o.jogadorId ?? undefined
@@ -325,6 +349,43 @@ export default function SumulaPage() {
     return [...vencedora.players, ...vencedora.reserves]
   }, [teamA, teamB, setsWon])
   const matchRules = useMemo(() => getMatchRules(partida?.liga, partida?.fase), [partida?.liga, partida?.fase])
+  const assinaturaAndamento = [
+    matchStatus,
+    currentSet,
+    currentScore.teamA,
+    currentScore.teamB,
+    setsWon.teamA,
+    setsWon.teamB,
+    events.length,
+    events[0]?.id ?? '',
+    anotacoes.length,
+    validatedA.length,
+    validatedB.length,
+    formacaoVersao,
+    partida?.sumulaAprovadaEm ?? '',
+    setScores.map((set) => `${set.teamA}:${set.teamB}:${set.confirmed ? 1 : 0}`).join(','),
+    JSON.stringify(matchNumberOverrides),
+  ].join('|')
+  if (assinaturaAndamento !== assinaturaRef.current) {
+    assinaturaRef.current = assinaturaAndamento
+    versaoRef.current += 1
+  }
+  rascunhoRef.current = {
+    versao: versaoRef.current,
+    teamA,
+    teamB,
+    setScores,
+    currentSet,
+    currentScore,
+    validatedA,
+    validatedB,
+    matchNumberOverrides,
+    events,
+    anotacoes,
+    mvpId,
+    matchStatus,
+    sumulaAprovadaEm: partida?.sumulaAprovadaEm ?? null,
+  }
 
   function getMatchNumber(teamId: TeamId, number: string) {
     const team = teamId === 'teamA' ? teamA : teamB
@@ -542,15 +603,18 @@ export default function SumulaPage() {
   function undoLastPoint() {
     const last = scoreHistory[scoreHistory.length - 1]
     if (!last) return
-    setCurrentScore(last.score)
-    setServingTeamId(last.servingTeamId)
-    setServerIndexA(last.serverIndexA)
-    setServerIndexB(last.serverIndexB)
-    setLineupA(last.lineupA)
-    setLineupB(last.lineupB)
-    setEvents((current) => current.filter((event) => !last.eventIds.includes(event.id)))
-    setScoreHistory((current) => current.slice(0, -1))
-    setSetEndPrompt(null)
+    flushSync(() => {
+      setCurrentScore(last.score)
+      setServingTeamId(last.servingTeamId)
+      setServerIndexA(last.serverIndexA)
+      setServerIndexB(last.serverIndexB)
+      setLineupA(last.lineupA)
+      setLineupB(last.lineupB)
+      setEvents((current) => current.filter((event) => !last.eventIds.includes(event.id)))
+      setScoreHistory((current) => current.slice(0, -1))
+      setSetEndPrompt(null)
+    })
+    void enfileirarSalvamento(false).catch(() => undefined)
     addToast('Último ponto corrigido.')
   }
 
@@ -580,15 +644,18 @@ export default function SumulaPage() {
     const target = scoreHistory[targetIndex]
     const collateral = scoreHistory.length - 1 - targetIndex
     const removedEventIds = scoreHistory.slice(targetIndex).flatMap((entry) => entry.eventIds)
-    setCurrentScore(target.score)
-    setServingTeamId(target.servingTeamId)
-    setServerIndexA(target.serverIndexA)
-    setServerIndexB(target.serverIndexB)
-    setLineupA(target.lineupA)
-    setLineupB(target.lineupB)
-    setEvents((current) => current.filter((event) => !removedEventIds.includes(event.id)))
-    setScoreHistory((current) => current.slice(0, targetIndex))
-    setSetEndPrompt(null)
+    flushSync(() => {
+      setCurrentScore(target.score)
+      setServingTeamId(target.servingTeamId)
+      setServerIndexA(target.serverIndexA)
+      setServerIndexB(target.serverIndexB)
+      setLineupA(target.lineupA)
+      setLineupB(target.lineupB)
+      setEvents((current) => current.filter((event) => !removedEventIds.includes(event.id)))
+      setScoreHistory((current) => current.slice(0, targetIndex))
+      setSetEndPrompt(null)
+    })
+    void enfileirarSalvamento(false).catch(() => undefined)
     if (collateral > 0) {
       const otherTeamName = teamId === 'teamA' ? teamB?.name : teamA?.name
       addToast(`Último ponto do ${teamName ?? 'time'} corrigido (também foi necessário desfazer ${collateral} ponto(s) do ${otherTeamName ?? 'outro time'} para isso).`)
@@ -1017,7 +1084,12 @@ export default function SumulaPage() {
   }
 
   function buildSumulaPayload(finalOnly = false) {
-    if (!teamA || !teamB) return { presencas: [], sets: [], ocorrencias: [], destaques: [] }
+    const rascunho = rascunhoRef.current
+    if (!rascunho?.teamA || !rascunho.teamB) return { presencas: [], sets: [], ocorrencias: [], destaques: [] }
+    const {
+      teamA, teamB, setScores, currentSet, currentScore, validatedA, validatedB,
+      matchNumberOverrides, events, anotacoes, mvpId,
+    } = rascunho
     const sets = setScores
       .map((set, index) => {
         if (index === currentSet - 1 && !set.confirmed) return { numero: index + 1, pontosA: currentScore.teamA, pontosB: currentScore.teamB }
@@ -1061,10 +1133,12 @@ export default function SumulaPage() {
   }
 
   async function saveLiveSnapshot(force = false) {
-    if (!teamA || !teamB) return
-    if (!force && matchStatus !== 'live' && matchStatus !== 'finished') return
-    if (partida?.sumulaAprovadaEm) return
-    const payload = buildSumulaPayload(false)
+    const rascunho = rascunhoRef.current
+    if (!rascunho?.teamA || !rascunho.teamB) return null
+    if (!force && rascunho.matchStatus !== 'live' && rascunho.matchStatus !== 'finished') return null
+    if (rascunho.sumulaAprovadaEm) return null
+    const versaoEnviada = rascunho.versao
+    const payload = { ...buildSumulaPayload(false), versao: versaoEnviada }
     if (String(token).includes('demo')) {
       window.localStorage.setItem(`luv-live-match-${partida.id}`, JSON.stringify(buildDemoLiveSnapshot(payload)))
     }
@@ -1076,18 +1150,40 @@ export default function SumulaPage() {
     if (!resposta.ok) {
       const corpo = await resposta.json().catch(() => ({}))
       const mensagem = corpo?.error || 'Não foi possível salvar o andamento da súmula.'
-      if (/encerrada/i.test(mensagem)) return
+      if (/encerrada/i.test(mensagem)) return versaoEnviada
+      if (resposta.status === 409 && (rascunhoRef.current?.versao ?? versaoEnviada) > versaoEnviada) return versaoEnviada
       throw new Error(mensagem)
     }
+    return versaoEnviada
   }
 
   function enfileirarSalvamento(force = false) {
-    return filaSalvamento.current(() => saveLiveSnapshot(force)
-      .then(() => setFalhaSalvamento(null))
-      .catch((err) => {
-        setFalhaSalvamento(err instanceof Error ? err.message : 'Não foi possível salvar o andamento da súmula.')
-        throw err
-      }))
+    return filaSalvamento.current(async () => {
+      let enviado = -1
+      for (let tentativa = 0; tentativa < 8; tentativa += 1) {
+        const versao = rascunhoRef.current?.versao ?? 0
+        if (versao === enviado) return
+        enviado = versao
+        try {
+          const gravada = await saveLiveSnapshot(force)
+          if (gravada == null) return
+          if (rascunhoRef.current?.versao === gravada) {
+            setFalhaSalvamento(null)
+            return
+          }
+        } catch (err) {
+          if ((rascunhoRef.current?.versao ?? 0) !== versao) continue
+          const mensagem = err instanceof Error ? err.message : 'Não foi possível salvar o andamento da súmula.'
+          setFalhaSalvamento(mensagem)
+          addToast(mensagem)
+          throw err
+        }
+      }
+      const mensagem = 'Não foi possível salvar o andamento da súmula.'
+      setFalhaSalvamento(mensagem)
+      addToast(mensagem)
+      throw new Error(mensagem)
+    })
   }
 
   function buildDemoLiveSnapshot(payload: ReturnType<typeof buildSumulaPayload>, statusOverride?: 'EM_ANDAMENTO' | 'ENCERRADA') {

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sem configuração, a súmula continua pedindo um líbero inicial e a troca não conta como substituição. O andamento da súmula grava o placar de novo. A ocorrência de presença deixa o id com a sequence.
+  Corrigir o último ponto permanece depois de recarregar. Um PUT atrasado não regrava o placar antigo. Se o salvamento mais novo falhar, a súmula mostra o erro.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 corrigir o último ponto da partida 1095 deixava o 1x0 na tela e, ao recarregar, voltava o 2x0. O `PUT` das 11:46:55 UTC gravou `1:1-0` com 204. O `PUT` das 11:46:57 gravou `1:2-0` por cima e reinseriu os dois pontos. `gravar_sumula_partida` não guarda o ponto apagado: ela grava o corpo que chegou por último. A tela agora manda `versao` e, se o placar mudar no meio do envio, manda de novo o estado atual. O servidor recusa versão menor ou reserva mais antiga e responde 409. A falha do salvamento mais novo aparece no aviso. A marca `[[V:N]]` fica no texto do registro de placar. A reserva é uma ocorrência `Registro de andamento`. Nenhuma coluna nova. A página do árbitro precisa ser recarregada para pegar esse envio. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a escalação continua pedindo um líbero inicial enquanto `exigirLiberoInicial` não está false. A quantidade 1 ou 2 limita a lista; vazio não limita. A troca de líbero não conta como substituição e não cria par. Sem as colunas, a súmula segue como está. `20261010139990_libero_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139980` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 

@@ -465,6 +465,7 @@ export const sumulaSchema = z.object({
     jogadorId: z.number().int(),
     tipo: z.enum(['MVP', 'MELHOR_SAQUE', 'MELHOR_BLOQUEIO']),
   })).optional(),
+  versao: z.number().int().nonnegative().optional(),
 })
 
 // Candidatura schemas (new)
