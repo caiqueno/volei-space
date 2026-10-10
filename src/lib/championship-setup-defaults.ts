@@ -81,6 +81,7 @@ export const DEFAULT_CRITERIOS_CLASSIFICACAO = ['PONTOS', 'VITORIAS', 'SALDO_SET
 // deve oferecer texto livre aqui.
 export const CLASSIFICATION_CRITERIA_LABELS: Record<string, string> = {
   PONTOS: 'Pontos',
+  CONFRONTO_DIRETO: 'Confronto direto',
   VITORIAS: 'Vitórias',
   DERROTAS: 'Derrotas (menos derrotas primeiro)',
   SALDO_SETS: 'Saldo de sets',

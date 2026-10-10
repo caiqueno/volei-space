@@ -288,5 +288,12 @@ export async function DELETE() {
   const res = NextResponse.json({ data: { mensagem: 'Logout realizado' } })
   const cookie = clearTokenCookie()
   res.cookies.set(cookie.name, cookie.value, cookie.options)
+  res.cookies.set('luva_acesso_arbitro', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 0,
+    path: '/',
+  })
   return res
 }

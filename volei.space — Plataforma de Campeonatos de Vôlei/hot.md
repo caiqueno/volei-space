@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sets da final, semifinal e 3º lugar e o pódio público. 20261010136000 ainda não foi aplicada. Nascimento e documento opcionais seguem em 20261010135000. A de RLS continua a última.
+  Fase de grupos só gera e aceita jogo dentro do mesmo grupo. Tabelas separadas por grupo, com confronto direto. Nenhuma migration foi aplicada.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a fase de grupos só confronta equipes do mesmo grupo. O gerador, o calendário automático com vínculo de grupo e a criação manual recusam o cruzamento. A tela de estrutura alinha a quantidade de grupos aos cartões; grupos + mata-mata sem quantidade salva abre em 2. A classificação pública e a do painel mostram uma tabela por grupo e desempatam por confronto direto. A semifinal de dois grupos pode ser cruzada (1º A × 2º B e 1º B × 2º A); final e 3º lugar continuam depois do resultado. O elenco com nome, número e grupo fica na página pública do campeonato e em `/painel/elenco`, com busca. Sair fica visível no celular e no desktop, inclusive árbitro, súmula e admin. O link do juiz copia, abre o WhatsApp e copia a rodada. Não houve migration. Os jogos já gravados não foram reescritos. Fonte: [[modulos/GRUPOS]], [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 
 Em 10 de outubro de 2026 a quantidade de sets deixa de ser só `Liga.setsPorPartida`. Final, semifinal e 3º lugar têm campo próprio, nulo para herdar o campeonato. A súmula, a validação e o lançamento usam essa quantidade, e o tie-break fica no último set dela. O portal (`/portal?ligaId=`) e a classificação pública mostram pódio, final, 3º lugar e chave quando existe mata-mata, mesmo antes de `FINALIZADO`. A tabela de pontos continua só com grupos. `20261010136000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica depois de `20261010135000` e antes da migration de RLS. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[modulos/PARAMETRIZACAO]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 

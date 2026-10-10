@@ -8,7 +8,7 @@ import { GaleriaOrganizador } from '@/components/galeria/GaleriaOrganizador'
 import { ChampionshipTableSection } from '@/components/classificacao/ChampionshipTableSection'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
-import { AcessoArbitroJogo } from './AcessoArbitroJogo'
+import { AcessoArbitroJogo, type LinkDoJuiz } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import { faseDeGruposEncerrada } from '@/lib/configuracao-categoria-edicao'
@@ -18,7 +18,12 @@ import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
-const REGRA_TABELA = 'Vitória por 2 sets a 0 vale 3 pontos. Vitória por 2 sets a 1 vale 2 pontos para o vencedor e 1 para o perdedor.'
+const REGRA_TABELA = 'Vitória por 2 sets a 0 vale 3 pontos. Vitória por 2 sets a 1 vale 2 pontos para o vencedor e 1 para o perdedor. Cada grupo tem a sua tabela. Empate em pontos desempata pelo confronto direto.'
+
+function lerTabela(data: { linhas?: any[]; grupos?: Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> } | any[] | undefined) {
+  if (Array.isArray(data)) return { linhas: data, grupos: [] as Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> }
+  return { linhas: data?.linhas ?? [], grupos: data?.grupos ?? [] }
+}
 
 type LigaLista = {
   id: number
@@ -124,6 +129,7 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
 
 export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; organizadorId: string; campeonatoId: number | null; onSelect: (id: number) => void }) {
   const [dados, setDados] = useState<any[]>([])
+  const [gruposTabela, setGruposTabela] = useState<Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }>>([])
   const [partidas, setPartidas] = useState<Array<{ fase?: string | null; status?: string | null }>>([])
   const [jogosCarregados, setJogosCarregados] = useState(false)
   const [pendente, setPendente] = useState(true)
@@ -134,6 +140,7 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
     if (!liga || !pronto) {
       if (!liga) {
         setDados([])
+        setGruposTabela([])
         setPartidas([])
         setJogosCarregados(false)
         setPendente(false)
@@ -145,17 +152,20 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
     setJogosCarregados(false)
     const consulta = queryCategoria(categoriaId)
     Promise.all([
-      consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
+      consultar<{ data?: { linhas?: any[]; grupos?: Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> } | any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
       consultar<{ data?: any[] }>(`/api/partidas?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
     ])
       .then(([classificacao, jogos]) => {
-        setDados(Array.isArray(classificacao.data) ? classificacao.data : [])
+        const tabela = lerTabela(classificacao.data)
+        setDados(tabela.linhas)
+        setGruposTabela(tabela.grupos)
         setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
         setJogosCarregados(true)
       })
       .catch((erro) => {
         if (erro instanceof ConsultaCancelada) return
         setDados([])
+        setGruposTabela([])
         setPartidas([])
         setJogosCarregados(false)
       })
@@ -170,11 +180,13 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
       if (!liga || !pronto) return
       const consulta = queryCategoria(categoriaId)
       Promise.all([
-        consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { forcar: true }),
+        consultar<{ data?: { linhas?: any[]; grupos?: Array<{ id: string; nome: string; automaticLimit: number; linhas: any[] }> } | any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { forcar: true }),
         consultar<{ data?: any[] }>(`/api/partidas?ligaId=${liga.id}${consulta}`, { forcar: true }),
       ])
         .then(([classificacao, jogos]) => {
-          setDados(Array.isArray(classificacao.data) ? classificacao.data : [])
+          const tabela = lerTabela(classificacao.data)
+          setDados(tabela.linhas)
+          setGruposTabela(tabela.grupos)
           setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
           setJogosCarregados(true)
         })
@@ -207,7 +219,7 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
       ) : dados.length === 0 ? (
         <EstadoVazio titulo={categoriaId ? 'Nenhuma equipe nesta categoria' : 'Nenhuma equipe inscrita'} descricao="A classificação aparece aqui com zero até a primeira partida desta categoria." />
       ) : (
-        <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} ligaId={liga.id} organizadorId={organizadorId} organizerMode requiredClassified={getRequiredEliminatoryTeams(liga.faseEliminatoria)} groupStageFinished={jogosCarregados && faseDeGruposEncerrada(partidas)} />
+        <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} groups={gruposTabela.map((grupo) => ({ id: grupo.id, nome: grupo.nome, automaticLimit: grupo.automaticLimit, dados: grupo.linhas }))} ligaId={liga.id} organizadorId={organizadorId} organizerMode requiredClassified={getRequiredEliminatoryTeams(liga.faseEliminatoria)} groupStageFinished={jogosCarregados && faseDeGruposEncerrada(partidas)} />
       )}
     </section>
   )
@@ -255,6 +267,8 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
   const [temMais, setTemMais] = useState(false)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [avisoRodada, setAvisoRodada] = useState('')
+  const linksDoJuiz = useRef(new Map<number, LinkDoJuiz>())
   const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
   const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(liga?.id ?? null)
   const quantidade = useRef(20)
@@ -346,9 +360,18 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
         <EstadoVazio titulo={categoriaId ? 'Nenhum jogo nesta categoria' : 'Nenhum jogo neste campeonato'} descricao="As partidas aparecem aqui quando o calendário desta categoria for montado." />
       ) : null}
       {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
+      {avisoRodada ? <p className="text-sm font-black text-emerald-300">{avisoRodada}</p> : null}
       {Array.from(grupos.entries()).map(([ligaId, grupo]) => (
         <CollapseBar key={ligaId} title={grupo.simulacao ? `${grupo.nome} · simulação` : grupo.nome}>
-          <div>
+          <div className="grid gap-6">
+            {rodadasDoGrupo(grupo.partidas).map(([rodada, jogosDaRodada]) => (
+              <div key={rodada}>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-black text-white">Rodada {rodada}</p>
+                  <button type="button" className="rounded-full border border-white/15 px-3 py-2 text-xs font-black text-white" onClick={() => void copiarRodada(jogosDaRodada, linksDoJuiz.current, setAvisoRodada)}>
+                    Copiar links da rodada
+                  </button>
+                </div>
             <table data-stack className="w-full text-left text-sm text-white">
               <thead className="text-xs font-black uppercase tracking-wide text-white/60">
                 <tr>
@@ -359,11 +382,11 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                   <th className="px-3 py-2">Placar</th>
                   <th className="px-3 py-2">Árbitro responsável</th>
                   <th className="px-3 py-2">Súmula</th>
-                  <th className="px-3 py-2">Acesso do árbitro</th>
+                  <th className="px-3 py-2">Link do juiz</th>
                 </tr>
               </thead>
               <tbody>
-                {grupo.partidas.map((partida) => {
+                {jogosDaRodada.map((partida) => {
                   const status = String(partida.status || 'AGENDADA').toUpperCase()
                   const quando = partida.dataHora ? new Date(partida.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'A definir'
                   const emJogo = status === 'EM_ANDAMENTO'
@@ -386,20 +409,56 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                           <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Resumo da partida</a>
                         </div>
                       </td>
-                      <td data-label="Acesso" className="px-3 py-3">
-                        <AcessoArbitroJogo partidaId={partida.id} jogo={`${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`} />
+                      <td data-label="Link do juiz" className="px-3 py-3">
+                        <AcessoArbitroJogo
+                          partidaId={partida.id}
+                          jogo={`${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`}
+                          onDisponivel={(link) => { linksDoJuiz.current.set(partida.id, link) }}
+                        />
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+              </div>
+            ))}
           </div>
         </CollapseBar>
       ))}
       {temMais && <button type="button" className="rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950" onClick={() => void verMais()}>Ver mais</button>}
     </section>
   )
+}
+
+function rodadasDoGrupo(partidas: PartidaOrganizacao[]) {
+  const grupos = new Map<string, PartidaOrganizacao[]>()
+  for (const partida of partidas) {
+    const chave = String(partida.rodada || '—')
+    const lista = grupos.get(chave) ?? []
+    lista.push(partida)
+    grupos.set(chave, lista)
+  }
+  return Array.from(grupos.entries())
+}
+
+async function copiarRodada(
+  partidas: PartidaOrganizacao[],
+  links: Map<number, LinkDoJuiz>,
+  avisar: (texto: string) => void,
+) {
+  const linhas = partidas.flatMap((partida) => {
+    const link = links.get(partida.id)
+    if (!link?.url) return []
+    const jogo = `${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`
+    return [`${jogo}\n${link.url}${link.codigo ? `\nCódigo: ${link.codigo}` : ''}`]
+  })
+  if (linhas.length === 0) {
+    avisar('Gere o link do juiz dos jogos desta rodada antes de copiar.')
+    return
+  }
+  await navigator.clipboard.writeText(linhas.join('\n\n'))
+  avisar(`${linhas.length} link(s) da rodada copiado(s).`)
 }
 
 export function PainelGaleria({ ligas, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void }) {

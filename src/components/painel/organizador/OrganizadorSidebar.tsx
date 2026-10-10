@@ -4,11 +4,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { CalendarDays, ClipboardCheck, Home, Images, LogOut, Radio, Settings, SlidersHorizontal, Table2, Trophy, type LucideIcon } from 'lucide-react'
+import { CalendarDays, ClipboardCheck, Home, Images, LogOut, Radio, Settings, SlidersHorizontal, Table2, Trophy, UsersRound, type LucideIcon } from 'lucide-react'
 import { consultar } from '@/lib/api-cliente'
 import { encerrarSessaoPublica } from '@/lib/sessao-publica'
 
-export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'aovivo' | 'galeria' | 'settings'
+export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'aovivo' | 'galeria' | 'settings' | 'elenco'
 
 type ItemMenu = {
   key: PainelView | 'portal' | 'rankings'
@@ -23,6 +23,7 @@ const ITENS: ItemMenu[] = [
   { key: 'campeonatos', label: 'Campeonatos', short: 'Campeonatos', icon: Trophy },
   { key: 'tabela', label: 'Classificação', short: 'Tabela', icon: Table2 },
   { key: 'jogos', label: 'Jogos', short: 'Jogos', icon: CalendarDays },
+  { key: 'elenco', label: 'Elenco', short: 'Elenco', icon: UsersRound },
   { key: 'aovivo', label: 'Ao vivo', short: 'Ao vivo', icon: Radio },
   { key: 'galeria', label: 'Galeria', short: 'Galeria', icon: Images },
   { key: 'settings', label: 'Configurações', short: 'Ajustes', icon: Settings },
@@ -35,6 +36,7 @@ function ligaDaConsulta(valor: string | null) {
 }
 
 function enderecoDoItem(item: ItemMenu, ligaId: string | null) {
+  if (item.key === 'elenco') return ligaId ? `/painel/elenco?ligaId=${ligaId}` : '/painel/elenco'
   if (item.key === 'portal' || item.key === 'rankings') {
     return ligaId ? `/${item.key}?ligaId=${ligaId}` : `/${item.key}`
   }
@@ -50,6 +52,7 @@ function itemAtivo(pathname: string, secao: string | null): ItemMenu['key'] | nu
   if (pathname === '/rankings' || pathname.startsWith('/rankings/')) return 'rankings'
   if (pathname.startsWith('/painel/parametrizacao') || pathname.startsWith('/painel/estrutura')) return 'parametrizacao'
   if (pathname.startsWith('/painel/campeonatos')) return 'campeonatos'
+  if (pathname.startsWith('/painel/elenco')) return 'elenco'
   if (pathname !== '/painel') return null
   if (secao === 'parametrizacao' || secao === 'campeonatos' || secao === 'tabela' || secao === 'jogos' || secao === 'aovivo' || secao === 'galeria' || secao === 'settings') {
     return secao
@@ -140,22 +143,24 @@ export function OrganizadorSidebar() {
       </aside>
 
       <nav className="profile-mobile-nav">
-        {ITENS.map((item) => {
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.key}
-              href={enderecoDoItem(item, ligaId)}
-              aria-disabled={obfuscated}
-              tabIndex={obfuscated ? -1 : 0}
-              className={`profile-mobile-link ${ativo === item.key ? 'is-active' : ''} ${obfuscated ? 'pointer-events-none opacity-40' : ''}`}
-            >
-              <Icon size={18} />
-              <span>{item.short}</span>
-            </Link>
-          )
-        })}
-        <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-mobile-link">
+        <div className="profile-mobile-scroll">
+          {ITENS.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.key}
+                href={enderecoDoItem(item, ligaId)}
+                aria-disabled={obfuscated}
+                tabIndex={obfuscated ? -1 : 0}
+                className={`profile-mobile-link ${ativo === item.key ? 'is-active' : ''} ${obfuscated ? 'pointer-events-none opacity-40' : ''}`}
+              >
+                <Icon size={18} />
+                <span>{item.short}</span>
+              </Link>
+            )
+          })}
+        </div>
+        <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-mobile-link profile-mobile-logout">
           <LogOut size={18} />
           <span>Sair</span>
         </button>

@@ -5,6 +5,7 @@ import { exigirOrganizadorDaLiga, exigirOrganizadorDaPartida } from '@/lib/organ
 import { partidaAtualizacaoSchema } from '@/lib/schemas'
 import { camposEditaveisDaPartida } from '@/lib/partida-escrita'
 import { categoriaCampeonatoDaPartida, equipesPertencemALiga } from '@/lib/partida-equipes'
+import { recusarJogoDeGrupoCruzado } from '@/lib/confronto-grupo'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { data: atual, error: atualErr } = await supabase
       .from('Partida')
-      .select('ligaId,equipeAId,equipeBId,categoria')
+      .select('ligaId,equipeAId,equipeBId,categoria,fase,grupoId,categoriaCampeonatoId')
       .eq('id', Number(id))
       .maybeSingle()
     if (atualErr) throw atualErr
@@ -57,10 +58,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (equipesInvalidas) return error(equipesInvalidas, 422)
     }
 
+    let categoriaId = atual.categoriaCampeonatoId ? String(atual.categoriaCampeonatoId) : null
     if (parsed.data.categoria || parsed.data.ligaId) {
-      const categoriaId = await categoriaCampeonatoDaPartida(ligaId, String(parsed.data.categoria ?? atual.categoria))
+      categoriaId = await categoriaCampeonatoDaPartida(ligaId, String(parsed.data.categoria ?? atual.categoria))
       if (!categoriaId) return error('Esta categoria não está disponível no campeonato.', 422)
       patch.categoriaCampeonatoId = categoriaId
+    }
+
+    if (patch.equipeAId !== undefined || patch.equipeBId !== undefined || patch.ligaId !== undefined) {
+      const foraDoGrupo = await recusarJogoDeGrupoCruzado({
+        ligaId,
+        categoriaCampeonatoId: categoriaId,
+        fase: atual.fase,
+        grupoId: atual.grupoId,
+        equipeAId: Number(patch.equipeAId ?? atual.equipeAId),
+        equipeBId: Number(patch.equipeBId ?? atual.equipeBId),
+      })
+      if (foraDoGrupo) return error(foraDoGrupo, 422)
     }
 
     if (Object.keys(patch).length === 0) return error('Dados inválidos', 422)

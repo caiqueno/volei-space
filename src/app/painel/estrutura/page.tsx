@@ -24,6 +24,7 @@ import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { rotuloConfronto } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { SeletorCategoria } from '@/components/portal/SeletorCategoria'
+import { alinharGrupos, quantidadeInicialDeGrupos } from '@/lib/grupos-fase'
 
 type Equipe = {
   id: number
@@ -48,6 +49,7 @@ type Liga = {
   quantidadeGrupos?: number | null
   classificadosPorGrupo?: number | null
   faseEliminatoria?: string | null
+  formato?: string | null
 }
 
 type CategoriaOpcao = { id: string; nome: string }
@@ -56,6 +58,7 @@ type RegrasCategoria = {
   quantidadeGrupos?: number | null
   classificadosPorGrupo?: number | null
   faseEliminatoria?: string | null
+  formato?: string | null
 }
 
 type GrupoState = {
@@ -195,23 +198,32 @@ function EstruturaContent() {
     setCategoriaId(data.categoriaCampeonatoId ?? lista[0]?.id ?? null)
     const loadedEquipes = (data.equipes ?? []) as Equipe[]
     const loadedGroups = data.grupos ?? []
-    const groupCount = Math.max(1, Number(loadedLiga.quantidadeGrupos ?? loadedGroups.length ?? 1))
+    const salvos = loadedGroups.map((grupo: any) => ({
+      nome: String(grupo.nome ?? ''),
+      equipeIds: (grupo.equipes ?? []).map((item: any) => Number(item.equipeId)).filter(Number.isInteger),
+    }))
+    const groupCount = quantidadeInicialDeGrupos({
+      quantidadeSalva: loadedLiga.quantidadeGrupos,
+      formato: regras?.formato ?? base.formato,
+      equipes: loadedEquipes.length,
+      gruposExistentes: salvos.length,
+    })
+    const alinhados = alinharGrupos({
+      quantidade: groupCount,
+      salvos,
+      equipeIds: loadedEquipes.map((equipe) => equipe.id),
+    })
 
-    setLiga(loadedLiga)
+    setLiga({ ...loadedLiga, formato: regras?.formato ?? base.formato, quantidadeGrupos: groupCount })
     setEquipes(loadedEquipes)
     setQuantidadeGrupos(groupCount)
     setClassificadosPorGrupo(Number(loadedLiga.classificadosPorGrupo ?? 2))
     const loadedPartidas = (data.partidas ?? []) as Partida[]
     setPartidas(loadedPartidas)
     setCalendarDrafts(buildCalendarDrafts(loadedPartidas))
-
-    if (loadedGroups.length > 0) {
-      setGrupos(loadedGroups.map((grupo: any) => ({
-        nome: grupo.nome,
-        equipeIds: (grupo.equipes ?? []).map((item: any) => Number(item.equipeId)).filter(Number.isInteger),
-      })))
-    } else {
-      setGrupos(distributeAutomatically(loadedEquipes, buildGroupNames(groupCount)))
+    setGrupos(alinhados)
+    if (salvos.length > 0 && salvos.length !== alinhados.length) {
+      setMessage('A quantidade de grupos não batia com os cartões salvos. A distribuição foi alinhada. Confirme para gravar os jogos dentro de cada grupo.')
     }
     setLoading(false)
   }
@@ -226,6 +238,7 @@ function EstruturaContent() {
   }
 
   function changeGroupCount(nextCount: number) {
+    if (!Number.isInteger(nextCount)) return
     const safeCount = Math.max(1, Math.min(12, nextCount))
     setQuantidadeGrupos(safeCount)
     setGrupos(distributeAutomatically(equipes, buildGroupNames(safeCount)))
@@ -428,6 +441,9 @@ function EstruturaContent() {
                 onChange={(event) => changeGroupCount(Number(event.target.value))}
                 className="rounded-2xl border border-white/10 bg-[#102033] px-4 py-3 font-black text-white outline-none"
               />
+              <span className="text-xs font-bold text-slate-300">
+                {quantidadeGrupos} grupo(s) de cerca de {equipes.length ? Math.ceil(equipes.length / quantidadeGrupos) : 0} equipes. Os jogos saem todos contra todos dentro de cada grupo.
+              </span>
             </label>
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Classificados por grupo</span>

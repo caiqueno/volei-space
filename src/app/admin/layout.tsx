@@ -76,9 +76,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <p className="text-xs font-black uppercase tracking-[0.22em] text-luva-amber">Painel da organização</p>
               <h1 className="mt-1 text-2xl font-black text-white">volei.space</h1>
             </div>
-            <div className="admin-active-season inline-flex w-fit items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black text-white">
-              <Trophy size={16} className="text-luva-amber" />
-              Temporada ativa
+            <div className="flex items-center gap-2">
+              <LogoutButton icon={<LogOut size={14} />} />
+              <div className="admin-active-season inline-flex w-fit items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black text-white">
+                <Trophy size={16} className="text-luva-amber" />
+                Temporada ativa
+              </div>
             </div>
           </div>
         </header>

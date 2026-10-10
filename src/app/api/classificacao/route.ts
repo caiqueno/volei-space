@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
+import { montarTabelasDeGrupo } from '@/lib/classificacao-grupos'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +57,8 @@ export async function GET(req: NextRequest) {
         equipe,
       })
     }
-    const resposta = success(linhas)
+    const grupos = await montarTabelasDeGrupo(ligaId, categoria.id, linhas)
+    const resposta = success({ linhas, grupos })
     resposta.headers.set('Cache-Control', 'no-store')
     return resposta
   } catch {

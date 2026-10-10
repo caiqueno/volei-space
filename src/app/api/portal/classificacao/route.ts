@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
+import { montarTabelasDeGrupo } from '@/lib/classificacao-grupos'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -46,6 +47,9 @@ export async function GET(req: NextRequest) {
       vitorias: Number(linha.vitorias ?? 0),
       derrotas: Number(linha.derrotas ?? 0),
       setsPro: Number(linha.setsPro ?? 0),
+      setsContra: Number(linha.setsContra ?? 0),
+      pontosPro: Number(linha.pontosPro ?? 0),
+      pontosContra: Number(linha.pontosContra ?? 0),
       saldoSets: Number(linha.setsPro ?? 0) - Number(linha.setsContra ?? 0),
     }
   })
@@ -63,12 +67,25 @@ export async function GET(req: NextRequest) {
       vitorias: 0,
       derrotas: 0,
       setsPro: 0,
+      setsContra: 0,
+      pontosPro: 0,
+      pontosContra: 0,
       saldoSets: 0,
     })
   }
   linhas.sort((a, b) => a.posicao - b.posicao || b.pontos - a.pontos || a.equipe.localeCompare(b.equipe, 'pt-BR'))
+  const gruposBrutos = await montarTabelasDeGrupo(ligaId, categoria.id, linhas)
+  const porNome = new Map(linhas.map((linha) => [linha.equipeId, linha]))
+  const grupos = gruposBrutos.map((grupo) => ({
+    id: grupo.id,
+    nome: grupo.nome,
+    linhas: grupo.linhas.map((linha) => {
+      const publica = porNome.get(Number(linha.equipeId))
+      return publica ? { ...publica, posicao: linha.posicao } : null
+    }).filter((linha): linha is NonNullable<typeof linha> => Boolean(linha)),
+  })).filter((grupo) => grupo.linhas.length > 0)
 
-  const resposta = success({ linhas })
+  const resposta = success({ linhas, grupos })
   resposta.headers.set('Cache-Control', 'no-store')
   return resposta
 }

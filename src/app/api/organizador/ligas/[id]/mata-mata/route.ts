@@ -8,6 +8,8 @@ import { confrontoRepetidoNaCategoria } from '@/lib/isolamento-categoria'
 import { perdedoresDasSemifinais, vencedoresDosAlimentadores } from '@/lib/resultado-partida'
 import { FASES_ELIMINATORIAS } from '@/lib/eliminatorias'
 import { gerarSumulaToken } from '@/lib/sumula-token'
+import { classificarPorGrupos, type PartidaClassificacao } from '@/lib/classificacao'
+import { cruzarSemifinais } from '@/lib/grupos-fase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -26,6 +28,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (!Number.isInteger(ligaId)) return error('Campeonato inválido.', 400)
 
     const body = await req.json().catch(() => null)
+    if (body?.acao === 'cruzar-grupos') {
+      return cruzarGrupos(ligaId, auth.userId, typeof body.categoriaCampeonatoId === 'string' ? body.categoriaCampeonatoId : null)
+    }
     const fase = String(body?.fase ?? '').toUpperCase()
     const rodada = Number(body?.rodada)
     const equipeAId = Number(body?.equipeAId)
@@ -178,4 +183,103 @@ export async function POST(req: NextRequest, context: RouteContext) {
     console.error('[mata-mata] erro ao criar confronto', err)
     return error('Erro ao criar o confronto.', 500)
   }
+}
+
+async function cruzarGrupos(ligaId: number, organizadorId: string, categoriaCampeonatoId: string | null) {
+  const { data: liga, error: ligaErr } = await supabase
+    .from('Liga')
+    .select('id,organizadorId')
+    .eq('id', ligaId)
+    .maybeSingle()
+  if (ligaErr || !liga) return error('Campeonato não encontrado.', 404)
+  if (liga.organizadorId !== organizadorId) return error('Você não pode alterar o chaveamento deste campeonato.', 403)
+  const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
+  if (bloqueio) return bloqueio
+  if (!categoriaCampeonatoId) return error('Escolha a categoria antes de cruzar as semifinais.', 422)
+
+  const [gruposResposta, vinculosResposta, tabelaResposta, partidasResposta, existentesResposta] = await Promise.all([
+    supabase.from('GrupoCampeonato').select('id,nome,ordem,classificados').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId).order('ordem', { ascending: true }),
+    supabase.from('GrupoEquipeCampeonato').select('grupoId,equipeId').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId),
+    supabase.from('ClassificacaoEntrada').select('equipeId,pontos,jogos,vitorias,derrotas,setsPro,setsContra,pontosPro,pontosContra,categoria').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId),
+    supabase.from('Partida').select('equipeAId,equipeBId,setsPorA,setsPorB,pontosPorA,pontosPorB,status,vencedorId,fase,sumulaAprovadaEm,sumulaSubmetidaEm').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId),
+    supabase.from('Partida').select('id').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId).eq('fase', 'SEMIFINAL'),
+  ])
+  if (gruposResposta.error || vinculosResposta.error || tabelaResposta.error || partidasResposta.error || existentesResposta.error) {
+    return error('Não foi possível ler os grupos para o cruzamento.', 500)
+  }
+  if ((existentesResposta.data ?? []).length > 0) return error('As semifinais desta categoria já foram criadas.', 409)
+
+  const grupos = gruposResposta.data ?? []
+  if (grupos.length !== 2) return error('O cruzamento 1º A x 2º B vale para exatamente dois grupos.', 422)
+  const porGrupo = new Map<number, number[]>()
+  for (const vinculo of vinculosResposta.data ?? []) {
+    const lista = porGrupo.get(Number(vinculo.grupoId)) ?? []
+    lista.push(Number(vinculo.equipeId))
+    porGrupo.set(Number(vinculo.grupoId), lista)
+  }
+  const porEquipe = new Map((tabelaResposta.data ?? []).map((linha) => [Number(linha.equipeId), linha]))
+  const equipeIds = Array.from(new Set((vinculosResposta.data ?? []).map((vinculo) => Number(vinculo.equipeId))))
+  const linhas = equipeIds.map((equipeId) => {
+    const linha = porEquipe.get(equipeId)
+    return {
+      equipeId,
+      categoriaCampeonatoId,
+      categoria: linha?.categoria || '',
+      pontos: Number(linha?.pontos ?? 0),
+      jogos: Number(linha?.jogos ?? 0),
+      vitorias: Number(linha?.vitorias ?? 0),
+      derrotas: Number(linha?.derrotas ?? 0),
+      setsPro: Number(linha?.setsPro ?? 0),
+      setsContra: Number(linha?.setsContra ?? 0),
+      pontosPro: Number(linha?.pontosPro ?? 0),
+      pontosContra: Number(linha?.pontosContra ?? 0),
+    }
+  })
+  const tabelas = classificarPorGrupos({
+    linhas,
+    partidas: (partidasResposta.data ?? []) as PartidaClassificacao[],
+    grupos: grupos.map((grupo) => ({
+      id: grupo.id,
+      nome: grupo.nome,
+      equipeIds: porGrupo.get(Number(grupo.id)) ?? [],
+    })),
+  })
+  const cruzamento = cruzarSemifinais(tabelas.map((grupo) => ({
+    nome: grupo.nome,
+    classificados: grupo.linhas.slice(0, 2).map((linha) => linha.equipeId),
+  })))
+  if (!cruzamento) return error('Cada grupo precisa ter pelo menos dois classificados para a semifinal.', 422)
+
+  const { data: equipes, error: equipesErr } = await supabase
+    .from('Equipe')
+    .select('id,categoria,categoriaCampeonatoId')
+    .in('id', cruzamento.flatMap((jogo) => [jogo.equipeAId, jogo.equipeBId]))
+  if (equipesErr) return error('Erro ao carregar os times.', 500)
+  const equipePorId = new Map((equipes ?? []).map((equipe) => [Number(equipe.id), equipe]))
+
+  const rows = cruzamento.map((jogo) => {
+    const equipeA = equipePorId.get(jogo.equipeAId)
+    const equipeB = equipePorId.get(jogo.equipeBId)
+    return {
+      ligaId,
+      equipeAId: jogo.equipeAId,
+      equipeBId: jogo.equipeBId,
+      categoria: equipeA?.categoria || equipeB?.categoria || 'GERAL',
+      serie: null,
+      categoriaCampeonatoId,
+      rodada: jogo.rodada,
+      status: 'AGENDADA',
+      dataHora: null,
+      localNome: 'A definir',
+      sumulaToken: gerarSumulaToken(),
+      grupoId: null,
+      fase: jogo.fase,
+    }
+  })
+  const { data: criadas, error: insertErr } = await supabase.from('Partida').insert(rows).select('id,rodada,fase')
+  if (insertErr) {
+    console.error('[mata-mata] erro ao cruzar semifinais', insertErr)
+    return error('Erro ao criar as semifinais.', 500)
+  }
+  return success({ partidas: criadas }, 201)
 }
