@@ -5,7 +5,7 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { partidaForaDaCategoria } from '@/lib/isolamento-categoria'
-import { conflitosDeAgenda, lerDiasDisponiveis } from '@/lib/conflito-agenda'
+import { CARGOS_ARBITRAGEM, conflitosDeAgenda, conflitosDeArbitro, lerDiasDisponiveis } from '@/lib/conflito-agenda'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -23,6 +23,10 @@ const calendarSchema = z.object({
     localNome: z.string().optional().nullable(),
     mandanteId: z.number().int().positive().optional().nullable(),
     arbitroId: z.number().int().positive().optional().nullable(),
+    arbitros: z.array(z.object({
+      cargo: z.enum(CARGOS_ARBITRAGEM),
+      arbitroId: z.number().int().positive().nullable(),
+    })).max(4).optional(),
     status: z.string().optional().nullable(),
   })).min(1),
 })
@@ -102,46 +106,80 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       updated += 1
     }
 
-    if (item.arbitroId) {
-      const { data: escalaExistente, error: escalaFetchErr } = await supabase
-        .from('EscalaArbitro')
-        .select('id')
-        .eq('partidaId', item.id)
-        .limit(1)
-
-      if (escalaFetchErr) {
-        console.error('[calendario] erro ao buscar escala', escalaFetchErr)
-        return error('Erro ao buscar escala de arbitragem.', 500)
-      }
-
-      if (escalaExistente?.length) {
-        const { error: escalaUpdateErr } = await supabase
-          .from('EscalaArbitro')
-          .update({ arbitroId: item.arbitroId, cargo: 'PRIMEIRO_ARBITRO' })
-          .eq('id', escalaExistente[0].id)
-        if (escalaUpdateErr) {
-          console.error('[calendario] erro ao atualizar árbitro', escalaUpdateErr)
-          return error('Erro ao atualizar árbitro da partida.', 500)
-        }
-      } else {
-        const { error: escalaInsertErr } = await supabase
-          .from('EscalaArbitro')
-          .insert({ partidaId: item.id, arbitroId: item.arbitroId, cargo: 'PRIMEIRO_ARBITRO' })
-        if (escalaInsertErr) {
-          console.error('[calendario] erro ao escalar árbitro', escalaInsertErr)
-          return error('Erro ao escalar árbitro da partida.', 500)
-        }
-      }
-    } else if (item.arbitroId === null) {
-      const { error: escalaDeleteErr } = await supabase.from('EscalaArbitro').delete().eq('partidaId', item.id)
-      if (escalaDeleteErr) {
-        console.error('[calendario] erro ao remover árbitro', escalaDeleteErr)
-        return error('Erro ao remover árbitro da partida.', 500)
-      }
+    const escalaPedido = item.arbitros ?? (item.arbitroId === undefined ? null : [{ cargo: 'PRIMEIRO_ARBITRO' as const, arbitroId: item.arbitroId }])
+    if (escalaPedido) {
+      const falhaEscala = await gravarEscala(item.id, ligaId, dateTime || current.dataHora, escalaPedido)
+      if (falhaEscala) return falhaEscala
     }
   }
 
   return success({ atualizadas: updated })
+}
+
+async function gravarEscala(
+  partidaId: number,
+  ligaId: number,
+  dataHora: string | null | undefined,
+  pedido: Array<{ cargo: (typeof CARGOS_ARBITRAGEM)[number]; arbitroId: number | null }>,
+) {
+  const escolhidos = pedido.filter((item) => item.arbitroId)
+  if (escolhidos.length > 0 && dataHora) {
+    const ids = escolhidos.map((item) => item.arbitroId) as number[]
+    const { data: outras, error: outrasErr } = await supabase
+      .from('EscalaArbitro')
+      .select('arbitroId,partidaId,partida:Partida(id,ligaId,dataHora,status)')
+      .in('arbitroId', ids)
+    if (outrasErr) {
+      console.error('[calendario] erro ao conferir horário do árbitro', outrasErr)
+      return error('Não foi possível conferir a escala do árbitro.', 500)
+    }
+    const gravadas = (outras ?? []).flatMap((linha) => {
+      const partida = Array.isArray(linha.partida) ? linha.partida[0] : linha.partida
+      if (!partida || Number(partida.ligaId) !== ligaId || Number(linha.partidaId) === partidaId) return []
+      return [{
+        arbitroId: Number(linha.arbitroId),
+        partidaId: Number(linha.partidaId),
+        dataHora: partida.dataHora ?? null,
+        status: partida.status ?? null,
+      }]
+    })
+    const propostas = escolhidos.map((item) => ({
+      arbitroId: Number(item.arbitroId),
+      partidaId,
+      dataHora,
+    }))
+    const avisos = conflitosDeArbitro([...gravadas, ...propostas])
+    if (avisos.length > 0) return error(avisos[0], 409)
+  }
+
+  for (const item of pedido) {
+    if (!item.arbitroId) {
+      const { error: apagarErr } = await supabase.from('EscalaArbitro').delete().eq('partidaId', partidaId).eq('cargo', item.cargo)
+      if (apagarErr) {
+        console.error('[calendario] erro ao remover árbitro', apagarErr)
+        return error('Erro ao remover árbitro da partida.', 500)
+      }
+      continue
+    }
+    const { data: existente, error: buscaErr } = await supabase
+      .from('EscalaArbitro')
+      .select('id')
+      .eq('partidaId', partidaId)
+      .eq('cargo', item.cargo)
+      .maybeSingle()
+    if (buscaErr) {
+      console.error('[calendario] erro ao buscar escala', buscaErr)
+      return error('Erro ao buscar escala de arbitragem.', 500)
+    }
+    if (existente) {
+      const { error: atualizarErr } = await supabase.from('EscalaArbitro').update({ arbitroId: item.arbitroId }).eq('id', existente.id)
+      if (atualizarErr) return error('Erro ao atualizar árbitro da partida.', 500)
+    } else {
+      const { error: inserirErr } = await supabase.from('EscalaArbitro').insert({ partidaId, arbitroId: item.arbitroId, cargo: item.cargo })
+      if (inserirErr) return error('Erro ao escalar árbitro da partida.', 500)
+    }
+  }
+  return null
 }
 
 async function conferirAgenda(

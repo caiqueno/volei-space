@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | cargos de arbitragem
+
+- pages_updated=`modulos/PARTIDAS`, `hot`, `log`
+- O calendário grava 1º árbitro, 2º árbitro, mesário e juiz de linha. O mesmo árbitro não cobre dois jogos no intervalo de 90 minutos. Sem migration.
+
 ## [2026-10-10] feat | conflito de agenda
 
 - pages_updated=`modulos/PARTIDAS`, `hot`, `log`
