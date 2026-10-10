@@ -1,0 +1,131 @@
+/*
+  Base de movimento do volei.space. Só transform e opacity.
+  O ponto da súmula não espera estas animações.
+
+  Variáveis (em :root):
+    --vs-motion-press   90ms   pressionado
+    --vs-motion-tap     160ms  toque
+    --vs-motion-burst   480ms  bola
+    --vs-motion-ease-out
+    --vs-motion-ease-snap
+
+  Classes:
+    .vs-press     escala enquanto :active
+    .vs-tap       pulso em :active (não combine com .vs-press no mesmo elemento)
+    .vs-tap-play  dispara o mesmo pulso uma vez (adicione e remova a classe)
+    .vs-hover     sobe 1px no :hover
+    .vs-focus     anel azul no :focus-visible
+    .vs-ball-burst  usado por VolleyballBurst; não aplique à mão
+
+  prefers-reduced-motion: reduce zera duração, tira transform e esconde a bola.
+*/
+
+:root {
+  --vs-motion-press: 90ms;
+  --vs-motion-tap: 160ms;
+  --vs-motion-burst: 480ms;
+  --vs-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --vs-motion-ease-snap: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.vs-press {
+  transition-property: transform;
+  transition-duration: var(--vs-motion-press);
+  transition-timing-function: var(--vs-motion-ease-out);
+}
+
+.vs-press:active {
+  transform: scale(0.96);
+}
+
+.vs-hover {
+  transition-property: transform;
+  transition-duration: var(--vs-motion-press);
+  transition-timing-function: var(--vs-motion-ease-out);
+}
+
+.vs-hover:hover {
+  transform: translateY(-1px);
+}
+
+.vs-press.vs-hover:active {
+  transform: scale(0.96);
+}
+
+@keyframes vs-tap {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.vs-tap:active,
+.vs-tap-play {
+  animation: vs-tap var(--vs-motion-tap) var(--vs-motion-ease-snap);
+}
+
+html body .vs-focus:focus-visible {
+  outline: 2px solid var(--vs-blue);
+  outline-offset: 3px;
+}
+
+@keyframes vs-ball-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.35);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -80%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -190%) scale(0.82) rotate(22deg);
+  }
+}
+
+.vs-ball-burst {
+  position: fixed;
+  z-index: 90;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  animation: vs-ball-burst var(--vs-motion-burst) var(--vs-motion-ease-out) forwards;
+  will-change: transform, opacity;
+}
+
+.vs-ball-burst svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vs-motion-press: 0ms;
+    --vs-motion-tap: 0ms;
+    --vs-motion-burst: 0ms;
+  }
+
+  .vs-press:active,
+  .vs-hover:hover,
+  .vs-press.vs-hover:active {
+    transform: none;
+  }
+
+  .vs-tap:active,
+  .vs-tap-play {
+    animation: none;
+  }
+
+  .vs-ball-burst {
+    display: none;
+  }
+}
