@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+import { numeroDeRanking } from '@/lib/classificacao-jogadores'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
 
 const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
+const VOTO_COLUNAS = 'jogadorId,categoria,categoriaCampeonatoId'
+const EQUIPE_COLUNAS = 'id,nome,corHex,categoriaCampeonatoId'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +16,7 @@ export async function GET(req: NextRequest) {
     if ('erro' in categoria) return error(categoria.erro, 422)
     const categoriaCampeonatoId = categoria.id
 
-    let votosQuery = supabase.from('VotoMVP').select('jogadorId,categoria,categoriaCampeonatoId')
+    let votosQuery = supabase.from('VotoMVP').select(VOTO_COLUNAS)
     if (categoriaCampeonatoId) votosQuery = votosQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
 
     const { data: votos, error: votosErr } = await votosQuery
@@ -30,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     const equipeIds = Array.from(new Set((jogadores ?? []).map((jogador) => Number(jogador.equipeId)).filter((id) => Number.isInteger(id))))
     const { data: equipes, error: equipesErr } = equipeIds.length
-      ? await supabase.from('Equipe').select('id,nome,corHex,categoriaCampeonatoId').in('id', equipeIds)
+      ? await supabase.from('Equipe').select(EQUIPE_COLUNAS).in('id', equipeIds)
       : { data: [], error: null }
     if (equipesErr) throw equipesErr
 
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest) {
       return [jogador.id, {
         id: jogador.id,
         nome: jogador.nome,
-        numero: jogador.numero,
+        numero: numeroDeRanking(jogador.numero),
         posicao: jogador.posicao,
         fotoUrl: jogador.fotoUrl,
         fotoRostoUrl: jogador.fotoRostoUrl,

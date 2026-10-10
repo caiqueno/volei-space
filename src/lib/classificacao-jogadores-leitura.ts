@@ -60,11 +60,16 @@ async function consultar(ligaId: number, categoriaId: string | null): Promise<Re
 
 type EquipeLinha = { id: number; nome: string | null }
 
+// OcorrenciaPartida não tem coluna de criação nem de atualização.
+const COLUNAS_LANCE = 'tipo,jogadorId,descricao,partida:Partida!inner(ligaId,categoriaCampeonatoId)'
+const COLUNAS_JOGADOR = 'id,nome,numero,equipeId,banido'
+const COLUNAS_EQUIPE = 'id,nome,categoriaCampeonatoId'
+
 async function listarEquipes(ligaId: number, categoriaId: string | null) {
   const linhas: EquipeLinha[] = []
   let offset = 0
   for (;;) {
-    let consulta = supabaseAdmin.from('Equipe').select('id,nome,categoriaCampeonatoId').eq('ligaId', ligaId)
+    let consulta = supabaseAdmin.from('Equipe').select(COLUNAS_EQUIPE).eq('ligaId', ligaId)
     if (categoriaId) consulta = consulta.eq('categoriaCampeonatoId', categoriaId)
     const { data, error } = await consulta.range(offset, offset + 499)
     if (error) throw error
@@ -86,7 +91,7 @@ async function listarAtletas(equipes: EquipeLinha[]): Promise<AtletaRanking[]> {
     for (;;) {
       const { data, error } = await supabaseAdmin
         .from('Jogador')
-        .select('id,nome,equipeId,banido')
+        .select(COLUNAS_JOGADOR)
         .in('equipeId', fatia)
         .eq('banido', false)
         .range(offset, offset + 499)
@@ -98,6 +103,7 @@ async function listarAtletas(equipes: EquipeLinha[]): Promise<AtletaRanking[]> {
           id: Number(jogador.id),
           nome: String(jogador.nome ?? ''),
           equipe: nomePorEquipe.get(equipeId) ?? 'Equipe',
+          numero: jogador.numero,
         })
       }
       if (lote.length < 500) break
@@ -113,7 +119,7 @@ async function listarLances(ligaId: number, categoriaId: string | null): Promise
   for (;;) {
     let consulta = supabaseAdmin
       .from('OcorrenciaPartida')
-      .select('tipo,jogadorId,descricao,partida:Partida!inner(ligaId,categoriaCampeonatoId)')
+      .select(COLUNAS_LANCE)
       .eq('partida.ligaId', ligaId)
       .in('tipo', TIPOS_FUNDAMENTO_CONSULTA)
       .not('jogadorId', 'is', null)

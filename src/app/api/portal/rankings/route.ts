@@ -7,6 +7,9 @@ export const dynamic = 'force-dynamic'
 
 const TIPOS = ['ace', 'ACE', 'saque', 'SAQUE', 'attack', 'ATAQUE', 'ataque', 'block', 'BLOQUEIO', 'bloqueio']
 
+// OcorrenciaPartida não tem coluna de criação nem de atualização.
+const COLUNAS_LANCE = 'tipo,jogadorId,jogador:Jogador(id,nome),partida:Partida!inner(ligaId,categoriaCampeonatoId)'
+
 type Classe = 'saque' | 'ataque' | 'bloqueio'
 
 function classeDoPonto(tipo: string): Classe | null {
@@ -38,7 +41,7 @@ export async function GET(req: NextRequest) {
   for (;;) {
     let consulta = supabaseAdmin
       .from('OcorrenciaPartida')
-      .select('tipo,jogadorId,jogador:Jogador(id,nome),partida:Partida!inner(ligaId,categoriaCampeonatoId)')
+      .select(COLUNAS_LANCE)
       .eq('partida.ligaId', ligaId)
       .in('tipo', TIPOS)
     if (categoria.id) consulta = consulta.eq('partida.categoriaCampeonatoId', categoria.id)

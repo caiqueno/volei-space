@@ -13,6 +13,16 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | ranking não consulta createdAt e trata camisa -1 como vazia
+
+- pages_updated=`modulos/SCOUTS`, `hot`, `log`
+- A leitura da classificação pede `tipo`, `jogadorId` e `descricao`. `OcorrenciaPartida` não tem `createdAt`. O número `-1` da súmula não identifica atleta e não aparece como camisa. Sem migration.
+
+## [2026-10-10] fix | pontos do ranking visíveis no celular
+
+- pages_updated=`modulos/SCOUTS`, `hot`, `log`
+- A API de jogadores do Winners já devolvia os fundamentos. Abaixo de 768px o CSS cortava a rolagem horizontal e escondia ataque, bloqueio, saque e total. A tabela empilha esses números. Sem migration.
+
 ## [2026-10-10] feat | classificação geral de jogadores no ranking
 
 - pages_updated=`modulos/SCOUTS`, `05-MODULOS`, `hot`, `log`

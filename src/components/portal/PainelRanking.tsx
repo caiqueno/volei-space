@@ -207,30 +207,44 @@ function TabelaJogadores({ ligaId, categoriaId }: { ligaId: number; categoriaId:
         {jogadores.length === 0 ? (
           <p className="mt-4 text-sm font-semibold text-slate-300">Nenhum atleta inscrito neste campeonato.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[40rem] border-separate border-spacing-0 text-sm text-white">
+          <div className="mt-4 max-w-full">
+            <div className="mb-3 flex flex-wrap gap-2 md:hidden" role="group" aria-label="Ordenar classificação">
+              {colunasDaTabela(fundamentos).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={coluna === item.id}
+                  onClick={() => ordenar(item.id)}
+                  className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${coluna === item.id ? 'bg-[#ffb331] text-slate-950' : 'border border-white/15 text-slate-200'}`}
+                >
+                  {item.rotulo}{coluna === item.id ? (direcao === 'asc' ? ' ↑' : ' ↓') : ''}
+                </button>
+              ))}
+            </div>
+            {/* Abaixo de 768px o globals.css corta .overflow-x-auto (overflow-x: clip). data-stack empilha cada número na tela. */}
+            <table data-stack className="w-full table-fixed border-separate border-spacing-0 text-sm text-white">
               <caption className="sr-only">Classificação geral de jogadores por pontos de fundamento</caption>
-              <thead>
+              <thead className="max-md:hidden">
                 <tr>
-                  <Cabecalho rotulo="Pos." coluna="posicao" ativa={coluna} direcao={direcao} onClick={ordenar} className="w-14 text-left" />
-                  <Cabecalho rotulo="Jogador" coluna="nome" ativa={coluna} direcao={direcao} onClick={ordenar} className="min-w-40 text-left" />
-                  <Cabecalho rotulo="Equipe" coluna="equipe" ativa={coluna} direcao={direcao} onClick={ordenar} className="min-w-36 text-left" />
+                  <Cabecalho rotulo="Pos." coluna="posicao" ativa={coluna} direcao={direcao} onClick={ordenar} className="w-12 text-left" />
+                  <Cabecalho rotulo="Jogador" coluna="nome" ativa={coluna} direcao={direcao} onClick={ordenar} className="text-left" />
+                  <Cabecalho rotulo="Equipe" coluna="equipe" ativa={coluna} direcao={direcao} onClick={ordenar} className="w-28 text-left" />
                   {fundamentos.map((item) => (
-                    <Cabecalho key={item.id} rotulo={item.rotulo} coluna={item.id} ativa={coluna} direcao={direcao} onClick={ordenar} className="w-24 text-right" />
+                    <Cabecalho key={item.id} rotulo={item.rotulo} coluna={item.id} ativa={coluna} direcao={direcao} onClick={ordenar} className="w-16 text-right" />
                   ))}
-                  <Cabecalho rotulo="Total" coluna="total" ativa={coluna} direcao={direcao} onClick={ordenar} className="w-20 text-right" />
+                  <Cabecalho rotulo="Total" coluna="total" ativa={coluna} direcao={direcao} onClick={ordenar} className="w-16 text-right" />
                 </tr>
               </thead>
               <tbody>
                 {visiveis.map((linha) => (
                   <tr key={linha.jogadorId}>
-                    <td className="border-t border-white/10 px-3 py-2 font-black text-[#ffb331]">{linha.posicao}</td>
-                    <td className="whitespace-nowrap border-t border-white/10 px-3 py-2 font-black">{linha.nome}</td>
-                    <td className="whitespace-nowrap border-t border-white/10 px-3 py-2 font-semibold text-slate-200">{linha.equipe}</td>
+                    <td data-label="Posição" className="border-t border-white/10 px-3 py-2 font-black text-[#ffb331]">{linha.posicao}</td>
+                    <td data-label="Jogador" className="border-t border-white/10 px-3 py-2 font-black md:truncate">{linha.numero == null ? linha.nome : `#${linha.numero} ${linha.nome}`}</td>
+                    <td data-label="Equipe" className="border-t border-white/10 px-3 py-2 font-semibold text-slate-200 md:truncate">{linha.equipe}</td>
                     {fundamentos.map((item) => (
-                      <td key={item.id} className="border-t border-white/10 px-3 py-2 text-right tabular-nums">{linha.fundamentos[item.id] ?? 0}</td>
+                      <td key={item.id} data-label={item.rotulo} className="border-t border-white/10 px-3 py-2 text-right tabular-nums">{linha.fundamentos[item.id] ?? 0}</td>
                     ))}
-                    <td className="border-t border-white/10 px-3 py-2 text-right font-black tabular-nums text-[#ffb331]">{linha.total}</td>
+                    <td data-label="Total" className="border-t border-white/10 px-3 py-2 text-right font-black tabular-nums text-[#ffb331]">{linha.total}</td>
                   </tr>
                 ))}
               </tbody>
@@ -240,6 +254,16 @@ function TabelaJogadores({ ligaId, categoriaId }: { ligaId: number; categoriaId:
       </div>
     </section>
   )
+}
+
+function colunasDaTabela(fundamentos: ColunaFundamento[]) {
+  return [
+    { id: 'posicao', rotulo: 'Pos.' },
+    { id: 'nome', rotulo: 'Jogador' },
+    { id: 'equipe', rotulo: 'Equipe' },
+    ...fundamentos,
+    { id: 'total', rotulo: 'Total' },
+  ]
 }
 
 function Cabecalho({

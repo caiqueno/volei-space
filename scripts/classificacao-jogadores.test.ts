@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   classificarJogadores,
   fundamentoDoLance,
+  numeroDeRanking,
   ordenarJogadores,
   type LanceRanking,
   type LinhaJogadorRanking,
@@ -49,12 +50,22 @@ assert.equal(fundamentoDoLance(lance({
   descricao: '09:10 | 4 x 2 | +1 Ponto de Ataque — Ana. Ataque para TARGET: #10 Ana.',
 })), 'ataque')
 assert.equal(fundamentoDoLance(lance({ tipo: 'ponto', descricao: 'Ponto direto sem fundamento.' })), 'ponto')
+assert.equal(fundamentoDoLance(lance({
+  tipo: 'ace',
+  jogadorId: 4,
+  descricao: '+1 Ponto de Saque — Ana. ACE para TARGET: #-1 Ana.',
+})), 'saque')
+assert.equal(numeroDeRanking(-1), null)
+assert.equal(numeroDeRanking('-1'), null)
+assert.equal(numeroDeRanking('sem'), null)
+assert.equal(numeroDeRanking(10), 10)
+assert.equal(numeroDeRanking(null), null)
 
 const tabela = classificarJogadores(
   [
-    { id: 1, nome: 'Ana', equipe: 'Alfa' },
-    { id: 2, nome: 'Bruno', equipe: 'Beta' },
-    { id: 3, nome: 'Caio', equipe: 'Alfa' },
+    { id: 1, nome: 'Ana', equipe: 'Alfa', numero: 10 },
+    { id: 2, nome: 'Bruno', equipe: 'Beta', numero: -1 },
+    { id: 3, nome: 'Caio', equipe: 'Alfa', numero: 'sem' },
     { id: 4, nome: 'Duda', equipe: 'Gama' },
   ],
   [
@@ -77,6 +88,17 @@ assert.deepEqual(tabela.jogadores.map((linha) => [linha.posicao, linha.nome, lin
 ])
 assert.deepEqual(tabela.fundamentos.map((coluna) => coluna.id), ['ataque', 'bloqueio', 'saque', 'ponto'])
 assert.equal(tabela.jogadores.find((linha) => linha.nome === 'Caio')?.equipe, 'Alfa')
+assert.equal(tabela.jogadores.find((linha) => linha.nome === 'Ana')?.numero, 10)
+assert.equal(tabela.jogadores.find((linha) => linha.nome === 'Bruno')?.numero, null)
+assert.equal(tabela.jogadores.find((linha) => linha.nome === 'Caio')?.numero, null)
+const comCamisaVazia = classificarJogadores(
+  [{ id: 4, nome: 'Ana', equipe: 'TARGET', numero: -1 }],
+  [lance({ tipo: 'ace', jogadorId: 4, descricao: 'ACE para TARGET: #-1 Ana.' })],
+)
+assert.equal(comCamisaVazia.jogadores.length, 1)
+assert.equal(comCamisaVazia.jogadores[0].jogadorId, 4)
+assert.equal(comCamisaVazia.jogadores[0].total, 1)
+assert.equal(comCamisaVazia.jogadores[0].numero, null)
 
 const empate = classificarJogadores(
   [
@@ -121,6 +143,7 @@ function linha(parcial: Partial<LinhaJogadorRanking> & Pick<LinhaJogadorRanking,
   return {
     jogadorId: parcial.posicao,
     equipe: 'A',
+    numero: null,
     fundamentos: { ataque: 0, bloqueio: 0, saque: 0 },
     total: 0,
     ...parcial,

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A classificação geral de jogadores fica em Rankings, soma ataque, bloqueio e saque da súmula e relê a cada 12 segundos com a aba aberta. A camisa repetida fica com quem está sendo editado; o outro atleta fica sem número. A papeleta abre com as seis posições vazias. Sem migration.
+  A classificação geral de jogadores fica em Rankings, soma ataque, bloqueio e saque da súmula e relê a cada 12 segundos com a aba aberta. No celular cada fundamento fica na própria linha. A consulta não pede createdAt. Camisa -1 é ausência de número. A camisa repetida fica com quem está sendo editado; o outro atleta fica sem número. A papeleta abre com as seis posições vazias. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,10 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a classificação geral consulta só colunas que existem. `OcorrenciaPartida` não tem `createdAt`, `updatedAt` nem `criadoEm`; a leitura pede `tipo`, `jogadorId` e `descricao`, e a partida entra por `ligaId` e `categoriaCampeonatoId`. O atleta entra por `jogadorId`. `SumulaPresenca.numero = -1` é camisa vazia, o mesmo valor do PR 79, e não vira número na tabela nem chave de ponto. Nenhuma migration. Fonte: [[modulos/SCOUTS]], [[modulos/SUMULA-DIGITAL]].
+
+Em 10 de outubro de 2026 a classificação geral do Winners Oficial já vinha da API com ataque, bloqueio, saque e total. No celular esses números sumiam: a tabela era mais larga que a tela e, abaixo de 768px, `.overflow-x-auto` vira `overflow-x: clip`. Não havia como rolar até as colunas. A tabela passa a empilhar cada fundamento na própria linha. Nenhuma migration. Fonte: [[modulos/SCOUTS]].
 
 Em 10 de outubro de 2026 `/rankings` ganha a classificação geral de jogadores, na página pública e no menu Rankings do painel. A tabela traz todos os atletas da categoria, com zero, sem fatiar por grupo ou equipe. Ataque, bloqueio e saque saem de `OcorrenciaPartida` (`attack`, `block`, `ace` e os nomes em português). `point` com atleta vira a coluna Ponto. Lance desfeito, anulado, excluído, «Registro de » e ponto sem jogador ficam de fora. Partida de campeonato apagado não entra, porque a leitura exige a `Liga`. A aba visível pede de novo a cada 12 segundos. A rota não guarda cache longo; o processo só reúne leituras por 8 segundos. `OcorrenciaPartida` não está no Realtime, então não houve publicação nem RLS. Nenhuma migration. Fonte: [[modulos/SCOUTS]].
 

@@ -1,3 +1,4 @@
+import { numeroSemCamisa } from '@/lib/numero-camisa-partida'
 import { ehPontoSemJogador } from '@/lib/ponto-sumula'
 
 /** A aba aberta relê neste intervalo. O cache da rota é mais curto para a próxima leitura não repetir o mesmo resultado. */
@@ -10,6 +11,7 @@ export type AtletaRanking = {
   id: number
   nome: string
   equipe: string
+  numero?: unknown
 }
 
 export type LanceRanking = {
@@ -29,8 +31,18 @@ export type LinhaJogadorRanking = {
   jogadorId: number
   nome: string
   equipe: string
+  numero: number | null
   fundamentos: Record<string, number>
   total: number
+}
+
+/** Camisa da tabela. -1, "-1" e "sem" são a camisa vazia da súmula, não um número. */
+export function numeroDeRanking(valor: unknown): number | null {
+  if (valor == null || valor === '') return null
+  if (numeroSemCamisa(valor)) return null
+  if (typeof valor === 'number' && Number.isInteger(valor) && valor >= 0 && valor <= 99) return valor
+  if (typeof valor === 'string' && /^\d{1,2}$/.test(valor.trim())) return Number(valor.trim())
+  return null
 }
 
 export type ClassificacaoJogadores = {
@@ -120,12 +132,13 @@ export function compararRanking(a: LinhaJogadorRanking, b: LinhaJogadorRanking) 
 }
 
 export function classificarJogadores(atletas: AtletaRanking[], lances: LanceRanking[]): ClassificacaoJogadores {
-  const porId = new Map<number, { nome: string; equipe: string; fundamentos: Record<string, number>; total: number }>()
+  const porId = new Map<number, { nome: string; equipe: string; numero: number | null; fundamentos: Record<string, number>; total: number }>()
   for (const atleta of atletas) {
     if (!Number.isInteger(atleta.id)) continue
     porId.set(atleta.id, {
       nome: atleta.nome.trim() || 'Atleta',
       equipe: atleta.equipe.trim() || 'Equipe',
+      numero: numeroDeRanking(atleta.numero),
       fundamentos: {},
       total: 0,
     })
@@ -155,6 +168,7 @@ export function classificarJogadores(atletas: AtletaRanking[], lances: LanceRank
       jogadorId,
       nome: linha.nome,
       equipe: linha.equipe,
+      numero: linha.numero,
       fundamentos,
       total: linha.total,
     }
