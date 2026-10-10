@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010140000 liga RLS nas tabelas public e ainda não foi aplicada. Avisos da súmula somem em 3 s.
+  20261010140000 liga RLS nas tabelas public e ainda não foi aplicada. Grupos seguem isolados por categoria.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -15,7 +15,11 @@ updated: 2026-10-10
 
 ## Foco atual
 
-`20261010140000_habilitar_rls_tabelas_publicas.sql` liga RLS em cada tabela do schema `public`. O histórico anterior deixa nove sem RLS (`CandidaturaArbitro`, `CandidaturaEquipe`, `CandidaturaPartidaArbitro`, `CandidaturaQuadra`, `ClassificacaoEliminatoria`, `CodigoAcessoOrganizador`, `ContaPublico`, `ConviteEquipe`, `Interessado`); o ENABLE das outras está repetido porque o QA ainda viu cerca de 39 tabelas abertas. Não há `FORCE`. `service_role` não muda. A policy nova é só `public_read_partidas`, se faltar. `anon` perde privilégio fora das colunas de placar de `Partida`. `202610100002` não foi editada nem é pré-requisito. Nada foi aplicado em produção. Fonte: [[07-SEGURANCA]], [[06-BANCO-DE-DADOS]].
+`20261010140000_habilitar_rls_tabelas_publicas.sql` liga RLS em cada tabela do schema `public`. O histórico anterior deixa nove sem RLS (`CandidaturaArbitro`, `CandidaturaEquipe`, `CandidaturaPartidaArbitro`, `CandidaturaQuadra`, `ClassificacaoEliminatoria`, `CodigoAcessoOrganizador`, `ContaPublico`, `ConviteEquipe`, `Interessado`); o ENABLE das outras está repetido porque o QA ainda viu cerca de 39 tabelas abertas. Não há `FORCE`. `service_role` não muda. A policy nova é só `public_read_partidas`, se faltar. `anon` perde privilégio fora das colunas de placar de `Partida`. `202610100002` não foi editada nem é pré-requisito. Nada foi aplicado em produção nem em desenvolvimento. Fonte: [[07-SEGURANCA]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 a súmula guarda a papeleta confirmada e o encerramento que ainda espera oficialização, a lista do MVP usa o número da partida, e o mesmo aviso não entra três vezes. Tokens novos de grupos, mata-mata e calendário automático são aleatórios; os `luv-…` já gravados seguem válidos. A geração continua exigindo uma categoria e não cruza confrontos. A prévia válida deixa de dizer «0 de 6 áreas disponíveis». O início do painel não mostra próximo jogo em campeonato `FINALIZADO` nem quando só há jogos encerrados. Fonte: [[modulos/SUMULA-DIGITAL]], [[07-SEGURANCA]], [[modulos/PARAMETRIZACAO]], [[modulos/PARTIDAS]], [[modulos/GRUPOS]], [[modulos/MATA-MATA]].
+
+Estrutura, classificação e eliminatórias da categoria podem ser gravadas com equipes inscritas e jogos só agendados. O bloqueio fica para jogo em andamento, encerrado ou com súmula, com mensagem que explica o motivo. A função `salvar_configuracao_categoria` ainda recusa essa gravação (`Operacao iniciada`); a rota grava direto nesse caso. Com uma categoria, fase eliminatória e tie-break também vão para `Liga`, senão `/fase-mata-mata` continua em `NENHUMA`. Recriar confrontos vale só para a categoria escolhida: remove ou cancela jogos não iniciados das fases `GERAL` e `GRUPOS` dessa categoria e deixa o mata-mata e as outras categorias. Portal, tabela, jogos, ranking e pódio filtram por `categoriaCampeonatoId`. Fonte: [[modulos/PARAMETRIZACAO]], [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]].
 
 Os avisos da súmula de lançamento somem sozinhos em 3 segundos e não passam de dois na tela. O mais novo empurra o mais antigo e o temporizador é cancelado ao desmontar. Na pontuação eles ficam acima da faixa do placar e do `+1`. `prefers-reduced-motion: reduce` tira o deslocamento de entrada. A frase sem acento era o `catch` de `POST /api/arbitro/partidas/{token}/iniciar`. A súmula da captura (Set Point x Líbero FC, rodada 6, Ginásio Municipal, 15/08/2026) é a demonstração `token-demo-…`. O GET e o PUT de `/api/sumula/{token}` têm atalho e não gravam partida; o POST de iniciar não tem. Sem sessão de árbitro a rota responde 401; com sessão e sem essa partida, 404. A demonstração agora marca `EM_ANDAMENTO` localmente e não chama essa rota. Partida real que falhar de verdade mostra a frase com acento. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 

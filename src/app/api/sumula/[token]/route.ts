@@ -10,6 +10,7 @@ import { validateCategoryProgress, validateCategoryResult, type CategoryMatchRul
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
+import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 
 const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
 
@@ -244,6 +245,7 @@ function sumulaParaConsulta(partida: any) {
       jogador: jogadorConsulta(item.jogador),
     })),
     ocorrencias: [...(partida.ocorrencias ?? [])]
+      .filter((item: { tipo?: string | null; descricao?: string | null }) => !ocorrenciaOperacional(item))
       .map((item: any) => ({ id: item.id, tipo: item.tipo, descricao: item.descricao, set: item.set, jogadorId: item.jogadorId ?? null }))
       .sort((a: { id: number }, b: { id: number }) => Number(a.id) - Number(b.id)),
     destaques: (partida.destaques ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, jogador: jogadorConsulta(item.jogador) })),

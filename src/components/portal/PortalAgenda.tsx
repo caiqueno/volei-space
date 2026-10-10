@@ -6,6 +6,7 @@ import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import type { GruposPartidaPublica, PartidaPublica } from '@/lib/partida-publica'
+import { queryCategoria } from '@/components/portal/SeletorCategoria'
 
 type TemMais = { aoVivo: boolean; proximos: boolean; encerradas: boolean }
 type Parte = 'aoVivo' | 'proximos' | 'encerradas'
@@ -15,6 +16,7 @@ type Props = {
   inicial: GruposPartidaPublica
   temMaisInicial?: TemMais
   falhaInicial: boolean
+  categoriaId?: string | null
 }
 
 const consultaParte: Record<Parte, string> = {
@@ -29,7 +31,7 @@ function manterFaixa<T extends { id: number }>(atual: T[], novas: T[], temMais: 
   return atual.map((partida) => porId.get(partida.id) ?? partida)
 }
 
-export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: Props) {
+export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, categoriaId = null }: Props) {
   const [grupos, setGrupos] = useState(inicial)
   const [temMais, setTemMais] = useState<TemMais>(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
   const [falha, setFalha] = useState(falhaInicial)
@@ -49,7 +51,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
     setGrupos(props.inicial)
     setTemMais(props.temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
     setFalha(props.falhaInicial)
-  }, [ligaId])
+  }, [ligaId, categoriaId])
 
   async function sincronizar() {
     const visto = versao.current
@@ -57,7 +59,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
     const atual = gruposRef.current
     const limite = Math.max(8, atual.aoVivo.length, atual.proximos.length, atual.encerradas.length)
     try {
-      const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}&limite=${limite}&t=${Date.now()}`, { cache: 'no-store' })
+      const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}${queryCategoria(categoriaId)}&limite=${limite}&t=${Date.now()}`, { cache: 'no-store' })
       const json = await resposta.json()
       if (visto !== versao.current) return
       if (!resposta.ok) throw new Error(json?.error || 'Erro ao carregar jogos')
@@ -101,7 +103,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
     setCarregando(parte)
     try {
       const offset = grupos[parte].length
-      const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}&parte=${consultaParte[parte]}&offset=${offset}&limite=8`, { cache: 'no-store' })
+      const resposta = await fetch(`/api/portal/jogos?ligaId=${ligaId}${queryCategoria(categoriaId)}&parte=${consultaParte[parte]}&offset=${offset}&limite=8`, { cache: 'no-store' })
       const json = await resposta.json()
       if (visto !== versao.current) return
       if (!resposta.ok) throw new Error(json?.error || 'Erro ao carregar jogos')
@@ -126,7 +128,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-xs font-bold text-slate-400" aria-live="polite">
-          {falha && vazio ? 'Não foi possível atualizar os jogos.' : falha ? 'A atualização falhou. Os jogos já exibidos continuam na tela.' : atualizando ? 'Atualizando o ao vivo…' : 'Jogos deste campeonato'}
+          {falha && vazio ? 'Não foi possível atualizar os jogos.' : falha ? 'A atualização falhou. Os jogos já exibidos continuam na tela.' : atualizando ? 'Atualizando o ao vivo…' : categoriaId ? 'Jogos desta categoria' : 'Jogos deste campeonato'}
         </p>
         {falha && (
           <button type="button" className="inline-flex items-center gap-2 rounded-full bg-[#ffb331] px-4 py-2 text-xs font-black text-slate-950" onClick={() => void sincronizar()}>
@@ -139,7 +141,7 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial }: 
       {falha && vazio ? (
         <EstadoVazio titulo="Não foi possível carregar os jogos" descricao="Tivemos uma falha ao buscar a agenda. Tente novamente em instantes." />
       ) : vazio ? (
-        <EstadoVazio titulo="Nenhum jogo neste campeonato" descricao="As partidas aparecem aqui quando a organização montar o calendário." />
+        <EstadoVazio titulo={categoriaId ? 'Nenhum jogo nesta categoria' : 'Nenhum jogo neste campeonato'} descricao="As partidas aparecem aqui quando a organização montar o calendário." />
       ) : (
         <div className="grid gap-8">
           <Faixa titulo="Ao vivo" parte="aoVivo" partidas={grupos.aoVivo} temMais={temMais.aoVivo} carregando={carregando === 'aoVivo'} onMore={() => carregarMais('aoVivo')} />

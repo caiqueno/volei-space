@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
+import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
@@ -33,6 +34,7 @@ import {
 import { ActionBar } from '@/components/ui/action-bar'
 import { AvisosSumula, useAvisosSumula } from '@/components/sumula/AvisosSumula'
 import { AVISO_INICIO_SEM_SINCRONISMO, tokenDeDemonstracao } from '@/lib/sumula-toasts'
+import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaSessao } from '@/lib/sumula-sessao'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
 import './sumula-micro.css'
@@ -584,6 +586,7 @@ export default function SumulaPage() {
       setStartingLiberos((current) => ({ ...current, [currentSet + 1]: { teamA: '', teamB: '' } }))
       setActiveTab('escalacao')
     } else {
+      addMatchEvent('system', TEXTO_AGUARDANDO_OFICIALIZACAO)
       setMatchStatus('finished')
       addToast('Partida pronta para envio final.')
     }
@@ -956,7 +959,6 @@ export default function SumulaPage() {
       score: note.placar,
       jogadorId: undefined as number | undefined,
     }))]
-      .filter((event) => event.type !== 'system')
       .map((event) => ({
         tipo: normalizeOccurrenceType(event),
         descricao: `${event.time} | ${event.score} | ${event.text}`,
@@ -968,7 +970,9 @@ export default function SumulaPage() {
   }
 
   async function saveLiveSnapshot(force = false) {
-    if (!teamA || !teamB || (!force && matchStatus !== 'live')) return
+    if (!teamA || !teamB) return
+    if (!force && matchStatus !== 'live' && matchStatus !== 'finished') return
+    if (partida?.sumulaAprovadaEm) return
     const payload = buildSumulaPayload(false)
     if (String(token).includes('demo')) {
       window.localStorage.setItem(`luv-live-match-${partida.id}`, JSON.stringify(buildDemoLiveSnapshot(payload)))
@@ -980,7 +984,9 @@ export default function SumulaPage() {
     })
     if (!resposta.ok) {
       const corpo = await resposta.json().catch(() => ({}))
-      throw new Error(corpo?.error || 'Não foi possível salvar o andamento da súmula.')
+      const mensagem = corpo?.error || 'Não foi possível salvar o andamento da súmula.'
+      if (/encerrada/i.test(mensagem)) return
+      throw new Error(mensagem)
     }
   }
 
@@ -1018,17 +1024,20 @@ export default function SumulaPage() {
   }
 
   useEffect(() => {
-    if (matchStatus !== 'live' || !teamA || !teamB) return
+    if (!teamA || !teamB) return
+    if (matchStatus !== 'live' && matchStatus !== 'finished') return
+    if (submitted || submitting || partida?.sumulaAprovadaEm) return
     if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
+    const espera = matchStatus === 'finished' ? 0 : 700
     liveSaveRef.current = setTimeout(() => {
-      saveLiveSnapshot()
+      saveLiveSnapshot(matchStatus === 'finished')
         .then(() => setFalhaSalvamento(null))
         .catch((err) => setFalhaSalvamento(err instanceof Error ? err.message : 'Não foi possível salvar o andamento da súmula.'))
-    }, 700)
+    }, espera)
     return () => {
       if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     }
-  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao])
+  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao, submitted, submitting, partida?.sumulaAprovadaEm])
 
   useEffect(() => {
     if (matchStatus !== 'finished' || !mvpId || submitted || submitting || finalSubmitRef.current || partida?.sumulaAprovadaEm) return
@@ -1063,6 +1072,10 @@ export default function SumulaPage() {
       return false
     }
     if (submitting) return false
+    if (liveSaveRef.current) {
+      clearTimeout(liveSaveRef.current)
+      liveSaveRef.current = null
+    }
     setSubmitting(true)
     setErroOficial('')
     if (automatic) addToast('Partida encerrada. Enviando súmula final...')
@@ -1389,7 +1402,7 @@ export default function SumulaPage() {
         )}
 
         {activeTab === 'anotacoes' && (
-          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={jogadoresVencedores} />
+          <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={setMvpId} allPlayers={jogadoresVencedores} mvpTeamId={setsWon.teamA > setsWon.teamB ? 'teamA' : 'teamB'} getMatchNumber={getMatchNumber} />
         )}
       </section>
 
@@ -2617,7 +2630,7 @@ function TemposTab({ teamA, teamB, currentSet, currentScore, timeoutsUsedA, time
   )
 }
 
-function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveNote, mvpId, setMvpId, allPlayers }: {
+function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveNote, mvpId, setMvpId, allPlayers, mvpTeamId, getMatchNumber }: {
   teamA: Team
   teamB: Team
   currentSet: number
@@ -2627,6 +2640,8 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
   mvpId: string
   setMvpId: (value: string) => void
   allPlayers: Player[]
+  mvpTeamId: TeamId
+  getMatchNumber: (teamId: TeamId, number: string) => string
 }) {
   const playerTargets = [
     ...[...teamA.players, ...teamA.reserves].map((player) => ({
@@ -2661,7 +2676,7 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
             <option>Não se aplica</option>
             {playerTargets.map((player) => <option key={player.value} value={player.value}>{player.label}</option>)}
           </select>
-          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da equipe vencedora</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{player.number} - {player.name}</option>)}</select>
+          <select value={mvpId} onChange={(event) => setMvpId(event.target.value)}><option value="">MVP da equipe vencedora</option>{allPlayers.map((player) => <option key={player.id} value={player.id}>#{numeroMvpDaLista(player.number, getMatchNumber(mvpTeamId, player.number))} - {player.name}</option>)}</select>
           <textarea value={descricao} onChange={(event) => setDescricao(event.target.value)} placeholder="Digite o registro oficial..." />
           <button className="official-primary" onClick={() => { if (descricao.trim()) { saveNote({ tipo, equipeRelacionada: resolvedEquipe, pessoaRelacionada: resolvedPessoa, descricao }); setDescricao('') } }}>Salvar anotação na súmula</button>
         </div>
@@ -3478,7 +3493,7 @@ function restoreMatchNumberOverrides(teamA: Team, teamB: Team, savedPresence: an
 
 function restoreSavedMatchState(partida: any, savedSets: any[], savedOccurrences: any[], savedPresence: any[], rules: MatchRules) {
   const normalizedStatus = normalizeName(partida?.status ?? '')
-  const finished = ['encerrada', 'finalizada', 'finished'].includes(normalizedStatus)
+  const finished = partidaEncerradaNaSessao(String(partida?.status ?? ''), savedOccurrences)
   const inProgress = ['em andamento', 'em_andamento', 'ao vivo', 'ao_vivo', 'live'].includes(normalizedStatus)
   const sortedSets = [...savedSets].sort((a, b) => Number(a.numero) - Number(b.numero))
   const hasSavedProgress = sortedSets.length > 0 || savedOccurrences.length > 0 || savedPresence.some((item) => item?.presente)
@@ -3507,23 +3522,14 @@ function restoreSavedMatchState(partida: any, savedSets: any[], savedOccurrences
   if (!startingLiberos[currentSet]) startingLiberos[currentSet] = { teamA: '', teamB: '' }
   const hasCurrentSetStart = savedOccurrences.some((item) => normalizeSavedEventType(item.tipo) === 'set_start' && Number(item.set ?? 1) === currentSet)
   const hasCurrentScore = currentScore.teamA > 0 || currentScore.teamB > 0
-  const lineupConfirmed = matchStatus === 'live' && (hasCurrentSetStart || hasCurrentScore)
+  const lineupConfirmed = finished || (matchStatus === 'live' && (hasCurrentSetStart || hasCurrentScore))
   const activeTab: TabId = matchStatus === 'pre-game' ? 'pre' : matchStatus === 'finished' ? 'resumo' : lineupConfirmed ? 'pontuacao' : 'escalacao'
 
   return { setScores, currentSet, currentScore, setsWon, matchStatus, activeTab, lineupConfirmed, startingLiberos }
 }
 
 function restoreLineupConfirmations(savedOccurrences: any[], teamA: Team, teamB: Team, currentSet: number) {
-  const result: Record<TeamId, boolean> = { teamA: false, teamB: false }
-  for (const occurrence of savedOccurrences) {
-    if (normalizeSavedEventType(occurrence.tipo) !== 'system') continue
-    if (Number(occurrence.set ?? currentSet) !== currentSet) continue
-    const text = normalizeName(String(occurrence.descricao ?? ''))
-    if (!text.includes('escalacao') || !text.includes('conferida')) continue
-    if (text.includes(normalizeName(teamA.name))) result.teamA = true
-    if (text.includes(normalizeName(teamB.name))) result.teamB = true
-  }
-  return result
+  return confirmarPapeletas(savedOccurrences, teamA.name, teamB.name, currentSet)
 }
 
 function parseSavedStartingLiberos(savedOccurrences: any[]) {

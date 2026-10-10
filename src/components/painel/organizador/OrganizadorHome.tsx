@@ -199,7 +199,7 @@ export function OrganizadorHome({ session }: { session: Session }) {
               <p className="text-sm font-black text-white">Link da categoria</p>
               <p className="mt-2 break-all rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-100">{linkCategoria}</p>
               <button type="button" className="mt-4 rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950" onClick={() => void navigator.clipboard.writeText(linkCategoria)}>Copiar link</button>
-              <p className="mt-3 text-sm font-semibold text-slate-300">O campeonato já existe. Grupos e o restante da configuração ficam para depois que as equipes entrarem.</p>
+              <p className="mt-3 text-sm font-semibold text-slate-300">O campeonato já existe. Estrutura, classificação e eliminatórias podem ser ajustadas até o primeiro jogo começar. Os confrontos dos grupos são gerados quando as equipes já estiverem na categoria.</p>
             </div>
           )}
         </div>

@@ -20,6 +20,7 @@ import {
 import { ActionBar } from '@/components/ui/action-bar'
 import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { LinksCategoria } from '@/components/painel/organizador/LinksCategoria'
+import { SeletorCategoria } from '@/components/portal/SeletorCategoria'
 
 type Equipe = {
   id: number
@@ -41,6 +42,14 @@ type Liga = {
   id: number
   nome: string
   slug: string
+  quantidadeGrupos?: number | null
+  classificadosPorGrupo?: number | null
+  faseEliminatoria?: string | null
+}
+
+type CategoriaOpcao = { id: string; nome: string }
+
+type RegrasCategoria = {
   quantidadeGrupos?: number | null
   classificadosPorGrupo?: number | null
   faseEliminatoria?: string | null
@@ -107,6 +116,8 @@ function EstruturaContent() {
   const [calendarSaving, setCalendarSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [paymentRequired, setPaymentRequired] = useState(false)
+  const [categorias, setCategorias] = useState<CategoriaOpcao[]>([])
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!ligaId) {
@@ -147,10 +158,11 @@ function EstruturaContent() {
     return equipes.filter((equipe) => !assignedIds.has(equipe.id))
   }, [equipes, grupos])
 
-  async function loadEstrutura(id: string) {
+  async function loadEstrutura(id: string, categoria?: string | null) {
     setLoading(true)
     setMessage('')
-    const response = await fetch(`/api/organizador/ligas/${id}/estrutura`, { cache: 'no-store' })
+    const query = categoria ? `?categoriaCampeonatoId=${encodeURIComponent(categoria)}` : ''
+    const response = await fetch(`/api/organizador/ligas/${id}/estrutura${query}`, { cache: 'no-store' })
     const payload = await response.json()
     if (!response.ok) {
       if (payload.details?.code === 'PAGAMENTO_PENDENTE') {
@@ -163,10 +175,24 @@ function EstruturaContent() {
     }
 
     const data = payload.data
-    const loadedLiga = data.liga as Liga
+    const lista = (data.categorias ?? []) as CategoriaOpcao[]
+    setCategorias(lista)
+    if (data.escolhaCategoria && lista[0]?.id && !categoria) {
+      await loadEstrutura(id, lista[0].id)
+      return
+    }
+    const regras = (data.regras ?? null) as RegrasCategoria | null
+    const base = data.liga as Liga
+    const loadedLiga: Liga = {
+      ...base,
+      quantidadeGrupos: regras?.quantidadeGrupos ?? base.quantidadeGrupos,
+      classificadosPorGrupo: regras?.classificadosPorGrupo ?? base.classificadosPorGrupo,
+      faseEliminatoria: regras?.faseEliminatoria ?? base.faseEliminatoria,
+    }
+    setCategoriaId(data.categoriaCampeonatoId ?? lista[0]?.id ?? null)
     const loadedEquipes = (data.equipes ?? []) as Equipe[]
     const loadedGroups = data.grupos ?? []
-    const groupCount = Math.max(1, Number(loadedLiga.quantidadeGrupos ?? loadedGroups.length ?? 2))
+    const groupCount = Math.max(1, Number(loadedLiga.quantidadeGrupos ?? loadedGroups.length ?? 1))
 
     setLiga(loadedLiga)
     setEquipes(loadedEquipes)
@@ -237,14 +263,25 @@ function EstruturaContent() {
     setMessage('Distribuição manual alterada. Confirme a estrutura para salvar.')
   }
 
+  function trocarCategoria(id: string) {
+    if (!ligaId) return
+    setCategoriaId(id)
+    void loadEstrutura(ligaId, id)
+  }
+
   async function saveStructure() {
     if (!ligaId || validation) return
+    if (!categoriaId) {
+      setMessage('Escolha a categoria antes de gerar grupos, calendário ou chave.')
+      return
+    }
     setSaving(true)
     setMessage('')
     const response = await fetch(`/api/organizador/ligas/${ligaId}/estrutura`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        categoriaCampeonatoId: categoriaId,
         quantidadeGrupos,
         nomesGrupos: grupos.map((grupo) => grupo.nome),
         classificadosPorGrupo,
@@ -263,7 +300,7 @@ function EstruturaContent() {
       return
     }
     const partidasGeradas = Number(payload.data.partidasGeradas ?? 0)
-    await loadEstrutura(ligaId)
+    await loadEstrutura(ligaId, categoriaId)
     setMessage(`Estrutura salva com sucesso. ${partidasGeradas} confronto(s) gerado(s).`)
   }
 
@@ -279,12 +316,17 @@ function EstruturaContent() {
 
   async function saveCalendar() {
     if (!ligaId || partidas.length === 0) return
+    if (!categoriaId) {
+      setMessage('Escolha a categoria antes de gerar grupos, calendário ou chave.')
+      return
+    }
     setCalendarSaving(true)
     setMessage('')
     const response = await fetch(`/api/organizador/ligas/${ligaId}/calendario`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        categoriaCampeonatoId: categoriaId,
         partidas: partidas.map((partida) => {
           const draft = calendarDrafts[partida.id]
           return {
@@ -306,7 +348,7 @@ function EstruturaContent() {
       return
     }
     setMessage(`Calendário atualizado. ${payload.data.atualizadas} partida(s) revisada(s).`)
-    await loadEstrutura(ligaId)
+    await loadEstrutura(ligaId, categoriaId)
   }
 
   if (!ligaId) {
@@ -352,6 +394,9 @@ function EstruturaContent() {
             </Link>
             <p className="luva-kicker mt-5">Estrutura do campeonato</p>
             <h1 className="mt-2 font-display text-3xl font-black sm:text-5xl">{liga?.nome || 'Carregando...'}</h1>
+            <div className="mt-4">
+              <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={trocarCategoria} />
+            </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Confrontos previstos</p>
@@ -629,7 +674,7 @@ function EstruturaContent() {
                 <h2 className="mt-2 font-display text-2xl font-black">Confirmar estrutura e gerar jogos</h2>
                 <p className="mt-2 text-sm font-semibold text-slate-300">
                   {hasGeneratedCalendar
-                    ? `${partidas.length} jogo(s) já existem. Confirmar novamente recria apenas os confrontos da fase de grupos e mantém partidas de outras fases intactas.`
+                    ? `${partidas.length} jogo(s) já existem. Confirmar novamente recria os confrontos da fase de grupos e remove os jogos ainda não iniciados da configuração anterior, inclusive os da fase geral. Mata-mata e jogos já iniciados permanecem.`
                     : `${confrontosPrevistos} confronto(s) serão criados na fase de grupos.`}
                 </p>
               </div>
@@ -655,7 +700,7 @@ function EstruturaContent() {
             {hasGeneratedCalendar && !validation && (
               <div className="mt-5 flex gap-3 rounded-2xl border border-[#ffb331]/35 bg-[#ffb331]/10 p-4 text-sm font-bold text-amber-50">
                 <AlertTriangle className="mt-0.5 shrink-0 text-[#ffb331]" size={18} />
-                Alterar grupos depois de gerar calendário recria os jogos da fase de grupos. Partidas em andamento ou encerradas bloqueiam esta operação automaticamente.
+                Alterar grupos depois de gerar calendário recria os jogos da fase de grupos e remove ou cancela os jogos não iniciados da fase geral que ficaram da configuração anterior. Partidas em andamento, encerradas ou com súmula bloqueiam esta operação.
               </div>
             )}
             {message && (

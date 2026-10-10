@@ -5,6 +5,7 @@ import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import { Activity, CalendarDays, Clock, LogIn, LogOut, Radio, ShieldCheck, Trophy } from 'lucide-react'
 import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
+import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 
 type LiveMatch = {
   id: number
@@ -226,6 +227,7 @@ function orderLiveEvents(events: NonNullable<LiveMatch['ocorrencias']>) {
 }
 
 function shouldShowLiveEvent(event: NonNullable<LiveMatch['ocorrencias']>[number]) {
+  if (ocorrenciaOperacional(event)) return false
   const parsed = parseEventDescription(event.descricao)
   return !parsed.text.toLowerCase().includes('troca de saque')
 }

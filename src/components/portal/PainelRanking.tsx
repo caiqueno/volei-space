@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Trophy } from 'lucide-react'
+import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 
 type Ranking = {
   mvp: string | null
@@ -12,13 +13,16 @@ type Ranking = {
   concluido: boolean
 }
 
-export function PainelRanking({ ligaId, concluido }: { ligaId: number; concluido: boolean }) {
+export function PainelRanking({ ligaId, concluido, categoriaInicial = null }: { ligaId: number; concluido: boolean; categoriaInicial?: string | null }) {
   const [dados, setDados] = useState<Ranking | null>(null)
   const [erro, setErro] = useState('')
+  const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(ligaId, categoriaInicial)
 
   useEffect(() => {
+    if (!pronto) return
     const controle = new AbortController()
-    fetch(`/api/portal/rankings?ligaId=${ligaId}`, { signal: controle.signal })
+    setDados(null)
+    fetch(`/api/portal/rankings?ligaId=${ligaId}${queryCategoria(categoriaId)}`, { signal: controle.signal })
       .then(async (resposta) => {
         const json = await resposta.json()
         if (!resposta.ok) throw new Error(json.error || 'Falha')
@@ -36,13 +40,15 @@ export function PainelRanking({ ligaId, concluido }: { ligaId: number; concluido
         setErro('Erro ao carregar dados')
       })
     return () => controle.abort()
-  }, [ligaId, concluido])
+  }, [ligaId, concluido, categoriaId, pronto])
 
   if (erro) return <p className="text-sm font-bold text-red-200">{erro}</p>
-  if (!dados) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
+  if (!pronto || !dados) return <p className="text-sm font-semibold text-slate-300">Carregando...</p>
 
   if (!dados.concluido || !dados.mvp) {
     return (
+      <div className="grid gap-3">
+        <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       <article className="rounded-3xl border border-white/10 p-5">
         <p className="luva-kicker">MVP do campeonato</p>
         <p className="mt-3 font-display text-2xl font-black">{dados.concluido ? 'Ainda não definido' : 'Ainda não disponível'}</p>
@@ -52,12 +58,15 @@ export function PainelRanking({ ligaId, concluido }: { ligaId: number; concluido
             : 'O nome aparece quando o campeonato termina, pelo atleta com mais pontos nesses fundamentos.'}
         </p>
       </article>
+      </div>
     )
   }
 
   const iniciais = dados.mvp.split(' ').slice(0, 2).map((parte) => parte[0]).join('').toUpperCase()
 
   return (
+    <div className="grid gap-3">
+      <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
     <article className="overflow-hidden rounded-3xl border border-white/10">
       <div className="bg-luva-amber h-1" />
       <div className="p-5 sm:p-6">
@@ -76,6 +85,7 @@ export function PainelRanking({ ligaId, concluido }: { ligaId: number; concluido
         </div>
       </div>
     </article>
+    </div>
   )
 }
 

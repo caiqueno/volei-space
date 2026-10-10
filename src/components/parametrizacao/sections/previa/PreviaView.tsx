@@ -11,7 +11,7 @@ import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
 import PageLoading from '@/components/ui/page-loading'
 import { formatDateBr } from '@/lib/date-brazil'
 import { formatEliminatoryPhase } from '@/lib/eliminatorias'
-import { SECTION_TITLES } from '@/lib/championship-setup-status'
+import { SECTION_TITLES, textoResumoPrevia } from '@/lib/championship-setup-status'
 import type { ChampionshipPreviaDTO } from '@/types/championship-setup'
 
 export function PreviaView({ ligaId }: { ligaId: number }) {
@@ -63,7 +63,7 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
           <p className="luva-kicker">Parametrização do campeonato</p>
           <h1 className="mt-2 font-display text-2xl font-black text-white md:text-3xl">Prévia</h1>
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">
-            Resumo consolidado — {previa.progress.completedSections} de {previa.progress.totalSections} áreas disponíveis. Aceita dados parciais.
+            {textoResumoPrevia(previa.progress.completedSections, previa.progress.totalSections, previa.validation.isValid)}
           </p>
 
           <div className="mt-6 grid gap-4">

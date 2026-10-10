@@ -12,6 +12,8 @@ import mi from '@/styles/microinteracoes.module.css'
 import { CreatorEmptyState } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
+import { isCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { mostrarProximoJogo } from '@/lib/proximo-jogo'
 
 type PortalData = {
   scope: { organizadorId: string | null; ligas: Array<{ id: number; nome: string; slug: string; status?: string }>; selectedLiga: { id: number; nome: string; slug: string; status?: string } | null }
@@ -168,6 +170,12 @@ export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: s
 
 function HeroSlide({ slide, organizadorId }: { slide: PortalData; organizadorId: string }) {
   const { scope, liga, equipes, partidas, partidaDestaque, emAndamento, podium } = slide
+  const statusCampeonato = scope.selectedLiga?.status
+  const mostrarProximo = mostrarProximoJogo({
+    statusCampeonato,
+    emAndamento,
+    temJogoPendente: Boolean(partidaDestaque),
+  })
   const totalAtletas = equipes.reduce((acc: number, equipe: any) => acc + Number(equipe.quantidadeJogadores ?? equipe.jogadores?.length ?? 0), 0)
   const descricao = liga?.descricao?.trim()
 
@@ -221,18 +229,23 @@ function HeroSlide({ slide, organizadorId }: { slide: PortalData; organizadorId:
           </div>
         </div>
         <div className="p-5">
-          <p className="luva-kicker">{emAndamento ? 'Ao vivo agora' : 'Próximo jogo'}</p>
-          {partidaDestaque ? (
-            <Link href={`/partidas/${partidaDestaque.id}/ao-vivo`} className={`mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 hover:border-luva-amber/60 ${mi.cartao}`}>
-              <TeamIdentity nome={partidaDestaque.equipeA?.nome || 'Equipe'} cor={partidaDestaque.equipeA?.corHex} compact />
-              <span className={`rounded-2xl bg-luva-amber px-3 py-2 text-sm font-black text-slate-950 ${mi.numero}`}>
-                {emAndamento ? `${partidaDestaque.setsPorA ?? 0}x${partidaDestaque.setsPorB ?? 0}` : 'VS'}
-              </span>
-              <TeamIdentity nome={partidaDestaque.equipeB?.nome || 'Equipe'} cor={partidaDestaque.equipeB?.corHex} align="right" compact />
-            </Link>
-          ) : (
-            <p className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-bold text-slate-200">Calendário em montagem.</p>
-          )}
+          {mostrarProximo && partidaDestaque ? (
+            <>
+              <p className="luva-kicker">{emAndamento ? 'Ao vivo agora' : 'Próximo jogo'}</p>
+              <Link href={`/partidas/${partidaDestaque.id}/ao-vivo`} className={`mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 hover:border-luva-amber/60 ${mi.cartao}`}>
+                <TeamIdentity nome={partidaDestaque.equipeA?.nome || 'Equipe'} cor={partidaDestaque.equipeA?.corHex} compact />
+                <span className={`rounded-2xl bg-luva-amber px-3 py-2 text-sm font-black text-slate-950 ${mi.numero}`}>
+                  {emAndamento ? `${partidaDestaque.setsPorA ?? 0}x${partidaDestaque.setsPorB ?? 0}` : 'VS'}
+                </span>
+                <TeamIdentity nome={partidaDestaque.equipeB?.nome || 'Equipe'} cor={partidaDestaque.equipeB?.corHex} align="right" compact />
+              </Link>
+            </>
+          ) : partidas.length === 0 && !isCampeonatoFinalizado(statusCampeonato) ? (
+            <>
+              <p className="luva-kicker">Próximo jogo</p>
+              <p className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-bold text-slate-200">Calendário em montagem.</p>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
