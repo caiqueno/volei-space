@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O +1 da súmula registra o ponto sem jogador. Grupos e mata-mata gravam a categoria. A importação Winners usa o HTTP do app.
+  A página do campeonato mostra chave e pódio. O +1 da súmula registra o ponto sem jogador.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Correções de interface no campeonato público, sem API, Prisma nem cálculo de tabela. A página do slug mostra a chave e, se `FINALIZADO`, o pódio da final e do 3º lugar. Inscrições fechadas escondem «Inscrever equipe» e «Já tenho conta». O status usa `formatLigaStatus` também em Rankings. Jogos e portal nomeiam a fase (`3º lugar`) e omitem data ou local ausente em partida encerrada. `/classificacao?ligaId=` expande o campeonato da lista pública. O perfil da equipe quebra o nome do atleta e usa rótulo de formato. Fonte: [[09-UI-UX]], [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]].
 
 Na faixa de placar da súmula, cada equipe ficou com um único `+1`. Ele registra o ponto sem jogador: sem modal, sem `jogadorId` e com o histórico «Sem jogador». O modal de saque, bloqueio ou ataque saiu, porque só o `+1` antigo o abria. ACE, o toque no atleta, o bloqueio da rede e a quadra 3D continuam atribuindo o ponto. Tempos, desfazer, placar e rodízio não mudaram. Fonte: [[modulos/SUMULA-DIGITAL]].
 
