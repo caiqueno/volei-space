@@ -1,4 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { novoTokenInscricao } from '@/lib/link-inscricao-campeonato'
 import {
   getRegistrationDraftByToken,
@@ -13,8 +14,8 @@ export function caminhoInscricaoVaga(token: string) {
 
 export function nomeDaVaga(vaga: number, nome?: string | null) {
   const texto = nome?.trim()
-  if (texto && !/^Equipe \d+$/i.test(texto)) return texto
-  return `Equipe ${String(vaga).padStart(2, '0')}`
+  if (texto && !/^Equipe \d+$/i.test(texto)) return normalizarNomeEquipe(texto)
+  return normalizarNomeEquipe(`Equipe ${String(vaga).padStart(2, '0')}`)
 }
 
 type CategoriaVaga = {
@@ -134,7 +135,7 @@ export async function abrirInscricaoDaVaga(token: string) {
     const nome = nomeDaVaga(vaga.vaga)
     const { data: criado, error: criarErr } = await supabase.from('InscricaoEquipeRascunho').insert({
       ligaId: vaga.ligaId,
-      nomeEquipe: nome,
+      nomeEquipe: normalizarNomeEquipe(nome),
       categoria: categoria.codigo,
       serie: null,
       categoriaCampeonatoId: vaga.categoriaCampeonatoId,

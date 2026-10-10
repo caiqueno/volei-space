@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, type DragEvent } from 'react'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 export type LadoQuadra = 'teamA' | 'teamB'
 
@@ -68,11 +70,11 @@ export function QuadraVolei({ esquerda, direita, modo, numeroExibido, destaque, 
   return (
     <div className="volley-board">
       <div className="volley-names">
-        <strong>{esquerda.nome}{esquerda.sacando ? ' · Sacando' : ''}</strong>
+        <strong><NomeEquipe nome={esquerda.nome} />{esquerda.sacando ? ' · Sacando' : ''}</strong>
         <span>Rede</span>
-        <strong>{direita.sacando ? 'Sacando · ' : ''}{direita.nome}</strong>
+        <strong>{direita.sacando ? 'Sacando · ' : ''}<NomeEquipe nome={direita.nome} /></strong>
       </div>
-      <div className="volley-court" role="group" aria-label={`Quadra de ${esquerda.nome} contra ${direita.nome}`}>
+      <div className="volley-court" role="group" aria-label={`Quadra de ${normalizarNomeEquipe(esquerda.nome)} contra ${normalizarNomeEquipe(direita.nome)}`}>
         <img src="/images/quadra-padrao.png" alt="" />
         <div className="volley-play">
           <Metade lado="esquerda" dados={esquerda} zonas={ZONAS_ESQUERDA} modo={modo} numeroExibido={numeroExibido} destaque={destaque} onAtivar={onAtivar} onSoltar={onSoltar} onAtaque={onAtaque} onBloqueio={onBloqueio} onAce={onAce} onSubstituicao={onSubstituicao} />
@@ -122,7 +124,7 @@ function Metade({
     setPulso(null)
   }
   return (
-    <div className={`volley-half is-${lado} is-${dados.id} ${dados.sacando ? 'is-serving' : ''}`} aria-label={dados.nome}>
+    <div className={`volley-half is-${lado} is-${dados.id} ${dados.sacando ? 'is-serving' : ''}`} aria-label={normalizarNomeEquipe(dados.nome)}>
       {vazia && <p className="volley-empty">{dados.editavel ? 'Escalação não informada. Toque em uma posição.' : 'Escalação não informada'}</p>}
       {zonas.map((zona) => {
         const numero = dados.escalacao[zona.indice] || ''
@@ -160,7 +162,7 @@ function Metade({
                   onAtivar?.(dados.id, zona.indice)
                   dispararPulso(`${zona.posicao}:tap`)
                 }}
-                aria-label={numero ? `${zona.posicao}, ${camisa}, ${nomeCurto(atleta?.name || 'Atleta')}` : `${zona.posicao} vazia de ${dados.nome}`}
+                aria-label={numero ? `${zona.posicao}, ${camisa}, ${nomeCurto(atleta?.name || 'Atleta')}` : `${zona.posicao} vazia de ${normalizarNomeEquipe(dados.nome)}`}
               >
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={sacandoAqui} />
               </button>

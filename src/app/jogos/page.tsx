@@ -12,6 +12,7 @@ import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/Leag
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { formatFaseMataMata, ordemFaseMataMata } from '@/lib/format-partida'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { formatCategoriaLabel } from '@/lib/equipe-categoria'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -122,7 +123,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <PageHero
         eyebrow={<><CalendarDays size={16} /> Calendário oficial</>}
-        title={equipeCapitao ? `Jogos de ${equipeCapitao.nome}` : scope.selectedLiga ? `Jogos de ${scope.selectedLiga.nome}` : 'Jogos do campeonato'}
+        title={equipeCapitao ? `Jogos de ${normalizarNomeEquipe(equipeCapitao.nome)}` : scope.selectedLiga ? `Jogos de ${scope.selectedLiga.nome}` : 'Jogos do campeonato'}
         description={equipeCapitao ? 'Agenda das partidas da sua equipe.' : scope.organizadorId ? 'Agenda dos campeonatos da sua conta.' : 'Rodadas, horários, locais e placares do campeonato.'}
         aside={
           <div className="grid grid-cols-3 gap-3">

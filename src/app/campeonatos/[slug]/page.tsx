@@ -16,6 +16,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
 import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
 import { escolherCategoria } from '@/lib/isolamento-categoria'
@@ -167,7 +168,7 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
                 return (
                   <Link key={item.id} href={`/equipes/${equipe.slug}`} className={`grid gap-2 bg-white/[0.03] px-4 py-4 hover:bg-white/[0.06] sm:grid-cols-[1fr_auto] sm:items-center ${mi.linha}`}>
                     <div>
-                      <p className="font-display text-lg font-black text-white">{equipe.nome}</p>
+                      <p className="font-display text-lg font-black text-white"><NomeEquipe nome={equipe.nome} /></p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">
                         {[equipe.categoria, equipe.serie].filter(Boolean).join(' · ') || 'Equipe inscrita'}
                       </p>

@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { isCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { recalculateLeagueClassification } from '@/lib/championship-operations'
 import {
@@ -164,7 +165,8 @@ async function garantirCategoria(ligaId: number, codigo: string) {
   return criada.id as string
 }
 
-async function criarEquipe(ligaId: number, nome: string, categoria: string) {
+async function criarEquipe(ligaId: number, nomeInformado: string, categoria: string) {
+  const nome = normalizarNomeEquipe(nomeInformado)
   const categoriaCampeonatoId = await garantirCategoria(ligaId, categoria)
   const { data, error } = await supabaseAdmin
     .from('Equipe')

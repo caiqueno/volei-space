@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+
+const nomeEquipeObrigatorio = z.string().trim().min(1).transform(normalizarNomeEquipe)
 
 export const categorias = ['FEMININO', 'FEMININO_MASTER', 'MISTO', 'MASCULINO', 'MASCULINO_MASTER'] as const
 
@@ -30,7 +33,7 @@ export const horarioQuadraSchema = z.object({
 })
 
 export const equipeSchema = z.object({
-  nome: z.string().min(1),
+  nome: nomeEquipeObrigatorio,
   ligaId: z.number().int().positive(),
   categoria: z.enum(categorias),
   serie: z.enum(series).default('PRATA'),
@@ -150,7 +153,7 @@ export const inscricaoRapidaJogadorSchema = z.object({
 
 export const inscricaoRapidaSchema = z.object({
   ligaId: z.number().int().positive(),
-  nomeEquipe: z.string().trim().min(1),
+  nomeEquipe: nomeEquipeObrigatorio,
   logoUrl: z.string().url().optional().or(z.literal('')),
   lider: z.string().trim().optional(),
   tecnico: z.string().trim().optional(),
@@ -166,13 +169,13 @@ export const criarInscricaoEquipeRascunhoSchema = z.object({
   ligaId: z.number().int().positive().optional(),
   linkToken: z.string().trim().min(16).max(64).optional().nullable(),
   tokenCategoria: z.string().trim().min(16).max(64).optional().nullable(),
-  nomeEquipe: z.string().trim().min(2).max(160),
+  nomeEquipe: z.string().trim().min(2).max(160).transform(normalizarNomeEquipe),
   categoria: nullableTrimmedString,
   serie: nullableTrimmedString,
 }).refine((valor) => Boolean(valor.ligaId || valor.linkToken || valor.tokenCategoria), 'Informe o campeonato.')
 
 export const atualizarInscricaoEquipeRascunhoSchema = z.object({
-  nomeEquipe: z.string().trim().min(2).max(160).optional(),
+  nomeEquipe: z.string().trim().min(2).max(160).transform(normalizarNomeEquipe).optional(),
   logoUrl: nullableUrl,
   lider: nullableTrimmedString,
   tecnico: nullableTrimmedString,
@@ -411,7 +414,7 @@ export const sumulaSchema = z.object({
 
 // Candidatura schemas (new)
 export const candidaturaEquipeSchema = z.object({
-  nome: z.string().min(1),
+  nome: nomeEquipeObrigatorio,
   responsavel: z.string().min(1),
   email: z.string().email(),
   telefone: optionalPhone,

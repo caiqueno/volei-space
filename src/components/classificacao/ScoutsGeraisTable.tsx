@@ -1,4 +1,5 @@
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import type { PlayerScoutRow } from '@/lib/player-scouts'
 
@@ -53,7 +54,7 @@ export function ScoutsGeraisTable({ dados, equipeInfoById }: Props) {
                   <td data-label="Equipe" className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <TeamIdentity nome={equipe?.nome ?? 'Equipe'} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
-                      <p className="truncate font-bold text-slate-700">{equipe?.nome ?? 'Equipe'}</p>
+                      <p className="truncate font-bold text-slate-700"><NomeEquipe nome={equipe?.nome} /></p>
                     </div>
                   </td>
                   <td data-label="Pontos" className="px-4 py-3 text-center text-xl font-black text-slate-950">{entrada.pontos}</td>

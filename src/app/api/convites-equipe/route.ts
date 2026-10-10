@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { randomUUID } from 'crypto'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { error, success } from '@/lib/api-response'
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
       ligaId,
       organizadorId: auth.userId,
       email,
-      nomeEquipe: nomeEquipe || null,
+      nomeEquipe: nomeEquipe ? normalizarNomeEquipe(nomeEquipe) : null,
       mensagem: mensagem || null,
       status: 'ENVIADO',
     }

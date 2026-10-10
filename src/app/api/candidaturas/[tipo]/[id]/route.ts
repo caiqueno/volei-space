@@ -10,6 +10,7 @@ import {
 } from '@/lib/candidatura-edit'
 import { duplicateDatabaseMessage, formatCadastroPhone } from '@/lib/candidatura-duplicates'
 import { errorDetail } from '@/lib/error-detail'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 type Params = {
   params: {
@@ -111,7 +112,7 @@ function normalizeUpdatePayload(tipo: 'equipe' | 'arbitro' | 'quadra', data: Rec
   if (tipo === 'equipe') {
     const genero = String(data.genero || 'MASCULINO')
     return {
-      nome: data.nome,
+      nome: normalizarNomeEquipe(String(data.nome ?? '')),
       responsavel: data.responsavel,
       telefone: formatCadastroPhone(String(data.telefone || '')),
       emblemaUrl: data.emblemaUrl || null,

@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { agendaDaPartida } from '@/lib/format-partida'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 type Jogador = { id: number; nome: string; numero?: number | string | null; posicao?: string | null }
 type Equipe = { id: number; nome: string; jogadores?: Jogador[] }
@@ -10,6 +13,7 @@ type Ocorrencia = { id: number; tipo: string; descricao?: string | null; set?: n
 type Registro = {
   id: number
   rodada?: number | null
+  fase?: string | null
   status?: string | null
   categoria?: string | null
   dataHora?: string | null
@@ -63,13 +67,13 @@ export default function SumulaRegistroPage() {
     return <main className="sumula-registro"><p className="sumula-registro-estado">{erro || 'Súmula indisponível.'}</p></main>
   }
 
-  const vencedor = registro.vencedorId === registro.equipeA.id ? registro.equipeA.nome : registro.vencedorId === registro.equipeB.id ? registro.equipeB.nome : null
+  const vencedor = registro.vencedorId === registro.equipeA.id ? normalizarNomeEquipe(registro.equipeA.nome) : registro.vencedorId === registro.equipeB.id ? normalizarNomeEquipe(registro.equipeB.nome) : null
 
   return (
     <main className="sumula-registro">
       <header>
         <p>Súmula digital</p>
-        <h1>{registro.equipeA.nome} <small>vs</small> {registro.equipeB.nome}</h1>
+        <h1><NomeEquipe nome={registro.equipeA.nome} /> <small>vs</small> <NomeEquipe nome={registro.equipeB.nome} /></h1>
         <strong>{registro.setsPorA ?? 0} × {registro.setsPorB ?? 0}</strong>
       </header>
 
@@ -78,9 +82,9 @@ export default function SumulaRegistroPage() {
         <dl>
           <div><dt>Campeonato</dt><dd>{registro.liga?.nome || 'Campeonato'}</dd></div>
           <div><dt>Categoria</dt><dd>{registro.categoria || 'Não informada'}</dd></div>
-          <div><dt>Data</dt><dd>{registro.dataHora ? new Date(registro.dataHora).toLocaleString('pt-BR') : 'A definir'}</dd></div>
-          <div><dt>Local</dt><dd>{registro.localNome || 'A definir'}</dd></div>
-          <div><dt>Rodada</dt><dd>{registro.rodada || '—'}</dd></div>
+          <div><dt>Data</dt><dd>{agendaDaPartida(registro).data || 'Não informada'}</dd></div>
+          <div><dt>Local</dt><dd>{agendaDaPartida(registro).local || 'Não informado'}</dd></div>
+          <div><dt>Fase</dt><dd>{agendaDaPartida(registro).rotulo}</dd></div>
           <div><dt>Arbitragem</dt><dd>{nomesDaArbitragem(registro.escala ?? [])}</dd></div>
         </dl>
       </section>
@@ -111,7 +115,7 @@ export default function SumulaRegistroPage() {
         <h2>Registro dos sets</h2>
         {(registro.sets ?? []).length ? (
           <table>
-            <thead><tr><th>Set</th><th>{registro.equipeA.nome}</th><th>{registro.equipeB.nome}</th></tr></thead>
+            <thead><tr><th>Set</th><th><NomeEquipe nome={registro.equipeA.nome} /></th><th><NomeEquipe nome={registro.equipeB.nome} /></th></tr></thead>
             <tbody>
               {registro.sets?.map((set) => (
                 <tr key={set.id || set.numero}>
@@ -170,7 +174,7 @@ function ListaEquipe({ equipe, presencas }: { equipe: Equipe; presencas: NonNull
   const atletas = (equipe.jogadores ?? []).filter((jogador) => presentes.size === 0 || presentes.has(jogador.id))
   return (
     <article>
-      <h3>{equipe.nome}</h3>
+      <h3><NomeEquipe nome={equipe.nome} /></h3>
       {atletas.length ? (
         <ul>
           {atletas.map((jogador) => {

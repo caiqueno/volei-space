@@ -16614,6 +16614,28 @@ html body .official-score-layout.is-facing .official-team-score-group {
   gap: 12px;
 }
 
+/* Data e local do card: superfície elevada da Noite de final.
+   #F5F7FB sobre #16243D fica acima de 7:1. O dourado #FFB331 no mesmo fundo passa de 4,5:1. */
+html body .luva-card .match-meta {
+  background: var(--vs-elevated);
+  border: 1px solid var(--vs-border);
+  color: var(--vs-text);
+}
+
+html body .luva-shell .luva-card .match-meta :is(p, span),
+html body .sport-grid .luva-card .match-meta :is(p, span),
+html body .luva-card .match-meta :is(p, span) {
+  color: var(--vs-text);
+}
+
+html body .luva-card .match-meta svg {
+  color: var(--vs-gold);
+}
+
+.nome-equipe {
+  text-transform: uppercase;
+}
+
 .public-mobile-nav {
   bottom: max(12px, env(safe-area-inset-bottom));
 }

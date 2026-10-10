@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         id,
         ligaId,
         rodada,
+        fase,
         dataHora,
         localNome,
         status,

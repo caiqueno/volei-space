@@ -3,6 +3,7 @@ import { partidaEncerrada } from '@/lib/classificacao'
 import { resolveLeagueLifecycleStatus } from '@/lib/championship-lifecycle'
 import { gruposDeConfronto } from '@/lib/isolamento-categoria'
 import { gerarSumulaToken } from '@/lib/sumula-token'
+import { montarConfrontos, type JogoExistente } from '@/lib/rodadas'
 
 type LigaRecord = {
   id: number
@@ -159,17 +160,24 @@ async function ensureClassificationEntries(ligaId: number, equipes: EquipeRecord
 async function ensureSchedule(liga: LigaRecord, equipes: EquipeRecord[]) {
   if (equipes.length < 2) return
 
+  const ids = new Set(equipes.map((equipe) => equipe.id))
   const { data: existing, error: existingErr } = await supabase
     .from('Partida')
-    .select('equipeAId,equipeBId')
+    .select('equipeAId,equipeBId,rodada')
     .eq('ligaId', liga.id)
 
   if (existingErr) throw existingErr
+  const daLista = (existing ?? []).filter((partida: any) => ids.has(partida.equipeAId) && ids.has(partida.equipeBId))
   const existingPairs = new Set(
-    (existing ?? []).map((partida: any) => pairKey(partida.equipeAId, partida.equipeBId)),
+    daLista.map((partida: any) => pairKey(partida.equipeAId, partida.equipeBId)),
   )
+  const jaGravados: JogoExistente[] = daLista.map((partida: any) => ({
+    aId: Number(partida.equipeAId),
+    bId: Number(partida.equipeBId),
+    rodada: Number(partida.rodada),
+  }))
 
-  const pairings = buildPairings(equipes, liga.formato)
+  const pairings = buildPairings(equipes, liga.formato, jaGravados)
     .filter((pair) => !existingPairs.has(pairKey(pair.a.id, pair.b.id)))
   if (pairings.length === 0) return
 
@@ -200,7 +208,7 @@ function pairKey(a: number, b: number) {
   return [a, b].sort((left, right) => left - right).join(':')
 }
 
-function buildPairings(equipes: EquipeRecord[], formato?: string | null) {
+function buildPairings(equipes: EquipeRecord[], formato?: string | null, existentes: JogoExistente[] = []) {
   if (formato === 'MATA_MATA' || formato === 'COPA_CURTA') {
     const rows: Array<{ a: EquipeRecord; b: EquipeRecord; rodada: number }> = []
     for (let index = 0; index + 1 < equipes.length; index += 2) {
@@ -209,15 +217,7 @@ function buildPairings(equipes: EquipeRecord[], formato?: string | null) {
     return rows
   }
 
-  const rows: Array<{ a: EquipeRecord; b: EquipeRecord; rodada: number }> = []
-  let rodada = 1
-  for (let i = 0; i < equipes.length; i += 1) {
-    for (let j = i + 1; j < equipes.length; j += 1) {
-      rows.push({ a: equipes[i], b: equipes[j], rodada })
-      rodada += 1
-    }
-  }
-  return rows
+  return montarConfrontos(equipes, existentes)
 }
 
 function nextSaturdayAtFive() {

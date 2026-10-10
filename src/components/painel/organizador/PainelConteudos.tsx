@@ -12,6 +12,8 @@ import { AcessoArbitroJogo } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import { faseDeGruposEncerrada } from '@/lib/configuracao-categoria-edicao'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
@@ -369,7 +371,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                   return (
                     <tr key={partida.id} className="border-t border-white/10">
                       <td data-label="Rodada" className="px-3 py-3 font-bold">{partida.rodada || '—'}</td>
-                      <td data-label="Jogo" className="px-3 py-3 font-black">{partida.equipeA?.nome ?? 'Equipe A'} × {partida.equipeB?.nome ?? 'Equipe B'}</td>
+                      <td data-label="Jogo" className="px-3 py-3 font-black"><NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" /> × <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" /></td>
                       <td data-label="Horário" className="px-3 py-3">{quando}</td>
                       <td data-label="Status" className="px-3 py-3">{STATUS_JOGO[status] ?? status}</td>
                       <td data-label="Placar" className="px-3 py-3 font-bold">
@@ -385,7 +387,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                         </div>
                       </td>
                       <td data-label="Acesso" className="px-3 py-3">
-                        <AcessoArbitroJogo partidaId={partida.id} jogo={`${partida.equipeA?.nome ?? 'Equipe A'} × ${partida.equipeB?.nome ?? 'Equipe B'}`} />
+                        <AcessoArbitroJogo partidaId={partida.id} jogo={`${normalizarNomeEquipe(partida.equipeA?.nome ?? 'Equipe A')} × ${normalizarNomeEquipe(partida.equipeB?.nome ?? 'Equipe B')}`} />
                       </td>
                     </tr>
                   )

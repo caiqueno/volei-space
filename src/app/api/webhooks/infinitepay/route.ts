@@ -8,6 +8,7 @@ import {
 } from '@/lib/infinitepay'
 import { sendEmail, emailEquipeAtivada } from '@/lib/email'
 import { slugifyUnique } from '@/utils/slug'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 type ErroBanco = { code?: string; message?: string } | null
 
@@ -180,11 +181,12 @@ async function obterOuCriarEquipe(candidatura: {
   horarios: string
   quadraInfo: string
 }) {
-  const slug = await slugifyUnique(candidatura.nome)
+  const nome = normalizarNomeEquipe(candidatura.nome)
+  const slug = await slugifyUnique(nome)
   const { data, error } = await supabase
     .from('Equipe')
     .insert({
-      nome: candidatura.nome,
+      nome,
       ligaId: candidatura.ligaId,
       categoria: candidatura.categoria,
       serie: candidatura.serie,
@@ -203,7 +205,7 @@ async function obterOuCriarEquipe(candidatura: {
   const { data: existente, error: leituraErr } = await supabase
     .from('Equipe')
     .select('id,slug')
-    .eq('nome', candidatura.nome)
+    .eq('nome', nome)
     .eq('ligaId', candidatura.ligaId)
     .eq('categoria', candidatura.categoria)
     .eq('serie', candidatura.serie)

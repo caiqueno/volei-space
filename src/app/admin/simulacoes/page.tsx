@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 type PartidaSim = {
   id: number
@@ -196,7 +198,7 @@ export default function SimulacoesPage() {
             </select>
             <select value={equipe} onChange={(evento) => setEquipe(evento.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold">
               <option value="todos">Todas as equipes</option>
-              {equipes.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+              {equipes.map((nome) => <option key={nome} value={nome}>{normalizarNomeEquipe(nome)}</option>)}
             </select>
           </div>
           <div className="mt-4 grid gap-2">
@@ -204,7 +206,7 @@ export default function SimulacoesPage() {
             {lista.map((partida) => (
               <button key={partida.id} type="button" onClick={() => setSelecionada(partida.id)} className={`rounded-2xl border p-3 text-left ${detalhe?.id === partida.id ? 'border-amber-400 bg-amber-50' : 'border-slate-200'}`}>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{partida.campeonato} · {partida.status}</p>
-                <p className="mt-1 font-black text-slate-950">{partida.equipeA?.nome} {partida.placar?.setsA ?? partida.setsPorA ?? 0} × {partida.placar?.setsB ?? partida.setsPorB ?? 0} {partida.equipeB?.nome}</p>
+                <p className="mt-1 font-black text-slate-950"><NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" /> {partida.placar?.setsA ?? partida.setsPorA ?? 0} × {partida.placar?.setsB ?? partida.setsPorB ?? 0} <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" /></p>
                 <p className="text-sm font-semibold text-slate-600">{partida.localNome} · set {partida.placar?.pontosA ?? 0} × {partida.placar?.pontosB ?? 0}{partida.placar?.pausada ? ' · pausada' : ''}</p>
               </button>
             ))}
@@ -214,7 +216,7 @@ export default function SimulacoesPage() {
         {detalhe && (
           <aside className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Partida {detalhe.id}</p>
-            <h3 className="mt-2 text-xl font-black text-slate-950">{detalhe.equipeA?.nome} × {detalhe.equipeB?.nome}</h3>
+            <h3 className="mt-2 text-xl font-black text-slate-950"><NomeEquipe nome={detalhe.equipeA?.nome} vazio="Equipe A" /> × <NomeEquipe nome={detalhe.equipeB?.nome} vazio="Equipe B" /></h3>
             <p className="mt-1 text-sm font-semibold text-slate-600">{detalhe.campeonato} · {detalhe.statusCampeonato}</p>
             <p className="mt-3 text-4xl font-black text-slate-950">{detalhe.placar?.setsA ?? detalhe.setsPorA ?? 0} × {detalhe.placar?.setsB ?? detalhe.setsPorB ?? 0}</p>
             <p className="text-sm font-bold text-slate-700">Set atual {detalhe.placar?.pontosA ?? detalhe.pontosPorA ?? 0} × {detalhe.placar?.pontosB ?? detalhe.pontosPorB ?? 0} · velocidade {detalhe.placar?.velocidade ?? 1}×</p>

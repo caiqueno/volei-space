@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { calcularClassificacao, type PartidaClassificacao, type RegrasCategoria, type TimeClassificacao } from '@/lib/classificacao'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 const MARCA = 'MASSA-QA-2026'
 const SLUG = 'massa-qa-2026'
@@ -326,10 +327,13 @@ export async function criarCopaMassa() {
 
   const { data: equipesAtuais, error: falhaEquipesAtuais } = await supabaseAdmin.from('Equipe').select('id,nome').eq('ligaId', ligaId)
   if (falhaEquipesAtuais) throw new Error(falhaEquipesAtuais.message)
-  const faltantes = NOMES_EQUIPE.filter((nome) => !(equipesAtuais ?? []).some((equipe) => equipe.nome === nome))
+  const faltantes = NOMES_EQUIPE.filter((nome) => {
+    const alvo = normalizarNomeEquipe(nome)
+    return !(equipesAtuais ?? []).some((equipe) => normalizarNomeEquipe(equipe.nome) === alvo)
+  })
   if (faltantes.length) {
     const { error: falhaEquipes } = await supabaseAdmin.from('Equipe').insert(faltantes.map((nome) => ({
-      nome,
+      nome: normalizarNomeEquipe(nome),
       ligaId,
       categoria: 'MASCULINO',
       serie: null,

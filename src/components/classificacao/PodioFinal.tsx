@@ -1,5 +1,6 @@
 import { Trophy } from 'lucide-react'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import type { PodiumTeam } from '@/lib/championship-podium'
 import mi from '@/styles/microinteracoes.module.css'
 
@@ -53,7 +54,7 @@ function PodioSpot({ team, isHero }: { team: PodiumTeam; isHero: boolean }) {
       <Trophy size={isHero ? 14 : 20} className={`mb-1 shrink-0 ${accent} ${celebracao ? mi.pop : ''}`} aria-hidden="true" />
       <TeamIdentity nome={team.nome} cor={team.corHex} logoUrl={team.logoUrl} compact={markCompact} showName={false} />
       <p className={`mt-1.5 max-w-[86px] truncate text-center font-black text-white ${isHero ? 'text-[11px]' : 'text-sm'}`}>
-        {team.nome}
+        <NomeEquipe nome={team.nome} />
       </p>
       <p className={`text-[9px] font-black uppercase tracking-[0.12em] ${accent}`}>{POSITION_TAG[team.posicao]}</p>
       <div

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import {
   isFieldRequired,
@@ -151,6 +152,7 @@ async function getRegistrationStatus(id: string | null): Promise<string | null> 
 }
 
 export async function createRegistrationDraft(input: { ligaId?: number; linkToken?: string | null; tokenCategoria?: string | null; nomeEquipe: string; categoria?: string | null; serie?: string | null }) {
+  input = { ...input, nomeEquipe: normalizarNomeEquipe(input.nomeEquipe) }
   let ligaId = input.ligaId
   let categoriaForcada: { id: string; codigo: string } | null = null
   if (input.tokenCategoria) {
@@ -271,6 +273,7 @@ export function mascararLeituraInscricao<T extends { players: RegistrationPlayer
 }
 
 export async function updateRegistrationDraft(token: string, patch: Record<string, unknown>) {
+  if ('nomeEquipe' in patch && typeof patch.nomeEquipe === 'string') patch.nomeEquipe = normalizarNomeEquipe(patch.nomeEquipe)
   const context = await getRegistrationDraftByToken(token)
   if (!context.canEdit) throw new RegistrationDraftError(context.readOnlyReason || 'Edição não permitida.', 403)
   if (context.draft.categoriaCampeonatoId) {
@@ -465,7 +468,13 @@ export async function finalizeRegistration(token: string) {
   if (linkAtual && (!linkAtual.ativo || linkAtual.revogadoEm)) throw new RegistrationDraftError('As inscrições para este campeonato estão encerradas ou temporariamente indisponíveis.', 403)
   validateFinalData(context)
 
-  const slug = await uniqueTeamSlug(context.draft.nomeEquipe)
+  const nomeEquipe = normalizarNomeEquipe(context.draft.nomeEquipe)
+  if (nomeEquipe !== context.draft.nomeEquipe) {
+    const { error: nomeErr } = await supabase.from('InscricaoEquipeRascunho').update({ nomeEquipe }).eq('id', context.draft.id)
+    if (nomeErr) throw nomeErr
+    context.draft.nomeEquipe = nomeEquipe
+  }
+  const slug = await uniqueTeamSlug(nomeEquipe)
   const { data, error } = await supabase.rpc('finalizar_inscricao_equipe_rascunho', { p_token: token, p_slug: slug })
   if (error) {
     if (error.code === '23505') throw new RegistrationDraftError('Já existe uma equipe cadastrada com esse nome nesta categoria/série.', 409)

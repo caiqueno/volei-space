@@ -20,6 +20,9 @@ import {
 import { ActionBar } from '@/components/ui/action-bar'
 import { formatEliminatoryPhase, getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { LinksCategoria } from '@/components/painel/organizador/LinksCategoria'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { rotuloConfronto } from '@/lib/format-partida'
+import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { SeletorCategoria } from '@/components/portal/SeletorCategoria'
 
 type Equipe = {
@@ -533,7 +536,7 @@ function EstruturaContent() {
                   return (
                     <div key={equipe.id} className="rounded-2xl border border-white/10 bg-[#07111f] p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="font-black">{equipe.nome}</p>
+                        <p className="font-black"><NomeEquipe nome={equipe.nome} /></p>
                         <span className="whitespace-nowrap text-xs font-black text-luva-amber">
                           {equipe.quantidadeJogadores ?? 0} atleta(s)
                         </span>
@@ -594,7 +597,7 @@ function EstruturaContent() {
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {unassignedTeams.map((equipe) => (
                     <div key={equipe.id} className="rounded-xl border border-white/10 bg-[#07111f] p-4">
-                      <p className="font-black">{equipe.nome}</p>
+                      <p className="font-black"><NomeEquipe nome={equipe.nome} /></p>
                       <p className="mt-1 text-xs font-bold text-slate-400">Selecione o grupo de destino</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {grupos.map((grupo, index) => (
@@ -745,12 +748,12 @@ function EstruturaContent() {
                       <div className="flex min-w-0 flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-luva-amber">
-                            <span>Rodada {partida.rodada}</span>
+                            <span>{rotuloConfronto(partida)}</span>
                             <span className="text-slate-600">/</span>
                             <span>{grupoById.get(partida.id)}</span>
                             {locked && <span className="rounded-full border border-white/10 px-2 py-1 text-slate-200">bloqueada</span>}
                           </div>
-                          <p className="mt-2 truncate text-lg font-black text-white">{equipeA?.nome || 'Equipe A'} x {equipeB?.nome || 'Equipe B'}</p>
+                          <p className="mt-2 truncate text-lg font-black text-white"><NomeEquipe nome={equipeA?.nome} vazio="Equipe A" /> x <NomeEquipe nome={equipeB?.nome} vazio="Equipe B" /></p>
                         </div>
                         <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[9.5rem_8rem_minmax(11rem,1fr)_10rem_12rem_10rem] 2xl:items-end">
                           <label className="grid gap-1">
@@ -797,8 +800,8 @@ function EstruturaContent() {
                               onChange={(event) => updateCalendarDraft(partida.id, 'mandanteId', event.target.value)}
                               className="w-full rounded-xl border border-white/10 bg-[#102033] px-3 py-2 text-sm font-black text-white outline-none disabled:opacity-45"
                             >
-                              <option value={partida.equipeAId}>{equipeA?.nome || 'Equipe A'}</option>
-                              <option value={partida.equipeBId}>{equipeB?.nome || 'Equipe B'}</option>
+                              <option value={partida.equipeAId}>{normalizarNomeEquipe(equipeA?.nome || 'Equipe A')}</option>
+                              <option value={partida.equipeBId}>{normalizarNomeEquipe(equipeB?.nome || 'Equipe B')}</option>
                             </select>
                           </label>
                           <label className="grid gap-1">
