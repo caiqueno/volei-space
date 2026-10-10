@@ -9,6 +9,7 @@ import {
   proximoBloqueio,
   registrarEventoAcesso,
 } from '@/lib/acesso-arbitro-jogo'
+import { destinoDepoisDoCodigo } from '@/lib/arbitro-responsavel'
 
 const corpoSchema = z.object({ codigo: z.string().min(1).max(32) })
 
@@ -69,7 +70,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
   await registrarEventoAcesso({ partidaId: acesso.partidaId, acessoId: acesso.id, tipo: 'ACESSO_REALIZADO', resultado: 'ok' })
 
   const cookie = await gravarSessaoAcesso(acesso)
-  const resposta = success({ redirectTo: `/arbitro/partida/${token}` })
+  const partida = acesso.partida
+  const resposta = success({
+    redirectTo: destinoDepoisDoCodigo({
+      id: Number(partida.id),
+      status: partida.status,
+      sumulaToken: partida.sumulaToken,
+    }, token),
+  })
   resposta.cookies.set(cookie.name, cookie.value, cookie.options)
   return resposta
 }
@@ -84,8 +92,8 @@ async function carregar(token: string) {
   if (!data) return null
   const { data: partida } = await supabase
     .from('Partida')
-    .select('dataHora,localNome,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)')
+    .select('id,status,sumulaToken,dataHora,localNome,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)')
     .eq('id', data.partidaId)
     .maybeSingle()
-  return { ...data, partida: partida ?? { dataHora: null, localNome: null, equipeA: null, equipeB: null } }
+  return { ...data, partida: partida ?? { id: data.partidaId, status: null, sumulaToken: null, dataHora: null, localNome: null, equipeA: null, equipeB: null } }
 }

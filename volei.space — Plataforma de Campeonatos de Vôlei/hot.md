@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sets da final, semifinal e 3º lugar e o pódio público. 20261010136000 ainda não foi aplicada. Nascimento e documento opcionais seguem em 20261010135000. A de RLS continua a última.
+  O organizador grava a súmula do próprio campeonato. O MVP pede confirmação. A chave do mata-mata nasce dos grupos. Este lote não tem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o organizador dono da liga grava a súmula em `/sumula/{token}/lancar`. A escalação vazia do pré-jogo não permanece quando a partida começa. Oficializar pede confirmação e, sem MVP, abre Anotações. O número editado da camisa aparece nessa lista. Últimos pontos respeitam o lado da quadra de cada lance. Com a partida encerrada, +1, ACE, ataque, bloqueio e substituição saem da quadra. O scout separa ponto com atleta e ponto sem atleta. Jogo feito pelo link do árbitro mostra «Árbitro do link». O código desse jogo, se a partida já começou, abre o lançamento e não repete o credenciamento. Ver mais conserva o mata-mata sem data. Em `/fase-mata-mata` o organizador gera 1º A × 2º B e 1º B × 2º A, e depois final e 3º lugar a partir das semifinais. O texto dos cartões claros da chave fica escuro. A tabela por grupo, o confronto direto, o botão Sair e o botão do link do juiz ficaram com outro agente. Nenhuma migration neste lote. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 
 Em 10 de outubro de 2026 a quantidade de sets deixa de ser só `Liga.setsPorPartida`. Final, semifinal e 3º lugar têm campo próprio, nulo para herdar o campeonato. A súmula, a validação e o lançamento usam essa quantidade, e o tie-break fica no último set dela. O portal (`/portal?ligaId=`) e a classificação pública mostram pódio, final, 3º lugar e chave quando existe mata-mata, mesmo antes de `FINALIZADO`. A tabela de pontos continua só com grupos. `20261010136000_sets_por_fase_mata_mata.sql` não foi aplicada. O prefixo fica depois de `20261010135000` e antes da migration de RLS. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[modulos/PARAMETRIZACAO]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
