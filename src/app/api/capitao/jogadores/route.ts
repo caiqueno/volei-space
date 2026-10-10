@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { generateQRToken } from '@/lib/qrcode'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
+import { mensagemDuplicataNaCategoria } from '@/lib/atleta-duplicado-consulta'
 
 const POSICOES_JOGADOR = ['LV', 'PT', 'OP', 'CT', 'LB'] as const
 const DUPLICATE_NUMBER_MESSAGE = 'Este número já está sendo utilizado por outro atleta desta equipe.'
@@ -64,6 +65,16 @@ export async function POST(req: NextRequest) {
 
     const numberError = await validateUniqueJerseyNumber(equipe.id, parsed.data.numero ?? null, parsed.data.id)
     if (numberError) return numberError
+    const atual = await supabase.from('Jogador').select('nome,dataNascimento,documentoNumero').eq('id', parsed.data.id).eq('equipeId', equipe.id).maybeSingle()
+    const duplicata = await mensagemDuplicataNaCategoria({
+      ligaId: equipe.ligaId,
+      categoriaCampeonatoId: equipe.categoriaCampeonatoId,
+      equipeId: equipe.id,
+      nome: parsed.data.nome ?? atual.data?.nome,
+      dataNascimento: parsed.data.dataNascimento ?? atual.data?.dataNascimento,
+      documentoNumero: parsed.data.documentoNumero ?? atual.data?.documentoNumero,
+    })
+    if (duplicata) return error(duplicata, 422)
 
     const { data, error: err } = await supabase
       .from('Jogador')
@@ -82,6 +93,15 @@ export async function POST(req: NextRequest) {
 
   const numberError = await validateUniqueJerseyNumber(equipe.id, parsed.data.numero ?? null)
   if (numberError) return numberError
+  const duplicata = await mensagemDuplicataNaCategoria({
+    ligaId: equipe.ligaId,
+    categoriaCampeonatoId: equipe.categoriaCampeonatoId,
+    equipeId: equipe.id,
+    nome: parsed.data.nome,
+    dataNascimento: parsed.data.dataNascimento,
+    documentoNumero: parsed.data.documentoNumero,
+  })
+  if (duplicata) return error(duplicata, 422)
 
   const { data, error: err } = await supabase
     .from('Jogador')

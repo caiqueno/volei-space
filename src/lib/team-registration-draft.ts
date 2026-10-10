@@ -11,6 +11,7 @@ import {
 import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
 import { registrarEventoInscricao } from '@/lib/link-inscricao-campeonato'
 import { slugify } from '@/utils/slug'
+import { mensagemDuplicataNaCategoria } from '@/lib/atleta-duplicado-consulta'
 import {
   colunaElegibilidadeAusente,
   elegibilidadeAtiva,
@@ -436,6 +437,7 @@ export async function createRegistrationPlayer(token: string, input: Record<stri
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context)
   exigirAtletaConfigurado(input, context.liga, context.elegibilidade)
+  await recusarDuplicata(context, input)
   const maximum = context.liga.elencoQuantidadeMaxima
   if (maximum != null && context.players.length >= maximum) throw new RegistrationDraftError(`O elenco permite no máximo ${maximum} jogadores.`, 422)
   const concluida = inscricaoConcluida(context.draft.status)
@@ -451,6 +453,7 @@ export async function updateRegistrationPlayer(token: string, playerId: string, 
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context, playerId)
   exigirAtletaConfigurado(input, context.liga, context.elegibilidade, context.players.find((player) => String(player.id) === String(playerId)))
+  await recusarDuplicata(context, input, playerId)
   const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
   const data = await gravarAtleta(target, 'update', configuredPlayerPayload(input, context.liga), {
     id: playerId,
@@ -509,6 +512,27 @@ export async function deleteRegistrationPlayer(token: string, playerId: string) 
   const { data, error } = await query.select('id').maybeSingle()
   if (error) throw error
   if (!data) throw new RegistrationDraftError('Jogador não encontrado nesta inscrição.', 404)
+}
+
+async function recusarDuplicata(
+  context: Awaited<ReturnType<typeof getRegistrationDraftByToken>>,
+  input: Record<string, unknown>,
+  playerId?: string,
+) {
+  const atual = playerId ? context.players.find((player) => String(player.id) === String(playerId)) : undefined
+  const documento = input.documentoNumero !== undefined ? input.documentoNumero : atual?.documentoNumero
+  const nascimento = input.dataNascimento !== undefined ? input.dataNascimento : atual?.dataNascimento
+  const nome = input.nome !== undefined ? input.nome : atual?.nome
+  const aviso = await mensagemDuplicataNaCategoria({
+    ligaId: context.liga.id,
+    categoriaCampeonatoId: context.draft.categoriaCampeonatoId,
+    equipeId: context.draft.equipeId,
+    rascunhoId: context.draft.id,
+    nome: nome == null ? null : String(nome),
+    dataNascimento: nascimento == null ? null : String(nascimento),
+    documentoNumero: documento == null ? null : String(documento),
+  })
+  if (aviso) throw new RegistrationDraftError(aviso, 422)
 }
 
 function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDraftByToken>>) {
@@ -572,6 +596,13 @@ export async function finalizeRegistration(token: string) {
   const { data: linkAtual } = await supabase.from('LinkInscricaoCampeonato').select('id,ativo,revogadoEm').eq('ligaId', context.liga.id).maybeSingle()
   if (linkAtual && (!linkAtual.ativo || linkAtual.revogadoEm)) throw new RegistrationDraftError('As inscrições para este campeonato estão encerradas ou temporariamente indisponíveis.', 403)
   validateFinalData(context)
+  for (const player of context.players) {
+    await recusarDuplicata(context, {
+      nome: player.nome,
+      dataNascimento: player.dataNascimento,
+      documentoNumero: player.documentoNumero,
+    }, String(player.id))
+  }
 
   const nomeEquipe = normalizarNomeEquipe(context.draft.nomeEquipe)
   if (nomeEquipe !== context.draft.nomeEquipe) {

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Gênero e idade da categoria são opcionais e ficam desligados sem a coluna. 20261010139700 não foi aplicada.
+  O mesmo atleta não entra em duas equipes da categoria. Documento, ou nome e nascimento. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
 
 Em 10 de outubro de 2026 a categoria pode restringir gênero e faixa de idade. Os dois nascem vazios. A inscrição só confere o sexo quando a categoria é masculina ou feminina e o atleta informou o sexo. A idade só entra quando há data de nascimento e a faixa está preenchida. Misto aceita os dois sexos. Sexo vazio e nascimento vazio continuam válidos. Sem as colunas, a leitura volta nula por dez minutos e o salvamento da inscrição segue. Gênero e idade não entram em `salvar_configuracao_categoria` nem em `Liga`. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
 

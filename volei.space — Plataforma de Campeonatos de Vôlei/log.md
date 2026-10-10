@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | atleta único na categoria
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `hot`, `log`
+- A mesma pessoa não entra em duas equipes da categoria. Documento tem prioridade; sem ele, nome e nascimento. A própria equipe não é bloqueada. Sem migration. Falha de leitura não interrompe a inscrição.
+
 ## [2026-10-10] feat | gênero e idade da categoria
 
 - pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
