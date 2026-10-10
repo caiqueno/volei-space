@@ -7,6 +7,7 @@ import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
+import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
   AlertCircle,
   Award,
@@ -561,8 +562,20 @@ export default function SumulaPage() {
     const nextSetsWon = countSets(next)
     setSetsWon(nextSetsWon)
     addMatchEvent('set_end', `Set ${currentSet} finalizado: ${score.teamA} x ${score.teamB}.`, undefined, score)
-    if (currentSet < matchRules.setsPerMatch && nextSetsWon.teamA < matchRules.setsToWin && nextSetsWon.teamB < matchRules.setsToWin) {
-      setCurrentSet((current) => current + 1)
+    const saqueInicial = initialServerBySet[currentSet]
+    const transicao = transicaoAoEncerrarSet({
+      setAtual: currentSet,
+      setsPorPartida: matchRules.setsPerMatch,
+      setsParaVencer: matchRules.setsToWin,
+      setsA: nextSetsWon.teamA,
+      setsB: nextSetsWon.teamB,
+      ladosInvertidos: sidesInverted,
+      saqueInicialDoSet: saqueInicial === 'teamA' || saqueInicial === 'teamB' ? saqueInicial : null,
+    })
+    if (transicao.segue && transicao.proximoSet) {
+      setSidesInverted(transicao.ladosInvertidos)
+      addMatchEvent('anotacao', 'Equipes inverteram os lados da quadra.')
+      setCurrentSet(transicao.proximoSet)
       setCurrentScore({ teamA: 0, teamB: 0 })
       setTimeoutsUsedA(0)
       setTimeoutsUsedB(0)

@@ -18,6 +18,16 @@ updated: 2026-10-10
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
 - Cada aviso fica no máximo 3 segundos e a fila guarda dois. O temporizador sai no unmount. O aviso não cobre a faixa do placar. A demonstração não chama `POST …/iniciar`, que não tem o atalho do token demo.
 
+## [2026-10-10] decisao | troca de lado ao encerrar o set
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- Confirmar o fim do set inverte a quadra e reusa a anotação do botão Inverter. A partida encerrada não inverte. O saque dos sets 2 a 4 e o sorteio do 5º ficam como já estavam. O pulso visual continua o de `sumula-micro-set`.
+
+## [2026-10-10] decisao | CSP de desenvolvimento e teste do pulso da súmula
+
+- pages_updated=`hot`, `log`
+- No `next dev`, o `script-src` aceita `'unsafe-eval'` para a página hidratar. Em produção continua `'self' 'unsafe-inline'`. O Playwright da súmula demo confere ACE, toque e bloqueio no atleta e que `prefers-reduced-motion` zera o pulso já existente em `sumula-micro.css`.
+
 ## [2026-10-10] decisao | microinterações visuais
 
 - pages_updated=`09-UI-UX`, `hot`, `log`
