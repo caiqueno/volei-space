@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] fix | senha idempotente na importação Winners
+
+- pages_updated=`hot`, `log`
+- `scripts/import-winners.mjs` só grava senha ao criar o organizador. Conta já `ATIVA` entra com `ORGANIZADOR_SENHA` e não chama `POST /api/admin/organizadores`. `--reset-senha` força a troca. O teste usa chamadas falsas. O script não foi executado contra produção nem banco real.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 

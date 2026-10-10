@@ -12,12 +12,17 @@
 //   ORGANIZADOR_EMAIL       conta que vai ser dona dos três campeonatos
 //   ORGANIZADOR_NOME        nome exibido (padrão: Organizador Winners)
 //   ORGANIZADOR_SENHA       senha definitiva, mínimo 8, diferente da temporária
-//   ORGANIZADOR_SENHA_TEMP  senha temporária entregue pela API de admin
+//   ORGANIZADOR_SENHA_TEMP  só na criação da conta, ou com --reset-senha
 //   WINNERS_TEAMS_JSON      caminho do JSON (padrão: scripts/data/winners-teams.json)
 //
 // Se o servidor define ADMIN_EMAIL, o login de admin só aceita esse e-mail.
-// Cada execução chama POST /api/admin/organizadores e troca a senha de novo:
-// repetir o script redefine ORGANIZADOR_SENHA_TEMP e depois a definitiva.
+// Senha do organizador (POST /api/admin/organizadores troca a senha se a conta
+// já existe — o script evita essa chamada):
+//   - Conta nova: grava ORGANIZADOR_SENHA_TEMP e troca para ORGANIZADOR_SENHA.
+//   - Conta já ATIVA: não chama o POST. Entra com ORGANIZADOR_SENHA e mantém
+//     a senha atual. Se esse login falhar, o script para sem alterar a senha.
+//   - Conta existente que não está ATIVA: não troca a senha. O script para.
+//   - --reset-senha: força o POST e a troca, mesmo com a conta já existente.
 //
 // Ordem para rodar no alvo (inclusive produção, de propósito):
 //   1. Backup do banco. Confira o ledger de supabase_migrations.
@@ -28,24 +33,27 @@
 //      202610090004_partida_atualizado_em_default.sql
 //      (default now() em "Partida"."atualizadoEm").
 //   3. Publique antes o código que grava categoriaCampeonatoId e deixa serie nula.
-//   4. Aponte APP_URL para esse deploy e rode o script uma vez.
+//   4. Aponte APP_URL para esse deploy e rode o script.
+//      Repetir a importação não troca a senha de um organizador já ativo.
 //   5. Winners Oficial e Winner QA ficam só com elenco. Winners Teste é jogado
 //      até a final e só então finalizado. Confira a tabela antes das semis.
 //
-// Uso: node scripts/import-winners.mjs
+// Uso: node scripts/import-winners.mjs [--reset-senha]
 
 import fs from 'fs'
 import path from 'path'
+import { pathToFileURL } from 'node:url'
 
 const APP = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '')
-const ADMIN_EMAIL = required('ADMIN_EMAIL')
-const ADMIN_SENHA = required('ADMIN_SENHA')
-const ORGANIZADOR_EMAIL = required('ORGANIZADOR_EMAIL')
 const ORGANIZADOR_NOME = process.env.ORGANIZADOR_NOME || 'Organizador Winners'
-const ORGANIZADOR_SENHA = required('ORGANIZADOR_SENHA')
-const ORGANIZADOR_SENHA_TEMP = required('ORGANIZADOR_SENHA_TEMP')
 const TEAMS_PATH = process.env.WINNERS_TEAMS_JSON
   || path.join(path.dirname(new URL(import.meta.url).pathname), 'data', 'winners-teams.json')
+
+let ADMIN_EMAIL
+let ADMIN_SENHA
+let ORGANIZADOR_EMAIL
+let ORGANIZADOR_SENHA
+let RESET_SENHA = false
 
 const CAMPEONATOS = [
   { slug: 'winners-oficial', nome: 'Winners Oficial', jogar: false },
@@ -64,6 +72,94 @@ function required(name) {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`Defina ${name}.`)
   return value
+}
+
+function carregarAmbiente() {
+  ADMIN_EMAIL = required('ADMIN_EMAIL')
+  ADMIN_SENHA = required('ADMIN_SENHA')
+  ORGANIZADOR_EMAIL = required('ORGANIZADOR_EMAIL')
+  ORGANIZADOR_SENHA = required('ORGANIZADOR_SENHA')
+  RESET_SENHA = flagResetSenha()
+}
+
+export function flagResetSenha(argv = process.argv) {
+  return argv.includes('--reset-senha')
+}
+
+function emailsIguais(esquerda, direita) {
+  return String(esquerda ?? '').trim().toLowerCase() === String(direita ?? '').trim().toLowerCase()
+}
+
+export function decidirSenhaOrganizador(conta, resetSenha) {
+  if (!conta) return 'criar'
+  if (resetSenha) return 'redefinir'
+  if (String(conta.status ?? '').trim().toUpperCase() === 'ATIVA') return 'manter'
+  return 'recusar'
+}
+
+function acharOrganizador(lista, email) {
+  const contas = Array.isArray(lista) ? lista : []
+  return contas.find((item) => emailsIguais(item?.email, email)) ?? null
+}
+
+function causaCurta(error) {
+  const texto = error instanceof Error ? error.message : String(error ?? '')
+  return texto.split('\n')[0].slice(0, 240)
+}
+
+export async function aplicarSenhaOrganizador({
+  login: entrar,
+  call: chamar,
+  adminEmail,
+  adminSenha,
+  email,
+  nome,
+  senha,
+  senhaTemp,
+  resetSenha = false,
+}) {
+  const admin = await entrar(adminEmail, adminSenha)
+  const lista = await chamar(admin.jar, 'GET', '/api/admin/organizadores')
+  if (!Array.isArray(lista)) {
+    throw new Error('A lista de organizadores não veio em formato de lista. A senha não foi alterada.')
+  }
+  const conta = acharOrganizador(lista, email)
+  const acao = decidirSenhaOrganizador(conta, resetSenha)
+
+  if (acao === 'recusar') {
+    throw new Error(`O organizador ${email} já existe com status ${conta.status}. A senha não foi alterada. Use --reset-senha para forçar a troca.`)
+  }
+
+  if (acao === 'manter') {
+    let sessao
+    try {
+      sessao = await entrar(email, senha, 'organizador')
+    } catch (error) {
+      throw new Error(`O organizador ${email} já está ativo. A senha atual foi mantida e o login com ORGANIZADOR_SENHA falhou (${causaCurta(error)}). Use --reset-senha somente para substituí-la.`)
+    }
+    const organizadorId = sessao.data?.user?.candidaturaId
+    if (!organizadorId) throw new Error('A sessão do organizador não devolveu o id.')
+    return { jar: sessao.jar, organizadorId, adminJar: admin.jar, acao }
+  }
+
+  const temporaria = String(senhaTemp ?? '').trim()
+  if (!temporaria) {
+    throw new Error('Defina ORGANIZADOR_SENHA_TEMP para criar a conta ou para usar --reset-senha.')
+  }
+  await chamar(admin.jar, 'POST', '/api/admin/organizadores', {
+    nome,
+    email,
+    senha: temporaria,
+  })
+  const temporario = await entrar(email, temporaria, 'organizador')
+  await chamar(temporario.jar, 'POST', '/api/auth/trocar-senha', {
+    senha,
+    confirmarSenha: senha,
+  })
+  const sessao = await entrar(email, senha, 'organizador')
+  const organizadorId = sessao.data?.user?.candidaturaId
+  if (!organizadorId) throw new Error('A sessão do organizador não devolveu o id.')
+  return { jar: sessao.jar, organizadorId, adminJar: admin.jar, acao }
 }
 
 function limparNome(valor) {
@@ -124,21 +220,25 @@ async function login(email, senha, perfil) {
 }
 
 async function garantirOrganizador() {
-  const admin = await login(ADMIN_EMAIL, ADMIN_SENHA)
-  await call(admin.jar, 'POST', '/api/admin/organizadores', {
-    nome: ORGANIZADOR_NOME,
+  const resultado = await aplicarSenhaOrganizador({
+    login,
+    call,
+    adminEmail: ADMIN_EMAIL,
+    adminSenha: ADMIN_SENHA,
     email: ORGANIZADOR_EMAIL,
-    senha: ORGANIZADOR_SENHA_TEMP,
-  })
-  const temporario = await login(ORGANIZADOR_EMAIL, ORGANIZADOR_SENHA_TEMP, 'organizador')
-  await call(temporario.jar, 'POST', '/api/auth/trocar-senha', {
+    nome: ORGANIZADOR_NOME,
     senha: ORGANIZADOR_SENHA,
-    confirmarSenha: ORGANIZADOR_SENHA,
+    senhaTemp: process.env.ORGANIZADOR_SENHA_TEMP,
+    resetSenha: RESET_SENHA,
   })
-  const sessao = await login(ORGANIZADOR_EMAIL, ORGANIZADOR_SENHA, 'organizador')
-  const organizadorId = sessao.data?.user?.candidaturaId
-  if (!organizadorId) throw new Error('A sessão do organizador não devolveu o id.')
-  return { jar: sessao.jar, organizadorId, adminJar: admin.jar }
+  if (resultado.acao === 'manter') {
+    console.log(`Organizador ${ORGANIZADOR_EMAIL} já está ativo. Senha mantida.`)
+  } else if (resultado.acao === 'redefinir') {
+    console.log(`Organizador ${ORGANIZADOR_EMAIL}: senha redefinida (--reset-senha).`)
+  } else {
+    console.log(`Organizador ${ORGANIZADOR_EMAIL} criado.`)
+  }
+  return resultado
 }
 
 function corpoLiga(item, organizadorId) {
@@ -398,7 +498,14 @@ function vencedor(partida, equipesPorId) {
   return equipesPorId.get(id) ?? { id, nome: String(id) }
 }
 
+function executadoDireto() {
+  const entry = process.argv[1]
+  if (!entry) return false
+  return import.meta.url === pathToFileURL(path.resolve(entry)).href
+}
+
 async function main() {
+  carregarAmbiente()
   const times = JSON.parse(fs.readFileSync(TEAMS_PATH, 'utf8')).map((time) => ({
     ...time,
     nome: limparNome(time.nome),
@@ -490,7 +597,9 @@ async function main() {
   console.log(campeao ? `ok campeão=${campeao.nome}` : 'ok')
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+if (executadoDireto()) {
+  main().catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+}
