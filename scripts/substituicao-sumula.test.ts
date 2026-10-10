@@ -50,14 +50,15 @@ assert.equal(validarSubstituicoes({
     substituicao(1, 'Alpha', 9, 5),
   ],
 }), null, 'a volta do titular continua válida depois de uma troca de líbero')
-assert.match(validarSubstituicoes({
+assert.equal(validarSubstituicoes({
   equipes,
   ocorrencias: [
-    substituicao(1, 'Alpha', 5, 9),
-    substituicao(1, 'Alpha', 9, 5),
-    substituicao(1, 'Alpha', 5, 9),
+    substituicao(1, 'Alpha', 2, 13),
+    substituicao(1, 'Alpha', 13, 2),
+    substituicao(1, 'Alpha', 2, 13),
+    substituicao(1, 'Alpha', 13, 2),
   ],
-}) ?? '', /já voltou/)
+}), null, 'o par vinculado troca mais de três vezes no mesmo set')
 assert.match(validarSubstituicoes({
   equipes,
   ocorrencias: [
@@ -65,7 +66,7 @@ assert.match(validarSubstituicoes({
     substituicao(1, 'Alpha', 9, 5),
     substituicao(1, 'Alpha', 5, 12),
   ],
-}) ?? '', /já voltou/)
+}) ?? '', /par já formado/)
 assert.match(validarSubstituicoes({
   equipes,
   ocorrencias: [
@@ -73,7 +74,7 @@ assert.match(validarSubstituicoes({
     substituicao(1, 'Alpha', 9, 5),
     substituicao(1, 'Alpha', 1, 9),
   ],
-}) ?? '', /já voltou/)
+}) ?? '', /par já formado/)
 assert.equal(validarSubstituicoes({
   equipes,
   ocorrencias: [
@@ -97,14 +98,14 @@ assert.equal(validarSubstituicoes({
     substituicao(1, 'Alpha', 5, 9),
   ],
 }), null, 'a volta gravada antes da entrada, na ordem da súmula, continua válida')
-assert.match(validarSubstituicoes({
+assert.equal(validarSubstituicoes({
   equipes,
   ocorrencias: [
     { tipo: 'substitution', set: 1, descricao: 'Substituição Alpha: sai #5 Ana Costa, entra #9 Bruno Lima.' },
     { tipo: 'substitution', set: 1, descricao: 'Substituição Alpha: sai #9 Bruno Lima, entra #5 Ana Costa.' },
     { tipo: 'substitution', set: 1, descricao: 'Substituição Alpha: sai #5 Ana Costa, entra #9 Bruno Lima.' },
   ],
-}) ?? '', /já voltou/)
+}), null, 'o nome depois da camisa não impede a terceira troca do par')
 
 let controle = controleVazio()
 let lista = reservasElegiveis(controle, '5', ['7', '9', '10', '11'])
@@ -116,26 +117,48 @@ assert.equal(passo.falha, null)
 controle = passo.controle
 lista = reservasElegiveis(controle, '9', ['5', '7', '10', '11'])
 assert.deepEqual(lista.numeros, ['5'])
-assert.equal(lista.aviso && textoAvisoSubstituicao(lista.aviso), 'Neste set, #9 só pode sair para #5 voltar.')
+assert.equal(lista.aviso && textoAvisoSubstituicao(lista.aviso), 'Neste set, #9 e #5 estão vinculados e só podem trocar entre si.')
 lista = reservasElegiveis(controle, '1', ['7', '10', '11', '5'])
 assert.deepEqual(lista.numeros, ['7', '10', '11'])
 assert.ok(!lista.numeros.includes('5'))
 
 passo = aplicarSubstituicao(controle, '9', '7')
 assert.equal(passo.falha, 'par')
-assert.equal(controle.pares[0]?.fechado, false)
 
 passo = aplicarSubstituicao(controle, '9', '5')
 assert.equal(passo.falha, null)
 controle = passo.controle
-assert.equal(controle.pares[0]?.fechado, true)
+assert.equal(controle.usadas, 2)
 lista = reservasElegiveis(controle, '5', ['7', '9', '10', '11'])
-assert.deepEqual(lista.numeros, [])
-assert.match(lista.aviso ? textoAvisoSubstituicao(lista.aviso) : '', /#5 já voltou no lugar de #9/)
+assert.deepEqual(lista.numeros, ['9'])
+assert.match(lista.aviso ? textoAvisoSubstituicao(lista.aviso) : '', /#5 e #9 estão vinculados/)
 lista = reservasElegiveis(controle, '1', ['7', '9', '10', '11'])
 assert.deepEqual(lista.numeros, ['7', '10', '11'])
-assert.equal(aplicarSubstituicao(controle, '5', '9').falha, 'par_fechado')
-assert.equal(aplicarSubstituicao(controle, '1', '9').falha, 'par_fechado')
+passo = aplicarSubstituicao(controle, '5', '9')
+assert.equal(passo.falha, null)
+assert.equal(passo.controle.usadas, 3)
+assert.equal(aplicarSubstituicao(controle, '1', '9').falha, 'par')
+
+let vinculado = controleVazio()
+for (const [sai, entra] of [['2', '13'], ['13', '2'], ['2', '13'], ['13', '2']] as const) {
+  const resultado = aplicarSubstituicao(vinculado, sai, entra)
+  assert.equal(resultado.falha, null, `${sai} por ${entra}`)
+  vinculado = resultado.controle
+}
+assert.equal(vinculado.usadas, 4)
+assert.deepEqual(reservasElegiveis(vinculado, '2', ['13', '7', '8']).numeros, ['13'])
+assert.deepEqual(reservasElegiveis(vinculado, '13', ['2', '7', '8']).numeros, ['2'])
+assert.equal(aplicarSubstituicao(vinculado, '2', '7').falha, 'par')
+
+let repetido = controleVazio()
+for (let indice = 0; indice < 8; indice += 1) {
+  const resultado = aplicarSubstituicao(repetido, indice % 2 === 0 ? '2' : '13', indice % 2 === 0 ? '13' : '2')
+  assert.equal(resultado.falha, null)
+  repetido = resultado.controle
+}
+assert.equal(repetido.usadas, 8)
+assert.equal(aplicarSubstituicao(repetido, '2', '13').falha, 'limite')
+assert.equal(reservasElegiveis(repetido, '2', ['13']).aviso?.tipo, 'limite')
 
 const outroSet = controleVazio()
 assert.equal(aplicarSubstituicao(outroSet, '5', '12').falha, null)
@@ -182,4 +205,13 @@ const semLimite = leitura.indexOf('select(`${campos},${CAMPOS_FASE},${CAMPOS_FAS
 const soFase = leitura.indexOf('select(`${campos},${CAMPOS_FASE}`)', semLimite + 1)
 assert.ok(comLimite > 0 && semLimite > comLimite && soFase > semLimite, 'coluna ausente não pode derrubar a leitura de sets já gravada')
 
-console.log('Substituição por set: par fecha na volta, reserva elegível e líbero fora da cota.')
+const regras = fs.readFileSync(path.join(process.cwd(), 'src/lib/sumula-regras.ts'), 'utf8')
+assert.equal(regras.includes('já voltou'), false)
+assert.equal(regras.includes('par_fechado'), false)
+const tela = fs.readFileSync(path.join(process.cwd(), 'src/app/sumula/[token]/lancar/page.tsx'), 'utf8')
+assert.equal(tela.includes('já voltou'), false)
+const rota = fs.readFileSync(path.join(process.cwd(), 'src/app/api/sumula/[token]/route.ts'), 'utf8')
+assert.ok(rota.includes('validarSubstituicoes'))
+assert.equal(rota.includes('já voltou'), false)
+
+console.log('Substituição por set: par vinculado troca de novo, cada troca conta e líbero fica fora da cota.')

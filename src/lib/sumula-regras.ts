@@ -43,7 +43,6 @@ type EquipeNome = { id: number; nome?: string | null }
 export type ParSubstituicao = {
   saiu: string
   entrou: string
-  fechado: boolean
 }
 
 export type ControleSubstituicao = {
@@ -51,13 +50,11 @@ export type ControleSubstituicao = {
   pares: ParSubstituicao[]
 }
 
-export type FalhaSubstituicao = 'limite' | 'par' | 'par_fechado'
+export type FalhaSubstituicao = 'limite' | 'par'
 
 export type AvisoSubstituicao =
   | { tipo: 'limite' }
-  | { tipo: 'par_fechado'; titular: string; reserva: string }
   | { tipo: 'so_parceiro'; sai: string; volta: string }
-  | { tipo: 'ja_saiu'; saiu: string; parceiro: string }
   | { tipo: 'nenhum' }
 
 export type ListaSubstituicao = {
@@ -77,8 +74,9 @@ export function numerosDaTroca(descricao: string) {
 
 /**
  * Oito substituições por equipe em cada set. A troca de líbero não entra na
- * conta nem cria par. O par (sai A, entra B) só aceita a volta B → A. Depois
- * que A volta, o par fecha e nenhum dos dois entra de novo naquele set.
+ * conta nem cria par. Quem troca fica vinculado ao outro pelo resto do set e
+ * os dois só trocam entre si, quantas vezes o limite geral ainda permitir.
+ * Cada troca conta. Um terceiro atleta não entra nesse par.
  */
 export function validarSubstituicoes(input: {
   ocorrencias?: OcorrenciaSubstituicao[] | null
@@ -149,15 +147,10 @@ export function reservasElegiveis(
   }
 
   const par = controle.pares.find((item) => item.saiu === saiu || item.entrou === saiu)
-  if (par?.fechado) {
-    return { numeros: [], aviso: { tipo: 'par_fechado', titular: par.saiu, reserva: par.entrou } }
-  }
-  if (par && par.entrou === saiu) {
-    const aviso = { tipo: 'so_parceiro', sai: saiu, volta: par.saiu } as const
-    return bancada.includes(par.saiu) ? { numeros: [par.saiu], aviso } : { numeros: [], aviso }
-  }
-  if (par && par.saiu === saiu) {
-    return { numeros: [], aviso: { tipo: 'ja_saiu', saiu, parceiro: par.entrou } }
+  if (par) {
+    const parceiro = par.saiu === saiu ? par.entrou : par.saiu
+    const aviso = { tipo: 'so_parceiro', sai: saiu, volta: parceiro } as const
+    return bancada.includes(parceiro) ? { numeros: [parceiro], aviso } : { numeros: [], aviso }
   }
 
   const bloqueados = new Set<string>()
@@ -173,9 +166,6 @@ export function mensagemFalhaSubstituicao(falha: FalhaSubstituicao, set: number,
   if (falha === 'limite') {
     return `A equipe atingiu o limite de ${limiteDeSubstituicoes(limite)} substituições no set ${set}.`
   }
-  if (falha === 'par_fechado') {
-    return `No set ${set}, esse par já voltou e não pode ser substituído de novo.`
-  }
   return `A substituição do set ${set} quebra o par já formado nesta equipe.`
 }
 
@@ -187,40 +177,24 @@ export function textoAvisoSubstituicao(
   if (aviso.tipo === 'limite') {
     return `Limite de ${limiteDeSubstituicoes(limite)} substituições por set atingido para esta equipe.`
   }
-  if (aviso.tipo === 'par_fechado') {
-    return `Neste set, #${numero(aviso.titular)} já voltou no lugar de #${numero(aviso.reserva)}. Os dois não podem ser substituídos de novo.`
-  }
   if (aviso.tipo === 'so_parceiro') {
-    return `Neste set, #${numero(aviso.sai)} só pode sair para #${numero(aviso.volta)} voltar.`
-  }
-  if (aviso.tipo === 'ja_saiu') {
-    return `Neste set, #${numero(aviso.saiu)} já saiu e só pode voltar no lugar de #${numero(aviso.parceiro)}.`
+    return `Neste set, #${numero(aviso.sai)} e #${numero(aviso.volta)} estão vinculados e só podem trocar entre si.`
   }
   return 'Nenhum reserva elegível neste set.'
+}
+
+function parceiro(par: ParSubstituicao, numero: string) {
+  return par.saiu === numero ? par.entrou : par.saiu
 }
 
 function vincularPar(pares: ParSubstituicao[], saiu: string, entrou: string): Exclude<FalhaSubstituicao, 'limite'> | null {
   if (!saiu || !entrou || saiu === entrou) return 'par'
   const parDeQuemSai = pares.find((par) => par.saiu === saiu || par.entrou === saiu)
   const parDeQuemEntra = pares.find((par) => par.saiu === entrou || par.entrou === entrou)
-  if (parDeQuemSai?.fechado || parDeQuemEntra?.fechado) return 'par_fechado'
-
-  if (parDeQuemSai && parDeQuemSai.entrou === saiu) {
-    if (entrou !== parDeQuemSai.saiu) return 'par'
-    parDeQuemSai.fechado = true
-    return null
-  }
-  if (parDeQuemSai) return 'par'
-
-  if (parDeQuemEntra) {
-    if (parDeQuemEntra.saiu === entrou && parDeQuemEntra.entrou === saiu) {
-      parDeQuemEntra.fechado = true
-      return null
-    }
-    return 'par'
-  }
-
-  pares.push({ saiu, entrou, fechado: false })
+  if (parDeQuemSai && parDeQuemEntra && parDeQuemSai !== parDeQuemEntra) return 'par'
+  if (parDeQuemSai && parceiro(parDeQuemSai, saiu) !== entrou) return 'par'
+  if (!parDeQuemSai && parDeQuemEntra) return 'par'
+  if (!parDeQuemSai) pares.push({ saiu, entrou })
   return null
 }
 

@@ -24,7 +24,7 @@ Assim, 3×0 recebe a mesma pontuação de classificação de 2×0. O recálculo 
 ## Substituições e líbero
 
 - Cada equipe tem direito a **8 substituições por set**. Toda entrada e todo retorno contam como uma substituição; a nona é bloqueada.
-- O vínculo do par dura o set: A → B permite reversão B → A; o mesmo par pode fazer A → B novamente, respeitando o limite. Um terceiro atleta não substitui a reversão daquele par.
+- O vínculo do par dura o set: A e B só trocam entre si, sem limite de vezes nessa dupla. Cada troca conta no limite geral de substituições. Um terceiro atleta não entra nesse par. A volta não encerra o vínculo.
 - No início do set seguinte, vínculos e contagem reiniciam. O reload não pode apagar o controle do set em andamento.
 - A entrada de líbero é somente **registro informativo**: não consome uma das 8 substituições, não cria par e não altera o controle da escalação. Líbero inicial não é requisito para confirmar a escalação.
 

@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | par da substituição pode trocar de novo no set
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `11-DECISOES`
+- A volta não fecha o par. Os dois atletas só trocam entre si e cada troca conta no limite. Sem migration e sem mudança na gravação de pontos.
+
 ## [2026-10-10] fix | líbero inicial deixa de ser obrigatório na papeleta
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `06-BANCO-DE-DADOS`

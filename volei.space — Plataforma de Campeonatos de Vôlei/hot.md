@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A papeleta da súmula confirma com as seis posições. O líbero inicial é opcional. Sem migration.
+  O par da substituição permanece vinculado e pode trocar de novo no set. Cada troca conta no limite. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a substituição da súmula deixa de fechar o par depois da volta. #2 e #13, uma vez que trocam no set, ficam vinculados e só trocam entre si, sem limite de vezes nessa dupla. No modal de um deles só aparece o outro. Cada troca continua contando no limite geral do set. A tela e o `PUT` não recusam o par por já ter voltado. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a papeleta da súmula confirma com as seis posições preenchidas. O líbero inicial é opcional: sem escolha, a tela mostra Nenhum e a frase grava `nenhum`. A confirmação não espera `exigirLiberoInicial`. O `PUT` da súmula não recusa o andamento por falta de líbero. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
@@ -47,7 +49,7 @@ Em 10 de outubro de 2026 a quantidade 1 ou 2 limita a lista de líbero; vazio n�
 
 Em 10 de outubro de 2026 o andamento da súmula voltou a gravar o placar no schema atual. A partida 1095 (ANGELS x TAYO, campeonato 65) recebia 409 em `gravar_sumula_partida` porque `OcorrenciaPartida_pkey` colidia: o registro de presença do PR #54 gravava `id` explícito e a sequence ficava atrás. A função preserva «Registro de » e o ponto não entrava. A rota respondia 500. Um `PUT` mais antigo ainda podia gravar 0x0 depois do 1x0. A ocorrência agora sai sem `id` e os salvamentos da tela entram em fila. Nenhuma migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
-Em 10 de outubro de 2026 o tempo médico e a substituição por lesão só entram na súmula quando `tempoMedico` ou `substituicaoPorLesao` está true. Desligados, ausentes ou sem a coluna, não há botão novo, o tempo continua no teto de 2 e a substituição continua no limite, com o par fechando na volta. Uma ocorrência `lesao` sem a opção conta como substituição comum. `20261010139980_lesao_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139970` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 o tempo médico e a substituição por lesão só entram na súmula quando `tempoMedico` ou `substituicaoPorLesao` está true. Desligados, ausentes ou sem a coluna, não há botão novo, o tempo continua no teto de 2 e a substituição continua no limite, com o par vinculado. Uma ocorrência `lesao` sem a opção conta como substituição comum. `20261010139980_lesao_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139970` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o limite de tempos continua 2 e o botão continua único enquanto `limiteTemposPorSet` está vazio e `separarTempos` não está true. Um inteiro de 1 a 4 troca só o teto. O tempo de equipe é um segundo botão e não entra na conta do tempo técnico. Sem as colunas, a súmula segue com 2. `20261010139970_tempos_sumula.sql` não foi aplicada. O prefixo fica depois de `20261010139960` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
@@ -55,7 +57,7 @@ Em 10 de outubro de 2026 o aviso de rodízio ilegal só entra na súmula quando 
 
 Em 10 de outubro de 2026 a tela do juiz mostra a origem da vaga, por exemplo `Vencedor Semi 1`, no lugar de «Equipe × Equipe». `/api/portal/mata-mata?ligaId=` liga semifinal, final e 3º lugar pela fase e pela rodada quando a liga tem uma categoria. Oficializar a súmula, aprovar, lançar resultado manual ou abrir a chave preenche os times no mesmo jogo. O 403 de pagamento de `POST .../mata-mata/vagas` não impede essa sincronização. `20261010142000_vaga_a_definir.sql` já está em produção. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
-Em 10 de outubro de 2026 o organizador pode gravar o limite de substituições por set, de 1 a 30. Vazio continua 8. A troca de líbero não entra na conta e o par fecha na volta. Sem a coluna, a súmula segue com 8. `20261010139950_limite_substituicoes.sql` não foi aplicada. O prefixo fica depois de `20261010139900` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+Em 10 de outubro de 2026 o organizador pode gravar o limite de substituições por set, de 1 a 30. Vazio continua 8. A troca de líbero não entra na conta e o par vinculado pode trocar de novo. Sem a coluna, a súmula segue com 8. `20261010139950_limite_substituicoes.sql` não foi aplicada. O prefixo fica depois de `20261010139900` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 quartas e oitavas podem ter quantidade de sets própria, de 1 a 5. Vazio herda `setsPorPartida`. Dezesseis avos e grupos continuam no padrão. Sem as colunas, a súmula lê final, semifinal e 3º lugar como antes e as quartas seguem o campeonato. `20261010139900_sets_quartas_oitavas.sql` não foi aplicada. O prefixo fica depois de `20261010139800` e antes de `20261010140000`. Fonte: [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
@@ -135,7 +137,7 @@ Base visual «Noite de final», sem mudar telas, rotas, API ou banco. Tokens `--
 
 `scripts/import-winners.mjs` deixa de redefinir a senha em toda execução. Se o organizador já está `ATIVA`, o script entra com `ORGANIZADOR_SENHA` e não chama `POST /api/admin/organizadores`. A senha temporária só entra ao criar a conta. `--reset-senha` força a troca. Conta existente fora de `ATIVA` também fica sem troca, até essa flag. O teste `scripts/import-winners.test.mjs` usa chamadas falsas e não abre banco. O script não foi executado contra produção.
 
-Em 10 de outubro de 2026 a súmula passa a fechar o par de substituição no set. Se o #5 sai e o #9 entra, o #9 só pode sair para o #5 voltar. Depois da volta, nenhum dos dois é substituído de novo naquele set. O modal da quadra lista só reservas elegíveis e nunca quem está em quadra. A troca de líbero não conta e não cria par. O limite continua em 8. Não há substituição excepcional. O `PUT` e o `POST` de `/api/sumula/[token]` recusam troca inválida. O requisito bruto ainda permite repetir o par; a decisão do dono fecha na volta. Fonte: [[modulos/SUMULA-DIGITAL]], [[11-DECISOES]].
+Em 10 de outubro de 2026 a súmula chegou a fechar o par depois da volta. Essa decisão foi substituída no mesmo dia: #2 e #13 ficam vinculados e só trocam entre si, sem limite de vezes nessa dupla. Cada troca conta no limite geral. O modal de um deles mostra só o outro. A troca de líbero não conta e não cria par. O `PUT` e o `POST` de `/api/sumula/[token]` recusam um terceiro atleta nesse par e a troca além do limite. Fonte: [[modulos/SUMULA-DIGITAL]], [[11-DECISOES]].
 
 O credenciamento pré-partida edita o número da camisa no badge do atleta. O valor fica em `SumulaPresenca.numero` e não altera `Jogador.numero`. A faixa é 0–99 e o número efetivo não repete na mesma equipe naquela partida. `presente` nulo continua Pendente; a migration `202610100001` ainda não foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
