@@ -105,6 +105,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
   }
 
   const comGrupos = formatoTemFaseDeGrupos(data.formato)
+  const gruposSugeridos = data.quantidadeGrupos ?? (data.formato === 'GRUPOS_MATA_MATA' ? 2 : 1)
 
   return (
     <SectionWizardLayout
@@ -152,9 +153,12 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
         {stepIndex === 1 && (
           comGrupos ? (
             <>
-              <Field label="Quantidade de grupos" hint="A distribuição real das equipes nos grupos acontece depois, quando as inscrições fecharem.">
-                <NumberInput value={data.quantidadeGrupos} min={1} max={32} onChange={(v) => updateNow({ quantidadeGrupos: v })} />
+              <Field label="Quantidade de grupos" hint="A distribuição real das equipes nos grupos acontece depois, quando as inscrições fecharem. Os jogos de cada grupo são todos contra todos.">
+                <NumberInput value={data.quantidadeGrupos ?? gruposSugeridos} min={1} max={32} onChange={(v) => updateNow({ quantidadeGrupos: v })} />
               </Field>
+              <p className="text-sm font-semibold text-slate-300">
+                {gruposSugeridos} grupo(s) de cerca de {data.quantidadeEquipes ? Math.ceil(data.quantidadeEquipes / gruposSugeridos) : 0} equipes.
+              </p>
               <CheckboxRow label="Ida e volta (turno e returno)" checked={Boolean(data.turnoReturno)} onChange={(v) => updateNow({ turnoReturno: v })} />
             </>
           ) : (
@@ -207,7 +211,7 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
           <div className="grid gap-3">
             <ReviewRow icon={ClipboardList} label="Formato" value={COMPETITION_FORMATS.find((f) => f.value === data.formato)?.label ?? 'Não definido'} />
             <ReviewRow icon={ClipboardList} label="Quantidade de Equipes" value={data.quantidadeEquipes ? String(data.quantidadeEquipes) : 'Não definido'} />
-            {comGrupos && <ReviewRow icon={ClipboardList} label="Grupos" value={String(data.quantidadeGrupos ?? 1)} />}
+            {comGrupos && <ReviewRow icon={ClipboardList} label="Grupos" value={String(gruposSugeridos)} />}
             <ReviewRow icon={Repeat2} label="Ida e volta" value={data.turnoReturno ? 'Sim' : 'Não'} />
             <ReviewRow icon={ClipboardList} label="Regras de partida" value={`Melhor de ${data.setsPorPartida ?? '?'} sets · ${data.pontosPorSet ?? '?'} pontos`} />
             <ReviewRow icon={ScanLine} label="Súmula Digital + Scouts" value={data.sumulaScoutsEnabled ? 'Contratado' : 'Não contratado'} />

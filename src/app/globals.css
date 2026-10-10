@@ -4380,7 +4380,7 @@ html body:has(.profile-sidebar) > div > main {
 
 @media (max-width: 1023px) {
   html body .profile-mobile-nav {
-    overflow-x: auto;
+    overflow: hidden;
     justify-content: flex-start;
   }
 
@@ -4390,7 +4390,7 @@ html body:has(.profile-sidebar) > div > main {
   }
 
   html body:has(.profile-mobile-nav) main {
-    padding-bottom: 88px;
+    padding-bottom: 128px;
   }
 
   html body:has(input:focus) .profile-mobile-nav,
@@ -15936,7 +15936,7 @@ html body .profile-mobile-nav {
   bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 70;
   display: flex;
-  overflow-x: auto;
+  overflow: hidden;
   gap: 6px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
@@ -15969,7 +15969,19 @@ html body :where(main.luva-shell, .admin-shell, main.auth-page) textarea {
   }
 
   html body .profile-mobile-nav {
+    overflow: hidden;
+  }
+
+  html body .profile-mobile-scroll {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    gap: 6px;
     overflow-x: auto;
+  }
+
+  html body .profile-mobile-logout {
+    flex: 0 0 auto;
   }
 
   html body .profile-mobile-link span,

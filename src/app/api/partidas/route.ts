@@ -6,6 +6,7 @@ import { idInteiroPositivoSchema, partidaSchema } from '@/lib/schemas'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { PARTIDA_PUBLICA_COLUNAS, normalizarPartidaPublica } from '@/lib/partida-publica'
 import { categoriaCampeonatoDaPartida, equipesPertencemALiga } from '@/lib/partida-equipes'
+import { grupoComumDasEquipes, recusarJogoDeGrupoCruzado } from '@/lib/confronto-grupo'
 import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 
@@ -73,11 +74,27 @@ export async function POST(req: NextRequest) {
 
     const categoriaId = await categoriaCampeonatoDaPartida(parsed.data.ligaId, parsed.data.categoria)
     if (!categoriaId) return error('Esta categoria não está disponível no campeonato.', 422)
+    const foraDoGrupo = await recusarJogoDeGrupoCruzado({
+      ligaId: parsed.data.ligaId,
+      categoriaCampeonatoId: categoriaId,
+      fase: 'GRUPOS',
+      equipeAId: parsed.data.equipeAId,
+      equipeBId: parsed.data.equipeBId,
+    })
+    if (foraDoGrupo) return error(foraDoGrupo, 422)
+    const grupoId = await grupoComumDasEquipes(parsed.data.ligaId, categoriaId, parsed.data.equipeAId, parsed.data.equipeBId)
 
     const token = uuidv4()
     const { data, error: err } = await supabase
       .from('Partida')
-      .insert({ ...parsed.data, serie: null, categoriaCampeonatoId: categoriaId, sumulaToken: token, sumulaTokenExpira: null })
+      .insert({
+        ...parsed.data,
+        serie: null,
+        categoriaCampeonatoId: categoriaId,
+        sumulaToken: token,
+        sumulaTokenExpira: null,
+        ...(grupoId != null ? { fase: 'GRUPOS', grupoId } : {}),
+      })
       .select()
       .single()
     if (err) throw err

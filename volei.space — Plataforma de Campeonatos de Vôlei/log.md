@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | jogos só dentro do grupo, tabelas separadas e elenco
+
+- pages_updated=`modulos/GRUPOS`, `modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
+- O gerador e a criação manual recusam jogo de grupo entre grupos diferentes. A classificação separa os grupos e usa confronto direto. A chave automática usa esse ranque. O elenco é consulta. Nenhuma migration foi aplicada e os jogos já gravados não foram alterados.
+
 ## [2026-10-10] feat | W.O. configurável
 
 - pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`

@@ -16,8 +16,15 @@ type Linha = {
   setsPro: number
 }
 
+type GrupoTabela = {
+  id: string
+  nome: string
+  linhas: Linha[]
+}
+
 export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaId: number; categoriaInicial?: string | null }) {
   const [linhas, setLinhas] = useState<Linha[] | null>(null)
+  const [grupos, setGrupos] = useState<GrupoTabela[]>([])
   const [erro, setErro] = useState('')
   const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(ligaId, categoriaInicial)
 
@@ -26,6 +33,7 @@ export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaI
     const json = await resposta.json()
     if (!resposta.ok) throw new Error(json.error || 'Falha')
     setLinhas(json.data?.linhas ?? [])
+    setGrupos(Array.isArray(json.data?.grupos) ? json.data.grupos : [])
     setErro('')
   }, [ligaId, categoriaId])
 
@@ -76,20 +84,25 @@ export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaI
       {semJogos && (
         <p className="mt-2 text-sm font-semibold text-slate-300">Ainda não há jogos. A tabela começa zerada com as equipes.</p>
       )}
-      <ol className="mt-3 grid gap-2">
-        {linhas.map((linha, index) => (
-          <li key={`${linha.posicao}-${linha.equipe}`} className={`rounded-2xl bg-white/5 px-4 py-3 text-sm font-black text-white ${mi.linha} ${mi.entrar} ${linha.posicao === 1 ? mi.lider : ''}`} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-              <span className={mi.numero}>{linha.posicao}º</span>
-              <span className="min-w-0 truncate">{linha.equipe}</span>
-              <span className={`text-[#ffb331] ${mi.numero}`}>{linha.pontos} pts</span>
-            </div>
-            <p className="mt-1 text-xs font-bold text-white/70">
-              J {linha.jogos ?? 0} · V {linha.vitorias ?? 0} · D {linha.derrotas ?? 0} · Sets {linha.setsPro ?? 0}
-            </p>
-          </li>
-        ))}
-      </ol>
+      {(grupos.length > 0 ? grupos : [{ id: 'geral', nome: 'Classificação', linhas }]).map((grupo) => (
+        <section key={grupo.id} className="mt-4">
+          {grupos.length > 0 ? <h3 className="font-display text-xl font-black text-white">{grupo.nome}</h3> : null}
+          <ol className="mt-3 grid gap-2">
+            {grupo.linhas.map((linha, index) => (
+              <li key={`${grupo.id}-${linha.equipe}`} className={`rounded-2xl bg-white/5 px-4 py-3 text-sm font-black text-white ${mi.linha} ${mi.entrar} ${index === 0 ? mi.lider : ''}`} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                  <span className={mi.numero}>{grupos.length > 0 ? index + 1 : linha.posicao}º</span>
+                  <span className="min-w-0 truncate">{linha.equipe}</span>
+                  <span className={`text-[#ffb331] ${mi.numero}`}>{linha.pontos} pts</span>
+                </div>
+                <p className="mt-1 text-xs font-bold text-white/70">
+                  J {linha.jogos ?? 0} · V {linha.vitorias ?? 0} · D {linha.derrotas ?? 0} · Sets {linha.setsPro ?? 0}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
       </div>
     </div>
   )

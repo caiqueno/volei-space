@@ -33,6 +33,7 @@ const REGRA_SET_PADRAO: RegraSet = {
 
 const CRITERIOS_CONHECIDOS = new Set([
   'PONTOS',
+  'CONFRONTO_DIRETO',
   'VITORIAS',
   'DERROTAS',
   'SALDO_SETS',
@@ -173,8 +174,7 @@ export function calcularClassificacao(input: {
     const chave = entrada[0]
     const linhas = entrada[1]
     const criterios = regraDaCategoria(input.regras, chave || null).criterios
-    linhas.sort((esquerda, direita) => comparar(esquerda, direita, criterios))
-    linhas.forEach((linha, indice) => ranque.push({ ...linha, posicao: indice + 1 }))
+    ranque.push(...ordenarClassificacao(linhas, criterios, input.partidas))
   }
   return ranque.sort((esquerda, direita) => (
     String(esquerda.categoriaCampeonatoId ?? '').localeCompare(String(direita.categoriaCampeonatoId ?? ''))
@@ -293,11 +293,120 @@ function somarLado(tabela: Map<number, Acumulado>, equipeId: number, delta: Omit
 }
 
 function comparar(esquerda: Acumulado, direita: Acumulado, criterios: string[]) {
+  return diferencaCriterios(esquerda, direita, criterios) || esquerda.equipeId - direita.equipeId
+}
+
+function diferencaCriterios(esquerda: Acumulado, direita: Acumulado, criterios: string[]) {
   for (const criterio of criterios) {
+    if (criterio === 'CONFRONTO_DIRETO') continue
     const diferenca = valorCriterio(direita, criterio) - valorCriterio(esquerda, criterio)
     if (diferenca !== 0) return criterio === 'DERROTAS' ? -diferenca : diferenca
   }
-  return esquerda.equipeId - direita.equipeId
+  return 0
+}
+
+export function criteriosComConfrontoDireto(criterios?: string[] | string | null) {
+  const base = normalizarCriterios(criterios).filter((criterio) => criterio !== 'CONFRONTO_DIRETO')
+  const indice = base.indexOf('PONTOS')
+  const posicao = indice === -1 ? 0 : indice + 1
+  return [...base.slice(0, posicao), 'CONFRONTO_DIRETO', ...base.slice(posicao)]
+}
+
+export function ordenarClassificacao<T extends Acumulado>(
+  linhas: T[],
+  criterios: string[],
+  partidas: PartidaClassificacao[] = [],
+): Array<T & { posicao: number }> {
+  const indice = criterios.indexOf('CONFRONTO_DIRETO')
+  const antes = indice === -1 ? criterios : criterios.slice(0, indice)
+  const depois = indice === -1 ? [] : criterios.slice(indice + 1)
+  const ordenadas = [...linhas].sort((esquerda, direita) => (
+    diferencaCriterios(esquerda, direita, antes) || esquerda.equipeId - direita.equipeId
+  ))
+  const blocos: T[][] = []
+  for (const linha of ordenadas) {
+    const ultimo = blocos[blocos.length - 1]
+    if (!ultimo || indice === -1 || diferencaCriterios(ultimo[0], linha, antes) !== 0) blocos.push([linha])
+    else ultimo.push(linha)
+  }
+  const resultado = indice === -1
+    ? ordenadas
+    : blocos.flatMap((bloco) => (bloco.length < 2 ? bloco : ordenarEmpate(bloco, partidas, depois)))
+  return resultado.map((linha, posicao) => ({ ...linha, posicao: posicao + 1 }))
+}
+
+function ordenarEmpate<T extends Acumulado>(bloco: T[], partidas: PartidaClassificacao[], depois: string[]) {
+  const ids = new Set(bloco.map((linha) => linha.equipeId))
+  const mini = new Map(bloco.map((linha) => [linha.equipeId, { pontos: 0, vitorias: 0, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0 }]))
+  for (const partida of partidas) {
+    if (!faseContaNaClassificacao(partida.fase) || !partidaEncerrada(partida)) continue
+    const equipeAId = Number(partida.equipeAId)
+    const equipeBId = Number(partida.equipeBId)
+    if (!ids.has(equipeAId) || !ids.has(equipeBId)) continue
+    const placar = placarOficial(partida)
+    const status = String(partida.status ?? '').trim().toUpperCase()
+    if (placar.setsA === placar.setsB) {
+      if (status !== 'WO' || partida.vencedorId == null) continue
+      const vencedorId = Number(partida.vencedorId)
+      const perdedorId = vencedorId === equipeAId ? equipeBId : equipeAId
+      somarMini(mini, vencedorId, FAIXAS_PADRAO.pontosVencedorMargem2, 1, 0, 0, 0, 0)
+      somarMini(mini, perdedorId, FAIXAS_PADRAO.pontosPerdedorMargem2, 0, 0, 0, 0, 0)
+      continue
+    }
+    somarMini(mini, equipeAId, pontosDaMargem(placar.setsA, placar.setsB, FAIXAS_PADRAO), placar.setsA > placar.setsB ? 1 : 0, placar.setsA, placar.setsB, placar.pontosA, placar.pontosB)
+    somarMini(mini, equipeBId, pontosDaMargem(placar.setsB, placar.setsA, FAIXAS_PADRAO), placar.setsB > placar.setsA ? 1 : 0, placar.setsB, placar.setsA, placar.pontosB, placar.pontosA)
+  }
+  return [...bloco].sort((esquerda, direita) => {
+    const daEsquerda = mini.get(esquerda.equipeId)
+    const daDireita = mini.get(direita.equipeId)
+    const confronto = (daDireita?.pontos ?? 0) - (daEsquerda?.pontos ?? 0)
+      || (daDireita?.vitorias ?? 0) - (daEsquerda?.vitorias ?? 0)
+      || ((daDireita?.setsPro ?? 0) - (daDireita?.setsContra ?? 0)) - ((daEsquerda?.setsPro ?? 0) - (daEsquerda?.setsContra ?? 0))
+      || ((daDireita?.pontosPro ?? 0) - (daDireita?.pontosContra ?? 0)) - ((daEsquerda?.pontosPro ?? 0) - (daEsquerda?.pontosContra ?? 0))
+    if (confronto !== 0) return confronto
+    return diferencaCriterios(esquerda, direita, depois) || esquerda.equipeId - direita.equipeId
+  })
+}
+
+function somarMini(
+  mini: Map<number, { pontos: number; vitorias: number; setsPro: number; setsContra: number; pontosPro: number; pontosContra: number }>,
+  equipeId: number,
+  pontos: number,
+  vitorias: number,
+  setsPro: number,
+  setsContra: number,
+  pontosPro: number,
+  pontosContra: number,
+) {
+  const linha = mini.get(equipeId)
+  if (!linha) return
+  linha.pontos += pontos
+  linha.vitorias += vitorias
+  linha.setsPro += setsPro
+  linha.setsContra += setsContra
+  linha.pontosPro += pontosPro
+  linha.pontosContra += pontosContra
+}
+
+export function classificarPorGrupos<T extends Acumulado>(input: {
+  linhas: T[]
+  grupos: Array<{ id: string | number; nome: string; equipeIds: number[]; automaticLimit?: number }>
+  partidas: PartidaClassificacao[]
+  criterios?: string[] | string | null
+}) {
+  const criterios = criteriosComConfrontoDireto(input.criterios)
+  const porId = new Map(input.linhas.map((linha) => [linha.equipeId, linha]))
+  return input.grupos.map((grupo) => {
+    const doGrupo = grupo.equipeIds
+      .map((equipeId) => porId.get(Number(equipeId)))
+      .filter((linha): linha is T => Boolean(linha))
+    return {
+      id: String(grupo.id),
+      nome: grupo.nome,
+      automaticLimit: grupo.automaticLimit ?? 2,
+      linhas: ordenarClassificacao(doGrupo, criterios, input.partidas),
+    }
+  })
 }
 
 function valorCriterio(linha: Acumulado, criterio: string) {

@@ -1,4 +1,4 @@
-import { calcularClassificacao, faseContaNaClassificacao, type PartidaClassificacao } from '@/lib/classificacao'
+import { calcularClassificacao, criteriosComConfrontoDireto, faseContaNaClassificacao, type PartidaClassificacao } from '@/lib/classificacao'
 import { perdedoresDasSemifinais, vencedoresDosAlimentadores, type PartidaDecisao } from '@/lib/resultado-partida'
 
 export type GrupoRanqueado = { id: number; ordem: number; classificados: number[] }
@@ -15,7 +15,7 @@ export function ranquearGrupo(equipeIds: number[], partidas: PartidaClassificaca
     partidas: partidas
       .filter((partida) => ids.has(Number(partida.equipeAId)) && ids.has(Number(partida.equipeBId)) && faseContaNaClassificacao(partida.fase))
       .map((partida) => ({ ...partida, categoriaCampeonatoId: 'grupo' })),
-    regras: { grupo: {} },
+    regras: { grupo: { criterios: criteriosComConfrontoDireto() } },
   })
   return linhas.map((linha) => linha.equipeId).slice(0, Math.max(0, limite))
 }
