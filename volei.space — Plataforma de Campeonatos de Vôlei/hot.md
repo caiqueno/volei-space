@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A inscrição rápida segue não coletar, opcional e obrigatório da categoria. 20261010138500 não foi aplicada e fica antes do W.O. e da RLS. Jogos sobem por data e hora; dataHora sem fuso sai em UTC.
+  A súmula registra advertência, penalidade, expulsão e desqualificação. A suspensão da partida seguinte é automática. 20261010139500 não foi aplicada.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a súmula registra advertência, penalidade, expulsão e desqualificação. A sequência sobe no mesmo jogo. Expulsão, desqualificação e duas advertências suspendem o atleta na partida seguinte da categoria. A coluna `punicoes` recebe o peso, sem tirar ponto de campeonato. O cartão amarelo conta como advertência e o vermelho como expulsão. `20261010139500_sancoes_suspensao.sql` cria `SuspensaoAtleta` e não foi aplicada. O prefixo fica depois de `20261010139000` e antes de `20261010140000`. A súmula decide o cumprimento pelas ocorrências e não grava essa tabela. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/CLASSIFICACAO]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a inscrição rápida deixa de ler só `Liga.formularioInscricaoConfig`. O rascunho, a vaga e o link da categoria usam o formulário gravado na categoria. Não coletar esconde data de nascimento e documento. Opcional aceita vazio. Obrigatório bloqueia o atleta e a conclusão. Sem a chave, os dois ficam opcionais. A foto continua opcional, salvo quando está desligada. Um campeonato com uma categoria espelha o JSON na liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`, para a migration de RLS continuar sendo a última. Fonte: [[modulos/INSCRICOES]], [[06-BANCO-DE-DADOS]].
 

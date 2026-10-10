@@ -411,6 +411,10 @@ export const sumulaSchema = z.object({
     tipo: z.enum([
       'CARTAO_AMARELO',
       'CARTAO_VERMELHO',
+      'ADVERTENCIA',
+      'PENALIDADE',
+      'EXPULSAO',
+      'DESQUALIFICACAO',
       'WO',
       'OBSERVACAO',
       'point',

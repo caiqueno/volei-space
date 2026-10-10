@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | cartões e sanções
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Advertência, penalidade, expulsão e desqualificação acumulam. A suspensão da partida seguinte é automática. `punicoes` recebe o peso, sem tirar ponto de campeonato. `20261010139500_sancoes_suspensao.sql` não foi aplicada. O prefixo fica depois de `20261010139000` e antes da migration de RLS.
+
 ## [2026-10-10] fix | formulário da inscrição segue a categoria
 
 - pages_updated=`modulos/INSCRICOES`, `06-BANCO-DE-DADOS`, `hot`, `log`

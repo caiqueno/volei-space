@@ -135,6 +135,7 @@ export function calcularClassificacao(input: {
   times: TimeClassificacao[]
   partidas: PartidaClassificacao[]
   regras?: Record<string, RegrasCategoria | null | undefined>
+  punicoesPorEquipe?: Record<number, number> | null
 }): LinhaClassificacao[] {
   const times = input.times.map((time) => ({
     equipeId: Number(time.equipeId),
@@ -162,6 +163,14 @@ export function calcularClassificacao(input: {
     if (!timesDaCategoria(partida, categoriaId, timePorId)) continue
     const regra = regraDaCategoria(input.regras, categoriaId)
     aplicarSetsAoVivo(tabela, partida, regraDeSet(regra.set, partida.fase))
+  }
+
+  for (const [equipeId, peso] of Object.entries(input.punicoesPorEquipe ?? {})) {
+    const valor = Number(peso)
+    if (!Number.isFinite(valor) || valor === 0) continue
+    somarLado(tabela, Number(equipeId), {
+      jogos: 0, vitorias: 0, derrotas: 0, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0, pontos: 0, punicoes: valor,
+    })
   }
 
   const porCategoria = new Map<string, Acumulado[]>()
