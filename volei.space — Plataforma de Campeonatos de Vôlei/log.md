@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | seletor de campeonato no elenco
+
+- pages_updated=`modulos/EQUIPES-E-ATLETAS`, `hot`, `log`
+- `/painel/elenco` só pedia um campeonato e não oferecia escolha. A página abre o `ligaId` do painel e, sem ele, o primeiro campeonato do organizador. O seletor troca a consulta.
+
 ## [2026-10-10] fix | desfazer ponto depois de recarregar
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
