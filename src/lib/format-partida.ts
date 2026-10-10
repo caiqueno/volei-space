@@ -1,3 +1,5 @@
+import { dataHoraUtc } from '@/lib/data-hora'
+
 const FASES_MATA_MATA: Record<string, string> = {
   FINAL: 'Final',
   SEMIFINAL: 'Semifinal',
@@ -58,16 +60,17 @@ export function statusEncerrado(status?: string | null) {
 }
 
 export function formatarDataPartida(valor?: string | Date | null) {
-  if (!valor) return null
-  const date = valor instanceof Date ? valor : new Date(valor)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleString('pt-BR', {
+  const iso = dataHoraUtc(valor)
+  if (!iso) return null
+  const texto = new Date(iso).toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   })
+  return texto.replace(/\b24:(\d{2})\b/, '00:$1')
 }
 
 export type AgendaPartida = {

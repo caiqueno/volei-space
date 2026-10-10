@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
     .from('Partida')
     .select(COLUNAS)
     .eq('status', 'EM_ANDAMENTO')
-    .order('dataHora', { ascending: true })
+    .order('dataHora', { ascending: true, nullsFirst: false })
+    .order('rodada', { ascending: true })
+    .order('id', { ascending: true })
   if (Number.isInteger(ligaId) && ligaId > 0) consulta = consulta.eq('ligaId', ligaId)
   else {
     const ocultos = await idsForaDaVitrine()

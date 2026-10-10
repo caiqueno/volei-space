@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
+import { formatarDataPartida } from '@/lib/format-partida'
 import { useParams, useRouter } from 'next/navigation'
 
 type Jogo = {
@@ -72,9 +73,7 @@ export default function AcessoArbitroPage() {
     }
   }
 
-  const quando = jogo?.dataHora
-    ? new Date(jogo.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : 'Horário a definir'
+  const quando = formatarDataPartida(jogo?.dataHora) ?? 'Horário a definir'
 
   return (
     <main className="luva-shell flex min-h-screen items-center justify-center px-4 py-10 text-white">

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, UserRound, Users } from 'lucide-react'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { formatarDataPartida } from '@/lib/format-partida'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
@@ -77,7 +78,7 @@ export default async function AdminDashboardPage() {
               {proximasPartidas.map((partida: any) => (
                 <div key={partida.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-black text-slate-950"><NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" /> x <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" /></p>
-                  <p className="text-sm font-bold text-luva-muted">{partida.dataHora ? new Date(partida.dataHora).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Sem data'}</p>
+                  <p className="text-sm font-bold text-luva-muted">{formatarDataPartida(partida.dataHora) ?? 'Sem data'}</p>
                 </div>
               ))}
             </div>
