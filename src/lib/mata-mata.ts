@@ -135,7 +135,7 @@ export async function getMataMataBracket(
     if (equipe?.id != null) teamById.set(Number(equipe.id), { id: Number(equipe.id), nome: equipe.nome, corHex: equipe.corHex, logoUrl: equipe.logoUrl })
   }
 
-  const lista = partidas ?? []
+  const lista = (Array.isArray(partidas) ? partidas : []) as any[]
   const vaga = (fase: string, rodada: number) => encontrarPartidaDaVaga(lista, fase, rodada, categoriaCampeonatoId)
   const vencedorDoSlot = (fase: string, rodada: number) => {
     const ida = vaga(fase, rodada)
