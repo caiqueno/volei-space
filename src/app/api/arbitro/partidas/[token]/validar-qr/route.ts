@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
+import { gravarPresenca } from '@/lib/sumula-presenca'
 
 const schema = z.object({
   qrToken: z.string().min(1),
@@ -32,14 +33,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       return error('Atleta nao pertence a uma das equipes desta partida.', 400)
     }
 
-    const { error: presencaErr } = await supabase
-      .from('SumulaPresenca')
-      .upsert({
-        partidaId: access.partida.id,
-        jogadorId: jogador.id,
-        equipeId: jogador.equipeId,
-        presente: true,
-      }, { onConflict: 'partidaId,jogadorId' })
+    const { error: presencaErr } = await gravarPresenca(supabase, {
+      partidaId: access.partida.id,
+      jogadorId: jogador.id,
+      equipeId: jogador.equipeId,
+      presente: true,
+    })
 
     if (presencaErr) throw presencaErr
     return success({ jogador, validado: true })

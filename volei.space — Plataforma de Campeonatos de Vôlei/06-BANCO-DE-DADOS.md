@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010139700 acrescenta gênero, idade e sexo, todos nulos, e não foi aplicada. A leitura ao vivo volta em 20261010141000, ainda sem aplicar.
+  SumulaPresenca em produção não tem unicidade de partida e atleta nem default no id. 20261010139700 acrescenta gênero e idade, ainda sem aplicar.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -39,7 +39,7 @@ A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authentic
 
 `Partida.atualizadoEm` não tinha default. O cliente do Supabase insere a partida sem essa coluna e o banco recusava o confronto de grupos e o mata-mata. A migration `202610090004_partida_atualizado_em_default.sql` define `default now()`. O prefixo `202610090001` continua sendo a revogação de EXECUTE. Ela está no repositório e ainda não foi aplicada em produção: aplique só esse arquivo se a coluna continuar sem default. Não reaplique a pasta inteira.
 
-`SumulaPresenca.numero` já é o número da camisa desta partida. `202610100001_sumula_presenca_presente_nulo.sql` só tira o `NOT NULL` de `presente`, para a linha poder existir antes da confirmação. O default de `presente` continua `true`. Não foi aplicada em produção.
+`SumulaPresenca.numero` já é o número da camisa desta partida. `202610100001_sumula_presenca_presente_nulo.sql` só tira o `NOT NULL` de `presente`, para a linha poder existir antes da confirmação. O default de `presente` continua `true`. Em produção essa coluna já é anulável. A tabela continua sem unicidade em `(partidaId, jogadorId)` e sem `default` em `id`, embora a sequence `SumulaPresenca_id_seq` exista. O comentário de `20261010015632` que tratava essa dupla como unicidade estava errado. Nenhuma migration do repositório cria essa constraint nem o `default` do id. O mesmo vale para `OcorrenciaPartida.id`.
 
 `revoke ... from anon, authenticated` não alcança a concessão que o Postgres dá a `PUBLIC` quando a função é criada. Por isso a chave publicável continuava chamando `/rest/v1/rpc/recalcular_classificacao_liga` e recalculando a tabela de qualquer campeonato sem sessão. A migration `202610060005_fechar_rpc_anonimo.sql` percorre as funções do schema `public` que não pertencem a extensão, revoga de `public`, `anon` e `authenticated`, e concede `execute` ao `service_role`. Função de gatilho não perde nada: o `EXECUTE` é conferido na criação do gatilho, não a cada disparo.
 
