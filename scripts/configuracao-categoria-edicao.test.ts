@@ -72,6 +72,10 @@ assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaQuartas: 5 },
 assert.match(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaQuartas: 5 }, [{ fase: 'QUARTAS', status: 'EM_ANDAMENTO' }]) ?? '', /quartas já tem jogo/i)
 assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaOitavas: 3 }, [{ fase: 'QUARTAS', status: 'ENCERRADA' }]), null)
 assert.equal(motivoBloqueioEdicao('eliminatorias', { faseEliminatoria: 'FINAL' }, [{ fase: 'GRUPOS', status: 'ENCERRADA' }]), MENSAGEM_EDICAO_BLOQUEADA)
+assert.equal(motivoBloqueioEdicao('estrutura', { limiteSubstituicoesPorSet: 6 }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), null)
+assert.equal(motivoBloqueioEdicao('estrutura', { limiteSubstituicoesPorSet: 6, setsPorPartida: 5 }, [{ fase: 'GRUPOS', status: 'EM_ANDAMENTO' }]), MENSAGEM_EDICAO_BLOQUEADA)
+assert.deepEqual(secoesDependentes('estrutura', { limiteSubstituicoesPorSet: 6 }), [])
+assert.deepEqual(camposParaEspelharNaLiga({ limiteSubstituicoesPorSet: null }), { limiteSubstituicoesPorSet: null })
 
 assert.deepEqual(camposAlterados({ faseEliminatoria: 'NENHUMA', tieBreakUltimoSet: false }, { faseEliminatoria: 'SEMIFINAL', tieBreakUltimoSet: false }), {
   faseEliminatoria: 'SEMIFINAL',

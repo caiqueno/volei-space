@@ -1,6 +1,29 @@
 export const JANELA_CORRECAO_SUMULA_MS = 30 * 60 * 1000
 export const LIMITE_SUBSTITUICOES_POR_SET = 8
 
+/** Vazio, ausente ou fora de 1 a 30 continua em 8. A súmula sem configuração não muda. */
+export function limiteDeSubstituicoes(valor: unknown): number {
+  const numero = Number(valor)
+  if (!Number.isInteger(numero) || numero < 1 || numero > 30) return LIMITE_SUBSTITUICOES_POR_SET
+  return numero
+}
+
+export function colunaDeLimiteSubstituicoesAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
+  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
+  return /limiteSubstituicoesPorSet/i.test(texto)
+}
+
+export function semLimiteSubstituicoes<T extends Record<string, unknown>>(patch: T): T {
+  const saida = { ...patch }
+  delete saida.limiteSubstituicoesPorSet
+  return saida
+}
+
+export function soLimiteSubstituicoes(patch: Record<string, unknown>) {
+  if (!Object.prototype.hasOwnProperty.call(patch, 'limiteSubstituicoesPorSet')) return {}
+  return { limiteSubstituicoesPorSet: patch.limiteSubstituicoesPorSet }
+}
+
 export function correcaoPeloLinkPermitida(sumulaAprovadaEm: string | Date | null | undefined, agora: Date) {
   if (!sumulaAprovadaEm) return true
   const inicio = new Date(sumulaAprovadaEm).getTime()
@@ -61,7 +84,9 @@ export function validarSubstituicoes(input: {
   ocorrencias?: OcorrenciaSubstituicao[] | null
   equipes: EquipeNome[]
   jogadorEquipe?: Map<number, number>
+  limite?: number
 }): string | null {
+  const limite = limiteDeSubstituicoes(input.limite)
   const controles = new Map<string, ControleSubstituicao>()
 
   for (const ocorrencia of input.ocorrencias ?? []) {
@@ -77,15 +102,15 @@ export function validarSubstituicoes(input: {
     const atual = controles.get(chave) ?? controleVazio()
     const troca = numerosDaTroca(String(ocorrencia.descricao ?? ''))
     if (!troca) {
-      if (atual.usadas >= LIMITE_SUBSTITUICOES_POR_SET) {
-        return mensagemFalhaSubstituicao('limite', set)
+      if (atual.usadas >= limite) {
+        return mensagemFalhaSubstituicao('limite', set, limite)
       }
       controles.set(chave, { usadas: atual.usadas + 1, pares: atual.pares })
       continue
     }
 
-    const resultado = aplicarSubstituicao(atual, troca[0], troca[1])
-    if (resultado.falha) return mensagemFalhaSubstituicao(resultado.falha, set)
+    const resultado = aplicarSubstituicao(atual, troca[0], troca[1], limite)
+    if (resultado.falha) return mensagemFalhaSubstituicao(resultado.falha, set, limite)
     controles.set(chave, resultado.controle)
   }
 
@@ -96,8 +121,10 @@ export function aplicarSubstituicao(
   controle: ControleSubstituicao,
   saiu: string,
   entrou: string,
+  limite?: number,
 ): { controle: ControleSubstituicao; falha: FalhaSubstituicao | null } {
-  if (controle.usadas >= LIMITE_SUBSTITUICOES_POR_SET) {
+  const teto = limiteDeSubstituicoes(limite)
+  if (controle.usadas >= teto) {
     return { controle, falha: 'limite' }
   }
   const pares = controle.pares.map((par) => ({ ...par }))
@@ -110,9 +137,11 @@ export function reservasElegiveis(
   controle: ControleSubstituicao,
   saiu: string,
   reservas: string[],
+  limite?: number,
 ): ListaSubstituicao {
+  const teto = limiteDeSubstituicoes(limite)
   const bancada = reservas.filter((numero, index) => numero && numero !== saiu && reservas.indexOf(numero) === index)
-  if (controle.usadas >= LIMITE_SUBSTITUICOES_POR_SET) {
+  if (controle.usadas >= teto) {
     return { numeros: [], aviso: { tipo: 'limite' } }
   }
 
@@ -137,9 +166,9 @@ export function reservasElegiveis(
   return { numeros, aviso: numeros.length ? null : { tipo: 'nenhum' } }
 }
 
-export function mensagemFalhaSubstituicao(falha: FalhaSubstituicao, set: number) {
+export function mensagemFalhaSubstituicao(falha: FalhaSubstituicao, set: number, limite?: number) {
   if (falha === 'limite') {
-    return `A equipe atingiu o limite de ${LIMITE_SUBSTITUICOES_POR_SET} substituições no set ${set}.`
+    return `A equipe atingiu o limite de ${limiteDeSubstituicoes(limite)} substituições no set ${set}.`
   }
   if (falha === 'par_fechado') {
     return `No set ${set}, esse par já voltou e não pode ser substituído de novo.`
@@ -150,9 +179,10 @@ export function mensagemFalhaSubstituicao(falha: FalhaSubstituicao, set: number)
 export function textoAvisoSubstituicao(
   aviso: AvisoSubstituicao,
   numero: (valor: string) => string = (valor) => valor,
+  limite?: number,
 ) {
   if (aviso.tipo === 'limite') {
-    return `Limite de ${LIMITE_SUBSTITUICOES_POR_SET} substituições por set atingido para esta equipe.`
+    return `Limite de ${limiteDeSubstituicoes(limite)} substituições por set atingido para esta equipe.`
   }
   if (aviso.tipo === 'par_fechado') {
     return `Neste set, #${numero(aviso.titular)} já voltou no lugar de #${numero(aviso.reserva)}. Os dois não podem ser substituídos de novo.`

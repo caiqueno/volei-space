@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - A tela do juiz mostra a origem da vaga. A chave pública liga o jogo pela fase e pela rodada. Oficializar a súmula preenche os times sem passar pelo pagamento. `20261010142000` já está em produção.
 
+## [2026-10-10] feat | limite de substituições
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O campo vazio mantém 8 substituições por set. `20261010139950_limite_substituicoes.sql` não foi aplicada. Sem a coluna, a súmula não muda.
+
 ## [2026-10-10] feat | sets de quartas e oitavas
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

@@ -11,7 +11,7 @@ import { carregarFonteDeSets, regrasEfetivasDaPartida } from '@/lib/regras-da-pa
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { mensagemSancaoInvalida } from '@/lib/sancoes'
 import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
-import { correcaoPeloLinkPermitida, validarSubstituicoes } from '@/lib/sumula-regras'
+import { correcaoPeloLinkPermitida, limiteDeSubstituicoes, validarSubstituicoes } from '@/lib/sumula-regras'
 import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
@@ -72,7 +72,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
 
     const { presencas, sets, ocorrencias, destaques } = parsed.data
-    const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: !campeonatoDeSimulacao(partida) })
+    const fonteOficial = await carregarFonteDeSets(partida)
+    const validationError = validateSumulaPayload(partida, parsed.data, {
+      requireMinimumPresencas: !campeonatoDeSimulacao(partida),
+      limiteSubstituicoes: limiteDeSubstituicoes(fonteOficial.limiteSubstituicoesPorSet),
+    })
     if (validationError) return error(validationError, 422)
     const suspenso = await mensagemDeSuspensao(partida, presencas)
     if (suspenso) return error(suspenso, 422)
@@ -157,7 +161,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
 
     const { presencas, sets, ocorrencias, destaques } = parsed.data
-    const validationError = validateSumulaPayload(partida, parsed.data, { requireMinimumPresencas: false })
+    const fonteAndamento = await carregarFonteDeSets(partida)
+    const validationError = validateSumulaPayload(partida, parsed.data, {
+      requireMinimumPresencas: false,
+      limiteSubstituicoes: limiteDeSubstituicoes(fonteAndamento.limiteSubstituicoesPorSet),
+    })
     if (validationError) return error(validationError, 422)
     const suspenso = await mensagemDeSuspensao(partida, presencas)
     if (suspenso) return error(suspenso, 422)
@@ -285,7 +293,7 @@ function campeonatoDeSimulacao(partida: any) {
   return liga?.simulacao === true
 }
 
-function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean }) {
+function validateSumulaPayload(partida: any, payload: any, options: { requireMinimumPresencas: boolean; limiteSubstituicoes?: number }) {
   const equipeAId = Number(partida.equipeAId)
   const equipeBId = Number(partida.equipeBId)
   const jogadoresA = Array.isArray(partida.equipeA?.jogadores) ? partida.equipeA.jogadores : []
@@ -346,6 +354,7 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
       { id: equipeBId, nome: equipeB?.nome },
     ],
     jogadorEquipe: jogadoresPorId,
+    limite: options.limiteSubstituicoes,
   })
   if (substituicoesInvalidas) return substituicoesInvalidas
 
