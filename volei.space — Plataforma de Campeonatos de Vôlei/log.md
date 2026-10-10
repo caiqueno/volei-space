@@ -18,6 +18,11 @@ updated: 2026-10-10
 - pages_updated=`modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `modulos/PARTIDAS`, `hot`, `log`, `docs/requisitos/CATEGORIAS-COMO-COMPETICOES`
 - Gerar grupos e calendário passa a exigir uma categoria e só remove grupos e jogos de grupos dela. A chave e o calendário automático não cruzam categorias. Portal, tabela, jogos, ranking e pódio leem uma categoria. Nenhuma migration foi adicionada e o SQL de setembro não foi reaplicado. Funções SQL de recálculo continuam como estavam.
 
+## [2026-10-10] fix | avisos da súmula somem sozinhos
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- Cada aviso fica no máximo 3 segundos e a fila guarda dois. O temporizador sai no unmount. O aviso não cobre a faixa do placar. A demonstração não chama `POST …/iniciar`, que não tem o atalho do token demo.
+
 ## [2026-10-10] decisao | troca de lado ao encerrar o set
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
