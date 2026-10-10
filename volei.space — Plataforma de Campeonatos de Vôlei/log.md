@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | RLS em todas as tabelas public
+
+- pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `03-REGRAS-DE-NEGOCIO`, `hot`, `log`
+- `20261010140000_habilitar_rls_tabelas_publicas.sql` liga RLS em cada tabela `public`, sem `FORCE` e sem alterar `service_role`. A policy nova é `public_read_partidas`, só se não existir. `anon` fica com o `SELECT` das colunas de placar de `Partida`. Não foi aplicada. `202610100002` permanece intacta.
+
 ## [2026-10-10] fix | bugs E2E da súmula, prévia e início
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/PARAMETRIZACAO`, `modulos/PARTIDAS`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `07-SEGURANCA`, `hot`, `log`

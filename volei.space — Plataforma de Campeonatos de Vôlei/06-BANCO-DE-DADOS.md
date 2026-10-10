@@ -5,8 +5,8 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  supabase/migrations é a fonte da verdade do Postgres. O Prisma só descreve esse banco. O elenco TOURNAMENT-SEED está no script idempotente.
-status: implementado
+  supabase/migrations é a fonte da verdade. 20261010140000 liga RLS em cada tabela public e ainda não foi aplicada.
+status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
@@ -33,7 +33,7 @@ Rode o repair nos dois projetos. O `db push` seguinte aplica só o que ainda nã
 
 As tabelas base (`Liga`, `Equipe`, `Partida` e as outras que já existiam antes desta pasta) não nascem de um `CREATE TABLE` versionado. Um banco vazio não reproduz o produto só com `db push`. O histórico ordenado reproduz os deltas em cima dessa base.
 
-O projeto `volei-space-producao` é a base de produção e só pode ser usado no deploy da branch `main`. Local, preview e qualquer outra branch usam o projeto `caiqueno's Project`. A ligação é feita pelas variáveis do ambiente, não por endereço fixo no código. No Next.js elas são `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ALVO` (`producao` ou `desenvolvimento`) e, só no servidor, `SUPABASE_SERVICE_ROLE_KEY`. `SUPABASE_HOSTS_PROIBIDOS` lista hosts que aquele ambiente recusa. Se a configuração faltar ou misturar os alvos, as operações de banco não iniciam. O navegador recebe apenas a chave publicável. Várias tabelas seguem sem RLS nos dois projetos; ligar RLS sem política bloqueia o cliente público. `AcessoArbitroJogo` e `AcessoArbitroEvento` têm RLS ligada e nenhuma política para `anon` ou `authenticated`. Só o papel `service_role` lê e grava essas tabelas.
+O projeto `volei-space-producao` é a base de produção e só pode ser usado no deploy da branch `main`. Local, preview e qualquer outra branch usam o projeto `caiqueno's Project`. A ligação é feita pelas variáveis do ambiente, não por endereço fixo no código. No Next.js elas são `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ALVO` (`producao` ou `desenvolvimento`) e, só no servidor, `SUPABASE_SERVICE_ROLE_KEY`. `SUPABASE_HOSTS_PROIBIDOS` lista hosts que aquele ambiente recusa. Se a configuração faltar ou misturar os alvos, as operações de banco não iniciam. O navegador recebe apenas a chave publicável. Várias tabelas seguem sem RLS nos dois projetos até `20261010140000_habilitar_rls_tabelas_publicas.sql`. Essa migration ainda não foi aplicada: não use `db push` da pasta inteira para rodá-la. Ela liga RLS em cada tabela do schema `public`, pula tabela ausente e não usa `FORCE`. O `service_role` não é alterado e continua ignorando o RLS. A única policy nova é `public_read_partidas`, criada só quando ainda não existe, para o `SELECT` das colunas de placar de `Partida` seguir válido. `anon` e `authenticated` perdem privilégio nas outras tabelas; `SetPartida` e `ClassificacaoEntrada` não ganham policy. `202610100002_fechar_leitura_publica_placar.sql` permanece o arquivo que remove as policies `USING (true)` dessas duas e reescreve `finalizar_inscricao_equipe_rascunho`. `AcessoArbitroJogo` e `AcessoArbitroEvento` já tinham RLS e nenhuma política para `anon` ou `authenticated`.
 
 A migration `202610060004_fechar_acesso_anonimo.sql` tira de `anon` e `authenticated` todo acesso ao schema `public`, inclusive nos objetos criados depois, e devolve apenas três leituras: `ClassificacaoEntrada` inteira, `SetPartida` inteira e as colunas de placar de `Partida` (sem `sumulaToken` e sem `sumulaTokenExpira`). É o mínimo que o Realtime do placar e da classificação precisa. Antes dela a chave publicável lia `Partida.sumulaToken`, lia `Jogador` inteiro e era aceita em `PATCH /rest/v1/Partida`. Todo acesso de servidor passou a usar `supabaseAdmin`; no navegador sobraram o Realtime e os uploads de storage.
 

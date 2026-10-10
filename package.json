@@ -43,12 +43,12 @@
     "test:postgres": "node scripts/with-ts-node.mjs scripts/postgres-servico.test.ts",
     "test:api": "node scripts/with-ts-node.mjs scripts/api-contrato.test.ts",
     "test:autorizacao": "node scripts/with-ts-node.mjs scripts/autorizacao-rotas.test.ts",
-    "test:migrations": "node scripts/migrations-historico.test.mjs",
+    "test:rls-publico": "node scripts/rls-publico.test.mjs",
+    "test:migrations": "node scripts/migrations-historico.test.mjs && node scripts/rls-publico.test.mjs",
     "test:api-layer": "node scripts/with-ts-node.mjs scripts/api-layer.test.ts",
     "test:seguranca": "node scripts/with-ts-node.mjs scripts/seguranca-backend.test.ts",
     "test:auth-security": "node scripts/with-ts-node.mjs scripts/auth-security.test.ts",
     "test:import-winners": "node scripts/import-winners.test.mjs",
-    "test:migrations": "node scripts/migrations-historico.test.mjs",
     "seed:simulacao": "node scripts/with-ts-node.mjs scripts/recriar-simulacao.ts"
   },
   "prisma": {
