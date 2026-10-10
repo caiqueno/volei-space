@@ -3,15 +3,15 @@
 
 @keyframes sumula-micro-ace {
   0% { opacity: 1; transform: scale(1); }
-  22% { opacity: 1; transform: scale(1.14); }
-  68% { opacity: 1; transform: scale(1.14); }
+  22% { opacity: 1; transform: scale(1.22); }
+  68% { opacity: 1; transform: scale(1.22); }
   100% { opacity: 1; transform: scale(1); }
 }
 
 @keyframes sumula-micro-block {
   0% { opacity: 1; transform: scale(1) translateY(0); }
-  22% { opacity: 0.8; transform: scale(1.16) translateY(-3px); }
-  68% { opacity: 0.8; transform: scale(1.16) translateY(-3px); }
+  22% { opacity: 0.75; transform: scale(1.24) translateY(-6px); }
+  68% { opacity: 0.75; transform: scale(1.24) translateY(-6px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
@@ -33,8 +33,8 @@
 }
 
 @keyframes sumula-sub-out {
-  0% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.97); }
+  0% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.9) translateY(16px); }
 }
 
 .sumula-micro-ace,

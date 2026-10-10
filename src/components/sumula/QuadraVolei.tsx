@@ -1,6 +1,6 @@
 'use client'
 
-import type { DragEvent } from 'react'
+import { useState, type DragEvent } from 'react'
 
 export type LadoQuadra = 'teamA' | 'teamB'
 
@@ -111,6 +111,16 @@ function Metade({
   onSubstituicao?: (teamId: LadoQuadra, indice: number) => void
 }) {
   const vazia = dados.escalacao.filter(Boolean).length === 0
+  const [pulso, setPulso] = useState<string | null>(null)
+  function dispararPulso(id: string) {
+    setPulso(null)
+    queueMicrotask(() => setPulso(id))
+  }
+  function limparPulso(event: { target: EventTarget | null; currentTarget: EventTarget | null; animationName: string }) {
+    if (event.target !== event.currentTarget) return
+    if (!event.animationName.startsWith('sumula-micro')) return
+    setPulso(null)
+  }
   return (
     <div className={`volley-half is-${lado} is-${dados.id} ${dados.sacando ? 'is-serving' : ''}`} aria-label={dados.nome}>
       {vazia && <p className="volley-empty">{dados.editavel ? 'Escalação não informada. Toque em uma posição.' : 'Escalação não informada'}</p>}
@@ -138,23 +148,24 @@ function Metade({
             {modo === 'escalacao' ? (
               <button
                 type="button"
-                className={`volley-marker ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''}`}
+                className={`volley-marker ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''} ${pulso === `${zona.posicao}:tap` ? 'sumula-micro-tap' : ''}`}
+                onAnimationEnd={limparPulso}
                 draggable={Boolean(dados.editavel && numero)}
                 onDragStart={(event) => {
                   if (!numero) return
                   event.dataTransfer.setData('text/plain', numero)
                   event.dataTransfer.effectAllowed = 'move'
                 }}
-                onClick={(event) => {
+                onClick={() => {
                   onAtivar?.(dados.id, zona.indice)
-                  pulsarMicro(event.currentTarget, 'sumula-micro-tap')
+                  dispararPulso(`${zona.posicao}:tap`)
                 }}
                 aria-label={numero ? `${zona.posicao}, ${camisa}, ${nomeCurto(atleta?.name || 'Atleta')}` : `${zona.posicao} vazia de ${dados.nome}`}
               >
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={sacandoAqui} />
               </button>
             ) : (
-              <div className={`volley-marker is-live ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''} ${brilhou ? 'is-scored' : ''}`}>
+              <div className={`volley-marker is-live ${numero ? 'is-filled' : ''} ${sacandoAqui ? 'is-server' : ''} ${funcao === 'Líbero' ? 'is-libero' : ''} ${brilhou ? 'is-scored' : ''} ${pulso === `${zona.posicao}:ace` ? 'sumula-micro-ace' : ''} ${pulso === `${zona.posicao}:block` ? 'sumula-micro-block' : ''}`} onAnimationEnd={limparPulso}>
                 <Marcador numero={camisa} nome={atleta?.name} funcao={funcao} sacando={false} />
                 {numero && (
                   <span className="volley-actions">
@@ -162,15 +173,10 @@ function Metade({
                       <button
                         key={acao}
                         type="button"
-                        onClick={(event) => {
+                        onClick={() => {
                           executarAcao(acao, dados.id, numero, zona.indice, { onAtaque, onBloqueio, onAce, onSubstituicao })
-                          if (acao === 'A') {
-                            pulsarMicro(event.currentTarget, 'sumula-micro-ace')
-                            pulsarMicro(event.currentTarget.closest('.volley-marker'), 'sumula-micro-ace')
-                          } else if (acao === 'B') {
-                            pulsarMicro(event.currentTarget, 'sumula-micro-block')
-                            pulsarMicro(event.currentTarget.closest('.volley-marker'), 'sumula-micro-block')
-                          }
+                          if (acao === 'A') dispararPulso(`${zona.posicao}:ace`)
+                          else if (acao === 'B') dispararPulso(`${zona.posicao}:block`)
                         }}
                         aria-label={rotuloAcao(acao, camisa)}
                         title={rotuloAcao(acao, camisa)}
@@ -208,19 +214,6 @@ function soltar(event: DragEvent<HTMLDivElement>, dados: LadoDaQuadra, indice: n
   const numero = event.dataTransfer.getData('text/plain').trim()
   if (!numero) return
   onSoltar?.(dados.id, indice, numero)
-}
-
-function pulsarMicro(alvo: EventTarget | null, classe: string) {
-  if (!(alvo instanceof HTMLElement)) return
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  alvo.classList.remove(classe)
-  void alvo.offsetWidth
-  alvo.classList.add(classe)
-  const limpar = () => {
-    alvo.classList.remove(classe)
-    alvo.removeEventListener('animationend', limpar)
-  }
-  alvo.addEventListener('animationend', limpar)
 }
 
 function nomeCurto(nome: string) {
