@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | correção de ponto não copia o set anterior
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- Na partida 1035 o set 2 foi de 0×1 para 23×13 porque o histórico do set 1 ainda estava na tela. A correção passa a valer só no set em andamento. Nenhuma migration. Sem merge.
+
 ## [2026-10-10] feat | saque alterna até o último set da fase
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

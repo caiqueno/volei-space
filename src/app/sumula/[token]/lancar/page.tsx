@@ -10,7 +10,7 @@ import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
-import { reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
+import { indiceDoUltimoPonto, reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
 import { criarSalvamentoCoalescido } from '@/lib/fila-salvamento'
@@ -209,7 +209,7 @@ export default function SumulaPage() {
   const [temposEquipeB, setTemposEquipeB] = useState(0)
   const [events, setEvents] = useState<MatchEvent[]>([])
   const [anotacoes, setAnotacoes] = useState<Anotacao[]>([])
-  const [scoreHistory, setScoreHistory] = useState<Array<{ score: { teamA: number; teamB: number }; servingTeamId: TeamId; serverIndexA: number; serverIndexB: number; lineupA: string[]; lineupB: string[]; eventIds: string[] }>>([])
+  const [scoreHistory, setScoreHistory] = useState<Array<{ score: { teamA: number; teamB: number }; servingTeamId: TeamId; serverIndexA: number; serverIndexB: number; lineupA: string[]; lineupB: string[]; eventIds: string[]; set?: number }>>([])
   const [matchNumberOverrides, setMatchNumberOverrides] = useState<Record<TeamId, Record<number, string>>>({ teamA: {}, teamB: {} })
   const { avisos, addToast } = useAvisosSumula()
   const [pointFlash, setPointFlash] = useState<{ teamId: TeamId; number: string; id: number } | null>(null)
@@ -576,7 +576,7 @@ export default function SumulaPage() {
       eventIds.push(sideOutEventId)
     }
 
-    setScoreHistory((current) => [...current, { score: previous, servingTeamId, serverIndexA, serverIndexB, lineupA, lineupB, eventIds }])
+    setScoreHistory((current) => [...current, { score: previous, servingTeamId, serverIndexA, serverIndexB, lineupA, lineupB, eventIds, set: currentSet }])
 
     const winner = getSetWinner(next)
     if (winner && canCloseSetByRules(next, pointsForSet(matchRules, currentSet))) {
@@ -601,8 +601,12 @@ export default function SumulaPage() {
   }
 
   function undoLastPoint() {
-    const last = scoreHistory[scoreHistory.length - 1]
-    if (!last) return
+    const indice = indiceDoUltimoPonto({ historico: scoreHistory, placarAtual: currentScore, setAtual: currentSet })
+    const last = indice >= 0 ? scoreHistory[indice] : undefined
+    if (!last) {
+      addToast('Nenhum ponto deste set para corrigir.')
+      return
+    }
     flushSync(() => {
       setCurrentScore(last.score)
       setServingTeamId(last.servingTeamId)
@@ -611,7 +615,7 @@ export default function SumulaPage() {
       setLineupA(last.lineupA)
       setLineupB(last.lineupB)
       setEvents((current) => current.filter((event) => !last.eventIds.includes(event.id)))
-      setScoreHistory((current) => current.slice(0, -1))
+      setScoreHistory((current) => current.slice(0, indice))
       setSetEndPrompt(null)
     })
     void enfileirarSalvamento(false).catch(() => undefined)
@@ -619,26 +623,19 @@ export default function SumulaPage() {
   }
 
   function undoLastPointForTeam(teamId: TeamId) {
-    if (scoreHistory.length === 0) {
-      addToast('Nenhum ponto para corrigir.')
-      return
-    }
     const teamName = teamId === 'teamA' ? teamA?.name : teamB?.name
     // Cada entrada de scoreHistory guarda o estado (placar, saque, rodízio) de
     // ANTES daquele ponto. Para achar o último ponto desta equipe, comparamos
     // o placar de cada entrada com o placar seguinte (ou o placar atual, na
     // última) — se o placar da equipe aumentou ali, foi ponto dela.
-    let targetIndex = -1
-    for (let i = scoreHistory.length - 1; i >= 0; i--) {
-      const before = scoreHistory[i].score
-      const after = i === scoreHistory.length - 1 ? currentScore : scoreHistory[i + 1].score
-      if (after[teamId] > before[teamId]) {
-        targetIndex = i
-        break
-      }
-    }
+    const targetIndex = indiceDoUltimoPonto({
+      historico: scoreHistory,
+      placarAtual: currentScore,
+      setAtual: currentSet,
+      equipe: teamId,
+    })
     if (targetIndex === -1) {
-      addToast(`Nenhum ponto do ${teamName ?? 'time selecionado'} para corrigir.`)
+      addToast(`Nenhum ponto do ${teamName ?? 'time selecionado'} neste set para corrigir.`)
       return
     }
     const target = scoreHistory[targetIndex]
@@ -708,6 +705,7 @@ export default function SumulaPage() {
       addMatchEvent('anotacao', 'Equipes inverteram os lados da quadra.')
       setCurrentSet(transicao.proximoSet)
       setCurrentScore({ teamA: 0, teamB: 0 })
+      setScoreHistory([])
       setTimeoutsUsedA(0)
       setTimeoutsUsedB(0)
       if (matchRules.temposSeparados) {
@@ -1077,6 +1075,7 @@ export default function SumulaPage() {
         lineupA,
         lineupB,
         eventIds: [noteEventId, pointEventId],
+        set: currentSet,
       }])
       addToast(`Cartão vermelho registrado. Ponto automático para ${benefitingTeam.name}.`)
     } else if (redCard) {

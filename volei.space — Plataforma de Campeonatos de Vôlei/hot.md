@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O saque alterna até o penúltimo set da fase e o último sai de sorteio. Melhor de 3 sorteia o 3º; melhor de 5 sorteia o 5º. Não há migration nem merge.
+  Corrigir um ponto do set em andamento não copia o placar do set anterior. Não há migration nem merge.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a partida 1035, no set 2, saiu de 0×1 para 23×13 numa correção (versões 101 e 102, 13:28:45Z) e em seguida copiou o 25×13 do set 1. O histórico do set 1 continuava na memória. «Corrigir último ponto» do time que não tinha ponto no set 2 restaurou o 23×13 e a tela gravou isso como set 2. Ao encerrar o set, esse histórico zera, e a correção para quando o placar guardado é de outro set ou é maior que o atual. O versionamento e o sorteio do saque não criaram o 23×13. Não há migration. Não entra na main sem autorização. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 o saque inicial segue a quantidade de sets da fase. O set 1 é escolha da mesa. Do set 2 até o penúltimo, saca quem não sacou no set anterior. O último set, se a fase tem mais de um, sai de sorteio. Melhor de 3 sorteia o 3º; melhor de 5 sorteia o 5º. Quartas, oitavas, semifinal, final e 3º lugar usam a quantidade já resolvida por `setsDaFase`. `setsPorPartidaQuartas` e `setsPorPartidaOitavas` já estão em produção. Esta mudança não cria coluna, não aplica migration e não entra na main sem autorização. Fonte: [[modulos/SUMULA-DIGITAL]].
 

@@ -19,6 +19,43 @@ export type EntradaHistoricoPonto = {
   lineupA: string[]
   lineupB: string[]
   eventIds: string[]
+  set?: number
+}
+
+export type EntradaParaCorrigir = {
+  score: { teamA: number; teamB: number }
+  set?: number | null
+}
+
+/** O placar guardado antes do ponto só vale se ainda for deste set e for menor que o atual. */
+export function entradaDoSetCorrente(
+  entrada: EntradaParaCorrigir,
+  setAtual: number,
+  placarAtual: { teamA: number; teamB: number },
+) {
+  if (entrada.set != null && entrada.set !== setAtual) return false
+  if (entrada.score.teamA > placarAtual.teamA || entrada.score.teamB > placarAtual.teamB) return false
+  return entrada.score.teamA + entrada.score.teamB < placarAtual.teamA + placarAtual.teamB
+}
+
+/**
+ * Índice da entrada que o desfazer deve restaurar.
+ * Para no set anterior: um placar maior que o atual (23x13 contra 0x1) não é ponto deste set.
+ */
+export function indiceDoUltimoPonto(entrada: {
+  historico: EntradaParaCorrigir[]
+  placarAtual: { teamA: number; teamB: number }
+  setAtual: number
+  equipe?: LadoQuadra | null
+}) {
+  for (let i = entrada.historico.length - 1; i >= 0; i -= 1) {
+    const item = entrada.historico[i]
+    if (!entradaDoSetCorrente(item, entrada.setAtual, entrada.placarAtual)) return -1
+    if (!entrada.equipe) return i
+    const depois = i === entrada.historico.length - 1 ? entrada.placarAtual : entrada.historico[i + 1].score
+    if (depois[entrada.equipe] > item.score[entrada.equipe]) return i
+  }
+  return -1
 }
 
 const TIPOS_PONTO = new Set(['ace', 'attack', 'block', 'point'])
@@ -121,6 +158,7 @@ export function reconstruirHistoricoPontos(entrada: {
       lineupA: antesA,
       lineupB: antesB,
       eventIds: [atual.evento.id, troca?.id].filter((id): id is string => Boolean(id)),
+      set: entrada.setAtual,
     })
     lineupA = antesA
     lineupB = antesB

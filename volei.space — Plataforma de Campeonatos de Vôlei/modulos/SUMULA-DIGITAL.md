@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O saque alterna até o penúltimo set da fase e o último sai de sorteio. Melhor de 3 sorteia o 3º; melhor de 5 sorteia o 5º. Sem migration.
+  Corrigir um ponto do set em andamento não copia o placar do set anterior. O saque alterna até o penúltimo set da fase e o último sai de sorteio. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Placar do set seguinte — correção no código, sem merge:** ao encerrar o set, o histórico usado por «Corrigir último ponto» zera. A correção também recusa uma entrada de outro set ou um placar maior que o atual. Na partida 1035 o set 2 estava 0×1 (versões 97 a 101) e a correção seguinte gravou 23×13, o placar do set 1 dois pontos antes do 25×13. O set 2 foi a 25×13, fechou e a partida foi para oficialização. O versionamento só gravou o estado que a tela mandou. A regra de saque do último set não entra nesse salto. Não há migration nem alteração de banco neste PR.
 
 **Saque inicial — implementado no código, sem merge:** o set 1 é escolha da mesa. Nos sets seguintes, até o penúltimo da fase, o sistema define quem não sacou no set anterior e não aceita outra escolha. O último set sai de sorteio quando a fase tem mais de um set: a mesa registra o resultado ou o aplicativo sorteia. Melhor de 3 alterna nos sets 1 e 2 e sorteia o 3º. Melhor de 5 alterna nos sets 1 a 4 e sorteia o 5º. A quantidade é a da fase (`FINAL`, `SEMIFINAL`, `QUARTAS`, `OITAVAS`, `TERCEIRO_LUGAR` ou o `setsPorPartida` do campeonato). `PUT` e `POST` de `/api/sumula/{token}` usam a mesma quantidade e recusam a alternância quebrada nos sets do meio. A marca `[[SAQUE:timestamp:teamA|teamB]]` acompanha a frase «começa sacando». Não há coluna nova. `setsPorPartidaQuartas` e `setsPorPartidaOitavas` já estão em produção.
 
