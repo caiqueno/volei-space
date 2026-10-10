@@ -10,6 +10,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { jogoImpedeEdicaoDaCategoria, partidaRemovivelAoRecriarGrupos } from '@/lib/configuracao-categoria-edicao'
+import { categoriaDaUrl, equipesDaCategoria, escopoDaGeracao } from '@/lib/isolamento-categoria'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -74,23 +75,47 @@ export async function GET(req: NextRequest, context: RouteContext) {
   const ligaResult = await getOwnedLiga(ligaId, auth.userId)
   if (ligaResult instanceof Response) return ligaResult
   const liga = ligaResult
-  const [equipesResult, gruposResult, vinculosResult, partidasResult] = await Promise.all([
+  const categorias = await listarCategorias(ligaId)
+  if (categorias instanceof Response) return categorias
+  const pedido = categoriaDaUrl(req.nextUrl.searchParams)
+  if ('erro' in pedido) return error(pedido.erro, 422)
+  const categoriaId = pedido.id && categorias.some((item) => item.id === pedido.id)
+    ? pedido.id
+    : pedido.id
+      ? null
+      : categorias.length === 1
+        ? categorias[0].id
+        : null
+  if (pedido.id && !categoriaId) return error('Categoria não encontrada neste campeonato.', 404)
+  const escolhaCategoria = !categoriaId && categorias.length > 1
+
+  let gruposQuery = supabase
+    .from('GrupoCampeonato')
+    .select('id,ligaId,nome,ordem,classificados,categoriaCampeonatoId')
+    .eq('ligaId', ligaId)
+    .order('ordem', { ascending: true })
+  let vinculosQuery = supabase
+    .from('GrupoEquipeCampeonato')
+    .select('id,grupoId,ligaId,equipeId,posicao,categoriaCampeonatoId')
+    .eq('ligaId', ligaId)
+    .order('posicao', { ascending: true })
+  let partidasQuery = supabase
+    .from('Partida')
+    .select('id,ligaId,equipeAId,equipeBId,rodada,status,dataHora,localNome,grupoId,fase,setsPorA,setsPorB,sumulaToken,categoriaCampeonatoId,escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
+    .eq('ligaId', ligaId)
+    .order('rodada', { ascending: true })
+  if (categoriaId) {
+    gruposQuery = gruposQuery.eq('categoriaCampeonatoId', categoriaId)
+    vinculosQuery = vinculosQuery.eq('categoriaCampeonatoId', categoriaId)
+    partidasQuery = partidasQuery.eq('categoriaCampeonatoId', categoriaId)
+  }
+
+  const [equipesResult, gruposResult, vinculosResult, partidasResult, regras] = await Promise.all([
     getApprovedTeams(ligaId),
-    supabase
-      .from('GrupoCampeonato')
-      .select('id,ligaId,nome,ordem,classificados')
-      .eq('ligaId', ligaId)
-      .order('ordem', { ascending: true }),
-    supabase
-      .from('GrupoEquipeCampeonato')
-      .select('id,grupoId,ligaId,equipeId,posicao')
-      .eq('ligaId', ligaId)
-      .order('posicao', { ascending: true }),
-    supabase
-      .from('Partida')
-      .select('id,ligaId,equipeAId,equipeBId,rodada,status,dataHora,localNome,grupoId,fase,setsPorA,setsPorB,sumulaToken,escala:EscalaArbitro(id,arbitroId,cargo,arbitro:Arbitro(id,nome,email))')
-      .eq('ligaId', ligaId)
-      .order('rodada', { ascending: true }),
+    escolhaCategoria ? Promise.resolve({ data: [], error: null }) : gruposQuery,
+    escolhaCategoria ? Promise.resolve({ data: [], error: null }) : vinculosQuery,
+    escolhaCategoria ? Promise.resolve({ data: [], error: null }) : partidasQuery,
+    categoriaId ? lerRegrasDaCategoria(ligaId, categoriaId) : Promise.resolve(null),
   ])
 
   if ('error' in equipesResult) return error('Erro ao buscar equipes aprovadas.', 500, equipesResult.error)
@@ -98,16 +123,22 @@ export async function GET(req: NextRequest, context: RouteContext) {
   if (vinculosResult.error) return error('Erro ao buscar distribuição dos grupos.', 500, vinculosResult.error)
   if (partidasResult.error) return error('Erro ao buscar partidas do campeonato.', 500, partidasResult.error)
 
+  const equipes = categoriaId ? equipesDaCategoria(equipesResult.data, categoriaId) : escolhaCategoria ? [] : equipesResult.data
+
   return success({
     liga,
-    equipes: equipesResult.data,
+    categorias,
+    categoriaCampeonatoId: categoriaId,
+    escolhaCategoria,
+    regras,
+    equipes,
     grupos: (gruposResult.data ?? []).map((grupo: any) => ({
       ...grupo,
       equipes: (vinculosResult.data ?? [])
         .filter((vinculo: any) => vinculo.grupoId === grupo.id)
         .map((vinculo: any) => ({
           ...vinculo,
-          equipe: equipesResult.data.find((equipe) => equipe.id === vinculo.equipeId) ?? null,
+          equipe: equipes.find((equipe) => equipe.id === vinculo.equipeId) ?? null,
         })),
     })),
     partidas: partidasResult.data ?? [],
@@ -130,29 +161,36 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (bloqueio) return bloqueio
 
     const body = await req.json()
-    const quantidadeGrupos = Math.max(1, Number(body.quantidadeGrupos ?? liga.quantidadeGrupos ?? 1))
-    const classificadosPorGrupo = Math.max(0, Number(body.classificadosPorGrupo ?? liga.classificadosPorGrupo ?? 0))
+    const equipesResult = await getApprovedTeams(ligaId)
+    if ('error' in equipesResult) return error('Erro ao buscar equipes aprovadas.', 500, equipesResult.error)
+    const escopo = escopoDaGeracao(equipesResult.data, body.categoriaCampeonatoId)
+    if (escopo.tipo !== 'categoria') {
+      return error(escopo.tipo === 'erro' ? escopo.mensagem : 'Escolha a categoria antes de gerar grupos, calendário ou chave.', 422)
+    }
+    const categoriaCampeonatoId = escopo.id
+    const categorias = await listarCategorias(ligaId)
+    if (categorias instanceof Response) return categorias
+    if (!categorias.some((item) => item.id === categoriaCampeonatoId)) return error('Categoria não encontrada neste campeonato.', 404)
+    const regras = await lerRegrasDaCategoria(ligaId, categoriaCampeonatoId)
+    const equipes = equipesDaCategoria(equipesResult.data, categoriaCampeonatoId)
+    const quantidadeGrupos = Math.max(1, Number(body.quantidadeGrupos ?? regras?.quantidadeGrupos ?? liga.quantidadeGrupos ?? 1))
+    const classificadosPorGrupo = Math.max(0, Number(body.classificadosPorGrupo ?? regras?.classificadosPorGrupo ?? liga.classificadosPorGrupo ?? 0))
     const nomesGrupos = normalizeGroupNames(body.nomesGrupos, quantidadeGrupos)
     const turnoReturno = Boolean(body.turnoReturno)
     const dataInicial = typeof body.dataInicial === 'string' ? body.dataInicial : ''
     const horarioPadrao = typeof body.horarioPadrao === 'string' ? body.horarioPadrao : ''
     const localPadrao = typeof body.localPadrao === 'string' ? body.localPadrao.trim() : ''
-
-    const equipesResult = await getApprovedTeams(ligaId)
-    if ('error' in equipesResult) return error('Erro ao buscar equipes aprovadas.', 500, equipesResult.error)
-    const equipes = equipesResult.data
-    if (equipes.length < 2) return error('A estrutura precisa de pelo menos 2 equipes aprovadas.', 400)
-    const categoriaCampeonatoId = categoriaComum(equipes)
-    if (!categoriaCampeonatoId) return error('As equipes aprovadas precisam estar na mesma categoria do campeonato.', 422)
+    if (equipes.length < 2) return error('A estrutura desta categoria precisa de pelo menos 2 equipes aprovadas.', 400)
 
     const groups = normalizeGroups(body.grupos, nomesGrupos, equipes)
-    const validation = validateGroups(groups, equipes, classificadosPorGrupo, liga.faseEliminatoria, liga.formato)
+    const validation = validateGroups(groups, equipes, classificadosPorGrupo, regras?.faseEliminatoria ?? liga.faseEliminatoria, regras?.formato ?? liga.formato)
     if (validation) return error(validation, 422)
 
     const { data: partidasExistentes, error: partidasErr } = await supabase
       .from('Partida')
-      .select('id,status,fase,grupoId,sumulaSubmetidaEm,sumulaAprovadaEm,setsPorA,setsPorB,vencedorId')
+      .select('id,status,fase,grupoId,categoriaCampeonatoId,sumulaSubmetidaEm,sumulaAprovadaEm,setsPorA,setsPorB,vencedorId')
       .eq('ligaId', ligaId)
+      .eq('categoriaCampeonatoId', categoriaCampeonatoId)
 
     if (partidasErr) {
       console.error('[estrutura] erro ao validar partidas', partidasErr)
@@ -161,11 +199,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const lockedMatches = (partidasExistentes ?? []).filter((partida: any) => jogoImpedeEdicaoDaCategoria(partida))
     if (lockedMatches.length > 0) {
-      return error('Não é possível recriar os confrontos: já existe jogo em andamento, encerrado ou com súmula neste campeonato.', 409)
+      return error('Não é possível recriar os confrontos desta categoria: já existe jogo em andamento, encerrado ou com súmula.', 409)
     }
 
     const removableIds = (partidasExistentes ?? [])
-      .filter((partida: any) => partidaRemovivelAoRecriarGrupos(partida))
+      .filter((partida: any) => partida.categoriaCampeonatoId === categoriaCampeonatoId && partidaRemovivelAoRecriarGrupos(partida))
       .map((partida: any) => partida.id)
     if (removableIds.length > 0) {
       const { error: escalaErr } = await supabase.from('EscalaArbitro').delete().in('partidaId', removableIds)
@@ -181,8 +219,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    await supabase.from('GrupoEquipeCampeonato').delete().eq('ligaId', ligaId)
-    await supabase.from('GrupoCampeonato').delete().eq('ligaId', ligaId)
+    const { data: gruposAtuais } = await supabase.from('GrupoCampeonato').select('id').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    const grupoIds = (gruposAtuais ?? []).map((grupo: { id: number }) => grupo.id)
+    if (grupoIds.length > 0) await supabase.from('GrupoEquipeCampeonato').delete().in('grupoId', grupoIds)
+    await supabase.from('GrupoEquipeCampeonato').delete().eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    await supabase.from('GrupoCampeonato').delete().eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaCampeonatoId)
 
     const gruposRows = groups.map((grupo, index) => ({
       ligaId,
@@ -226,20 +267,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
         console.error('[estrutura] erro ao gerar confrontos', insertPartidasErr)
         return error('Erro ao gerar confrontos.', 500)
       }
-    }
-
-    const { error: ligaUpdateErr } = await supabase
-      .from('Liga')
-      .update({
-        quantidadeGrupos,
-        nomesGrupos,
-        classificadosPorGrupo,
-      })
-      .eq('id', ligaId)
-
-    if (ligaUpdateErr) {
-      console.error('[estrutura] erro ao atualizar campeonato', ligaUpdateErr)
-      return error('Erro ao atualizar parâmetros do campeonato.', 500)
     }
 
     return success({
@@ -395,10 +422,25 @@ function validateGroups(groups: Required<GrupoInput>[], equipes: EquipeRecord[],
   return ''
 }
 
-function categoriaComum(equipes: EquipeRecord[]) {
-  const ids = new Set(equipes.map((equipe) => equipe.categoriaCampeonatoId).filter(Boolean))
-  if (ids.size !== 1) return null
-  return Array.from(ids)[0] as string
+async function listarCategorias(ligaId: number) {
+  const { data, error: categoriasErr } = await supabase
+    .from('CategoriaCampeonato')
+    .select('id,nome,ordem')
+    .eq('ligaId', ligaId)
+    .is('removidaEm', null)
+    .order('ordem', { ascending: true })
+  if (categoriasErr) return error('Não foi possível consultar as categorias.', 503)
+  return (data ?? []) as { id: string; nome: string; ordem: number }[]
+}
+
+async function lerRegrasDaCategoria(ligaId: number, categoriaId: string) {
+  const { data } = await supabase
+    .from('CategoriaConfiguracao')
+    .select('quantidadeGrupos,classificadosPorGrupo,faseEliminatoria,formato')
+    .eq('ligaId', ligaId)
+    .eq('categoriaCampeonatoId', categoriaId)
+    .maybeSingle()
+  return data
 }
 
 function buildGroupMatches(

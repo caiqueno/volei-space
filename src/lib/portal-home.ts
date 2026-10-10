@@ -7,6 +7,8 @@ import { supabaseAdmin, supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sync'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { listarCategoriasDoCampeonato, type CategoriaDoCampeonato } from '@/lib/categorias-do-campeonato'
+import { escolherCategoria } from '@/lib/isolamento-categoria'
 
 const demoEquipes = [
   { id: 1, nome: 'Kimura Vôlei', corHex: '#0F2C52', logoUrl: null, jogadores: Array.from({ length: 12 }, (_, id) => ({ id })) },
@@ -20,7 +22,7 @@ const demoPartidas = [
   { id: 2, rodada: 1, status: 'ENCERRADA', dataHora: new Date(Date.now() - 86400000).toISOString(), localNome: 'Ginásio Central', equipeA: demoEquipes[2], equipeB: demoEquipes[3], setsPorA: 2, setsPorB: 1, sets: [{ numero: 1, pontosA: 25, pontosB: 21 }, { numero: 2, pontosA: 22, pontosB: 25 }, { numero: 3, pontosA: 15, pontosB: 12 }] },
 ]
 
-export async function getPortalHome(params: { organizador?: string; ligaId?: string; candidaturaId?: string }) {
+export async function getPortalHome(params: { organizador?: string; ligaId?: string; candidaturaId?: string; categoria?: string | null }) {
   let scope = isSupabaseConfigured ? await getCreatorLeagueScope(params) : { organizadorId: null, ligas: [], selectedLiga: null }
 
   if (!isSupabaseConfigured) {
@@ -46,6 +48,8 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
         { id: 2, colocacao: 2, descricao: 'Medalhas de vice-campeão' },
         { id: 3, colocacao: 3, descricao: 'Destaque da temporada' },
       ],
+      categorias: [] as CategoriaDoCampeonato[],
+      categoriaCampeonatoId: null as string | null,
     }
   }
 
@@ -83,7 +87,9 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
 
   const liga = scope.selectedLiga
   const ligaId = liga?.id as number
-  const agenda = await buscarAgendaCampeonato(ligaId)
+  const listaCategorias = await listarCategoriasDoCampeonato(ligaId)
+  const categoriaCampeonatoId = escolherCategoria(params.categoria, listaCategorias.categorias)
+  const agenda = await buscarAgendaCampeonato(ligaId, { categoriaCampeonatoId })
   if (agenda.erro) console.error('[portal] erro ao buscar partidas')
   const grupos = {
     aoVivo: agenda.aoVivo.partidas,
@@ -123,7 +129,7 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
     ? Promise.resolve({ data: [] })
     : supabase.from('Premiacao').select('*').eq('ligaId', ligaId).order('colocacao', { ascending: true })
 
-  const podiumQuery = enxuto ? Promise.resolve([] as PodiumTeam[]) : getChampionshipPodium(ligaId)
+  const podiumQuery = enxuto ? Promise.resolve([] as PodiumTeam[]) : getChampionshipPodium(ligaId, categoriaCampeonatoId)
 
   const [{ data: inscricoesAprovadas }, { data: mensagens }, { data: premiacoes }, podium] = await Promise.all([
     equipesQuery,
@@ -137,8 +143,11 @@ export async function getPortalHome(params: { organizador?: string; ligaId?: str
     .filter(Boolean)
     .map(normalizePortalTeam)
     .sort((a: any, b: any) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
+  const equipes = categoriaCampeonatoId
+    ? equipesBase.filter((equipe: { categoriaCampeonatoId?: string | null }) => equipe.categoriaCampeonatoId === categoriaCampeonatoId)
+    : equipesBase
 
-  return { scope, liga, equipes: equipesBase, partidas, grupos, partidasFalha, temMais, agendaGlobal, partidaDestaque, emAndamento, podium, mensagens: mensagens ?? [], premiacoes: premiacoes ?? [] }
+  return { scope, liga, equipes, partidas, grupos, partidasFalha, temMais, agendaGlobal, partidaDestaque, emAndamento, podium, mensagens: mensagens ?? [], premiacoes: premiacoes ?? [], categorias: listaCategorias.categorias, categoriaCampeonatoId }
 }
 
 export async function getPainelInicio(organizadorId: string) {
@@ -158,7 +167,7 @@ export async function getPainelInicio(organizadorId: string) {
 
 function vazioPortal(scope: { organizadorId: string | null; ligas: any[]; selectedLiga: any | null }) {
   const grupos: GruposPartidaPublica = { aoVivo: [], proximos: [], encerradas: [], analise: [], outras: [] }
-  return { scope, liga: null, equipes: [], partidas: [], grupos, partidasFalha: false, temMais: { aoVivo: false, proximos: false, encerradas: false }, agendaGlobal: false, partidaDestaque: null, emAndamento: false, podium: [] as PodiumTeam[], mensagens: [], premiacoes: [] }
+  return { scope, liga: null, equipes: [], partidas: [], grupos, partidasFalha: false, temMais: { aoVivo: false, proximos: false, encerradas: false }, agendaGlobal: false, partidaDestaque: null, emAndamento: false, podium: [] as PodiumTeam[], mensagens: [], premiacoes: [], categorias: [] as CategoriaDoCampeonato[], categoriaCampeonatoId: null as string | null }
 }
 
 function normalizePortalTeam(equipe: any) {

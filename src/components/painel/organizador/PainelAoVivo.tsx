@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import LiveMatchView from '@/app/partidas/[id]/ao-vivo/LiveMatchView'
 import { consultar, ConsultaCancelada } from '@/lib/api-cliente'
+import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import type { LigaCarouselItem } from './types'
 
 type JogoAoVivo = {
@@ -23,17 +24,20 @@ export function PainelAoVivo({ ligas, campeonatoId, onSelect }: { ligas: LigaCar
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
+  const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(liga?.id ?? null)
 
   useEffect(() => {
-    if (!liga) {
-      setJogos([])
-      setPartidaId(null)
-      setCarregando(false)
+    if (!liga || !pronto) {
+      if (!liga) {
+        setJogos([])
+        setPartidaId(null)
+        setCarregando(false)
+      }
       return
     }
     let cancelado = false
     setCarregando(true)
-    consultar<{ data?: { partidas?: JogoAoVivo[] } }>(`/api/organizador/partidas?ligaId=${liga.id}&status=EM_ANDAMENTO&limite=30`, { forcar: true })
+    consultar<{ data?: { partidas?: JogoAoVivo[] } }>(`/api/organizador/partidas?ligaId=${liga.id}&status=EM_ANDAMENTO&limite=30${queryCategoria(categoriaId)}`, { forcar: true })
       .then((json) => {
         if (cancelado) return
         const lista = Array.isArray(json.data?.partidas) ? json.data.partidas : []
@@ -54,7 +58,7 @@ export function PainelAoVivo({ ligas, campeonatoId, onSelect }: { ligas: LigaCar
     return () => {
       cancelado = true
     }
-  }, [liga?.id])
+  }, [liga?.id, categoriaId, pronto])
 
   function gravarPartida(id: number | null) {
     const params = new URLSearchParams(window.location.search)
@@ -82,11 +86,12 @@ export function PainelAoVivo({ ligas, campeonatoId, onSelect }: { ligas: LigaCar
           {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
+      <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
-      {carregando ? <p className="text-sm font-bold text-white/50">Carregando jogos ao vivo...</p> : (
+      {carregando || !pronto ? <p className="text-sm font-bold text-white/50">Carregando jogos ao vivo...</p> : (
         <div className="operator-live-board">
           <div className="operator-live-list" role="list">
-            {jogos.length === 0 ? <p>Nenhum jogo ao vivo neste campeonato.</p> : jogos.map((jogo) => (
+            {jogos.length === 0 ? <p>{categoriaId ? 'Nenhum jogo ao vivo nesta categoria.' : 'Nenhum jogo ao vivo neste campeonato.'}</p> : jogos.map((jogo) => (
               <button key={jogo.id} type="button" role="listitem" className={partidaId === jogo.id ? 'is-active' : ''} onClick={() => escolherJogo(jogo.id)}>
                 <strong>{jogo.equipeA?.nome ?? 'Equipe A'} × {jogo.equipeB?.nome ?? 'Equipe B'}</strong>
                 <span>Rodada {jogo.rodada || '—'} · {jogo.setsPorA ?? 0} × {jogo.setsPorB ?? 0} sets · {jogo.pontosPorA ?? 0} a {jogo.pontosPorB ?? 0}</span>

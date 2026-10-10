@@ -30,6 +30,7 @@ export function CampeonatosExpansiveis({
   vazioLista,
   modulo,
   ligaIdInicial = null,
+  categoriaInicial = null,
 }: {
   kicker: string
   titulo: string
@@ -37,6 +38,7 @@ export function CampeonatosExpansiveis({
   vazioLista: string
   modulo: 'classificacao' | 'rankings' | 'galeria'
   ligaIdInicial?: number | null
+  categoriaInicial?: string | null
 }) {
   const [campeonatos, setCampeonatos] = useState<Campeonato[]>([])
   const [abertos, setAbertos] = useState<number[]>([])
@@ -116,8 +118,8 @@ export function CampeonatosExpansiveis({
               </button>
               {aberto && (
                 <div className="border-t border-white/10 px-4 py-4">
-                  {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} />}
-                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} />}
+                  {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} />}
+                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} />}
                   {modulo === 'galeria' && <PainelGaleria ligaId={campeonato.id} />}
                 </div>
               )}

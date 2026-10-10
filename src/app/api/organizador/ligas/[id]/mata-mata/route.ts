@@ -4,6 +4,7 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { getBracketRounds, getClassifiedTeamIds, THIRD_PLACE_FASE } from '@/lib/mata-mata'
+import { confrontoRepetidoNaCategoria } from '@/lib/isolamento-categoria'
 import { perdedoresDasSemifinais, vencedoresDosAlimentadores } from '@/lib/resultado-partida'
 import { FASES_ELIMINATORIAS } from '@/lib/eliminatorias'
 
@@ -46,31 +47,57 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
     if (bloqueio) return bloqueio
 
-    const rounds = getBracketRounds(liga.faseEliminatoria)
+    const { data: equipes, error: equipesErr } = await supabase
+      .from('Equipe')
+      .select('id,categoria,serie,categoriaCampeonatoId,ligaId')
+      .in('id', [equipeAId, equipeBId])
+    if (equipesErr) return error('Erro ao carregar os times.', 500, equipesErr.message)
+    const equipeA = (equipes ?? []).find((equipe: any) => equipe.id === equipeAId)
+    const equipeB = (equipes ?? []).find((equipe: any) => equipe.id === equipeBId)
+    if (!equipeA || !equipeB) return error('Um dos times selecionados não foi encontrado.', 404)
+    if (Number(equipeA.ligaId) !== ligaId || Number(equipeB.ligaId) !== ligaId) {
+      return error('Os times selecionados não pertencem a este campeonato.', 422)
+    }
+    if (!equipeA.categoriaCampeonatoId || equipeA.categoriaCampeonatoId !== equipeB.categoriaCampeonatoId) {
+      return error('Os times do mata-mata precisam estar na mesma categoria.', 422)
+    }
+    const categoriaCampeonatoId = String(equipeA.categoriaCampeonatoId)
+    const { data: config } = await supabase
+      .from('CategoriaConfiguracao')
+      .select('faseEliminatoria,disputaTerceiroLugar')
+      .eq('ligaId', ligaId)
+      .eq('categoriaCampeonatoId', categoriaCampeonatoId)
+      .maybeSingle()
+    const faseEliminatoria = config?.faseEliminatoria || liga.faseEliminatoria
+    const disputaTerceiroLugar = config?.disputaTerceiroLugar ?? liga.disputaTerceiroLugar
+
+    const rounds = getBracketRounds(faseEliminatoria)
     const roundIndex = isThirdPlace ? -1 : rounds.findIndex((round) => round.fase === fase)
     if (!isThirdPlace) {
       if (roundIndex === -1) return error('Esta fase não faz parte do chaveamento deste campeonato.', 422)
       if (rodada > rounds[roundIndex].slots) return error('Este jogo não existe nessa fase.', 422)
-    } else if (liga.disputaTerceiroLugar === false) {
+    } else if (disputaTerceiroLugar === false) {
       return error('Este campeonato não tem disputa de 3º lugar.', 422)
     } else if (!rounds.some((round) => round.fase === 'SEMIFINAL')) {
       return error('Este campeonato não tem disputa de 3º lugar (a chave não passa por uma semifinal).', 422)
     }
 
-    const { count: existingCount, error: existingErr } = await supabase
+    const { data: existentes, error: existingErr } = await supabase
       .from('Partida')
-      .select('id', { count: 'exact', head: true })
+      .select('id,fase,rodada,categoriaCampeonatoId')
       .eq('ligaId', ligaId)
+      .eq('categoriaCampeonatoId', categoriaCampeonatoId)
       .eq('fase', fase)
       .eq('rodada', rodada)
     if (existingErr) return error('Erro ao verificar o confronto.', 500, existingErr.message)
-    if ((existingCount ?? 0) > 0) return error('Este confronto já foi criado.', 409)
+    if (confrontoRepetidoNaCategoria(existentes ?? [], categoriaCampeonatoId, fase, rodada)) return error('Este confronto já foi criado.', 409)
 
     if (isThirdPlace) {
       const { data: feeders, error: feedersErr } = await supabase
         .from('Partida')
         .select('rodada,status,equipeAId,equipeBId,setsPorA,setsPorB,vencedorId')
         .eq('ligaId', ligaId)
+        .eq('categoriaCampeonatoId', categoriaCampeonatoId)
         .eq('fase', 'SEMIFINAL')
         .in('rodada', [1, 2])
       if (feedersErr) return error('Erro ao verificar a semifinal.', 500, feedersErr.message)
@@ -82,11 +109,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
         return error('Os times selecionados precisam ser os perdedores das duas semifinais.', 422)
       }
     } else if (roundIndex === 0) {
-      const classifiedIds = await getClassifiedTeamIds(ligaId)
+      const classifiedIds = await getClassifiedTeamIds(ligaId, categoriaCampeonatoId)
       const { data: existingMatches, error: matchesErr } = await supabase
         .from('Partida')
         .select('equipeAId,equipeBId')
         .eq('ligaId', ligaId)
+        .eq('categoriaCampeonatoId', categoriaCampeonatoId)
         .eq('fase', fase)
       if (matchesErr) return error('Erro ao verificar confrontos já criados.', 500, matchesErr.message)
 
@@ -107,6 +135,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         .from('Partida')
         .select('rodada,status,equipeAId,equipeBId,setsPorA,setsPorB,vencedorId')
         .eq('ligaId', ligaId)
+        .eq('categoriaCampeonatoId', categoriaCampeonatoId)
         .eq('fase', previousRound.fase)
         .in('rodada', feederRodadas)
       if (feedersErr) return error('Erro ao verificar a rodada anterior.', 500, feedersErr.message)
@@ -117,21 +146,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       if (!winners.has(equipeAId) || !winners.has(equipeBId)) {
         return error('Os times selecionados precisam ser os vencedores dos dois confrontos anteriores desta chave.', 422)
       }
-    }
-
-    const { data: equipes, error: equipesErr } = await supabase
-      .from('Equipe')
-      .select('id,categoria,serie,categoriaCampeonatoId,ligaId')
-      .in('id', [equipeAId, equipeBId])
-    if (equipesErr) return error('Erro ao carregar os times.', 500, equipesErr.message)
-    const equipeA = (equipes ?? []).find((equipe: any) => equipe.id === equipeAId)
-    const equipeB = (equipes ?? []).find((equipe: any) => equipe.id === equipeBId)
-    if (!equipeA || !equipeB) return error('Um dos times selecionados não foi encontrado.', 404)
-    if (Number(equipeA.ligaId) !== ligaId || Number(equipeB.ligaId) !== ligaId) {
-      return error('Os times selecionados não pertencem a este campeonato.', 422)
-    }
-    if (!equipeA.categoriaCampeonatoId || equipeA.categoriaCampeonatoId !== equipeB.categoriaCampeonatoId) {
-      return error('Os times do mata-mata precisam estar na mesma categoria.', 422)
     }
 
     const { data: partida, error: insertErr } = await supabase
