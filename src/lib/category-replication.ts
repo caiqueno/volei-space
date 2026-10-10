@@ -35,6 +35,9 @@ export const REPLICATION_SECTION_SCHEMAS = {
     criteriosClassificacao: z.string().nullable(), classificadosPorGrupo: integer.max(64).nullable(), melhoresClassificadosGerais: integer.max(64).nullable(),
     pontosVencedorMargem1: integer.nullable(), pontosPerdedorMargem1: integer.nullable(),
     pontosVencedorMargem2: integer.nullable(), pontosPerdedorMargem2: integer.nullable(),
+    woSetsVencedor: positive.max(5).nullable().optional(), woSetsPerdedor: integer.max(5).nullable().optional(),
+    woPontosSetVencedor: integer.max(99).nullable().optional(), woPontosSetPerdedor: integer.max(99).nullable().optional(),
+    woPunicaoPontos: integer.max(20).nullable().optional(),
   }).strict(),
   eliminatorias: z.object({
     faseEliminatoria: z.enum(['NENHUMA', 'FINAL', 'SEMIFINAL', 'QUARTAS', 'OITAVAS', 'DEZESSEIS_AVOS']).nullable(),
