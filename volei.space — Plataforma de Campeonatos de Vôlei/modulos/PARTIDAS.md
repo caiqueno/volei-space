@@ -12,6 +12,8 @@ updated: 2026-10-10
 ---
 # Partidas e calendário
 
+**Cargos de arbitragem — implementado, sem migration:** o calendário grava 1º árbitro, 2º árbitro, mesário e juiz de linha em `EscalaArbitro.cargo`. Cada cargo é uma linha. O mesmo árbitro não entra em dois jogos com horários a menos de 90 minutos. Sem data, a escala segue. Não há arquivo novo de migration.
+
 **Conflito de agenda — implementado, sem migration:** `PATCH /api/organizador/ligas/{id}/calendario` e o agendamento da vaga recusam o horário quando a equipe já tem outro jogo, a quadra já está ocupada, ou o dia não está em `diasDisponiveis`. A janela é de 90 minutos. Quadra vazia ou `A definir` não entra na conta. Jogo cancelado não bloqueia. Sem a coluna de dias, a conferência de equipe e quadra continua. Não há arquivo novo de migration.
 
 **Vaga a definir — implementado no código, migration pendente:** um jogo de mata-mata pode ir para a agenda pública e para o painel com a origem no lugar do nome da equipe. Data e quadra continuam no mesmo card. O link do juiz é o de `AcessoArbitroJogo` daquela partida e não é recriado quando o time entra. Sem `origemVagaA` e `origemVagaB`, a leitura não pede essas colunas e um jogo sem os dois times continua fora da lista. Ver [[modulos/MATA-MATA]].

@@ -97,6 +97,37 @@ function foraDoDia(dias: string[] | null | undefined, dia: string) {
   return !dias.some((item) => normalizar(item) === dia)
 }
 
+export const CARGOS_ARBITRAGEM = ['PRIMEIRO_ARBITRO', 'SEGUNDO_ARBITRO', 'MESARIO', 'JUIZ_DE_LINHA'] as const
+
+export type EscalaHorario = {
+  arbitroId: number
+  partidaId: number
+  dataHora?: string | null
+  status?: string | null
+}
+
+export function conflitosDeArbitro(escalas: EscalaHorario[]) {
+  const porArbitro = new Map<number, EscalaHorario[]>()
+  for (const escala of escalas) {
+    if (!escala.arbitroId || !escala.dataHora) continue
+    if (String(escala.status ?? '').toUpperCase() === 'CANCELADA') continue
+    const lista = porArbitro.get(escala.arbitroId) ?? []
+    lista.push(escala)
+    porArbitro.set(escala.arbitroId, lista)
+  }
+  for (const lista of Array.from(porArbitro.values())) {
+    for (let esquerda = 0; esquerda < lista.length; esquerda += 1) {
+      for (let direita = esquerda + 1; direita < lista.length; direita += 1) {
+        if (lista[esquerda].partidaId === lista[direita].partidaId) continue
+        const a = intervalo(String(lista[esquerda].dataHora))
+        const b = intervalo(String(lista[direita].dataHora))
+        if (a && b && cruza(a, b)) return ['O árbitro já está escalado em outro jogo nesse horário.']
+      }
+    }
+  }
+  return []
+}
+
 function equipesDe(jogo: JogoAgenda) {
   return [jogo.equipeAId, jogo.equipeBId].map(Number).filter((id) => Number.isInteger(id) && id > 0)
 }

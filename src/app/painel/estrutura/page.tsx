@@ -98,9 +98,19 @@ type CalendarDraft = {
   horario: string
   localNome: string
   mandanteId: string
-  arbitroId: string
+  primeiroArbitroId: string
+  segundoArbitroId: string
+  mesarioId: string
+  juizLinhaId: string
   status: string
 }
+
+const CARGOS_DA_ESCALA = [
+  { cargo: 'PRIMEIRO_ARBITRO', campo: 'primeiroArbitroId', rotulo: '1º árbitro' },
+  { cargo: 'SEGUNDO_ARBITRO', campo: 'segundoArbitroId', rotulo: '2º árbitro' },
+  { cargo: 'MESARIO', campo: 'mesarioId', rotulo: 'Mesário' },
+  { cargo: 'JUIZ_DE_LINHA', campo: 'juizLinhaId', rotulo: 'Juiz de linha' },
+] as const
 
 function EstruturaContent() {
   const searchParams = useSearchParams()
@@ -352,7 +362,10 @@ function EstruturaContent() {
             horario: draft?.horario || null,
             localNome: draft?.localNome || '',
             mandanteId: Number(draft?.mandanteId || partida.equipeAId),
-            arbitroId: draft?.arbitroId ? Number(draft.arbitroId) : null,
+            arbitros: CARGOS_DA_ESCALA.map((item) => ({
+              cargo: item.cargo,
+              arbitroId: draft?.[item.campo] ? Number(draft[item.campo]) : null,
+            })),
             status: draft?.status || partida.status,
           }
         }),
@@ -821,22 +834,24 @@ function EstruturaContent() {
                               <option value={partida.equipeBId}>{normalizarNomeEquipe(equipeB?.nome || 'Equipe B')}</option>
                             </select>
                           </label>
-                          <label className="grid gap-1">
-                            <span className="flex items-center gap-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-300">
-                              <ShieldCheck size={13} /> Árbitro
-                            </span>
-                            <select
-                              value={draft.arbitroId}
-                              disabled={locked}
-                              onChange={(event) => updateCalendarDraft(partida.id, 'arbitroId', event.target.value)}
-                              className="w-full rounded-xl border border-white/10 bg-[#102033] px-3 py-2 text-sm font-black text-white outline-none disabled:opacity-45"
-                            >
-                              <option value="">A definir</option>
-                              {arbitros.map((arbitro) => (
-                                <option key={arbitro.id} value={arbitro.arbitroId || ''}>{arbitro.nome}</option>
-                              ))}
-                            </select>
-                          </label>
+                          {CARGOS_DA_ESCALA.map((item) => (
+                            <label key={item.cargo} className="grid gap-1">
+                              <span className="flex items-center gap-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-300">
+                                <ShieldCheck size={13} /> {item.rotulo}
+                              </span>
+                              <select
+                                value={draft[item.campo]}
+                                disabled={locked}
+                                onChange={(event) => updateCalendarDraft(partida.id, item.campo, event.target.value)}
+                                className="w-full rounded-xl border border-white/10 bg-[#102033] px-3 py-2 text-sm font-black text-white outline-none disabled:opacity-45"
+                              >
+                                <option value="">A definir</option>
+                                {arbitros.map((arbitro) => (
+                                  <option key={arbitro.id} value={arbitro.arbitroId || ''}>{arbitro.nome}</option>
+                                ))}
+                              </select>
+                            </label>
+                          ))}
                           <label className="grid gap-1">
                             <span className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-300">Status</span>
                             <select
@@ -905,13 +920,19 @@ function buildCalendarDrafts(partidas: Partida[]) {
 function buildCalendarDraft(partida: Partida): CalendarDraft {
   const iso = dataHoraUtc(partida.dataHora)
   const date = iso ? new Date(iso) : null
-  const escala = partida.escala?.[0]
+  const doCargo = (cargo: string) => {
+    const escala = partida.escala?.find((item) => item.cargo === cargo)
+    return escala?.arbitroId ? String(escala.arbitroId) : ''
+  }
   return {
     data: date && !Number.isNaN(date.getTime()) ? formatDateInputInSaoPaulo(date) : '',
     horario: date && !Number.isNaN(date.getTime()) ? formatTimeInputInSaoPaulo(date) : '',
     localNome: partida.localNome || '',
     mandanteId: String(partida.equipeAId),
-    arbitroId: escala?.arbitroId ? String(escala.arbitroId) : '',
+    primeiroArbitroId: doCargo('PRIMEIRO_ARBITRO'),
+    segundoArbitroId: doCargo('SEGUNDO_ARBITRO'),
+    mesarioId: doCargo('MESARIO'),
+    juizLinhaId: doCargo('JUIZ_DE_LINHA'),
     status: String(partida.status || 'AGENDADA').toUpperCase(),
   }
 }

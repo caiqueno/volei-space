@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { conflitosDeAgenda, diaDoJogo, lerDiasDisponiveis } from '../src/lib/conflito-agenda'
+import { conflitosDeAgenda, conflitosDeArbitro, diaDoJogo, lerDiasDisponiveis } from '../src/lib/conflito-agenda'
 
 const sabado = '2026-10-10T20:00:00.000Z'
 const sabadoPerto = '2026-10-10T20:30:00.000Z'
@@ -69,4 +69,14 @@ assert.deepEqual(
   [],
 )
 
-console.log('Conflito de agenda passou: equipe, quadra, dia e jogo cancelado.')
+assert.deepEqual(conflitosDeArbitro([
+  { arbitroId: 7, partidaId: 1, dataHora: sabado },
+  { arbitroId: 7, partidaId: 2, dataHora: sabadoPerto },
+]), ['O árbitro já está escalado em outro jogo nesse horário.'])
+assert.deepEqual(conflitosDeArbitro([
+  { arbitroId: 7, partidaId: 1, dataHora: sabado },
+  { arbitroId: 7, partidaId: 1, dataHora: sabado },
+  { arbitroId: 8, partidaId: 2, dataHora: sabado },
+]), [])
+
+console.log('Conflito de agenda passou: equipe, quadra, dia, jogo cancelado e árbitro.')
