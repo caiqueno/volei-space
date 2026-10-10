@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  /painel/elenco tem seletor de campeonato. Corrigir o último ponto funciona depois de recarregar. A presença do árbitro deixa o upsert.
+  O mesmo atleta não entra em duas equipes da categoria. Documento, ou nome e nascimento. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
 
 Em 10 de outubro de 2026 `/painel/elenco` mostra o seletor de campeonato e abre o campeonato ativo do painel. Sem `ligaId` na consulta, entra o primeiro campeonato do organizador. Fonte: [[modulos/EQUIPES-E-ATLETAS]].
 

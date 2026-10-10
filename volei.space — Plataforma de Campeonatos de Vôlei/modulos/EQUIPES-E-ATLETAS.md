@@ -5,7 +5,7 @@ category: modulo
 tags: [equipes]
 sources: [repo:athrios/volei-space]
 summary: >-
-  /painel/elenco tem seletor de campeonato e abre o campeonato ativo do painel. O sexo do atleta continua opcional.
+  O mesmo atleta não entra em duas equipes da categoria. /painel/elenco escolhe o campeonato.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -14,7 +14,7 @@ updated: 2026-10-10
 
 **Elenco do painel — implementado:** `/painel/elenco` lista os campeonatos do organizador e abre o `ligaId` da consulta. Sem esse id, entra o primeiro campeonato que não é simulação. O seletor troca o campeonato e atualiza o endereço. A leitura continua em `GET /api/organizador/elenco`, restrita ao organizador da liga.
 
-**Implementado:** entidades `Equipe` e `Jogador` em `prisma/schema.prisma`; APIs de equipes/jogadores, foto, QR e inscrição em `src/app/api`. Categorias/séries aparecem na equipe e na configuração do campeonato. A página pública `/equipes/[slug]` lista os jogos pelos sets (`setsPorA`/`setsPorB`). `Jogador.sexo` e o sexo do rascunho nascem nulos. A inscrição só envia o campo quando a categoria tem gênero. Se a coluna não existir, a gravação repete sem ele.
+**Implementado:** o capitão, ao incluir ou editar atleta, recebe a mesma recusa da inscrição quando documento, ou nome e nascimento, já estão em outra equipe da categoria. Entidades `Equipe` e `Jogador` em `prisma/schema.prisma`; APIs de equipes/jogadores, foto, QR e inscrição em `src/app/api`. Categorias/séries aparecem na equipe e na configuração do campeonato. A página pública `/equipes/[slug]` lista os jogos pelos sets (`setsPorA`/`setsPorB`). `Jogador.sexo` e o sexo do rascunho nascem nulos. A inscrição só envia o campo quando a categoria tem gênero. Se a coluna não existir, a gravação repete sem ele.
 
 O nome da equipe é gravado em maiúsculas no servidor, com `normalizarNomeEquipe` (NFC, espaços colapsados, `pt-BR`). Entram criação e edição de equipe, rascunho e finalização da inscrição, candidatura, capitão, convite, vaga, webhook, simulação, massa de QA e a importação de times em `scripts/import-winners.mjs`. A função `finalizar_inscricao_equipe_rascunho` copia o nome do rascunho; o rascunho é atualizado antes da chamada. Não houve migration. Nome de atleta, árbitro e quadra não muda. Na tela, `NomeEquipe` e a classe `.nome-equipe` repetem a maiúscula. O slug continua em minúsculas.
 
