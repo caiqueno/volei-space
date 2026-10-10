@@ -5,15 +5,17 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Grupos e mata-mata gravam a categoria. A importação Winners usa o HTTP do app. A simulação chega ao campeão.
+  O +1 da súmula registra o ponto sem jogador. Grupos e mata-mata gravam a categoria. A importação Winners usa o HTTP do app.
 status: misto
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Hot
 
 ## Foco atual
+
+Na faixa de placar da súmula, cada equipe ficou com um único `+1`. Ele registra o ponto sem jogador: sem modal, sem `jogadorId` e com o histórico «Sem jogador». O modal de saque, bloqueio ou ataque saiu, porque só o `+1` antigo o abria. ACE, o toque no atleta, o bloqueio da rede e a quadra 3D continuam atribuindo o ponto. Tempos, desfazer, placar e rodízio não mudaram. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 A geração de grupos, o mata-mata e o calendário automático passam a gravar `categoriaCampeonatoId` e `serie` nula. Sem isso o gatilho recusa a partida. `Partida.atualizadoEm` ganha default `now()` na migration `202610090004_partida_atualizado_em_default.sql`, ainda não aplicada em produção. O prefixo `202610090001` continua sendo a revogação de EXECUTE. O `GET` da estrutura devolve `sumulaToken`. O script `scripts/import-winners.mjs` cria Winners Oficial, Winners Teste e Winner QA pelo HTTP do app: inscrição aprovada, grupos, súmula e mata-mata em jogo único. A confirmação simulada de pagamento sai da sessão de administrador, porque o organizador não confirma com o gateway desligado. No Winners Teste o campeão sai da final, e finalizar exige essa final e o 3º lugar. A tabela continua só com a fase de grupos. O script não foi executado neste merge. Fonte: [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 

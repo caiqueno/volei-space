@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Log
+
+## [2026-10-10] fix | um só +1 na pontuação da súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- O botão `+1` da faixa de placar passou a registrar o ponto sem jogador, no lugar do par `+1` / Sem jogador. ACE, tempos, desfazer, placar e rodízio ficam. O modal de origem e atleta saiu junto com o único caminho que o abria. Ataque no atleta, bloqueio na rede e ACE continuam atribuindo o ponto.
 
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 
@@ -34,7 +39,6 @@ updated: 2026-10-09
 
 - pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
 - A sessão de administrador passa a exigir `typ` e audiência `volei-admin`, além de `scope: admin` quando o campo existe. Recuperação, sessão pública e ativação têm audiência própria. O fingerprint do reset ganha o prefixo `volei-password-reset-v1`. O logout limpa o cookie com os mesmos atributos. A recuperação limita 5 pedidos por IP e 3 por e-mail a cada hora e continua respondendo 500 se o banco falhar. O webhook da main permanece: valor, vínculo com `Pagamento` e exceção de segredo só no `next dev` local. A massa de QA exige sessão de administrador. Quadras do organizador, colunas da súmula, máscara da inscrição rápida, lista fechada do PUT de partida e erros de liga entram neste lote. `ADMIN_EMAIL` continua obrigatório em produção e preview, e opcional no `next dev` local.
-
 ## [2026-10-09] fix | sessão, webhook e súmula
 
 - pages_updated=`07-SEGURANCA`, `modulos/PAGAMENTOS`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
