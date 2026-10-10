@@ -12,7 +12,7 @@ import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { mensagemSancaoInvalida } from '@/lib/sancoes'
 import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
 import { correcaoPeloLinkPermitida, limiteDeSubstituicoes, validarSubstituicoes } from '@/lib/sumula-regras'
-import { AndamentoSuperado, gravarSumulaComRestauracao, liberarAndamento, reservarAndamento } from '@/lib/sumula-gravacao'
+import { gravarSumulaComRestauracao } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
 import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
@@ -143,8 +143,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  let reservaId: number | null = null
-  let gravou = false
   try {
     if (demoSumulaLiberado(token)) {
       return success({ salva: true, oficial: false, modoTeste: true, status: 'EM_ANDAMENTO' })
@@ -163,8 +161,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     const parsed = sumulaSchema.safeParse(body)
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
 
-    reservaId = await reservarAndamento(partida.id)
-    const { presencas, sets, ocorrencias, destaques, versao } = parsed.data
+    const { presencas, sets, ocorrencias, destaques } = parsed.data
     const fonteAndamento = await carregarFonteDeSets(partida)
     const validationError = validateSumulaPayload(partida, parsed.data, {
       requireMinimumPresencas: false,
@@ -186,8 +183,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
       ocorrencias,
       destaques,
       arbitroId: access.candidatura.arbitroId,
-      versao,
-      reservaId,
       partida: {
         status: 'EM_ANDAMENTO',
         setsPorA: liveSummary.setsPorA,
@@ -196,7 +191,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
         pontosPorB: liveSummary.pontosPorB,
       },
     })
-    gravou = true
     await syncLeagueLifecycle(partida.ligaId)
     const setsMudaram = Number(partida.setsPorA ?? 0) !== liveSummary.setsPorA
       || Number(partida.setsPorB ?? 0) !== liveSummary.setsPorB
@@ -210,15 +204,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     }
     return success({ salva: true, oficial: false, status: 'EM_ANDAMENTO' })
   } catch (err) {
-    if (err instanceof AndamentoSuperado) return error(err.message, 409)
     console.error('[sumula] erro ao salvar andamento', err)
     return error('Erro ao salvar andamento da súmula', 500)
-  } finally {
-    if (reservaId != null && !gravou) {
-      await liberarAndamento(reservaId).catch((erro) => {
-        console.error('[sumula] falha ao liberar reserva de andamento', erro)
-      })
-    }
   }
 }
 

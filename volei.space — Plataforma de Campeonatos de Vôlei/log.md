@@ -13,11 +13,6 @@ updated: 2026-10-10
 
 # Log
 
-## [2026-10-10] fix | corrigir último ponto permanece
-
-- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
-- Na partida 1095 o `PUT` das 11:46:55 gravou 1x0 e o das 11:46:57 regravou 2x0. A função troca as ocorrências pelo corpo recebido. A tela envia a versão no registro e repete o estado mais novo. Versão menor ou reserva antiga responde 409 e o aviso aparece. Nenhuma migration.
-
 ## [2026-10-10] feat | líbero configurável
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

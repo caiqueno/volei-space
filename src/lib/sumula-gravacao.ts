@@ -1,6 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rpcAusente } from '@/lib/rpc-ausente'
-import { deveRecusarAndamento, lerVersaoRegistro, marcarVersaoRegistro } from '@/lib/versao-sumula'
 
 type Linha = Record<string, unknown>
 
@@ -11,39 +10,6 @@ type DestaqueEntrada = { tipo: string; jogadorId: number }
 
 const TABELAS = ['SetPartida', 'SumulaPresenca', 'OcorrenciaPartida', 'DestaquesPartida'] as const
 const TENTATIVAS_CHAVE_DUPLICADA = 48
-const TENTATIVAS_RESERVA = 5
-
-export class AndamentoSuperado extends Error {
-  constructor() {
-    super('Um salvamento mais recente já gravou esta súmula. Recarregue se o placar não bater.')
-    this.name = 'AndamentoSuperado'
-  }
-}
-
-/** Marca a ordem de chegada antes da validação lenta. O id maior é o pedido mais novo. */
-export async function reservarAndamento(partidaId: number) {
-  let ultimo: unknown
-  for (let tentativa = 0; tentativa < TENTATIVAS_RESERVA; tentativa += 1) {
-    const { data, error } = await supabase
-      .from('OcorrenciaPartida')
-      .insert({
-        partidaId,
-        tipo: 'OBSERVACAO',
-        descricao: `Registro de andamento ${new Date().toISOString()}`,
-      })
-      .select('id')
-      .single()
-    if (!error && data?.id != null) return Number(data.id)
-    ultimo = error
-    if (!erroDeChaveDuplicada(error)) throw error ?? ultimo
-  }
-  throw ultimo
-}
-
-export async function liberarAndamento(reservaId: number) {
-  const { error } = await supabase.from('OcorrenciaPartida').delete().eq('id', reservaId)
-  if (error) throw error
-}
 
 type ErroBanco = { code?: string; message?: string; details?: string } | null | undefined
 
@@ -61,71 +27,20 @@ export async function gravarSumulaComRestauracao(entrada: {
   destaques?: DestaqueEntrada[]
   arbitroId: number | null
   partida: Record<string, unknown>
-  versao?: number
-  reservaId?: number
 }) {
   const resumo = entrada.sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
-  const registroBase = `Registro de placar pelo árbitro ${entrada.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`
-  const registro = typeof entrada.versao === 'number' ? marcarVersaoRegistro(registroBase, entrada.versao) : registroBase
+  const registro = `Registro de placar pelo árbitro ${entrada.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`
   let ultimo: unknown
   for (let tentativa = 0; tentativa < TENTATIVAS_CHAVE_DUPLICADA; tentativa += 1) {
     try {
-      await conferirAndamentoAtual(entrada)
       await gravarUmaVez(entrada, registro)
       return
     } catch (err) {
       ultimo = err
-      if (err instanceof AndamentoSuperado) throw err
       if (!erroDeChaveDuplicada(err as ErroBanco)) throw err
     }
   }
   throw ultimo
-}
-
-async function conferirAndamentoAtual(entrada: { partidaId: number; versao?: number; reservaId?: number }) {
-  if (entrada.reservaId == null && typeof entrada.versao !== 'number') return
-  const [versaoGravada, reservaMaisNova] = await Promise.all([
-    typeof entrada.versao === 'number' ? lerVersaoGravada(entrada.partidaId) : Promise.resolve(null),
-    entrada.reservaId == null ? Promise.resolve(null) : idDaReservaMaisNova(entrada.partidaId),
-  ])
-  if (deveRecusarAndamento({
-    versaoCliente: entrada.versao,
-    versaoGravada,
-    reservaId: entrada.reservaId ?? null,
-    reservaMaisNova,
-  })) {
-    throw new AndamentoSuperado()
-  }
-}
-
-async function lerVersaoGravada(partidaId: number) {
-  const { data, error } = await supabase
-    .from('OcorrenciaPartida')
-    .select('descricao')
-    .eq('partidaId', partidaId)
-    .like('descricao', 'Registro de placar%')
-    .order('id', { ascending: false })
-    .limit(20)
-  if (error) throw error
-  let maior: number | null = null
-  for (const linha of data ?? []) {
-    const versao = lerVersaoRegistro(String(linha.descricao ?? ''))
-    if (versao != null && (maior == null || versao > maior)) maior = versao
-  }
-  return maior
-}
-
-async function idDaReservaMaisNova(partidaId: number) {
-  const { data, error } = await supabase
-    .from('OcorrenciaPartida')
-    .select('id')
-    .eq('partidaId', partidaId)
-    .like('descricao', 'Registro de andamento %')
-    .order('id', { ascending: false })
-    .limit(1)
-  if (error) throw error
-  const id = data?.[0]?.id
-  return id == null ? null : Number(id)
 }
 
 async function gravarUmaVez(entrada: {
