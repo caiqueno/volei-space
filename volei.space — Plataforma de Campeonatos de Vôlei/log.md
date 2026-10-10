@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | classificação geral de jogadores no ranking
+
+- pages_updated=`modulos/SCOUTS`, `05-MODULOS`, `hot`, `log`
+- `/rankings` lista todos os atletas por ataque, bloqueio e saque da súmula, com releitura a cada 12 segundos na aba visível. Sem migration, sem Realtime novo e sem merge.
+
 ## [2026-10-10] fix | seletor de líbero usa a camisa da súmula
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`, `12-BUGS-E-DEBITOS-TECNICOS`

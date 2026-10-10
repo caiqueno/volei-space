@@ -4,6 +4,7 @@ const rotasPublicas = [
   '/api/portal/classificacao',
   '/api/portal/jogos',
   '/api/portal/rankings',
+  '/api/portal/rankings/jogadores',
   '/api/categorias',
 ]
 

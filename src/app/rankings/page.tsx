@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export const metadata = createPageMetadata({
   title: 'Rankings de vôlei',
-  description: 'MVP do campeonato, pelo atleta com mais pontos de saque, ataque e bloqueio.',
+  description: 'Classificação geral dos atletas por ataque, bloqueio e saque da súmula, atualizada durante o campeonato.',
   path: '/rankings',
 })
 
@@ -26,7 +26,7 @@ export default async function RankingsPage({ searchParams }: PageProps) {
         modulo="rankings"
         kicker="Rankings"
         titulo="Campeonatos"
-        descricao="No campeonato concluído, o MVP é quem somou mais pontos de saque, ataque e bloqueio."
+        descricao="A classificação geral lista todos os atletas, pelos pontos de ataque, bloqueio e saque da súmula. O MVP aparece quando o campeonato termina."
         vazioLista="Nenhum ranking disponível"
       />
     </main>

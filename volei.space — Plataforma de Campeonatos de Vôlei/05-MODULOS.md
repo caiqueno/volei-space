@@ -8,7 +8,7 @@ summary: >-
   Inventário funcional.
 status: misto
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-10-10
 ---
 # Índice de módulos
 
@@ -20,7 +20,7 @@ updated: 2026-09-25
 | Partidas e calendário | [[modulos/PARTIDAS]] | `src/app/api/partidas` |
 | Súmula digital | [[modulos/SUMULA-DIGITAL]] | `src/app/api/sumula` |
 | Classificação | [[modulos/CLASSIFICACAO]] | `recalcular_classificacao_liga` |
-| Scouts e rankings | [[modulos/SCOUTS]] | `src/lib/player-scouts.ts` |
+| Scouts e rankings | [[modulos/SCOUTS]] | `src/lib/player-scouts.ts`, `src/lib/classificacao-jogadores.ts` |
 | Grupos | [[modulos/GRUPOS]] | `src/app/api/organizador/ligas/[id]/estrutura` |
 | Mata-mata | [[modulos/MATA-MATA]] | `src/lib/mata-mata.ts` |
 | Preço e pagamentos | [[modulos/PAGAMENTOS]] | `src/lib/pricing` |

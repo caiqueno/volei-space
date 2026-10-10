@@ -5,17 +5,19 @@ category: modulo
 tags: [scouts]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Registro de scouts.
+  A classificação geral de atletas soma ataque, bloqueio e saque da súmula e relê a cada 12 segundos.
 status: misto
 created: 2026-09-20
-updated: 2026-09-25
+updated: 2026-10-10
 ---
 # Scouts e rankings
 
-**Implementado:** ocorrências da partida e cálculo de scouts em `src/lib/player-scouts.ts`; rankings públicos em `src/app/api/rankings` e `src/app/rankings`. Estatística do campeonato acumula partidas consideradas oficiais; estatística do MVP no resumo usa apenas **a partida atual**.
+**Classificação geral de jogadores — implementado, sem migration:** em `/rankings`, na área pública e no painel do organizador (o menu Rankings abre a mesma página), a tabela lista todos os atletas da categoria, inclusive com zero. Não separa por grupo nem por equipe. Colunas: posição, nome, equipe, ataque, bloqueio, saque e total. Se a súmula gravar um `point` ou `ponto` com atleta, entra a coluna Ponto. O clique no cabeçalho reordena na tela; a posição continua sendo a do ranking. A ordem oficial é total, depois ataque, bloqueio, saque e nome. A leitura é `GET /api/portal/rankings/jogadores`. Ela só conta ocorrência de campeonato que ainda existe, ignora descrição de lance desfeito, anulado ou excluído, ignora «Registro de » e ignora ponto sem jogador. Cartão, tempo, substituição, lesão, anotação e troca de camisa não entram. A aba visível relê a cada 12 segundos, com `Cache-Control: private, no-store`. O processo guarda a leitura por 8 segundos para várias abas não repetirem a consulta. `OcorrenciaPartida` não está na publicação `supabase_realtime`; a tela não abre canal novo. O MVP do campeonato concluído continua no cartão de cima.
+
+**Implementado:** ocorrências da partida e cálculo de scouts em `src/lib/player-scouts.ts`; rankings de votos em `src/app/api/rankings` e a página `src/app/rankings`. Estatística do campeonato acumula partidas consideradas oficiais; estatística do MVP no resumo usa apenas **a partida atual**.
 
 **Aprovado, pendente:** sugerir MVP somente entre jogadores da vencedora por total de pontos de ataques, bloqueios e aces naquela partida; empate por aces, bloqueios e ataques. A escolha final pode ser manual, sempre na vencedora. Corrigir ocorrência ou MVP exige atualização dos rankings e do resumo.
 
 Confirme identificação por `jogadorId`; descrições e números de camisa não devem substituir vínculo inequívoco quando disponível. Ver [[modulos/SUMULA-DIGITAL]].
 
-**Categorias — aprovado, pendente:** scouts, rankings e destaques acumulados devem ser consultados e recalculados por `CategoriaCampeonato`, usando `categoriaCampeonatoId` sempre que aplicável. A escolha do MVP da partida segue a súmula, enquanto rankings de categorias diferentes não se misturam. O escopo textual atual precisa de migração. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
+**Categorias — a classificação geral filtra no aplicativo; o recálculo SQL antigo segue pendente:** a tabela nova lê `categoriaCampeonatoId` da equipe e da partida e não junta atletas de categorias diferentes. Não há função SQL nova. Rankings de votos e o texto antigo de escopo continuam como estavam. Ver [[references/CATEGORIAS-COMO-COMPETICOES]].
