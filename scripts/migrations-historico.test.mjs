@@ -28,12 +28,32 @@ function sqlSemComentario(source) {
 }
 
 const fechamento = '202610060005'
+const leituraRealtime = '20261010141000_leitura_publica_sets_classificacao.sql'
 for (const name of files) {
   if (versionOf(name) <= fechamento) continue
+  if (name === leituraRealtime) continue
   const sql = sqlSemComentario(fs.readFileSync(path.join(dir, name), 'utf8'))
   assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+anon\b/i, `${name} concede a anon depois do fechamento`)
   assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+authenticated\b/i, `${name} concede a authenticated depois do fechamento`)
 }
+
+const arquivoWo = '20261010139000_wo_configuravel.sql'
+const arquivoSancoes = '20261010139500_sancoes_suspensao.sql'
+assert.ok(files.includes(arquivoWo), 'migration do W.O. ausente')
+assert.ok(files.includes(arquivoSancoes), 'migration de sanções ausente')
+assert.equal(files.some((name) => name.startsWith('20261010150000')), false)
+const ordem = [arquivoWo, arquivoSancoes, '20261010140000_habilitar_rls_tabelas_publicas.sql', leituraRealtime].map((name) => files.indexOf(name))
+assert.ok(ordem.every((index) => index >= 0))
+assert.deepEqual(ordem, [...ordem].sort((a, b) => a - b))
+
+const leituraSql = sqlSemComentario(fs.readFileSync(path.join(dir, leituraRealtime), 'utf8'))
+const concessoesLeitura = [...leituraSql.matchAll(/grant\s+[^;']+/gi)].map((match) => match[0].replace(/\s+/g, ' ').trim())
+assert.deepEqual(concessoesLeitura, [
+  'grant select on table public."SetPartida" to anon, authenticated',
+  'grant select on table public."ClassificacaoEntrada" to anon, authenticated',
+])
+assert.doesNotMatch(leituraSql, /sumulaToken/)
+assert.doesNotMatch(leituraSql, /grant\s[^;]*\bon\s+(?:table\s+)?(?:public\.)?"Partida"/i)
 
 const placar = fs.readFileSync(path.join(dir, '202610100002_fechar_leitura_publica_placar.sql'), 'utf8')
 assert.match(placar, /enable row level security/i)

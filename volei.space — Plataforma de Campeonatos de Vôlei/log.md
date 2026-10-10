@@ -19,6 +19,16 @@ updated: 2026-10-10
 - Gênero e faixa de idade nascem vazios. A conferência só roda quando a categoria e o atleta têm o dado. Sem a coluna, a regra fica desligada. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes da migration de RLS.
 - Leitura do projeto `mqbkwbqpnhsqaemavive`: W.O., sets por fase, formulário, `punicoes` e as funções usadas pela súmula, pela inscrição e pela classificação já estão no schema. `SuspensaoAtleta` e as colunas de gênero, idade e sexo não estão.
 
+## [2026-10-10] fix | menu do painel não cobre a página
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- A faixa inferior do painel ficava visível a partir de 1024px, empilhava os itens e punha Sair ao lado de Elenco, por cima do conteúdo. Agora ela só aparece abaixo de 1024px, numa linha. Sair fecha a lista, abaixo de Rankings. Em tela baixa a guia rola por dentro.
+
+## [2026-10-10] fix | leitura ao vivo de sets e classificação
+
+- pages_updated=`06-BANCO-DE-DADOS`, `07-SEGURANCA`, `hot`, `log`
+- `20261010141000_leitura_publica_sets_classificacao.sql` devolve só o `SELECT` de `SetPartida` e `ClassificacaoEntrada` a `anon` e `authenticated`, com policy de leitura, `replica identity full` e publicação no Realtime se faltar. Não abre escrita nem `Partida.sumulaToken`. O W.O. é `20261010139000`. `20261010139500` fica entre o W.O. e a RLS. Não foi aplicada. As duas de RLS entram juntas, a `140000` e em seguida esta.
+
 ## [2026-10-10] feat | cartões e sanções
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`

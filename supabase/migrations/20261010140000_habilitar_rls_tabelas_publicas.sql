@@ -23,13 +23,17 @@
 -- Leituras e escritas do produto passam por service_role, que ignora RLS.
 -- Não há FORCE ROW LEVEL SECURITY e este arquivo não altera service_role.
 --
--- Policy nova: só public_read_partidas, e só se ela ainda não existir, para
--- o SELECT de colunas de placar de Partida (202610060004, sem sumulaToken)
--- continuar valendo quando o RLS liga. SetPartida e ClassificacaoEntrada não
--- ganham policy: a migration 202610100002 é quem remove as policies USING
--- (true) delas. Aqui o anon e o authenticated perdem o privilégio de tabela
--- em tudo que não é Partida, então essa leitura não fica esperando a 002.
--- O GRANT de colunas de Partida não é revogado nem recriado.
+-- Policy nova neste arquivo: só public_read_partidas, e só se ela ainda não
+-- existir, para o SELECT de colunas de placar de Partida (202610060004, sem
+-- sumulaToken) continuar valendo quando o RLS liga. Esse privilégio de
+-- colunas não é revogado nem recriado. anon e authenticated perdem o
+-- privilégio de tabela em tudo que não é Partida.
+-- SetPartida e ClassificacaoEntrada não ganham policy aqui. A leitura delas
+-- volta em 20261010141000, que precisa entrar no mesmo passo, depois deste.
+-- Sem esse arquivo o Realtime de sets e da classificação para.
+-- 20261010139000_wo_configuravel.sql entra antes deste arquivo.
+-- 20261010139500_sancoes_suspensao.sql fica entre o W.O. e este arquivo.
+-- O prefixo 20261010150000 saiu. O W.O. e a suspensão não concedem leitura a anon.
 
 do $rls$
 declare
