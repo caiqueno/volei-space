@@ -5,7 +5,7 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A chave pode nascer com vaga a definir. 20261010142000 não foi aplicada; sem as colunas a função fica desligada.
+  O método de chaveamento monta a primeira rodada. Manual não pareia essa rodada. Sem a coluna, o cruzamento atual continua.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -18,7 +18,9 @@ updated: 2026-10-10
 
 **Pódio público — implementado:** `/portal?ligaId=` e `/classificacao` mostram pódio, resultado da final, resultado do 3º lugar e a chave quando a categoria tem mata-mata. O pódio aparece assim que a final tem vencedor, mesmo com o campeonato ainda ativo. A tabela de pontos continua só com `GERAL` e `GRUPOS`. Campeonato de teste ou simulação não entra nessa API.
 
-**Chave automática — implementado:** em `/fase-mata-mata`, o organizador dispara uma vez `POST /api/organizador/ligas/{id}/mata-mata/gerar`. Dois ou mais grupos com pelo menos dois classificados cruzam grupos vizinhos: 1º do primeiro × 2º do segundo e 1º do segundo × 2º do primeiro. Sem esse par de grupos, a vaga segue a classificação única: 1º × último e 2º × penúltimo. A final usa os vencedores das semifinais; o 3º lugar, quando a disputa está ligada, usa os perdedores. Slot de fase e rodada já ocupado não é reescrito. Cada grupo é ordenado por `calcularClassificacao` só com os jogos `GERAL` e `GRUPOS` daquelas equipes, e o empate em pontos usa confronto direto. O limite sai de `GrupoCampeonato.classificados`, depois da configuração, e cai em 2. Não há migration.
+**Método de chaveamento — implementado, sem migration:** `POST .../mata-mata/gerar` lê `metodoChaveamento` da categoria e, sem categoria, da liga. Cruzamento de grupos continua 1º A × 2º B e 1º B × 2º A. Ranking geral ordena os classificados pelos jogos de grupo e faz 1º × último. Sorteio embaralha esses classificados e pareia vizinhos. Manual não cria a primeira rodada; final e 3º lugar ainda saem dos jogos já decididos. Sem o método, ou se a coluna não existir, o gerador repete o cruzamento atual e a leitura da fase não falha. A coluna já existia com padrão `MANUAL`. Não há arquivo novo de migration.
+
+**Chave automática — implementado:** em `/fase-mata-mata`, o organizador dispara uma vez `POST /api/organizador/ligas/{id}/mata-mata/gerar`. Com cruzamento de grupos, ou quando o método não vem na leitura, dois ou mais grupos com pelo menos dois classificados cruzam grupos vizinhos: 1º do primeiro × 2º do segundo e 1º do segundo × 2º do primeiro. Sem esse par de grupos, a vaga segue a classificação única: 1º × último e 2º × penúltimo. A final usa os vencedores das semifinais; o 3º lugar, quando a disputa está ligada, usa os perdedores. Slot de fase e rodada já ocupado não é reescrito. Cada grupo é ordenado por `calcularClassificacao` só com os jogos `GERAL` e `GRUPOS` daquelas equipes, e o empate em pontos usa confronto direto. O limite sai de `GrupoCampeonato.classificados`, depois da configuração, e cai em 2. Não há migration.
 
 **Contraste da chave — implementado:** os cartões claros de confronto usam a classe `chave-confronto`. O texto interno fica `#0f172a`, acima da regra que clareia `span` em `main.luva-shell`. A marca colorida da equipe continua fora dessa troca.
 

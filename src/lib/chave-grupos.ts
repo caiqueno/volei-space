@@ -60,6 +60,57 @@ export function chavePorPosicao(ordenados: number[]) {
   return jogos
 }
 
+const METODOS = new Set(['RANKING_GERAL', 'CRUZAMENTO_GRUPOS', 'SORTEIO', 'MANUAL'])
+
+export function metodoChaveamentoInformado(valor: unknown) {
+  return typeof valor === 'string' && METODOS.has(valor) ? valor : undefined
+}
+
+function equipesClassificadas(grupos: GrupoRanqueado[]) {
+  return [...grupos]
+    .sort((a, b) => a.ordem - b.ordem || a.id - b.id)
+    .flatMap((grupo) => grupo.classificados.map(Number))
+    .filter((id, indice, todos) => Number.isInteger(id) && todos.indexOf(id) === indice)
+}
+
+function embaralharAleatorio(ids: number[]) {
+  const lista = [...ids]
+  for (let indice = lista.length - 1; indice > 0; indice -= 1) {
+    const destino = Math.floor(Math.random() * (indice + 1))
+    const atual = lista[indice]
+    lista[indice] = lista[destino]
+    lista[destino] = atual
+  }
+  return lista
+}
+
+function parearEmSequencia(lista: number[]) {
+  if (lista.length < 2 || lista.length % 2 !== 0) return []
+  const jogos: Array<{ rodada: number; equipeAId: number; equipeBId: number }> = []
+  for (let indice = 0; indice < lista.length; indice += 2) {
+    jogos.push({ rodada: indice / 2 + 1, equipeAId: lista[indice], equipeBId: lista[indice + 1] })
+  }
+  return jogos
+}
+
+export function jogosDaPrimeiraRodada(input: {
+  grupos: GrupoRanqueado[]
+  metodo?: string | null
+  ranking?: number[]
+  embaralhar?: (ids: number[]) => number[]
+}) {
+  if (input.metodo === 'MANUAL') return []
+  if (input.metodo === 'RANKING_GERAL') {
+    const sementes = input.ranking?.length ? input.ranking : equipesClassificadas(input.grupos)
+    return chavePorPosicao(sementes)
+  }
+  if (input.metodo === 'SORTEIO') {
+    const sementes = equipesClassificadas(input.grupos)
+    return parearEmSequencia((input.embaralhar ?? embaralharAleatorio)(sementes))
+  }
+  return cruzarGrupos(input.grupos)
+}
+
 export function montarConfrontosAutomaticos(input: {
   grupos: GrupoRanqueado[]
   faseInicial: string
@@ -67,12 +118,15 @@ export function montarConfrontosAutomaticos(input: {
   disputaTerceiro: boolean
   existentes: Array<{ fase: string; rodada: number }>
   partidas: PartidaChave[]
+  metodo?: string | null
+  ranking?: number[]
+  embaralhar?: (ids: number[]) => number[]
 }): ConfrontoChave[] {
   const ocupado = (fase: string, rodada: number) => input.existentes.some((item) => item.fase === fase && Number(item.rodada) === rodada)
   const criados: ConfrontoChave[] = []
   const primeira = input.rounds[0]
   if (primeira && primeira.fase === input.faseInicial) {
-    for (const jogo of cruzarGrupos(input.grupos)) {
+    for (const jogo of jogosDaPrimeiraRodada(input)) {
       if (jogo.rodada > primeira.slots || ocupado(primeira.fase, jogo.rodada)) continue
       if (jogo.equipeAId === jogo.equipeBId) continue
       criados.push({ fase: primeira.fase, ...jogo })

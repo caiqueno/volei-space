@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | método de chaveamento
+
+- pages_updated=`modulos/MATA-MATA`, `hot`, `log`
+- A primeira rodada segue ranking geral, cruzamento de grupos, sorteio ou manual. Manual não pareia essa rodada. Sem a coluna, o gerador mantém o cruzamento atual. Sem migration.
+
 ## [2026-10-10] feat | média de sets e média de pontos
 
 - pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
