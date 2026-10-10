@@ -9,6 +9,7 @@ import { numeroMvpDaLista } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+import { reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
@@ -260,7 +261,7 @@ export default function SumulaPage() {
         setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setValidatedB(teamB.players.concat(teamB.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
         setMatchNumberOverrides(numerosDaPartida)
-        setEvents(savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => {
+        const eventosRestaurados = savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => {
           const salvo = partirDescricaoSalva(String(o.descricao ?? 'Ocorrência registrada'))
           const jogadorId = o.jogadorId ?? undefined
           return {
@@ -273,6 +274,16 @@ export default function SumulaPage() {
             teamId: equipeDoJogador(teamA, teamB, jogadorId) ?? equipeMencionada(salvo.text, teamA, teamB),
             jogadorId,
           }
+        })
+        setEvents(eventosRestaurados)
+        setScoreHistory(reconstruirHistoricoPontos({
+          eventos: eventosRestaurados,
+          setAtual: restored.currentSet,
+          saqueAtual: savedRotation?.servingTeamId ?? restoredInitialServerBySet[restored.currentSet] ?? 'teamA',
+          escalacaoA: initialLineupA,
+          escalacaoB: initialLineupB,
+          nomeA: teamA.name,
+          nomeB: teamB.name,
         }))
         if (!ativo) return
         setLoading(false)

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O mata-mata agenda vaga a definir no mesmo jogo e no mesmo link do juiz. 20261010142000 não foi aplicada; sem as colunas a função fica desligada. A presença do árbitro deixa o upsert. Gênero e idade da categoria seguem opcionais em 20261010139700, ainda sem aplicar.
+  O mata-mata agenda vaga a definir no mesmo jogo e no mesmo link do juiz. 20261010142000 não foi aplicada; sem as colunas a função fica desligada. Corrigir o último ponto volta a funcionar depois de recarregar a súmula. A presença do árbitro deixa o upsert. Gênero e idade da categoria seguem opcionais em 20261010139700, ainda sem aplicar.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,8 @@ updated: 2026-10-10
 ## Foco atual
 
 Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` não foi aplicada. Sem as colunas, a leitura não as pede e nada disso aparece. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 corrigir o último ponto continua valendo depois de recarregar a súmula. O histórico do set em andamento é refeito pelos eventos gravados. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a confirmação de atleta deixa de usar `upsert` em `SumulaPresenca`. Produção só tem chave primária em `id`, sem `default`, e a sequence existe sem estar ligada à coluna. O PostgREST respondia 400 (`42P10`) e a rota devolvia 500. `updatedAt` e `tokenSumula` não são colunas desta gravação. Nenhuma migration foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
