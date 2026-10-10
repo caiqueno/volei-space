@@ -16,10 +16,14 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
+import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
+import { escolherCategoria } from '@/lib/isolamento-categoria'
 import mi from '@/styles/microinteracoes.module.css'
 
 type PageProps = {
   params: Promise<{ slug: string }>
+  searchParams?: Promise<{ categoria?: string }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -48,9 +52,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   })
 }
 
-export default async function CampeonatoPage({ params }: PageProps) {
+export default async function CampeonatoPage({ params, searchParams }: PageProps) {
   noStore()
   const { slug } = await params
+  const consulta = searchParams ? await searchParams : {}
 
   if (!isSupabaseConfigured) {
     return (
@@ -75,20 +80,28 @@ export default async function CampeonatoPage({ params }: PageProps) {
   }
 
   const finalizado = isCampeonatoFinalizado(liga.status)
-  const faseChave = await faseDaChave(liga.id, liga.faseEliminatoria)
+  const listaCategorias = await listarCategoriasDoCampeonato(liga.id)
+  const categoriaId = escolherCategoria(consulta.categoria, listaCategorias.categorias)
+  const faseChave = await faseDaChave(liga.id, liga.faseEliminatoria, categoriaId)
   const chaveVazia = { rounds: [] as BracketRoundView[], champion: null as TeamOption | null, thirdPlace: null as BracketSlot | null }
+  let jogosConsulta = supabase.from('Partida').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id)
+  if (categoriaId) jogosConsulta = jogosConsulta.eq('categoriaCampeonatoId', categoriaId)
+  let equipesConsulta = supabase
+    .from('InscricaoCampeonato')
+    .select('id,status,equipe:Equipe!inner(id,nome,slug,categoria,serie,categoriaCampeonatoId)')
+    .eq('ligaId', liga.id)
+    .eq('status', 'APROVADA')
+    .order('criadaEm', { ascending: true })
+  if (categoriaId) equipesConsulta = equipesConsulta.eq('equipe.categoriaCampeonatoId', categoriaId)
   const [{ count: equipesCount }, { count: jogosCount }, { data: equipesConfirmadas }, bracket, podium] = await Promise.all([
     supabase.from('InscricaoCampeonato').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id).eq('status', 'APROVADA'),
-    supabase.from('Partida').select('*', { count: 'exact', head: true }).eq('ligaId', liga.id),
-    supabase
-      .from('InscricaoCampeonato')
-      .select('id,status,equipe:Equipe(id,nome,slug,categoria,serie)')
-      .eq('ligaId', liga.id)
-      .eq('status', 'APROVADA')
-      .order('criadaEm', { ascending: true }),
-    faseChave ? getMataMataBracket(liga.id, faseChave, false) : Promise.resolve(chaveVazia),
-    finalizado ? getChampionshipPodium(liga.id) : Promise.resolve([] as PodiumTeam[]),
+    jogosConsulta,
+    equipesConsulta,
+    faseChave ? getMataMataBracket(liga.id, faseChave, false, categoriaId) : Promise.resolve(chaveVazia),
+    finalizado ? getChampionshipPodium(liga.id, categoriaId) : Promise.resolve([] as PodiumTeam[]),
   ])
+  const aprovadasNaCategoria = equipesConfirmadas?.length ?? 0
+  const sufixoCategoria = categoriaId ? `&categoria=${encodeURIComponent(categoriaId)}` : ''
   const vagasLimite = liga.quantidadeEquipes ?? null
   const vagasDisponiveis = vagasLimite ? Math.max(vagasLimite - (equipesCount ?? 0), 0) : null
   const inscricoesAbertas = !finalizado && liga.inscricoesAbertas !== false && (vagasDisponiveis === null || vagasDisponiveis > 0)
@@ -113,10 +126,18 @@ export default async function CampeonatoPage({ params }: PageProps) {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-4 pt-8">
+        <LinksCategoriaPublica
+          categorias={listaCategorias.categorias}
+          atual={categoriaId}
+          href={(id) => `/campeonatos/${encodeURIComponent(slug)}?categoria=${encodeURIComponent(id)}`}
+        />
+      </section>
+
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-8 md:grid-cols-4">
         <InfoCard icon={<UsersRound size={22} />} label="Equipes previstas" value={liga.quantidadeEquipes ?? '-'} atraso="0ms" />
         <InfoCard icon={<Trophy size={22} />} label="Formato" value={formatLigaFormato(liga.formato)} atraso="40ms" />
-        <InfoCard icon={<UsersRound size={22} />} label="Equipes aprovadas" value={equipesCount ?? 0} atraso="80ms" />
+        <InfoCard icon={<UsersRound size={22} />} label={categoriaId ? 'Equipes nesta categoria' : 'Equipes aprovadas'} value={categoriaId ? aprovadasNaCategoria : equipesCount ?? 0} atraso="80ms" />
         <InfoCard icon={<CalendarDays size={22} />} label="Jogos" value={jogosCount ?? 0} atraso="120ms" />
       </section>
 
@@ -200,10 +221,10 @@ export default async function CampeonatoPage({ params }: PageProps) {
             Use os atalhos abaixo para ver somente dados deste campeonato.
           </p>
           <div className="mt-5 grid gap-3">
-            <Link href={`/portal?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Portal</Link>
-            <Link href={`/jogos?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Jogos</Link>
-            <Link href={`/classificacao?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Classificação</Link>
-            <Link href={`/rankings?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Rankings</Link>
+            <Link href={`/portal?ligaId=${liga.id}${sufixoCategoria}`} className={`creator-mini-action justify-center ${mi.toque}`}>Portal</Link>
+            <Link href={`/jogos?ligaId=${liga.id}${sufixoCategoria}`} className={`creator-mini-action justify-center ${mi.toque}`}>Jogos</Link>
+            <Link href={`/classificacao?ligaId=${liga.id}${sufixoCategoria}`} className={`creator-mini-action justify-center ${mi.toque}`}>Classificação</Link>
+            <Link href={`/rankings?ligaId=${liga.id}${sufixoCategoria}`} className={`creator-mini-action justify-center ${mi.toque}`}>Rankings</Link>
             <Link href={`/galeria?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Galeria <ArrowRight size={16} /></Link>
           </div>
         </article>
@@ -214,10 +235,22 @@ export default async function CampeonatoPage({ params }: PageProps) {
 
 const FASES_DA_CHAVE = ['DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMIFINAL', 'FINAL']
 
-async function faseDaChave(ligaId: number, faseEliminatoria?: string | null) {
+async function faseDaChave(ligaId: number, faseEliminatoria?: string | null, categoriaId?: string | null) {
+  if (categoriaId) {
+    const { data: config } = await supabase
+      .from('CategoriaConfiguracao')
+      .select('faseEliminatoria')
+      .eq('ligaId', ligaId)
+      .eq('categoriaCampeonatoId', categoriaId)
+      .maybeSingle()
+    const daCategoria = String(config?.faseEliminatoria ?? '').trim().toUpperCase()
+    if (daCategoria && daCategoria !== 'NENHUMA') return daCategoria
+  }
   const configurada = String(faseEliminatoria ?? '').trim().toUpperCase()
-  if (configurada && configurada !== 'NENHUMA') return configurada
-  const { data } = await supabase.from('Partida').select('fase').eq('ligaId', ligaId).in('fase', FASES_DA_CHAVE)
+  if (!categoriaId && configurada && configurada !== 'NENHUMA') return configurada
+  let partidas = supabase.from('Partida').select('fase').eq('ligaId', ligaId).in('fase', FASES_DA_CHAVE)
+  if (categoriaId) partidas = partidas.eq('categoriaCampeonatoId', categoriaId)
+  const { data } = await partidas
   const presentes = new Set((data ?? []).map((partida) => String(partida.fase ?? '')))
   return FASES_DA_CHAVE.find((fase) => presentes.has(fase)) ?? null
 }

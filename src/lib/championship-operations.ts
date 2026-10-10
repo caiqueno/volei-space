@@ -1,6 +1,7 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { partidaEncerrada } from '@/lib/classificacao'
 import { resolveLeagueLifecycleStatus } from '@/lib/championship-lifecycle'
+import { gruposDeConfronto } from '@/lib/isolamento-categoria'
 import { gerarSumulaToken } from '@/lib/sumula-token'
 
 type LigaRecord = {
@@ -55,7 +56,9 @@ export async function ensureClassificationAndCalendar(inscricao: InscricaoWithRe
   const approved = await getApprovedTeams(liga.id)
   await ensureClassificationEntries(liga.id, approved)
   if (!liga.quantidadeGrupos || Number(liga.quantidadeGrupos) <= 1) {
-    await ensureSchedule(liga, approved)
+    for (const grupo of gruposDeConfronto(approved)) {
+      await ensureSchedule(liga, grupo)
+    }
   }
 }
 

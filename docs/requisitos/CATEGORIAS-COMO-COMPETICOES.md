@@ -1,6 +1,6 @@
 # Requisito aprovado: categorias como competições isoladas
 
-**Estado:** decisão de produto aprovada em 21/09/2026; implementação e migração pendentes. Este documento define a arquitetura-alvo, não descreve uma funcionalidade já entregue. A entidade `CategoriaCampeonato` e a chave `categoriaCampeonatoId` são nomes provisórios do modelo desejado; não presuma que já existam no banco ou no código.
+**Estado:** decisão de produto aprovada em 21/09/2026. A entidade `CategoriaCampeonato` e a chave `categoriaCampeonatoId` já existem no código e no schema. Em 10/10/2026 o aplicativo passou a isolar geração de grupos, calendário e chave, e as leituras de portal, tabela, jogos, ranking e pódio, por uma categoria. Isso não conclui o requisito inteiro: funções SQL de recálculo, convites e o restante do cadastro continuam como estavam, e este texto não descreve migration nova.
 
 ## Modelo e parametrização
 
@@ -19,9 +19,9 @@ Convites e inscrições devem ser vinculados no servidor ao par `ligaId` + `cate
 
 ## Estado atual e migração
 
-**Implementado atualmente:** o schema contém `Liga.categoriasConfig` e campos textuais de categoria em entidades como `Equipe` e `Partida`. Esse modelo baseado em strings pode misturar categorias nas operações e precisa ser migrado. A existência desses campos não comprova isolamento competitivo.
+**Implementado atualmente:** `CategoriaCampeonato` persiste a categoria. Gerar grupos ou calendário em `POST /api/organizador/ligas/[id]/estrutura` e `PATCH .../calendario` exige uma categoria e apaga só os grupos e jogos de grupos dessa categoria. A chave em `POST .../mata-mata` e a leitura de `getMataMataBracket` usam a categoria dos times e a `CategoriaConfiguracao`. Portal, classificação, jogos, ranking e pódio filtram por `categoriaCampeonatoId` (a URL pública também aceita `categoria`). Campeonato sem categoria nas equipes continua legado e a geração responde 422, sem apagar o campeonato inteiro. Nenhuma migration nova entrou com esse isolamento.
 
-**Aprovado, pendente:** criar e persistir as categorias como entidades, relacionar os dados operacionais por `categoriaCampeonatoId`, adaptar as consultas e validar a consistência dos vínculos. Registros antigos podem ser preservados para compatibilidade durante a migração, mas valores legados não podem aparecer nem atuar como regra nos novos fluxos. A migração exige plano explícito para dados existentes e verificação após aplicação; este documento não declara nenhuma mudança de banco concluída.
+**Aprovado, pendente:** o restante do requisito — convite imutável, recálculo SQL por categoria e o fim dos escritores da série antiga — não faz parte dessa entrega. Registros antigos podem ser preservados, mas valores legados não podem aparecer nem atuar como regra nos novos fluxos. Este documento não declara mudança de banco.
 
 **Legado LUVA:** volei.space não utiliza séries. `OURO` e `PRATA` são valores históricos da LUVA e não podem substituir categorias. Não exibir série, Ouro ou Prata em interfaces novas nem usá-los para segmentar competições novas.
 

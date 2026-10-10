@@ -7,6 +7,9 @@ import { CreatorEmptyState, LeagueScopeBar } from '@/components/organizador/Leag
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
 import { getMataMataBracket } from '@/lib/mata-mata'
+import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
+import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
+import { escolherCategoria } from '@/lib/isolamento-categoria'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { createPageMetadata } from '@/lib/seo'
@@ -19,7 +22,7 @@ export const metadata = createPageMetadata({
 })
 
 type PageProps = {
-  searchParams?: Promise<{ organizador?: string; ligaId?: string }>
+  searchParams?: Promise<{ organizador?: string; ligaId?: string; categoria?: string }>
 }
 
 export default async function FaseMataMataPage({ searchParams }: PageProps) {
@@ -31,9 +34,14 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
   let rounds: BracketRoundView[] = []
   let champion: TeamOption | null = null
   let thirdPlace: BracketSlot | null = null
+  let categoriasPublicas: { id: string; nome: string }[] = []
+  let categoriaId: string | null = null
 
   if (isSupabaseConfigured && scope.selectedLiga) {
-    const bracket = await getMataMataBracket(scope.selectedLiga.id, scope.selectedLiga.faseEliminatoria, organizerMode)
+    const lista = await listarCategoriasDoCampeonato(scope.selectedLiga.id)
+    categoriasPublicas = lista.categorias
+    categoriaId = escolherCategoria(params.categoria, lista.categorias)
+    const bracket = await getMataMataBracket(scope.selectedLiga.id, scope.selectedLiga.faseEliminatoria, organizerMode, categoriaId)
     rounds = bracket.rounds
     champion = bracket.champion
     thirdPlace = bracket.thirdPlace
@@ -50,6 +58,21 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
       <LeagueScopeBar ligas={scope.ligas} selected={scope.selectedLiga} organizadorId={scope.organizadorId} basePath="/fase-mata-mata" />
 
       <section className={`mx-auto max-w-7xl px-4 py-8 ${mi.entrar}`}>
+        {scope.selectedLiga && (
+          <div className="mb-6">
+            <LinksCategoriaPublica
+              categorias={categoriasPublicas}
+              atual={categoriaId}
+              href={(id) => {
+                const consulta = new URLSearchParams()
+                if (params.organizador) consulta.set('organizador', params.organizador)
+                consulta.set('ligaId', params.ligaId || String(scope.selectedLiga.id))
+                consulta.set('categoria', id)
+                return `/fase-mata-mata?${consulta.toString()}`
+              }}
+            />
+          </div>
+        )}
         {scope.organizadorId && !scope.selectedLiga ? (
           <CreatorEmptyState organizadorId={scope.organizadorId} title="Nenhum campeonato selecionado." description="Escolha um campeonato para ver o chaveamento do mata-mata." />
         ) : !scope.selectedLiga ? (

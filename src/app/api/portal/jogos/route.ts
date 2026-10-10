@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
+import { categoriaDaUrl } from '@/lib/isolamento-categoria'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams
   const ligaId = Number(params.get('ligaId'))
   if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
+  const categoria = categoriaDaUrl(params)
+  if ('erro' in categoria) return error(categoria.erro, 422)
   const parte = params.get('parte')
   if (parte && !PARTES.has(parte)) return error('Informe a parte da agenda.', 422)
 
@@ -18,6 +21,7 @@ export async function GET(req: NextRequest) {
     parte: parte as 'ao-vivo' | 'proximos' | 'encerradas' | undefined,
     offset: Number(params.get('offset') ?? 0),
     limite: Number(params.get('limite') ?? 8),
+    categoriaCampeonatoId: categoria.id,
     // Quem chamou já escolheu o campeonato, igual à página que renderiza a agenda.
     // Sem isto o Realtime esvazia a lista de um campeonato marcado como teste.
     campeonatoInformado: true,

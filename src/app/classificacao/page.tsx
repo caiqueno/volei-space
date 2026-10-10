@@ -10,7 +10,7 @@ export const metadata = createPageMetadata({
 })
 
 type PageProps = {
-  searchParams?: Promise<{ ligaId?: string }>
+  searchParams?: Promise<{ ligaId?: string; categoria?: string }>
 }
 
 export default async function ClassificacaoPage({ searchParams }: PageProps) {
@@ -22,6 +22,7 @@ export default async function ClassificacaoPage({ searchParams }: PageProps) {
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <CampeonatosExpansiveis
         ligaIdInicial={ligaIdInicial}
+        categoriaInicial={params.categoria ?? null}
         modulo="classificacao"
         kicker="Classificação"
         titulo="Campeonatos"

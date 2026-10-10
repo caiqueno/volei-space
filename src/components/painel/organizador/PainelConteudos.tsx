@@ -10,6 +10,9 @@ import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { AcessoArbitroJogo } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
+import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
+import { faseDeGruposEncerrada } from '@/lib/configuracao-categoria-edicao'
+import { getRequiredEliminatoryTeams } from '@/lib/eliminatorias'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
 
@@ -119,34 +122,60 @@ export function PainelCampeonatos({ ligas }: { ligas: LigaLista[] }) {
 
 export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; organizadorId: string; campeonatoId: number | null; onSelect: (id: number) => void }) {
   const [dados, setDados] = useState<any[]>([])
+  const [partidas, setPartidas] = useState<Array<{ fase?: string | null; status?: string | null }>>([])
+  const [jogosCarregados, setJogosCarregados] = useState(false)
   const [pendente, setPendente] = useState(true)
   const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
+  const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(liga?.id ?? null)
 
   useEffect(() => {
-    if (!liga) {
-      setDados([])
-      setPendente(false)
+    if (!liga || !pronto) {
+      if (!liga) {
+        setDados([])
+        setPartidas([])
+        setJogosCarregados(false)
+        setPendente(false)
+      }
       return
     }
     const controlador = new AbortController()
     setPendente(true)
-    consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}`, { signal: controlador.signal })
-      .then((payload) => setDados(Array.isArray(payload.data) ? payload.data : []))
+    setJogosCarregados(false)
+    const consulta = queryCategoria(categoriaId)
+    Promise.all([
+      consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
+      consultar<{ data?: any[] }>(`/api/partidas?ligaId=${liga.id}${consulta}`, { signal: controlador.signal }),
+    ])
+      .then(([classificacao, jogos]) => {
+        setDados(Array.isArray(classificacao.data) ? classificacao.data : [])
+        setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
+        setJogosCarregados(true)
+      })
       .catch((erro) => {
         if (erro instanceof ConsultaCancelada) return
         setDados([])
+        setPartidas([])
+        setJogosCarregados(false)
       })
       .finally(() => setPendente(false))
     return () => controlador.abort()
-  }, [liga])
+  }, [liga, categoriaId, pronto])
 
   useBancoAoVivo(
-    liga ? `classificacao-painel-${liga.id}` : '',
-    liga ? [{ tabela: 'ClassificacaoEntrada', filtro: `ligaId=eq.${liga.id}` }] : [],
+    liga ? `classificacao-painel-${liga.id}-${categoriaId ?? 'todas'}` : '',
+    liga ? [{ tabela: 'ClassificacaoEntrada', filtro: `ligaId=eq.${liga.id}` }, { tabela: 'Partida', filtro: `ligaId=eq.${liga.id}` }] : [],
     () => {
-      if (!liga) return
-      consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}`, { forcar: true })
-        .then((payload) => setDados(Array.isArray(payload.data) ? payload.data : []))
+      if (!liga || !pronto) return
+      const consulta = queryCategoria(categoriaId)
+      Promise.all([
+        consultar<{ data?: any[] }>(`/api/classificacao?ligaId=${liga.id}${consulta}`, { forcar: true }),
+        consultar<{ data?: any[] }>(`/api/partidas?ligaId=${liga.id}${consulta}`, { forcar: true }),
+      ])
+        .then(([classificacao, jogos]) => {
+          setDados(Array.isArray(classificacao.data) ? classificacao.data : [])
+          setPartidas(Array.isArray(jogos.data) ? jogos.data : [])
+          setJogosCarregados(true)
+        })
         .catch((erro) => {
           if (erro instanceof ConsultaCancelada) return
         })
@@ -169,13 +198,14 @@ export function PainelTabela({ ligas, organizadorId, campeonatoId, onSelect }: {
           {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
+      <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
-      {pendente ? (
+      {pendente || !pronto ? (
         <p className="text-sm font-bold text-white/50">Carregando classificação...</p>
       ) : dados.length === 0 ? (
-        <EstadoVazio titulo="Nenhuma equipe inscrita" descricao="A classificação deste campeonato aparece aqui com zero até a primeira partida." />
+        <EstadoVazio titulo={categoriaId ? 'Nenhuma equipe nesta categoria' : 'Nenhuma equipe inscrita'} descricao="A classificação aparece aqui com zero até a primeira partida desta categoria." />
       ) : (
-        <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} ligaId={liga.id} organizadorId={organizadorId} organizerMode />
+        <ChampionshipTableSection nome={liga.nome} regra={REGRA_TABELA} dados={dados} ligaId={liga.id} organizadorId={organizadorId} organizerMode requiredClassified={getRequiredEliminatoryTeams(liga.faseEliminatoria)} groupStageFinished={jogosCarregados && faseDeGruposEncerrada(partidas)} />
       )}
     </section>
   )
@@ -224,6 +254,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const liga = ligas.find((item) => item.id === campeonatoId) ?? ligas[0] ?? null
+  const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(liga?.id ?? null)
   const quantidade = useRef(20)
   // Sobe quando o usuário pede outra página ou troca de campeonato.
   // Uma releitura que começou antes disso não pode recolher o que ele abriu.
@@ -241,7 +272,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
     const limite = Math.max(20, quantidade.current)
     if (!silencioso) setLoading(true)
     try {
-      const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${ligaId}&limite=${limite}`, { forcar: true })
+      const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${ligaId}&limite=${limite}${queryCategoria(categoriaId)}`, { forcar: true })
       if (visto !== versao.current) return
       const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
       const aindaTem = Boolean(jogos.data?.temMais)
@@ -257,11 +288,11 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
   }
 
   useEffect(() => {
-    if (!ativo || !liga) return
+    if (!ativo || !liga || !pronto) return
     versao.current += 1
     quantidade.current = 20
     void carregar()
-  }, [ativo, liga?.id])
+  }, [ativo, liga?.id, categoriaId, pronto])
 
   useBancoAoVivo(
     ativo && liga ? `painel-jogos-${liga.id}` : '',
@@ -273,7 +304,7 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
     if (!liga) return
     versao.current += 1
     const visto = versao.current
-    const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${liga.id}&limite=20&offset=${partidas.length}`, { forcar: true })
+    const jogos = await consultar<{ data?: { partidas?: PartidaOrganizacao[]; temMais?: boolean } }>(`/api/organizador/partidas?ligaId=${liga.id}&limite=20&offset=${partidas.length}${queryCategoria(categoriaId)}`, { forcar: true })
     if (visto !== versao.current) return
     const novas = Array.isArray(jogos.data?.partidas) ? jogos.data.partidas : []
     setPartidas((atual) => {
@@ -307,9 +338,10 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
           {ligas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
+      <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       <p className="text-xs font-black uppercase tracking-[0.14em] text-white/50">Liga ID {liga.id}</p>
-      {loading ? <p className="text-sm font-bold text-white/50">Carregando...</p> : grupos.size === 0 ? (
-        <EstadoVazio titulo="Nenhum jogo neste campeonato" descricao="As partidas deste campeonato aparecem aqui quando o calendário for montado." />
+      {loading || !pronto ? <p className="text-sm font-bold text-white/50">Carregando...</p> : grupos.size === 0 ? (
+        <EstadoVazio titulo={categoriaId ? 'Nenhum jogo nesta categoria' : 'Nenhum jogo neste campeonato'} descricao="As partidas aparecem aqui quando o calendário desta categoria for montado." />
       ) : null}
       {erro && <p className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
       {Array.from(grupos.entries()).map(([ligaId, grupo]) => (

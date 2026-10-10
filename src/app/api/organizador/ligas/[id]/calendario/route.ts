@@ -4,6 +4,7 @@ import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { partidaForaDaCategoria } from '@/lib/isolamento-categoria'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -13,6 +14,7 @@ const editableStatuses = new Set(['AGENDADA', 'PENDENTE_APROVACAO', 'CANCELADA']
 const lockedStatuses = new Set(['EM_ANDAMENTO', 'ENCERRADA'])
 
 const calendarSchema = z.object({
+  categoriaCampeonatoId: z.string().uuid(),
   partidas: z.array(z.object({
     id: z.number().int().positive(),
     data: z.string().optional().nullable(),
@@ -52,7 +54,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   const ids = parsed.data.partidas.map((partida) => partida.id)
   const { data: currentMatches, error: matchesErr } = await supabase
     .from('Partida')
-    .select('id,ligaId,equipeAId,equipeBId,status')
+    .select('id,ligaId,equipeAId,equipeBId,status,categoriaCampeonatoId')
     .eq('ligaId', ligaId)
     .in('id', ids)
 
@@ -61,6 +63,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return error('Erro ao validar partidas do calendário.', 500)
   }
   if ((currentMatches ?? []).length !== ids.length) return error('Uma ou mais partidas não pertencem a este campeonato.', 403)
+  if (partidaForaDaCategoria(currentMatches ?? [], parsed.data.categoriaCampeonatoId)) {
+    return error('O calendário desta categoria não altera jogos de outra.', 422)
+  }
 
   const currentById = new Map((currentMatches ?? []).map((partida: any) => [Number(partida.id), partida]))
   let updated = 0
