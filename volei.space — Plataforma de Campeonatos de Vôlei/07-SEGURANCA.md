@@ -5,10 +5,10 @@ category: area
 tags: [seguranca]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Acesso e dados pessoais. Função nova não nasce executável por PUBLIC.
-status: implementado
+  Sets e classificação deixam de ser legíveis pela chave publicável quando a migration 202610100001 for aplicada.
+status: misto
 created: 2026-09-20
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 # Segurança e permissões
 
@@ -26,7 +26,7 @@ updated: 2026-10-09
 - `GET` público de equipe e partida devolve do atleta só id, nome, número, posição e foto. CPF e documento ficam fora dessa resposta. A auditoria de 06/10/2026 achou três rotas que não cumpriam isso e devolviam `Jogador` inteiro — `GET /api/jogadores` (sem sessão, qualquer organizador), `GET /api/rankings` e a página pública `/equipes/[slug]`. As três passaram a listar colunas; `cpf`, `documentoTipo`, `documentoNumero`, `dataNascimento`, `telefone`, `telefoneEmergencia`, `documentosUrls` e `qrCodeToken` não saem mais por elas. Quem adicionar uma consulta de atleta escreve as colunas: `select('*')` em `Jogador` é o jeito de repetir o vazamento.
 - Token de súmula permite correção por 30 minutos do **primeiro** encerramento; após isso, corrigir exige identidade e propriedade do organizador verificadas no servidor.
 - MVP, placares, substituições e status precisam de validação de servidor, não apenas da interface.
-- Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais. O default global de `EXECUTE` para `PUBLIC` não cai com `alter default privileges in schema public`. A migration `202610090001_revogar_execute_public_default.sql` revoga esse default das funções que `postgres` criar depois, e deixa `EXECUTE` para `service_role`. Ela ainda não foi aplicada nos bancos. Arquivo de migration que conceda acesso a `anon` ou `authenticated` fica antes de `202610060004` e `202610060005`.
+- Nova tabela ou RPC requer decisão explícita sobre RLS, permissões `anon`/`authenticated`, uso de `service_role` e isolamento de dados pessoais. O default global de `EXECUTE` para `PUBLIC` não cai com `alter default privileges in schema public`. A migration `202610090001_revogar_execute_public_default.sql` revoga esse default das funções que `postgres` criar depois, e deixa `EXECUTE` para `service_role`. Ela ainda não foi aplicada nos bancos. Arquivo posterior a `202610060005` não pode conceder acesso a `anon` ou `authenticated`. Revogar esse acesso continua permitido.
 - Uploads, fotos, documentos e QR de atletas exigem políticas compatíveis com a finalidade e o escopo.
 
 ## Sessão, recuperação de senha e login
@@ -37,7 +37,7 @@ updated: 2026-10-09
 
 O login responde «Usuário ou senha não conferem.» antes de a senha conferir. Depois da senha correta, perfil errado ou organizador aguardando liberação usam a frase específica. O limite em memória é de 30 tentativas por IP e 8 por IP e e-mail a cada 10 minutos, por instância. O cookie `luva_token` segue sendo a sessão; o corpo do login de administrador não devolve o JWT. Curingas `%` e `_` no `ILIKE` do e-mail são escapados, e a linha lida ainda precisa ser o mesmo e-mail.
 
-Erros de autenticação, da edição pública de candidatura e do cadastro de equipe, árbitro e quadra não devolvem mensagem interna do banco. A duplicidade de e-mail continua respondendo 409 com a frase já usada na tela. O cadastro rápido de inscrição ainda devolve o detalhe do erro.
+Erros de autenticação, da edição pública de candidatura, do cadastro de equipe, árbitro e quadra e da inscrição rápida não devolvem mensagem interna do banco. A duplicidade de e-mail continua respondendo 409 com a frase já usada na tela. A validação do formulário continua devolvendo a lista de campos.
 
 `POST /api/partidas` e `POST /api/partidas/{id}/aprovar` aceitam a sessão do administrador ou a do organizador dono do campeonato. `PUT /api/partidas/{id}` continua só com o organizador dono. A partida recusa o mesmo time nos dois lados e time de outro campeonato. Se a categoria muda, `categoriaCampeonatoId` é recalculado. `GET /api/equipes` lista colunas explícitas. `GET /api/mensagens` e `GET /api/partidas` recusam identificador que não seja inteiro positivo.
 
@@ -64,3 +64,16 @@ Implementado neste lote, conferido no código:
 - As rotas de `ligas` registram a falha no servidor e não devolvem `err.message`.
 
 A auditoria das rotas em `src/app/api` manteve públicos os fluxos de vitrine, portal, ping, cadastro, interessados, inscrição por token, súmula por sessão e QR do atleta. Mutações de campeonato, equipe, jogador e partida continuam presas ao organizador dono.
+
+## Leitura pública e papéis (10/10/2026)
+
+**Código neste repositório. A migration ainda não foi aplicada em nenhum banco.**
+
+- `202610100002_fechar_leitura_publica_placar.sql` liga o RLS em `SetPartida` e `ClassificacaoEntrada`, remove `public_read_sets`, `luv_public_select_set_partida`, `public_read_classificacao` e `luv_public_select_classificacao`, e revoga todo o acesso de `public`, `anon` e `authenticated` nessas tabelas. Não cria policy nova para a chave publicável. O `service_role` segue ignorando o RLS. Os default privileges de `postgres` deixam de conceder tabela, sequência e função novas a `anon` e `authenticated`. O mesmo revoke vale para `supabase_admin` quando o papel da migration puder alterá-lo; se não puder, o Postgres só registra um aviso e o restante da migration segue.
+- O placar ao vivo e a classificação já saem de `GET /api/partidas/[id]/ao-vivo`, `GET /api/classificacao` e `GET /api/portal/classificacao`. `useBancoAoVivo` repete essas consultas a cada 4 segundos, mesmo se o canal do Realtime falhar. Depois da migration, o evento `postgres_changes` dessas duas tabelas para de chegar ao navegador.
+- `Partida` continua com o `GRANT` de colunas de placar de `202610060004`, sem `sumulaToken`. Fechar essa leitura fica para quando a consulta periódica estiver em produção.
+- Cada rota em `src/app/api/organizador/ligas/[id]` confere o organizador dono (`requireOwnedLigaForSetup`, `ligaDoOrganizador`, `exigirOrganizadorDaLiga`, `getOwnedLiga` ou comparação de `organizadorId`). `PATCH /api/organizador/partidas/[id]/arbitro` exige o dono do campeonato e um árbitro dessa organização. `POST /api/arbitro/partidas/[token]/iniciar` recusa token numérico sem o cookie do link daquela partida. A conta de árbitro escalado continua entrando pelo `sumulaToken`.
+- `POST /api/inscricoes-campeonato` grava `APROVADA` só com `Liga.inscricaoAprovacaoAutomatica` verdadeiro, e só então conta a vaga. Uma inscrição que já está `APROVADA` não é rebaixada. O JavaScript do rascunho não cobre mais o status devolvido pela função. A função no banco só passa a fazer o mesmo depois de `202610100001`.
+- `GET /api/ligas` e `GET /api/ligas/[slug]` selecionam `LIGA_COLUNAS_PUBLICAS`. `organizadorId`, `seedKey`, `pagamentoConfirmadoEm`, `finalizadoPor` e `simulacaoRelogio` não saem na resposta. A listagem pública usa o `service_role`, porque a chave publicável já não lê `Liga`.
+- `GET /api/equipes` e `GET /api/rankings` não embutem relação. Sem sessão, a lista de equipes só inclui campeonatos `EM_BREVE`, `ATIVA`, `ENCERRADA` ou `FINALIZADO` com `simulacao` desligada. Administrador vê o conjunto inteiro. Organizador vê os campeonatos dele. O ranking devolve nome, número, posição, foto e o nome da equipe, sem CPF, documento, telefone ou QR.
+- `.env.example` descreve `ADMIN_EMAIL` como obrigatória em produção e no preview da Vercel. No `next dev` local, vazia, a tabela `Admin` continua valendo.

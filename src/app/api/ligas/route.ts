@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server'
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { isSupabaseServiceConfigured, supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireAuth, requirePublicRole } from '@/lib/auth'
 import { ligaSchema } from '@/lib/schemas'
 import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -21,13 +21,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // The organizer has already been authenticated above. Use the server client for
-  // their own championships so an incomplete SELECT policy cannot empty the
-  // management dropdowns while still keeping the unrestricted listing public.
-  const database = organizadorId ? supabaseAdmin : supabase
-  let query = database
+  // A chave publicável não lê Liga. A listagem, inclusive a pública, sai
+  // pelo service role e só com as colunas da vitrine.
+  let query = supabaseAdmin
     .from('Liga')
-    .select('*')
+    .select(LIGA_COLUNAS_PUBLICAS as '*')
     .order('criadoEm', { ascending: false })
 
   if (organizadorId) query = query.eq('organizadorId', organizadorId)
@@ -119,7 +117,7 @@ export async function POST(req: NextRequest) {
     const { data, error: err } = await supabaseAdmin
       .from('Liga')
       .insert(payload)
-      .select()
+      .select(LIGA_COLUNAS_PUBLICAS as '*')
       .single()
 
     if (err) {

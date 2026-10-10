@@ -13,6 +13,12 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | leitura pública de placar e autorização
+
+- pages_updated=`07-SEGURANCA`, `06-BANCO-DE-DADOS`, `modulos/INSCRICOES`, `hot`, `log`
+- A migration `202610100002_fechar_leitura_publica_placar.sql` liga o RLS, revoga `anon` e `authenticated` em `SetPartida` e `ClassificacaoEntrada` e ajusta default privileges. O prefixo `202610100001` ficou com o número da camisa. Não foi aplicada. O ao vivo passa a consultar a API a cada 4 segundos.
+- `POST /api/inscricoes-campeonato` respeita `inscricaoAprovacaoAutomatica`. A função SQL só faz o mesmo depois da migration. `GET /api/ligas` deixa de devolver `organizadorId` e `seedKey`. `GET /api/equipes` e `GET /api/rankings` montam o join no servidor.
+
 ## [2026-10-10] decisao | índices das consultas de campeonato, equipe, partida e súmula
 
 - pages_updated=`06-BANCO-DE-DADOS`, `hot`, `log`

@@ -31,12 +31,16 @@ const fechamento = '202610060005'
 for (const name of files) {
   if (versionOf(name) <= fechamento) continue
   const sql = sqlSemComentario(fs.readFileSync(path.join(dir, name), 'utf8'))
-  assert.doesNotMatch(
-    sql,
-    /\b(to|from)\s+(anon|authenticated)\b/i,
-    `${name} concede ou revoga anon/authenticated depois do fechamento`,
-  )
+  assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+anon\b/i, `${name} concede a anon depois do fechamento`)
+  assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+authenticated\b/i, `${name} concede a authenticated depois do fechamento`)
 }
+
+const placar = fs.readFileSync(path.join(dir, '202610100002_fechar_leitura_publica_placar.sql'), 'utf8')
+assert.match(placar, /enable row level security/i)
+assert.match(placar, /revoke all on table public\."SetPartida" from anon, authenticated/i)
+assert.match(placar, /revoke all on table public\."ClassificacaoEntrada" from anon, authenticated/i)
+assert.match(placar, /inscricaoAprovacaoAutomatica/)
+assert.doesNotMatch(sqlSemComentario(placar), /\bgrant\b[^;]*\bto\s+anon\b/i)
 
 const defaults = fs.readFileSync(path.join(dir, '202610090001_revogar_execute_public_default.sql'), 'utf8')
 assert.match(defaults, /alter default privileges for role postgres\s+revoke execute on functions from public/i)

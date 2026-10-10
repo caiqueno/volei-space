@@ -17,7 +17,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .select('id,nome,endereco,quadra,ordem')
     .eq('ligaId', ligaId)
     .order('ordem', { ascending: true })
-  if (err) return error('Erro ao buscar locais do campeonato.', 500, err)
+  if (err) {
+    console.error('[calendario/locais] erro ao buscar', err)
+    return error('Erro ao buscar locais do campeonato.', 500)
+  }
   return success(data ?? [])
 }
 
@@ -46,7 +49,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert({ ligaId, ...parsed.data, ordem: parsed.data.ordem ?? (Number(count ?? 0) + 1) })
     .select('id,nome,endereco,quadra,ordem')
     .single()
-  if (insertErr) return error('Erro ao criar local do campeonato.', 500, insertErr)
+  if (insertErr) {
+    console.error('[calendario/locais] erro ao criar', insertErr)
+    return error('Erro ao criar local do campeonato.', 500)
+  }
 
   const status = await upsertSetupSectionStatus(ligaId, 'calendario', liga)
   return success({ ...data, setupStatus: status }, 201)

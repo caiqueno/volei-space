@@ -23,6 +23,13 @@ export async function requireArbitroPartidaAccess(
   req: NextRequest,
   token: string,
 ): Promise<ArbitroPartidaAccess | NextResponse> {
+  if (/^\d+$/.test(token)) {
+    const sessao = await lerSessaoAcesso(req)
+    if (!sessao || Number(sessao.partidaId) !== Number(token)) {
+      return error('Use o link exclusivo do jogo para operar esta partida.', 401)
+    }
+  }
+
   const peloLink = await acessoPeloLink(req, token)
   if (peloLink) return peloLink
   const pelaSessao = await acessoPelaSessaoNaPartida(req, token)

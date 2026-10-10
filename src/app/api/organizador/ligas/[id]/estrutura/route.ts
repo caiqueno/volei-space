@@ -155,7 +155,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .select('id,status,fase,grupoId')
       .eq('ligaId', ligaId)
 
-    if (partidasErr) return error('Erro ao validar partidas existentes.', 500, partidasErr)
+    if (partidasErr) {
+      console.error('[estrutura] erro ao validar partidas', partidasErr)
+      return error('Erro ao validar partidas existentes.', 500)
+    }
 
     const lockedMatches = (partidasExistentes ?? []).filter((partida: any) => LOCKED_MATCH_STATUSES.has(partida.status))
     if (lockedMatches.length > 0) {
@@ -167,7 +170,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .map((partida: any) => partida.id)
     if (removableIds.length > 0) {
       const { error: deletePartidasErr } = await supabase.from('Partida').delete().in('id', removableIds)
-      if (deletePartidasErr) return error('Erro ao remover calendário anterior.', 500, deletePartidasErr)
+      if (deletePartidasErr) {
+        console.error('[estrutura] erro ao remover calendário', deletePartidasErr)
+        return error('Erro ao remover calendário anterior.', 500)
+      }
     }
 
     await supabase.from('GrupoEquipeCampeonato').delete().eq('ligaId', ligaId)
@@ -185,7 +191,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       .insert(gruposRows)
       .select('id,nome,ordem')
 
-    if (gruposInsertErr || !createdGroups) return error('Erro ao criar grupos.', 500, gruposInsertErr)
+    if (gruposInsertErr || !createdGroups) {
+      console.error('[estrutura] erro ao criar grupos', gruposInsertErr)
+      return error('Erro ao criar grupos.', 500)
+    }
 
     const createdByName = new Map((createdGroups ?? []).map((grupo: any) => [grupo.nome, grupo]))
     const vinculos = groups.flatMap((grupo) => {
@@ -200,12 +209,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
     })
 
     const { error: vinculosErr } = await supabase.from('GrupoEquipeCampeonato').insert(vinculos)
-    if (vinculosErr) return error('Erro ao salvar distribuição dos grupos.', 500, vinculosErr)
+    if (vinculosErr) {
+      console.error('[estrutura] erro ao salvar grupos', vinculosErr)
+      return error('Erro ao salvar distribuição dos grupos.', 500)
+    }
 
     const partidas = buildGroupMatches(ligaId, groups, createdByName, equipes, turnoReturno, dataInicial, horarioPadrao, localPadrao, categoriaCampeonatoId)
     if (partidas.length > 0) {
       const { error: insertPartidasErr } = await supabase.from('Partida').insert(partidas)
-      if (insertPartidasErr) return error('Erro ao gerar confrontos.', 500, insertPartidasErr)
+      if (insertPartidasErr) {
+        console.error('[estrutura] erro ao gerar confrontos', insertPartidasErr)
+        return error('Erro ao gerar confrontos.', 500)
+      }
     }
 
     const { error: ligaUpdateErr } = await supabase
@@ -217,14 +232,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
       })
       .eq('id', ligaId)
 
-    if (ligaUpdateErr) return error('Erro ao atualizar parâmetros do campeonato.', 500, ligaUpdateErr)
+    if (ligaUpdateErr) {
+      console.error('[estrutura] erro ao atualizar campeonato', ligaUpdateErr)
+      return error('Erro ao atualizar parâmetros do campeonato.', 500)
+    }
 
     return success({
       grupos: createdGroups,
       partidasGeradas: partidas.length,
     })
   } catch (err) {
-    return error('Erro ao gerar estrutura do campeonato.', 500, err)
+    console.error('[estrutura] erro ao gerar', err)
+    return error('Erro ao gerar estrutura do campeonato.', 500)
   }
 }
 
@@ -235,7 +254,10 @@ async function getOwnedLiga(ligaId: number, organizadorId: string): Promise<Liga
     .eq('id', ligaId)
     .single()
 
-  if (ligaErr || !data) return error('Campeonato não encontrado.', 404, ligaErr)
+  if (ligaErr || !data) {
+    if (ligaErr) console.error('[estrutura] campeonato não encontrado', ligaErr)
+    return error('Campeonato não encontrado.', 404)
+  }
   if (data.organizadorId !== organizadorId) return error('Acesso negado para este campeonato.', 403)
   return data as LigaRecord
 }

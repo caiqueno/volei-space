@@ -76,7 +76,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
 
   const { data: equipe } = await supabase
     .from('Equipe')
-    .select('*')
+    .select('id,nome,slug,categoria,serie,corHex,logoUrl,criadoEm')
     .eq('slug', slug)
     .maybeSingle<Equipe>()
 
@@ -105,7 +105,7 @@ export default async function EquipePublicPage({ params }: PageProps) {
       .or(`equipeAId.eq.${equipe.id},equipeBId.eq.${equipe.id}`)
       .order('dataHora', { ascending: false })
       .limit(8),
-    supabase.from('ClassificacaoEntrada').select('*').eq('equipeId', equipe.id).order('atualizadoEm', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('ClassificacaoEntrada').select('pontos,atualizadoEm').eq('equipeId', equipe.id).order('atualizadoEm', { ascending: false }).limit(1).maybeSingle(),
   ])
 
   const jogos = partidas ?? []

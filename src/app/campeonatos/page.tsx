@@ -7,6 +7,7 @@ import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
@@ -37,7 +38,7 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
   if (isSupabaseConfigured) {
     let query = supabase
       .from('Liga')
-      .select('*')
+      .select(LIGA_COLUNAS_PUBLICAS as '*')
       .eq('simulacao', false)
       .order('criadoEm', { ascending: false })
 

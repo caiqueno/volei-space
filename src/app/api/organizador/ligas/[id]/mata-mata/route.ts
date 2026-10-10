@@ -153,10 +153,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
       })
       .select('id,rodada,fase,sumulaToken')
       .single()
-    if (insertErr) return error('Erro ao criar o confronto.', 500, insertErr.message)
+    if (insertErr) {
+      console.error('[mata-mata] erro ao criar confronto', insertErr)
+      return error('Erro ao criar o confronto.', 500)
+    }
 
     return success(partida, 201)
   } catch (err) {
-    return error('Erro ao criar o confronto.', 500, err instanceof Error ? err.message : err)
+    console.error('[mata-mata] erro ao criar confronto', err)
+    return error('Erro ao criar o confronto.', 500)
   }
 }

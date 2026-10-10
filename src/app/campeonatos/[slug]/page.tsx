@@ -15,6 +15,7 @@ import { getMataMataBracket } from '@/lib/mata-mata'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import mi from '@/styles/microinteracoes.module.css'
 
 type PageProps = {
@@ -61,7 +62,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
 
   const { data: liga } = await supabase
     .from('Liga')
-    .select('*')
+    .select(LIGA_COLUNAS_PUBLICAS as '*')
     .eq('slug', slug)
     .maybeSingle()
 
