@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { OrigemPontoModal } from '@/components/sumula/OrigemPontoModal'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
@@ -1337,8 +1336,7 @@ export default function SumulaPage() {
             onBlock={(teamId, number) => logPoint(teamId, number, { kind: 'block' })}
             onAce={logAce}
             events={events}
-            onPointOrigin={(teamId, origem, number) => logPoint(teamId, number, origem === 'ace' ? { ace: true } : { kind: origem })}
-            onPointWithoutPlayer={(teamId) => logPoint(teamId, '', { kind: 'team' })}
+            onPoint={(teamId) => logPoint(teamId, '', { kind: 'team' })}
             onSubstitution={askSubstitution}
             onSelectSubstitution={executeSubstitution}
             onCloseSubstitution={() => setSubModal(null)}
@@ -1993,8 +1991,7 @@ function PontuacaoTab(props: {
   onAttack: (teamId: TeamId, number: string) => void
   onBlock: (teamId: TeamId, number: string) => void
   onAce: () => void
-  onPointOrigin: (teamId: TeamId, origem: OrigemPonto, number: string) => void
-  onPointWithoutPlayer: (teamId: TeamId) => void
+  onPoint: (teamId: TeamId) => void
   onSubstitution: (teamId: TeamId, index: number) => void
   onSelectSubstitution: (number: string) => void
   onCloseSubstitution: () => void
@@ -2008,15 +2005,10 @@ function PontuacaoTab(props: {
   vistaQuadra: '2d' | '3d'
 }) {
   const [cardModal, setCardModal] = useState<{ teamId: TeamId; tipo: 'Cartão amarelo' | 'Cartão vermelho' } | null>(null)
-  const [origemEquipe, setOrigemEquipe] = useState<TeamId | null>(null)
   const substitutionTeam = props.subModal?.teamId === 'teamA' ? props.teamA : props.teamB
   const substitutionLineup = props.subModal?.teamId === 'teamA' ? props.lineupA : props.lineupB
   const substitutionBench = props.subModal?.teamId === 'teamA' ? props.benchA : props.benchB
   const penaltyTeam = cardModal?.teamId === 'teamA' ? props.teamA : props.teamB
-
-  function abrirOrigem(teamId: TeamId) {
-    setOrigemEquipe(teamId)
-  }
 
   const leftTeamId: TeamId = props.sidesInverted ? 'teamB' : 'teamA'
   const rightTeamId: TeamId = props.sidesInverted ? 'teamA' : 'teamB'
@@ -2046,8 +2038,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[leftTeamId]}
             serving={props.servingTeamId === leftTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(leftTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(leftTeamId)}
+            onPoint={() => props.onPoint(leftTeamId)}
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
@@ -2069,8 +2060,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[rightTeamId]}
             serving={props.servingTeamId === rightTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(rightTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(rightTeamId)}
+            onPoint={() => props.onPoint(rightTeamId)}
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
@@ -2089,8 +2079,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[leftTeamId]}
             serving={props.servingTeamId === leftTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(leftTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(leftTeamId)}
+            onPoint={() => props.onPoint(leftTeamId)}
             onUndo={() => props.onUndoTeamPoint(leftTeamId)}
             onCard={(tipo) => setCardModal({ teamId: leftTeamId, tipo })}
             timeoutsUsed={leftTimeoutsUsed}
@@ -2108,8 +2097,7 @@ function PontuacaoTab(props: {
             score={props.currentScore[rightTeamId]}
             serving={props.servingTeamId === rightTeamId}
             onAce={props.onAce}
-            onPoint={() => abrirOrigem(rightTeamId)}
-            onPointWithoutPlayer={() => props.onPointWithoutPlayer(rightTeamId)}
+            onPoint={() => props.onPoint(rightTeamId)}
             onUndo={() => props.onUndoTeamPoint(rightTeamId)}
             onCard={(tipo) => setCardModal({ teamId: rightTeamId, tipo })}
             timeoutsUsed={rightTimeoutsUsed}
@@ -2141,21 +2129,6 @@ function PontuacaoTab(props: {
           getMatchNumber={props.getMatchNumber}
           onSelect={props.onSelectSubstitution}
           onClose={props.onCloseSubstitution}
-        />
-      )}
-      {origemEquipe && (
-        <OrigemPontoModal
-          key={origemEquipe}
-          equipe={(origemEquipe === 'teamA' ? props.teamA : props.teamB).name}
-          sacando={props.servingTeamId === origemEquipe}
-          sacador={(origemEquipe === 'teamA' ? props.lineupA : props.lineupB)[origemEquipe === 'teamA' ? props.serverIndexA : props.serverIndexB]}
-          atletas={atletasEmQuadra(origemEquipe === 'teamA' ? props.teamA : props.teamB, origemEquipe === 'teamA' ? props.lineupA : props.lineupB)}
-          numeroExibido={(number) => props.getMatchNumber(origemEquipe, number)}
-          onClose={() => setOrigemEquipe(null)}
-          onConfirm={(origem, number) => {
-            props.onPointOrigin(origemEquipe, origem, number)
-            setOrigemEquipe(null)
-          }}
         />
       )}
       <section className="official-point-history" aria-label="Últimos pontos">
@@ -2900,7 +2873,6 @@ function CompactTeamControl({
   serving,
   onAce,
   onPoint,
-  onPointWithoutPlayer,
   onUndo,
   onCard,
   timeoutsUsed,
@@ -2913,7 +2885,6 @@ function CompactTeamControl({
   serving: boolean
   onAce: () => void
   onPoint: () => void
-  onPointWithoutPlayer: () => void
   onUndo: () => void
   onCard: (tipo: 'Cartão amarelo' | 'Cartão vermelho') => void
   timeoutsUsed: number
@@ -2941,8 +2912,7 @@ function CompactTeamControl({
         {timeoutsUsed}/2
       </button>
       <div className="official-point-actions">
-        <button className="official-compact-point-action" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name}`}>+1</button>
-        <button className="official-compact-point-plain" type="button" onClick={onPointWithoutPlayer} aria-label={`Registrar ponto sem jogador para ${team.name}`}>Sem jogador</button>
+        <button className="official-compact-point-action" type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
       </div>
       <button className="official-compact-icon-action" type="button" onClick={onUndo} aria-label={`Corrigir Último ponto do ${team.name}`}><RotateCcw size={16} /></button>
       {rotulo && (
@@ -3243,13 +3213,6 @@ function RosterClickers({
       </div>
     </section>
   )
-}
-
-function atletasEmQuadra(team: Team, lineup: string[]) {
-  return lineup
-    .map((number) => [...team.players, ...team.reserves].find((player) => player.number === number))
-    .filter((player): player is Player => Boolean(player))
-    .map((player) => ({ number: player.number, name: displayPlayerName(player.name, team.name) }))
 }
 
 function equipeMencionada(texto: string, teamA: Team, teamB: Team): TeamId | undefined {
