@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Sem configuração, a súmula continua pedindo um líbero inicial e a troca não conta como substituição. O andamento da súmula grava o placar de novo. A ocorrência de presença deixa o id com a sequence.
+  Sem configuração, a súmula continua pedindo um líbero inicial e a troca não conta como substituição. Corrigir o último ponto permanece depois de recarregar. A ocorrência de presença deixa o id com a sequence.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Correção do último ponto — implementado:** o `PUT` de andamento leva `versao`. O registro de placar termina com `[[V:N]]`. Antes da validação, o servidor grava uma ocorrência `Registro de andamento` e, na hora de gravar, recusa versão menor que a já salva ou reserva com `id` menor. A resposta é 409. A tela lê o estado na hora do envio, manda de novo se o placar mudou no meio e mostra o erro quando o salvamento mais novo falha. Um 409 de envio já substituído não acende esse aviso. Na partida 1095, o 1x0 das 11:46:55 UTC foi coberto pelo 2x0 das 11:46:57: a função apaga as ocorrências que não começam com «Registro de » e reinsere o corpo do último `PUT`. Não houve migration. A página aberta antes deste deploy precisa ser recarregada.
 
 **Andamento ao vivo — implementado:** o `PUT /api/sumula/{token}` grava o placar quando a sequence de `OcorrenciaPartida` está atrás do maior `id`. Confirmar presença ou trocar o número deixa esse `id` com a identity. Um valor explícito não avança a sequence. `gravar_sumula_partida` preserva a descrição que começa com «Registro de » e o insert do placar colidia em `OcorrenciaPartida_pkey` (23505 no Postgres, 409 no PostgREST, 500 na rota). A gravação repete até a sequence passar o maior id. Na tela de lançamento, cada salvamento automático espera o anterior: o placar que sai por último é o mais novo. Nenhuma migration.
 

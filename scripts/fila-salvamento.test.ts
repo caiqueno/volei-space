@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { criarFilaSalvamento } from '../src/lib/fila-salvamento'
+import { criarFilaSalvamento, criarSalvamentoCoalescido } from '../src/lib/fila-salvamento'
 
 async function main() {
   const fila = criarFilaSalvamento()
@@ -34,6 +34,43 @@ async function main() {
   await falha.catch(() => undefined)
   await depois
   assert.equal(ordem.at(-1), 'depois')
+
+  const salvar = criarSalvamentoCoalescido()
+  let liberar: () => void = () => undefined
+  const espera = new Promise<void>((resolve) => {
+    liberar = resolve
+  })
+  const corrida: string[] = []
+  const primeiro = salvar(async () => {
+    corrida.push('a')
+    await espera
+  })
+  const segundo = salvar(async () => {
+    corrida.push('b')
+  })
+  const terceiro = salvar(async () => {
+    corrida.push('c')
+  })
+  await Promise.resolve()
+  assert.deepEqual(corrida, ['a'])
+  liberar()
+  await primeiro
+  await segundo
+  await terceiro
+  assert.deepEqual(corrida, ['a', 'c'])
+
+  const falhou = criarSalvamentoCoalescido()
+  const depoisDaFalha: string[] = []
+  const rejeitada = falhou(async () => {
+    depoisDaFalha.push('falha')
+    throw new Error('x')
+  })
+  const seguinte = falhou(async () => {
+    depoisDaFalha.push('seguinte')
+  })
+  await rejeitada
+  await seguinte
+  assert.deepEqual(depoisDaFalha, ['falha', 'seguinte'])
 
   console.log('fila-salvamento ok')
 }

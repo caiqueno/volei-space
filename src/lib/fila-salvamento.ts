@@ -8,3 +8,37 @@ export function criarFilaSalvamento() {
     return execucao
   }
 }
+
+/**
+ * Uma gravação por vez. Se outras chegarem no meio, só a última roda depois.
+ * A tarefa precisa ler o estado na hora de enviar.
+ */
+export function criarSalvamentoCoalescido() {
+  let emVoo: Promise<void> | null = null
+  let pendente: (() => Promise<void>) | null = null
+
+  function bombear(): Promise<void> {
+    if (emVoo) return emVoo
+    emVoo = (async () => {
+      try {
+        while (pendente) {
+          const tarefa = pendente
+          pendente = null
+          try {
+            await tarefa()
+          } catch (err) {
+            if (!pendente) throw err
+          }
+        }
+      } finally {
+        emVoo = null
+      }
+    })()
+    return emVoo
+  }
+
+  return function agendar(tarefa: () => Promise<void>): Promise<void> {
+    pendente = tarefa
+    return bombear()
+  }
+}
