@@ -21,9 +21,10 @@ import { colunaDeSetsQuartasOitavasAusente, semSetsQuartasOitavas, soSetsQuartas
 import { colunaDeLimiteSubstituicoesAusente, semLimiteSubstituicoes, soLimiteSubstituicoes } from '@/lib/sumula-regras'
 import { colunaDeAlertaRodizioAusente, semAlertaRodizio, soAlertaRodizio } from '@/lib/rodizio-sumula'
 import { colunaDeTemposAusente, semTempos, soTempos } from '@/lib/tempos-sumula'
+import { colunaDeLesaoAusente, semLesao, soLesao } from '@/lib/lesao-sumula'
 
 const ALLOWED: Record<string, string[]> = {
-  estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled', 'limiteSubstituicoesPorSet', 'alertaRodizioIlegal', 'limiteTemposPorSet', 'separarTempos'],
+  estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled', 'limiteSubstituicoesPorSet', 'alertaRodizioIlegal', 'limiteTemposPorSet', 'separarTempos', 'tempoMedico', 'substituicaoPorLesao'],
   classificacao: ['criteriosClassificacao', 'classificadosPorGrupo', 'melhoresClassificadosGerais', 'pontosVencedorMargem1', 'pontosPerdedorMargem1', 'pontosVencedorMargem2', 'pontosPerdedorMargem2', 'woSetsVencedor', 'woSetsPerdedor', 'woPontosSetVencedor', 'woPontosSetPerdedor', 'woPunicaoPontos'],
   eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaQuartas', 'setsPorPartidaOitavas', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataInicio', 'dataFim'],
@@ -75,7 +76,8 @@ export async function saveCategorySection(args: {
     const limiteNovo = soLimiteSubstituicoes(patchRpc)
     const alertaNovo = soAlertaRodizio(patchRpc)
     const temposNovos = soTempos(patchRpc)
-    let patchEfetivo = semTempos(semAlertaRodizio(semLimiteSubstituicoes(semSetsQuartasOitavas(patchRpc))))
+    const lesaoNova = soLesao(patchRpc)
+    let patchEfetivo = semLesao(semTempos(semAlertaRodizio(semLimiteSubstituicoes(semSetsQuartasOitavas(patchRpc)))))
     if (SECOES_COM_TRAVA.has(args.section)) {
       const jogos = await jogosDaCategoria(categoryId)
       if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
@@ -124,9 +126,11 @@ export async function saveCategorySection(args: {
         if (comAlerta instanceof Response) return comAlerta
         const comTempos = await gravarTempos(args.ligaId, categoryId, temposNovos, comAlerta)
         if (comTempos instanceof Response) return comTempos
-        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comTempos)
+        const comLesao = await gravarLesao(args.ligaId, categoryId, lesaoNova, comTempos)
+        if (comLesao instanceof Response) return comLesao
+        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comLesao)
         if (comElegibilidade instanceof Response) return comElegibilidade
-        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo, ...temposNovos })
+        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo, ...temposNovos, ...lesaoNova })
         return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
       }
       const message = /Versao alterada/i.test(rpcError.message)
@@ -143,9 +147,11 @@ export async function saveCategorySection(args: {
     if (comAlerta instanceof Response) return comAlerta
     const comTempos = await gravarTempos(args.ligaId, categoryId, temposNovos, comAlerta)
     if (comTempos instanceof Response) return comTempos
-    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comTempos)
+    const comLesao = await gravarLesao(args.ligaId, categoryId, lesaoNova, comTempos)
+    if (comLesao instanceof Response) return comLesao
+    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comLesao)
     if (comElegibilidade instanceof Response) return comElegibilidade
-    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo, ...temposNovos })
+    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos, ...limiteNovo, ...alertaNovo, ...temposNovos, ...lesaoNova })
     return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
   } catch (cause) {
     if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
@@ -378,6 +384,29 @@ async function gravarTempos(
   return error('Não foi possível gravar os tempos.', 422)
 }
 
+async function gravarLesao(
+  ligaId: number,
+  categoryId: string,
+  campos: Record<string, unknown>,
+  salva: Record<string, unknown>,
+) {
+  if (Object.keys(campos).length === 0) return salva
+  const { data, error: updateErro } = await db
+    .from('CategoriaConfiguracao')
+    .update(campos)
+    .eq('categoriaCampeonatoId', categoryId)
+    .eq('ligaId', ligaId)
+    .select('*')
+    .maybeSingle()
+  if (!updateErro && data) return data
+  if (colunaDeLesaoAusente(updateErro)) {
+    console.error('[setup] lesão ainda não existe nesta base; a súmula segue sem tempo médico e sem substituição excepcional')
+    return salva
+  }
+  console.error('[setup] erro ao gravar lesão', updateErro)
+  return error('Não foi possível gravar o tempo médico ou a substituição por lesão.', 422)
+}
+
 async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
   const campos = camposParaEspelharNaLiga(patch)
   if (Object.keys(campos).length === 0) return
@@ -389,7 +418,7 @@ async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
   if (contagemErro) throw contagemErro
   if (count !== 1) return
   let corpo = campos
-  for (let tentativa = 0; tentativa < 6 && Object.keys(corpo).length > 0; tentativa += 1) {
+  for (let tentativa = 0; tentativa < 8 && Object.keys(corpo).length > 0; tentativa += 1) {
     const resultado = await db.from('Liga').update(corpo).eq('id', ligaId)
     if (!resultado.error) return
     const reduzido = enxugarEspelhoDaLiga(corpo, resultado.error)
@@ -404,6 +433,7 @@ function enxugarEspelhoDaLiga(corpo: Record<string, unknown>, erro: { message?: 
   if (colunaDeLimiteSubstituicoesAusente(erro)) atual = semLimiteSubstituicoes(atual)
   if (colunaDeAlertaRodizioAusente(erro)) atual = semAlertaRodizio(atual)
   if (colunaDeTemposAusente(erro)) atual = semTempos(atual)
+  if (colunaDeLesaoAusente(erro)) atual = semLesao(atual)
   return atual
 }
 

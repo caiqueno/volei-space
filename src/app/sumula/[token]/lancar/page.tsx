@@ -15,6 +15,7 @@ import { regrasVisiveis } from '@/lib/category-match-rules'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
+import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -49,7 +50,7 @@ import './sumula-micro.css'
 
 type TeamId = 'teamA' | 'teamB'
 type TabId = 'pre' | 'resumo' | 'pontuacao' | 'escalacao' | 'tempos' | 'anotacoes'
-type EventType = 'point' | 'attack' | 'block' | 'ace' | 'timeout' | 'substitution' | 'libero_exchange' | 'anotacao' | 'set_start' | 'set_end' | 'system'
+type EventType = 'point' | 'attack' | 'block' | 'ace' | 'timeout' | 'substitution' | 'injury_substitution' | 'libero_exchange' | 'anotacao' | 'set_start' | 'set_end' | 'system'
 
 type Player = {
   id: number
@@ -105,6 +106,8 @@ type MatchRules = {
   alertaRodizio: boolean
   timeoutLimit: number
   temposSeparados: boolean
+  tempoMedico: boolean
+  substituicaoPorLesao: boolean
 }
 
 type SetEndPrompt = {
@@ -868,8 +871,9 @@ export default function SumulaPage() {
     return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit)
   }
 
-  function executeSubstitution(inNumber: string) {
+  function executeSubstitution(inNumber: string, porLesao = false) {
     if (!subModal || !teamA || !teamB) return
+    const porLesaoAtiva = porLesao === true && matchRules.substituicaoPorLesao
     const isA = subModal.teamId === 'teamA'
     const lineupSetter = isA ? setLineupA : setLineupB
     const benchSetter = isA ? setBenchA : setBenchB
@@ -884,7 +888,7 @@ export default function SumulaPage() {
       return
     }
     const controleAtual = controleSubstituicao[currentSet]?.[subModal.teamId] ?? controleVazio()
-    const proximoControle = isLiberoExchange ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber, matchRules.substitutionLimit)
+    const proximoControle = isLiberoExchange || porLesaoAtiva ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber, matchRules.substitutionLimit)
     if (proximoControle?.falha) {
       addToast(mensagemFalhaSubstituicao(proximoControle.falha, currentSet, matchRules.substitutionLimit))
       return
@@ -901,10 +905,12 @@ export default function SumulaPage() {
     const formacaoA = isA ? nextLineup : lineupA
     const formacaoB = isA ? lineupB : nextLineup
     addMatchEvent(
-      isLiberoExchange ? 'libero_exchange' : 'substitution',
-      `${isLiberoExchange
-        ? `Troca de líbero ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`
-        : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
+      porLesaoAtiva ? 'injury_substitution' : isLiberoExchange ? 'libero_exchange' : 'substitution',
+      `${porLesaoAtiva
+        ? textoSubstituicaoLesao(team.name, outMatchNumber, outName, inMatchNumber, inName)
+        : isLiberoExchange
+          ? `Troca de líbero ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`
+          : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
       subModal.teamId,
     )
     if (proximoControle) {
@@ -922,7 +928,7 @@ export default function SumulaPage() {
       })
     }
     setSubModal(null)
-    addToast(isLiberoExchange ? 'Troca de líbero registrada.' : 'Substituição registrada.')
+    addToast(porLesaoAtiva ? 'Substituição por lesão registrada.' : isLiberoExchange ? 'Troca de líbero registrada.' : 'Substituição registrada.')
   }
 
   function requestTimeout(teamId: TeamId) {
@@ -947,6 +953,12 @@ export default function SumulaPage() {
     if (isA) setTemposEquipeA(used + 1)
     else setTemposEquipeB(used + 1)
     addMatchEvent('timeout', textoTempoEquipe(team.name, used + 1, currentSet, limite), teamId)
+  }
+
+  function requestTempoMedico(teamId: TeamId) {
+    if (!matchRules.tempoMedico || !teamA || !teamB) return
+    const team = teamId === 'teamA' ? teamA : teamB
+    addMatchEvent('anotacao', textoTempoMedico(team.name), teamId)
   }
 
   function saveNote(payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) {
@@ -1426,6 +1438,7 @@ export default function SumulaPage() {
             temposEquipeB={temposEquipeB}
             onTimeout={requestTimeout}
             onTempoEquipe={requestTempoEquipe}
+            onTempoMedico={requestTempoMedico}
             saveNote={saveNote}
             vistaQuadra={vistaQuadra}
             encerrada={matchStatus === 'finished'}
@@ -1455,6 +1468,7 @@ export default function SumulaPage() {
             confirmLineup={confirmLineup}
             setStartingLibero={setStartingLibero}
             executeSubstitution={executeSubstitution}
+            permiteLesao={matchRules.substituicaoPorLesao}
             allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
             substitutionNotice={avisoDoModal()}
             closeSubModal={() => setSubModal(null)}
@@ -2092,7 +2106,7 @@ function PontuacaoTab(props: {
   onAce: () => void
   onPoint: (teamId: TeamId) => void
   onSubstitution: (teamId: TeamId, index: number) => void
-  onSelectSubstitution: (number: string) => void
+  onSelectSubstitution: (number: string, porLesao?: boolean) => void
   onCloseSubstitution: () => void
   onUndo: () => void
   onUndoTeamPoint: (teamId: TeamId) => void
@@ -2103,6 +2117,7 @@ function PontuacaoTab(props: {
   temposEquipeB: number
   onTimeout: (teamId: TeamId) => void
   onTempoEquipe: (teamId: TeamId) => void
+  onTempoMedico: (teamId: TeamId) => void
   saveNote: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
   vistaQuadra: '2d' | '3d'
   encerrada?: boolean
@@ -2152,6 +2167,8 @@ function PontuacaoTab(props: {
             temposEquipeUsados={leftTemposEquipe}
             onTimeout={() => props.onTimeout(leftTeamId)}
             onTempoEquipe={() => props.onTempoEquipe(leftTeamId)}
+            tempoMedico={props.rules.tempoMedico}
+            onTempoMedico={() => props.onTempoMedico(leftTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2179,6 +2196,8 @@ function PontuacaoTab(props: {
             temposEquipeUsados={rightTemposEquipe}
             onTimeout={() => props.onTimeout(rightTeamId)}
             onTempoEquipe={() => props.onTempoEquipe(rightTeamId)}
+            tempoMedico={props.rules.tempoMedico}
+            onTempoMedico={() => props.onTempoMedico(rightTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2203,6 +2222,8 @@ function PontuacaoTab(props: {
             temposEquipeUsados={leftTemposEquipe}
             onTimeout={() => props.onTimeout(leftTeamId)}
             onTempoEquipe={() => props.onTempoEquipe(leftTeamId)}
+            tempoMedico={props.rules.tempoMedico}
+            onTempoMedico={() => props.onTempoMedico(leftTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2226,6 +2247,8 @@ function PontuacaoTab(props: {
             temposEquipeUsados={rightTemposEquipe}
             onTimeout={() => props.onTimeout(rightTeamId)}
             onTempoEquipe={() => props.onTempoEquipe(rightTeamId)}
+            tempoMedico={props.rules.tempoMedico}
+            onTempoMedico={() => props.onTempoMedico(rightTeamId)}
             events={props.events}
             encerrada={props.encerrada}
           />
@@ -2254,6 +2277,7 @@ function PontuacaoTab(props: {
             onlyBench={props.allowedSubstitutions}
             notice={props.substitutionNotice}
             teamId={props.subModal.teamId}
+            permiteLesao={props.rules.substituicaoPorLesao}
             getMatchNumber={props.getMatchNumber}
             onSelect={props.onSelectSubstitution}
             onClose={props.onCloseSubstitution}
@@ -2314,7 +2338,8 @@ function EscalacaoTab(props: {
   changeSlot: (teamId: TeamId, index: number, number: string) => void
   confirmLineup: (teamId: TeamId) => void
   setStartingLibero: (teamId: TeamId, number: string) => void
-  executeSubstitution: (number: string) => void
+  executeSubstitution: (number: string, porLesao?: boolean) => void
+  permiteLesao?: boolean
   allowedSubstitutions: string[]
   substitutionNotice: string | null
   closeSubModal: () => void
@@ -2703,6 +2728,7 @@ function EscalacaoTab(props: {
             bench={props.subModal.teamId === 'teamA' ? props.benchA : props.benchB}
             onlyBench={props.allowedSubstitutions}
             notice={props.substitutionNotice}
+            permiteLesao={props.permiteLesao}
             onSelect={props.executeSubstitution}
             onClose={props.closeSubModal}
           />
@@ -3048,8 +3074,10 @@ function CompactTeamControl({
   limite = 2,
   temposSeparados = false,
   temposEquipeUsados = 0,
+  tempoMedico = false,
   onTimeout,
   onTempoEquipe,
+  onTempoMedico,
   events,
   encerrada,
 }: {
@@ -3065,8 +3093,10 @@ function CompactTeamControl({
   limite?: number
   temposSeparados?: boolean
   temposEquipeUsados?: number
+  tempoMedico?: boolean
   onTimeout: () => void
   onTempoEquipe?: () => void
+  onTempoMedico?: () => void
   events: MatchEvent[]
   encerrada?: boolean
 }) {
@@ -3095,6 +3125,11 @@ function CompactTeamControl({
         <button className="official-compact-timeout-action" type="button" onClick={onTempoEquipe} disabled={encerrada || temposEquipeUsados >= limite} aria-label={`Registrar tempo de equipe para ${team.name}`}>
           <Clock size={15} />
           {temposEquipeUsados}/{limite}
+        </button>
+      ) : null}
+      {tempoMedico ? (
+        <button className="official-compact-timeout-action" type="button" onClick={onTempoMedico} disabled={encerrada} aria-label={`Registrar tempo médico para ${team.name}`}>
+          Médico
         </button>
       ) : null}
       {!encerrada && (
@@ -3459,6 +3494,7 @@ function normalizeOccurrenceType(event: MatchEvent) {
   if (event.type === 'ace') return 'ace'
   if (event.type === 'timeout') return 'timeout'
   if (event.type === 'substitution') return 'substitution'
+  if (event.type === 'injury_substitution') return 'lesao'
   if (event.type === 'libero_exchange') return 'troca_libero'
   if (event.type === 'set_start') return 'set_start'
   if (event.type === 'set_end') return 'set_end'
@@ -3564,7 +3600,8 @@ function TimeoutCard({ team, used, set, onRequest, limite = 2, rotulo = 'Registr
   return <section className="official-panel"><div className="official-section-row"><h3>{team.name}</h3><span>Set {set}</span></div><div className="official-timeout-boxes">{caixas.map((n) => <div key={n} className={used >= n ? 'is-used' : ''}><Clock size={15} />Tempo {n}</div>)}</div><button className="official-primary" disabled={used >= limite} onClick={onRequest}>{rotulo}</button></section>
 }
 
-function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string) => void; onClose: () => void }) {
+function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, notice = null, selectedLibero = '', hideLiberos = false, permiteLesao = false, getMatchNumber, onSelect, onClose }: { title: string; team: Team; teamId?: TeamId; lineup?: string[]; bench?: string[]; onlyBench?: string[]; notice?: string | null; selectedLibero?: string; hideLiberos?: boolean; permiteLesao?: boolean; getMatchNumber?: (teamId: TeamId, number: string) => string; onSelect: (number: string, porLesao?: boolean) => void; onClose: () => void }) {
+  const [lesao, setLesao] = useState(false)
   const substitutionMode = onlyBench != null
   const players = [...team.players, ...team.reserves].filter((player) => !(hideLiberos && player.isLibero))
   const visiveis = substitutionMode
@@ -3576,6 +3613,12 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
         <h3>{title}</h3>
         <p className="official-modal-caption">{team.name}</p>
         {notice ? <p className="official-modal-note">{notice}</p> : null}
+        {permiteLesao ? (
+          <label className="official-modal-note">
+            <input type="checkbox" checked={lesao} onChange={(event) => setLesao(event.target.checked)} />
+            {' '}Substituição por lesão. Não conta no limite e não cria par.
+          </label>
+        ) : null}
         <div>
           {visiveis.map((player) => {
             const isCourt = lineup.includes(player.number)
@@ -3590,7 +3633,11 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
                 key={player.number}
                 className={isCourt ? 'is-court-player' : isBench ? 'is-bench-player' : isLibero ? 'is-libero-player' : ''}
                 disabled={!isSelectable}
-                onClick={() => isSelectable && onSelect(player.number)}
+                onClick={() => {
+                  if (!isSelectable) return
+                  if (permiteLesao && lesao) onSelect(player.number, true)
+                  else onSelect(player.number)
+                }}
               >
                 <span>#{displayNumber} - {playerName}</span>
                 <em>{isSelectedLibero ? 'Líbero definido' : isLibero ? 'Líbero' : isCourt ? 'Em quadra' : isBench ? 'Reserva' : 'Elenco'}</em>
@@ -3860,6 +3907,7 @@ function normalizeSavedEventType(tipo: string): EventType {
   if (normalized === 'ace') return 'ace'
   if (normalized === 'timeout') return 'timeout'
   if (normalized === 'substitution' || normalized === 'substituicao') return 'substitution'
+  if (normalized === 'injury_substitution' || normalized === 'lesao') return 'injury_substitution'
   if (normalized === 'libero_exchange' || normalized === 'libero exchange' || normalized === 'troca_libero' || normalized === 'troca libero') return 'libero_exchange'
   if (normalized === 'set_start' || normalized === 'set start' || normalized === 'inicio_de_set' || normalized === 'inicio de set') return 'set_start'
   if (normalized === 'set_end' || normalized === 'set end' || normalized === 'fim_de_set' || normalized === 'fim de set') return 'set_end'
@@ -3995,6 +4043,8 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     alertaRodizio: source?.alertaRodizioIlegal === true,
     timeoutLimit: limiteDeTempos(source?.limiteTemposPorSet),
     temposSeparados: source?.separarTempos === true,
+    tempoMedico: source?.tempoMedico === true,
+    substituicaoPorLesao: source?.substituicaoPorLesao === true,
   }
 }
 

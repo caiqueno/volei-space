@@ -18,6 +18,8 @@ export type CategoryMatchRules = SetsPorFase & {
   alertaRodizioIlegal?: boolean | null
   limiteTemposPorSet?: number | null
   separarTempos?: boolean | null
+  tempoMedico?: boolean | null
+  substituicaoPorLesao?: boolean | null
 }
 
 export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null): CategoryMatchRules {
@@ -74,6 +76,8 @@ export function montarFonteDeRegras(input: {
       alertaRodizioIlegal: categoria.alertaRodizioIlegal === true,
       limiteTemposPorSet: categoria.limiteTemposPorSet ?? null,
       separarTempos: categoria.separarTempos === true,
+      tempoMedico: categoria.tempoMedico === true,
+      substituicaoPorLesao: categoria.substituicaoPorLesao === true,
     }
   }
   const liga = input.liga ?? {}
@@ -93,6 +97,8 @@ export function montarFonteDeRegras(input: {
     alertaRodizioIlegal: liga.alertaRodizioIlegal === true,
     limiteTemposPorSet: liga.limiteTemposPorSet ?? null,
     separarTempos: liga.separarTempos === true,
+    tempoMedico: liga.tempoMedico === true,
+    substituicaoPorLesao: liga.substituicaoPorLesao === true,
   }
 }
 

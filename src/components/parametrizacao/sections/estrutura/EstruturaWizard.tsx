@@ -193,6 +193,10 @@ export function EstruturaWizard({ ligaId }: { ligaId: number }) {
             <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula não mostra aviso e não impede o ponto.</p>
             <CheckboxRow label="Separar tempo de equipe" checked={data.separarTempos === true} onChange={(v) => updateNow({ separarTempos: v })} />
             <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula mantém um único botão de tempo.</p>
+            <CheckboxRow label="Tempo médico" checked={data.tempoMedico === true} onChange={(v) => updateNow({ tempoMedico: v })} />
+            <p className="-mt-2 text-sm text-slate-400">Desligado, a súmula não mostra tempo médico e o limite de tempos não muda.</p>
+            <CheckboxRow label="Substituição por lesão" checked={data.substituicaoPorLesao === true} onChange={(v) => updateNow({ substituicaoPorLesao: v })} />
+            <p className="-mt-2 text-sm text-slate-400">Desligado, toda substituição conta no limite e o par fecha na volta.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Pontos por set">
                 <NumberInput value={data.pontosPorSet} min={1} max={99} onChange={(v) => updateNow({ pontosPorSet: v })} />

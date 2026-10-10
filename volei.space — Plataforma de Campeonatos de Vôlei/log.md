@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | tempo médico e lesão
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- As duas opções nascem desligadas. Sem elas, a súmula não muda. `20261010139980_lesao_sumula.sql` não foi aplicada.
+
 ## [2026-10-10] feat | tempos da súmula
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
