@@ -15,6 +15,8 @@ updated: 2026-10-10
 
 ## Foco atual
 
+Encerrar um set que não fecha a partida inverte os lados da quadra na súmula e grava «Equipes inverteram os lados da quadra.». O saque dos sets 2 a 4 continua com quem não sacou no set anterior; o 5º set continua no sorteio. O pulso do rótulo segue `sumula-micro-set`. Fonte: [[modulos/SUMULA-DIGITAL]].
+
 Microinterações só visuais em `src/app/micro-interactions.css`: entrada de tela, botão (hover, clique e foco), menu hambúrguer, abas dos documentos legais, aviso e fade de carregamento. Durações de 180–220ms, só `transform` e `opacity`. `prefers-reduced-motion: reduce` zera essas regras. Súmula, páginas públicas, pódio, painel e identificação não recebem a troca de tela nem o menu novo. Os keyframes de `globals.css` da base Noite de final ficam como estão. Fonte: [[09-UI-UX]].
 
 Em 10 de outubro de 2026 a leitura pública de `SetPartida` e `ClassificacaoEntrada` fecha na migration `202610100002_fechar_leitura_publica_placar.sql`, ainda não aplicada. O prefixo `202610100001` continua no número da camisa. Ela liga o RLS, remove as policies `USING (true)`, revoga `anon` e `authenticated` e repete o revoke dos default privileges para `postgres` e, se o papel puder, para `supabase_admin`. Placar e tabela continuam nas APIs com `service_role`. O navegador consulta essas APIs a cada 4 segundos. O aviso do Realtime nessas duas tabelas para quando a migration entrar. `Partida` segue com SELECT das colunas de placar. A função `finalizar_inscricao_equipe_rascunho` volta a ler `inscricaoAprovacaoAutomatica` só depois dessa migration. Até lá o SQL já instalado grava `APROVADA`. O `POST /api/inscricoes-campeonato` já respeita a flag, e o rascunho não força mais `APROVADA` por cima do retorno.
