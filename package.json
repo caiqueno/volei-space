@@ -42,6 +42,7 @@
     "test:seguranca": "node scripts/with-ts-node.mjs scripts/seguranca-backend.test.ts",
     "test:auth-security": "node scripts/with-ts-node.mjs scripts/auth-security.test.ts",
     "test:import-winners": "node scripts/import-winners.test.mjs",
+    "test:migrations": "node scripts/migrations-historico.test.mjs",
     "seed:simulacao": "node scripts/with-ts-node.mjs scripts/recriar-simulacao.ts"
   },
   "prisma": {
