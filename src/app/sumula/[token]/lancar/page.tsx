@@ -13,6 +13,7 @@ import { reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
+import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import {
@@ -100,6 +101,7 @@ type MatchRules = {
   lastSetPoints: number
   exigeTodosOsSets: boolean
   substitutionLimit: number
+  alertaRodizio: boolean
 }
 
 type SetEndPrompt = {
@@ -472,6 +474,13 @@ export default function SumulaPage() {
       const flash = { teamId, number, id: Date.now() }
       setPointFlash(flash)
       setTimeout(() => setPointFlash((current) => current?.id === flash.id ? null : current), 950)
+    }
+
+    if (isSideOut && matchRules.alertaRodizio && scoreHistory.length > 0) {
+      const anterior = isA ? scoreHistory[scoreHistory.length - 1].lineupA : scoreHistory[scoreHistory.length - 1].lineupB
+      const atual = isA ? lineupA : lineupB
+      const aviso = mensagemRodizioIlegal(anterior, atual)
+      if (aviso) addToast(aviso)
     }
 
     if (isSideOut) {
@@ -3882,7 +3891,11 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     setsPorPartidaOitavas: source?.setsPorPartidaOitavas,
     setsPorPartidaTerceiroLugar: source?.setsPorPartidaTerceiroLugar,
   }, fase)
-  return { ...regras, substitutionLimit: limiteDeSubstituicoes(source?.limiteSubstituicoesPorSet) }
+  return {
+    ...regras,
+    substitutionLimit: limiteDeSubstituicoes(source?.limiteSubstituicoesPorSet),
+    alertaRodizio: source?.alertaRodizioIlegal === true,
+  }
 }
 
 function pointsForSet(rules: MatchRules, setNumber: number) {

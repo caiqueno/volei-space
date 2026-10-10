@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A tela do juiz e a chave pública mostram a vaga. O preenchimento ao oficializar a súmula não depende do pagamento. O limite de substituições continua 8 enquanto o campo estiver vazio.
+  O aviso de rodízio ilegal só aparece quando o organizador liga a opção. Desligado, a súmula não avisa e não impede o ponto. A tela do juiz e a chave pública mostram a vaga. O preenchimento ao oficializar a súmula não depende do pagamento.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 o aviso de rodízio ilegal só entra na súmula quando `alertaRodizioIlegal` está true. Desligado, ausente ou sem a coluna, o ponto segue e nenhum aviso aparece. O aviso não recusa o lance. `20261010139960_alerta_rodizio.sql` não foi aplicada. O prefixo fica depois de `20261010139950` e antes de `20261010140000`. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 a tela do juiz mostra a origem da vaga, por exemplo `Vencedor Semi 1`, no lugar de «Equipe × Equipe». `/api/portal/mata-mata?ligaId=` liga semifinal, final e 3º lugar pela fase e pela rodada quando a liga tem uma categoria. Oficializar a súmula, aprovar, lançar resultado manual ou abrir a chave preenche os times no mesmo jogo. O 403 de pagamento de `POST .../mata-mata/vagas` não impede essa sincronização. `20261010142000_vaga_a_definir.sql` já está em produção. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
 

@@ -9,6 +9,7 @@ const CAMPOS_CATEGORIA = `${CAMPOS_LIGA},terceiroSetObrigatorio`
 const CAMPOS_FASE = CAMPOS_SETS_POR_FASE_ANTERIORES.join(',')
 const CAMPOS_FASE_NOVA = CAMPOS_SETS_QUARTAS_OITAVAS.join(',')
 const CAMPO_LIMITE = 'limiteSubstituicoesPorSet'
+const CAMPO_RODIZIO = 'alertaRodizioIlegal'
 
 function primeiro(valor: unknown) {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
@@ -16,13 +17,17 @@ function primeiro(valor: unknown) {
 
 function colunaDeFaseAusente(erro: { message?: string; code?: string; details?: string } | null) {
   const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|PGRST204|42703/i.test(texto)
+  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|alertaRodizioIlegal|PGRST204|42703/i.test(texto)
 }
 
 async function lerLinha(tabela: 'Liga' | 'CategoriaConfiguracao', campos: string, coluna: string, valor: number | string) {
-  const completa = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE}`).eq(coluna, valor).maybeSingle()
+  const completa = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE},${CAMPO_RODIZIO}`).eq(coluna, valor).maybeSingle()
   if (!completa.error) return completa.data as Record<string, unknown> | null
   if (!colunaDeFaseAusente(completa.error)) throw new Error(completa.error.message)
+  // O alerta ainda não existe em produção. A leitura seguinte mantém o limite e as fases.
+  const comLimite = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPO_LIMITE}`).eq(coluna, valor).maybeSingle()
+  if (!comLimite.error) return comLimite.data as Record<string, unknown> | null
+  if (!colunaDeFaseAusente(comLimite.error)) throw new Error(comLimite.error.message)
   // O limite ainda não existe em produção. A leitura seguinte mantém quartas e oitavas.
   const comQuartas = await supabase.from(tabela).select(`${campos},${CAMPOS_FASE},${CAMPOS_FASE_NOVA}`).eq(coluna, valor).maybeSingle()
   if (!comQuartas.error) return comQuartas.data as Record<string, unknown> | null

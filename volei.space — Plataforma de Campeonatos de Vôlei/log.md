@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | aviso de rodízio
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O aviso só aparece com a opção ligada e não recusa o ponto. `20261010139960_alerta_rodizio.sql` não foi aplicada. Sem a coluna, a súmula não muda.
+
 ## [2026-10-10] fix | vaga na tela do juiz e na chave pública
 
 - pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
