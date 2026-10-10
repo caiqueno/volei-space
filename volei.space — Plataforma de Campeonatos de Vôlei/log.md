@@ -13,6 +13,11 @@ updated: 2026-10-09
 
 # Log
 
+## [2026-10-10] test | suíte de contrato e Playwright
+
+- pages_updated=`hot`, `log`
+- Os scripts de teste continuam no `with-ts-node` da main, com Node 22 e `prisma generate && next build`. Entraram Playwright, o contrato da API e o CI de testes com Postgres local. A replicação em `replace-sections` não trata formulário publicado como conflito. Assinatura curta do webhook responde 401, e falha ao processar pagamento pago responde 5xx.
+
 ## [2026-10-09] fix | sessão com audiência e leitura de atleta
 
 - pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
