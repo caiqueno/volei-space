@@ -16,7 +16,37 @@ updated: 2026-10-10
 ## [2026-10-10] fix | formulário da inscrição segue a categoria
 
 - pages_updated=`modulos/INSCRICOES`, `06-BANCO-DE-DADOS`, `hot`, `log`
-- Não coletar, opcional e obrigatório de nascimento e documento passam a valer no formulário público. A categoria prevalece sobre a liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada.
+- Não coletar, opcional e obrigatório de nascimento e documento passam a valer no formulário público. A categoria prevalece sobre a liga. `20261010138500_formulario_inscricao_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010138000` e antes de `20261010139000`.
+
+## [2026-10-10] fix | teste da súmula aceita a escalação sugerida
+
+- pages_updated=`log`
+- Ao ir para a escalação, a partida deixa de mostrar «Sem atleta» e sugere #1 a #6. O nome da equipe aparece em maiúsculas. O teste da mesa confere essa sugestão, define o líbero e segue. A escalação vazia continua valendo só no pré-jogo.
+
+## [2026-10-10] fix | prefixo do W.O. antes da migration de RLS
+
+- pages_updated=`06-BANCO-DE-DADOS`, `modulos/CLASSIFICACAO`, `hot`, `log`
+- `20261010138000` ficou com o confronto da categoria. `20261010150000_wo_configuravel.sql` passou a `20261010139000_wo_configuravel.sql`, depois desse confronto e antes de `20261010140000`. O SQL não mudou e não foi aplicado.
+
+## [2026-10-10] fix | merge da operação por categoria com a main
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A main entrou com súmula transacional, W.O. configurável, jogo só no mesmo grupo e confronto direto. `20261010138000` continua sendo o WO da chave da categoria. `20261010137000` é a súmula e `20261010150000` é o W.O. configurável.
+
+## [2026-10-10] fix | prefixo da migration do WO da categoria
+
+- pages_updated=`06-BANCO-DE-DADOS`, `modulos/MATA-MATA`, `hot`, `log`
+- `20261010137000` ficou com a súmula transacional. O WO da chave da categoria passou para `20261010138000_confronto_categoria_vencedor.sql`, ainda sem aplicar, e a migration de RLS continua a última.
+
+## [2026-10-10] fix | operação de campeonato por categoria
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/GRUPOS`, `modulos/MATA-MATA`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A chave chama `criar_confronto_categoria`, a classificação manual chama `classificar_equipe_categoria` e a tabela pública sai separada por categoria, só com id, nome, cor e logo da equipe. A geração de grupos não chama `substituir_estrutura_categoria`. O arquivo do WO foi renomeado para `20261010138000` e continua sem aplicar, antes da migration de RLS.
+
+## [2026-10-10] fix | regras da categoria na súmula e gravação transacional
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/CLASSIFICACAO`, `modulos/PARAMETRIZACAO`, `06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- A súmula usa `CategoriaConfiguracao` da partida. Sem categoria, o fallback é a `Liga`, com terceiro set obrigatório desligado. `20261010137000_sumula_transacional.sql` cria a gravação atômica e a trava da classificação calculada em `classificacao.ts`, inclusive `punicoes`. Não foi aplicada. O prefixo `20261010138000` fica livre. A RPC antiga de pontuação não foi recriada. O teste de RLS aceita arquivo posterior que não cria tabela nem concede a `anon`; `20261010150000` é esse caso.
 
 ## [2026-10-10] feat | jogos só dentro do grupo, tabelas separadas e elenco
 

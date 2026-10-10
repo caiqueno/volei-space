@@ -83,7 +83,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
         ) : (
           <>
             {organizerMode ? <GeradorChave ligaId={scope.selectedLiga.id} categoriaId={categoriaId} /> : null}
-            <ChaveamentoMataMata ligaId={scope.selectedLiga.id} rounds={rounds} champion={champion} thirdPlace={thirdPlace} organizerMode={organizerMode} />
+            <ChaveamentoMataMata ligaId={scope.selectedLiga.id} rounds={rounds} champion={champion} thirdPlace={thirdPlace} organizerMode={organizerMode} categoriaCampeonatoId={categoriaId} />
           </>
         )}
       </section>

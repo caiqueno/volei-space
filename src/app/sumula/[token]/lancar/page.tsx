@@ -10,10 +10,10 @@ import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orienta
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
+import { regrasVisiveis } from '@/lib/category-match-rules'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
-import { setsDaFase } from '@/lib/sets-por-fase'
 import {
   AlertCircle,
   Award,
@@ -97,6 +97,7 @@ type MatchRules = {
   setsPerMatch: number
   setsToWin: number
   lastSetPoints: number
+  exigeTodosOsSets: boolean
 }
 
 type SetEndPrompt = {
@@ -1214,7 +1215,7 @@ export default function SumulaPage() {
               <b>{currentScore[rightTeamId]}</b>
             </div>
             <div className="official-live-sets">
-              <span>Sets · melhor de {matchRules.setsPerMatch}</span>
+              <span>{matchRules.exigeTodosOsSets ? `Sets · ${matchRules.setsPerMatch} obrigatórios` : `Sets · melhor de ${matchRules.setsPerMatch}`}</span>
               <strong>{setsWon[leftTeamId]} x {setsWon[rightTeamId]}</strong>
             </div>
             <div className="official-live-captains">
@@ -3851,42 +3852,43 @@ function canCloseSetByRules(score: { teamA: number; teamB: number }, pointsPerSe
 
 function getMatchRules(liga: any, fase?: string | null): MatchRules {
   const source = Array.isArray(liga) ? liga[0] : liga
-  const pointsPerSet = readPositiveNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet'], 21)
-  const setsBase = readPositiveNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets'], 3)
-  const setsPerMatch = setsDaFase({
-    setsPorPartida: setsBase,
+  return regrasVisiveis({
+    setsPorPartida: readOptionalNumber(source, ['setsPorPartida', 'sets_por_partida', 'sets']),
+    pontosPorSet: readOptionalNumber(source, ['pontosPorSet', 'pontos_por_set', 'pontuacaoSet']),
+    tieBreakUltimoSet: readOptionalBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set']),
+    pontosUltimoSet: readOptionalNumber(source, ['pontosUltimoSet', 'pontos_ultimo_set']),
+    setsFormato: readOptionalText(source, ['setsFormato', 'sets_formato']),
+    terceiroSetObrigatorio: readOptionalBoolean(source, ['terceiroSetObrigatorio', 'terceiro_set_obrigatorio']),
     setsPorPartidaFinal: source?.setsPorPartidaFinal,
     setsPorPartidaSemifinal: source?.setsPorPartidaSemifinal,
     setsPorPartidaTerceiroLugar: source?.setsPorPartidaTerceiroLugar,
   }, fase)
-  const tieBreakEnabled = readBoolean(source, ['tieBreakUltimoSet', 'tie_break_ultimo_set'], false)
-  const lastSetPoints = tieBreakEnabled
-    ? readPositiveNumber(source, ['pontosUltimoSet', 'pontos_ultimo_set'], 15)
-    : pointsPerSet
-  return {
-    pointsPerSet,
-    setsPerMatch,
-    setsToWin: Math.floor(setsPerMatch / 2) + 1,
-    lastSetPoints,
-  }
 }
 
 function pointsForSet(rules: MatchRules, setNumber: number) {
   return setNumber === rules.setsPerMatch ? rules.lastSetPoints : rules.pointsPerSet
 }
 
-function readPositiveNumber(source: any, keys: string[], fallback: number) {
+function readOptionalNumber(source: any, keys: string[]) {
   for (const key of keys) {
     const value = Number(source?.[key])
     if (Number.isFinite(value) && value > 0) return Math.trunc(value)
   }
-  return fallback
+  return undefined
 }
 
-function readBoolean(source: any, keys: string[], fallback: boolean) {
+function readOptionalBoolean(source: any, keys: string[]) {
   for (const key of keys) {
     const value = source?.[key]
     if (typeof value === 'boolean') return value
   }
-  return fallback
+  return undefined
+}
+
+function readOptionalText(source: any, keys: string[]) {
+  for (const key of keys) {
+    const value = source?.[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+  return undefined
 }

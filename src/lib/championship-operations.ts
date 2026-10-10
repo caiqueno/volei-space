@@ -64,10 +64,9 @@ export async function ensureClassificationAndCalendar(inscricao: InscricaoWithRe
 }
 
 export async function recalculateLeagueClassification(ligaId: number) {
-  // A RPC recalcular_classificacao_liga que fica ativa depois da migration
-  // atomica ainda pontua 4/3/1/0 e soma jogo de mata-mata na tabela.
-  // O cálculo vigente é o de classificacao.ts, gravado aqui. A trava
-  // pg_advisory_xact_lock precisa voltar no banco em volta desta mesma regra.
+  // A RPC recalcular_classificacao_liga ainda pontua 4/3/1/0 e soma mata-mata.
+  // O cálculo vigente continua em classificacao.ts. A gravação entra na mesma
+  // trava pg_advisory_xact_lock(liga) da súmula, em gravar_classificacao_calculada.
   const { gravarClassificacao } = await import('@/lib/massa-qa')
   await gravarClassificacao(ligaId)
 }

@@ -23,8 +23,10 @@ type Props = {
   dados: Entrada[]
   groups?: ClassificacaoGroup[]
   ligaId?: number | null
+  categoriaCampeonatoId?: string | null
   organizadorId?: string | null
   requiredClassified?: number
+  automaticClassifiedIds?: number[]
   automaticLimit?: number
   initialManualClassifiedIds?: number[]
   organizerMode?: boolean
@@ -38,8 +40,10 @@ export function ChampionshipTableSection({
   dados,
   groups,
   ligaId,
+  categoriaCampeonatoId,
   organizadorId,
   requiredClassified,
+  automaticClassifiedIds,
   automaticLimit,
   initialManualClassifiedIds,
   organizerMode,
@@ -53,8 +57,10 @@ export function ChampionshipTableSection({
         dados={dados}
         groups={groups}
         ligaId={ligaId}
+        categoriaCampeonatoId={categoriaCampeonatoId}
         organizadorId={organizadorId}
         requiredClassified={requiredClassified}
+        automaticClassifiedIds={automaticClassifiedIds}
         automaticLimit={automaticLimit}
         initialManualClassifiedIds={initialManualClassifiedIds}
         organizerMode={organizerMode}

@@ -159,7 +159,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const ligaResult = await getOwnedLiga(ligaId, auth.userId)
     if (ligaResult instanceof Response) return ligaResult
-    const liga = ligaResult
     const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
     if (bloqueio) return bloqueio
 
@@ -175,9 +174,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (categorias instanceof Response) return categorias
     if (!categorias.some((item) => item.id === categoriaCampeonatoId)) return error('Categoria não encontrada neste campeonato.', 404)
     const regras = await lerRegrasDaCategoria(ligaId, categoriaCampeonatoId)
+    if (!regras) return error('Configure a categoria antes de gerar os grupos.', 422)
     const equipes = equipesDaCategoria(equipesResult.data, categoriaCampeonatoId)
-    const quantidadeGrupos = Math.max(1, Number(body.quantidadeGrupos ?? regras?.quantidadeGrupos ?? liga.quantidadeGrupos ?? 1))
-    const classificadosPorGrupo = Math.max(0, Number(body.classificadosPorGrupo ?? regras?.classificadosPorGrupo ?? liga.classificadosPorGrupo ?? 0))
+    const quantidadeGrupos = Math.max(1, Number(body.quantidadeGrupos ?? regras.quantidadeGrupos ?? 1))
+    const classificadosPorGrupo = Math.max(0, Number(body.classificadosPorGrupo ?? regras.classificadosPorGrupo ?? 0))
     const nomesGrupos = normalizeGroupNames(body.nomesGrupos, quantidadeGrupos)
     const turnoReturno = Boolean(body.turnoReturno)
     const dataInicial = typeof body.dataInicial === 'string' ? body.dataInicial : ''
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const groups = normalizeGroups(body.grupos, nomesGrupos, equipes)
     if (!groups) return error('A quantidade de grupos não confere com a distribuição enviada.', 422)
-    const validation = validateGroups(groups, equipes, classificadosPorGrupo, regras?.faseEliminatoria ?? liga.faseEliminatoria, regras?.formato ?? liga.formato)
+    const validation = validateGroups(groups, equipes, classificadosPorGrupo, regras.faseEliminatoria, regras.formato)
     if (validation) return error(validation, 422)
 
     const { data: partidasExistentes, error: partidasErr } = await supabase

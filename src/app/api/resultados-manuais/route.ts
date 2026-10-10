@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: partida, error: partidaErr } = await supabase
       .from('Partida')
-      .select('id,ligaId,fase,equipeAId,equipeBId,categoriaCampeonatoId,liga:Liga(id,organizadorId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,terceiroSetObrigatorio,setsFormato)')
+      .select('id,ligaId,fase,equipeAId,equipeBId,categoriaCampeonatoId,liga:Liga(id,organizadorId)')
       .eq('id', partidaId)
       .single()
 
