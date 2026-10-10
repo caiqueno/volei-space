@@ -11,6 +11,14 @@ import {
 import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
 import { registrarEventoInscricao } from '@/lib/link-inscricao-campeonato'
 import { slugify } from '@/utils/slug'
+import {
+  colunaElegibilidadeAusente,
+  elegibilidadeAtiva,
+  mensagemElegibilidade,
+  normalizarElegibilidade,
+  sexoAtleta,
+  type ElegibilidadeCategoria,
+} from '@/lib/elegibilidade-categoria'
 
 export type RegistrationDraftStatus = 'NAO_INICIADO' | 'EM_PREENCHIMENTO' | 'CONCLUIDO' | 'RASCUNHO' | 'ENVIADA'
 
@@ -53,6 +61,7 @@ export type RegistrationPlayer = {
   dataNascimento: string | null
   documentoTipo: string | null
   documentoNumero: string | null
+  sexo?: string | null
 }
 
 export type RegistrationDraft = {
@@ -212,6 +221,28 @@ export async function createRegistrationDraft(input: { ligaId?: number; linkToke
   return data as unknown as RegistrationDraft
 }
 
+const COLUNAS_ATLETA = 'id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero'
+let elegibilidadeIndisponivelAte = 0
+
+export async function lerElegibilidadeDaCategoria(ligaId: number, categoriaCampeonatoId: string | null | undefined): Promise<ElegibilidadeCategoria | null> {
+  if (!categoriaCampeonatoId) return null
+  if (Date.now() < elegibilidadeIndisponivelAte) return null
+  const consulta = await supabase
+    .from('CategoriaConfiguracao')
+    .select('genero,idadeMinima,idadeMaxima')
+    .eq('ligaId', ligaId)
+    .eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    .maybeSingle()
+  if (consulta.error) {
+    if (colunaElegibilidadeAusente(consulta.error)) {
+      elegibilidadeIndisponivelAte = Date.now() + 10 * 60 * 1000
+      return null
+    }
+    throw new Error(consulta.error.message)
+  }
+  return normalizarElegibilidade(consulta.data)
+}
+
 export async function lerFormularioDaCategoria(ligaId: number, categoriaCampeonatoId: string | null | undefined) {
   if (!categoriaCampeonatoId) return null
   const consulta = await supabase
@@ -232,6 +263,7 @@ export async function getRegistrationDraftByToken(token: string) {
   const draft = await getDraft(token)
   const lida = await getLeague(draft.ligaId)
   const daCategoria = await lerFormularioDaCategoria(draft.ligaId, draft.categoriaCampeonatoId)
+  const elegibilidade = await lerElegibilidadeDaCategoria(draft.ligaId, draft.categoriaCampeonatoId)
   const liga = { ...lida, formularioInscricaoConfig: formularioDaInscricao(lida.formularioInscricaoConfig, daCategoria) }
   const registrationStatus = await getRegistrationStatus(draft.inscricaoCampeonatoId)
   const edit = canEditRegistration(draft, liga)
@@ -240,12 +272,11 @@ export async function getRegistrationDraftByToken(token: string) {
   let team = draft
   let players: RegistrationPlayer[] = []
   if (inscricaoConcluida(draft.status) && draft.equipeId) {
-    const [{ data: equipe, error: equipeError }, { data: jogadores, error: jogadoresError }] = await Promise.all([
+    const [{ data: equipe, error: equipeError }, jogadores] = await Promise.all([
       supabase.from('Equipe').select('nome,logoUrl,lider,tecnico,categoria,serie').eq('id', draft.equipeId).single(),
-      supabase.from('Jogador').select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero').eq('equipeId', draft.equipeId).eq('banido', false).order('criadoEm'),
+      listarAtletas(elegibilidade, (colunas) => supabase.from('Jogador').select(colunas).eq('equipeId', draft.equipeId).eq('banido', false).order('criadoEm') as unknown as Promise<{ data: RegistrationPlayer[] | null; error: { message?: string; code?: string; details?: string } | null }>),
     ])
     if (equipeError) throw equipeError
-    if (jogadoresError) throw jogadoresError
     team = {
       ...draft,
       nomeEquipe: equipe.nome,
@@ -255,18 +286,32 @@ export async function getRegistrationDraftByToken(token: string) {
       categoria: equipe.categoria,
       serie: equipe.serie,
     }
-    players = (jogadores ?? []) as RegistrationPlayer[]
+    players = jogadores
   } else {
-    const { data, error } = await supabase
-      .from('InscricaoEquipeJogadorRascunho')
-      .select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero')
-      .eq('inscricaoRascunhoId', draft.id)
-      .order('criadoEm')
-    if (error) throw error
-    players = (data ?? []) as RegistrationPlayer[]
+    players = await listarAtletas(elegibilidade, (colunas) => (
+      supabase.from('InscricaoEquipeJogadorRascunho').select(colunas).eq('inscricaoRascunhoId', draft.id).order('criadoEm') as unknown as Promise<{ data: RegistrationPlayer[] | null; error: { message?: string; code?: string; details?: string } | null }>
+    ))
   }
 
-  return { draft: team, liga, players, registrationStatus, canEdit: edit.allowed, canEditRoster: rosterEdit.allowed, readOnlyReason: edit.reason || rosterEdit.reason }
+  return { draft: team, liga, players, elegibilidade, registrationStatus, canEdit: edit.allowed, canEditRoster: rosterEdit.allowed, readOnlyReason: edit.reason || rosterEdit.reason }
+}
+
+function colunasDoAtleta(elegibilidade: ElegibilidadeCategoria | null) {
+  return elegibilidadeAtiva(elegibilidade) ? `${COLUNAS_ATLETA},sexo` : COLUNAS_ATLETA
+}
+
+async function listarAtletas(
+  elegibilidade: ElegibilidadeCategoria | null,
+  consultar: (colunas: string) => PromiseLike<{ data: RegistrationPlayer[] | null; error: { message?: string; code?: string; details?: string } | null }>,
+) {
+  const primeira = await consultar(colunasDoAtleta(elegibilidade))
+  if (primeira.error && elegibilidadeAtiva(elegibilidade) && colunaElegibilidadeAusente(primeira.error)) {
+    const segunda = await consultar(COLUNAS_ATLETA)
+    if (segunda.error) throw new Error(segunda.error.message)
+    return segunda.data ?? []
+  }
+  if (primeira.error) throw new Error(primeira.error.message)
+  return primeira.data ?? []
 }
 
 export function mascararCpf(cpf: string | null) {
@@ -337,6 +382,7 @@ function playerPayload(input: Record<string, unknown>) {
     ...(input.dataNascimento !== undefined ? { dataNascimento: input.dataNascimento || null } : {}),
     ...(input.documentoTipo !== undefined ? { documentoTipo: input.documentoTipo || null } : {}),
     ...(input.documentoNumero !== undefined ? { documentoNumero: input.documentoNumero || null } : {}),
+    ...(input.sexo !== undefined ? { sexo: sexoAtleta(input.sexo) } : {}),
   }
 }
 
@@ -369,47 +415,84 @@ function assertRosterPlayer(input: Record<string, unknown>, context: Awaited<Ret
   }
 }
 
-function exigirAtletaConfigurado(input: Record<string, unknown>, liga: RegistrationLeague, atual?: RegistrationPlayer) {
+function exigirAtletaConfigurado(input: Record<string, unknown>, liga: RegistrationLeague, elegibilidade: ElegibilidadeCategoria | null, atual?: RegistrationPlayer) {
   const config = resolveFormularioRapidaConfig(liga.formularioInscricaoConfig)
   const nascimento = input.dataNascimento !== undefined ? input.dataNascimento : atual?.dataNascimento
   const documento = input.documentoNumero !== undefined ? input.documentoNumero : atual?.documentoNumero
+  const sexo = input.sexo !== undefined ? input.sexo : atual?.sexo
   const pendencias = pendenciasDoAtleta({
     dataNascimento: nascimento == null ? null : String(nascimento),
     documentoNumero: documento == null ? null : String(documento),
   }, config)
+  const elegibilidadeMsg = mensagemElegibilidade(elegibilidade, {
+    sexo: sexo == null ? null : String(sexo),
+    dataNascimento: nascimento == null ? null : String(nascimento),
+  })
+  if (elegibilidadeMsg) pendencias.push(elegibilidadeMsg)
   if (pendencias.length) throw new RegistrationDraftError(pendencias[0], 422, pendencias)
 }
 
 export async function createRegistrationPlayer(token: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context)
-  exigirAtletaConfigurado(input, context.liga)
+  exigirAtletaConfigurado(input, context.liga, context.elegibilidade)
   const maximum = context.liga.elencoQuantidadeMaxima
   if (maximum != null && context.players.length >= maximum) throw new RegistrationDraftError(`O elenco permite no máximo ${maximum} jogadores.`, 422)
-  const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
-  const extra = inscricaoConcluida(context.draft.status)
-    ? { equipeId: context.draft.equipeId, autoRegistrado: true }
-    : { inscricaoRascunhoId: context.draft.id }
-  const { data, error } = await supabase.from(target).insert({ ...configuredPlayerPayload(input, context.liga), ...extra }).select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero').single()
-  if (error?.code === '23505') throw new RegistrationDraftError('Já existe um jogador ativo com esse número nesta equipe.', 409)
-  if (error) throw error
-  return data as RegistrationPlayer
+  const concluida = inscricaoConcluida(context.draft.status)
+  const target = concluida ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
+  const data = await gravarAtleta(target, 'insert', configuredPlayerPayload(input, context.liga), concluida
+    ? { equipeId: context.draft.equipeId }
+    : { inscricaoRascunhoId: context.draft.id })
+  if (!data) throw new RegistrationDraftError('Não foi possível salvar o jogador.', 500)
+  return data
 }
 
 export async function updateRegistrationPlayer(token: string, playerId: string, input: Record<string, unknown>) {
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context, playerId)
-  exigirAtletaConfigurado(input, context.liga, context.players.find((player) => String(player.id) === String(playerId)))
+  exigirAtletaConfigurado(input, context.liga, context.elegibilidade, context.players.find((player) => String(player.id) === String(playerId)))
   const target = inscricaoConcluida(context.draft.status) ? 'Jogador' : 'InscricaoEquipeJogadorRascunho'
-  let query = supabase.from(target).update(configuredPlayerPayload(input, context.liga)).eq('id', playerId)
-  query = inscricaoConcluida(context.draft.status)
-    ? query.eq('equipeId', context.draft.equipeId as number)
-    : query.eq('inscricaoRascunhoId', context.draft.id)
-  const { data, error } = await query.select('id,nome,numero,posicao,fotoUrl,cpf,dataNascimento,documentoTipo,documentoNumero').maybeSingle()
-  if (error?.code === '23505') throw new RegistrationDraftError('Já existe um jogador ativo com esse número nesta equipe.', 409)
-  if (error) throw error
+  const data = await gravarAtleta(target, 'update', configuredPlayerPayload(input, context.liga), {
+    id: playerId,
+    equipeId: context.draft.equipeId,
+    inscricaoRascunhoId: context.draft.id,
+  })
   if (!data) throw new RegistrationDraftError('Jogador não encontrado nesta inscrição.', 404)
-  return data as RegistrationPlayer
+  return data
+}
+
+async function gravarAtleta(
+  target: 'Jogador' | 'InscricaoEquipeJogadorRascunho',
+  operacao: 'insert' | 'update',
+  payload: Record<string, unknown>,
+  extra: { id?: string | number | true; equipeId?: number | null; inscricaoRascunhoId?: string },
+) {
+  const tentar = async (corpo: Record<string, unknown>) => {
+    const colunas = 'sexo' in corpo ? `${COLUNAS_ATLETA},sexo` : COLUNAS_ATLETA
+    if (operacao === 'insert') {
+      return supabase.from(target).insert({ ...corpo, ...semId(extra) }).select(colunas).single()
+    }
+    let query = supabase.from(target).update(corpo).eq('id', extra.id as string | number)
+    query = target === 'Jogador'
+      ? query.eq('equipeId', extra.equipeId as number)
+      : query.eq('inscricaoRascunhoId', extra.inscricaoRascunhoId as string)
+    return query.select(colunas).maybeSingle()
+  }
+  let resultado = await tentar(payload)
+  if (resultado.error && 'sexo' in payload && colunaElegibilidadeAusente(resultado.error)) {
+    const semSexo = { ...payload }
+    delete semSexo.sexo
+    resultado = await tentar(semSexo)
+  }
+  if (resultado.error?.code === '23505') throw new RegistrationDraftError('Já existe um jogador ativo com esse número nesta equipe.', 409)
+  if (resultado.error) throw resultado.error
+  return resultado.data as RegistrationPlayer | null
+}
+
+function semId(extra: { equipeId?: number | null; inscricaoRascunhoId?: string }) {
+  return extra.equipeId != null
+    ? { equipeId: extra.equipeId, autoRegistrado: true }
+    : { inscricaoRascunhoId: extra.inscricaoRascunhoId }
 }
 
 export async function deleteRegistrationPlayer(token: string, playerId: string) {
@@ -449,6 +532,8 @@ function validateFinalData(context: Awaited<ReturnType<typeof getRegistrationDra
     if (isFieldRequired(config.atleta.posicao) && !player.posicao) issues.push(`${label}: posição é obrigatória.`)
     if (isFieldRequired(config.atleta.cpf) && !player.cpf) issues.push(`${label}: CPF é obrigatório.`)
     for (const pendencia of pendenciasDoAtleta(player, config)) issues.push(`${label}: ${pendencia}`)
+    const elegibilidadeMsg = mensagemElegibilidade(context.elegibilidade, player)
+    if (elegibilidadeMsg) issues.push(`${label}: ${elegibilidadeMsg}`)
   })
   if (issues.length) throw new RegistrationDraftError('Não foi possível concluir o cadastro.', 422, issues)
 }

@@ -4,6 +4,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { numeroNaPartida, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
+import { inserirSumulaPresenca, registrarOcorrencia } from '@/lib/sumula-presenca'
 
 const bodySchema = z.object({
   jogadorId: z.number().int().positive(),
@@ -62,13 +63,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const gravado = atual
     ? await supabase.from('SumulaPresenca').update({ numero: parsed.data.numero }).eq('id', atual.id).select(COLUNAS).single()
-    : await supabase.from('SumulaPresenca').insert({
+    : await inserirSumulaPresenca(supabase, {
       partidaId: access.partida.id,
       jogadorId: atleta.id,
       equipeId: atleta.equipeId,
       presente: null,
       numero: parsed.data.numero,
-    }).select(COLUNAS).single()
+    })
 
   let data = gravado.data
   let falha = gravado.error
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const anterior = efetivo == null ? 'sem número' : String(efetivo)
   const proximo = data.numero == null ? 'sem número' : String(data.numero)
-  await supabase.from('OcorrenciaPartida').insert({
+  await registrarOcorrencia(supabase, {
     partidaId: access.partida.id,
     tipo: 'OBSERVACAO',
     jogadorId: atleta.id,

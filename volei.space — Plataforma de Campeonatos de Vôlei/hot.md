@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O mata-mata agenda vaga a definir no mesmo jogo e no mesmo link do juiz. 20261010142000 não foi aplicada; sem as colunas a função fica desligada.
+  O mata-mata agenda vaga a definir no mesmo jogo e no mesmo link do juiz. 20261010142000 não foi aplicada; sem as colunas a função fica desligada. A presença do árbitro deixa o upsert. Gênero e idade da categoria seguem opcionais em 20261010139700, ainda sem aplicar.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,12 @@ updated: 2026-10-10
 ## Foco atual
 
 Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` não foi aplicada. Sem as colunas, a leitura não as pede e nada disso aparece. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 a confirmação de atleta deixa de usar `upsert` em `SumulaPresenca`. Produção só tem chave primária em `id`, sem `default`, e a sequence existe sem estar ligada à coluna. O PostgREST respondia 400 (`42P10`) e a rota devolvia 500. `updatedAt` e `tokenSumula` não são colunas desta gravação. Nenhuma migration foi aplicada. Fonte: [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 a categoria pode restringir gênero e faixa de idade. Os dois nascem vazios. A inscrição só confere o sexo quando a categoria é masculina ou feminina e o atleta informou o sexo. A idade só entra quando há data de nascimento e a faixa está preenchida. Misto aceita os dois sexos. Sexo vazio e nascimento vazio continuam válidos. Sem as colunas, a leitura volta nula por dez minutos e o salvamento da inscrição segue. Gênero e idade não entram em `salvar_configuracao_categoria` nem em `Liga`. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 a leitura do projeto `mqbkwbqpnhsqaemavive` mostrou que W.O., sets por fase, `formularioInscricaoConfig`, `punicoes` e as funções de súmula, classificação e inscrição já existem, embora `schema_migrations` pare em `20261010083821`. `SuspensaoAtleta`, `genero`, `idadeMinima`, `idadeMaxima` e `sexo` não existem. A súmula, a inscrição e a classificação do código já mergeado não consultam esses objetos ausentes. Fonte: [[06-BANCO-DE-DADOS]].
 
 Em 10 de outubro de 2026 o menu do painel deixa de cobrir a página. A faixa inferior só aparece abaixo de 1024px, numa linha só, e a guia de 292px fica ao lado do conteúdo. Sair é o último item, abaixo de Rankings, na mesma coluna. Em tela baixa a lista rola dentro da guia. Fonte: [[09-UI-UX]].
 
@@ -59,7 +65,7 @@ Microinterações só visuais em `src/app/micro-interactions.css`: entrada de te
 
 Em 10 de outubro de 2026 a leitura pública de `SetPartida` e `ClassificacaoEntrada` fecha na migration `202610100002_fechar_leitura_publica_placar.sql`, ainda não aplicada. O prefixo `202610100001` continua no número da camisa. Ela liga o RLS, remove as policies `USING (true)`, revoga `anon` e `authenticated` e repete o revoke dos default privileges para `postgres` e, se o papel puder, para `supabase_admin`. Placar e tabela continuam nas APIs com `service_role`. O navegador consulta essas APIs a cada 4 segundos. O aviso do Realtime nessas duas tabelas para quando a migration entrar. `Partida` segue com SELECT das colunas de placar. A função `finalizar_inscricao_equipe_rascunho` volta a ler `inscricaoAprovacaoAutomatica` só depois dessa migration. Até lá o SQL já instalado grava `APROVADA`. O `POST /api/inscricoes-campeonato` já respeita a flag, e o rascunho não força mais `APROVADA` por cima do retorno.
 
-A migration `20261010015632_indices_consultas_quentes.sql` só cria índice, se ainda não existir, nas consultas de campeonato, equipe, atleta, partida e súmula. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` passam a ser a primeira coluna de um índice. Os compostos cobrem fase e rodada, status e horário, elenco por equipe, e ocorrência por partida e set. Pontos e presença já estavam cobertos pela unicidade. O `@@index` está no Prisma; a vitrine com `simulacao = false` fica só no SQL. Nada foi aplicado em produção nem em desenvolvimento. Fonte: [[06-BANCO-DE-DADOS]].
+A migration `20261010015632_indices_consultas_quentes.sql` só cria índice, se ainda não existir, nas consultas de campeonato, equipe, atleta, partida e súmula. `Partida.grupoId` e `GrupoEquipeCampeonato.equipeId` passam a ser a primeira coluna de um índice. Os compostos cobrem fase e rodada, status e horário, elenco por equipe, e ocorrência por partida e set. O comentário antigo dizia que a presença já tinha unicidade em `(partidaId, jogadorId)`. Em produção essa constraint não existe. O `@@index` está no Prisma; a vitrine com `simulacao = false` fica só no SQL. Fonte: [[06-BANCO-DE-DADOS]].
 
 A súmula de lançamento ganha microinterações só visuais: ACE, toque no atleta, bloqueio B, troca de set e abertura/fechamento do modal de substituição. São opacidade e transform em `sumula-micro.css`, desligadas com `prefers-reduced-motion`. O lance entra na hora. O `+1` continua com a bola. Fonte: [[09-UI-UX]], [[modulos/SUMULA-DIGITAL]].
 

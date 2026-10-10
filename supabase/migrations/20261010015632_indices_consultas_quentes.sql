@@ -4,8 +4,9 @@
 --
 -- Já cobertos, e por isso sem segundo índice:
 --   SetPartida (partidaId, numero) — pontos do set; a unicidade já começa em partidaId.
---   SumulaPresenca (partidaId, jogadorId) — presença da partida; jogadorId e equipeId
---     já têm índice próprio em 202610090002.
+--   SumulaPresenca (partidaId, jogadorId) — o Prisma declara essa unicidade, mas
+--     produção só tem a chave primária em id. jogadorId e equipeId já têm índice
+--     em 202610090002. Este arquivo não cria a unicidade nem o default de id.
 --   DestaquesPartida (partidaId, tipo) — destaque da súmula.
 --   Partida_categoria_fase_slot_key — unicidade do mata-mata quando a categoria
 --     entra no filtro e a fase é eliminatória. Não serve ligaId + fase sem categoria.

@@ -18,6 +18,17 @@ updated: 2026-10-10
 - pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - O jogo do mata-mata pode nascer sem os dois times, com origem da vaga, data, horário e quadra. O link do juiz permanece na mesma partida. A súmula não inicia até os times entrarem. `20261010142000_vaga_a_definir.sql` não foi aplicada; sem as colunas a função fica desligada.
 
+## [2026-10-10] fix | presença do árbitro sem upsert
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- `POST /api/arbitro/partidas/{token}/presenca` respondia 500 porque o `upsert` em `(partidaId, jogadorId)` não tem constraint em produção. O Postgres registra `42P10`. O código passa a ler e atualizar, ou inserir com `id` explícito. Nenhuma migration foi aplicada.
+
+## [2026-10-10] feat | gênero e idade da categoria
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Gênero e faixa de idade nascem vazios. A conferência só roda quando a categoria e o atleta têm o dado. Sem a coluna, a regra fica desligada. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes da migration de RLS.
+- Leitura do projeto `mqbkwbqpnhsqaemavive`: W.O., sets por fase, formulário, `punicoes` e as funções usadas pela súmula, pela inscrição e pela classificação já estão no schema. `SuspensaoAtleta` e as colunas de gênero, idade e sexo não estão.
+
 ## [2026-10-10] fix | menu do painel não cobre a página
 
 - pages_updated=`09-UI-UX`, `hot`, `log`

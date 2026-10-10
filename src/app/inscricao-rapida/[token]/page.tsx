@@ -36,6 +36,7 @@ export default async function InscricaoRapidaTokenPage({ params }: PageProps) {
         canEditRoster={context.canEditRoster}
         readOnlyReason={context.readOnlyReason}
         registrationStatus={context.registrationStatus}
+        elegibilidade={context.elegibilidade}
       />
     )
   } catch (err) {

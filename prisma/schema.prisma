@@ -210,6 +210,7 @@ model InscricaoEquipeJogadorRascunho {
   dataNascimento      DateTime?
   documentoTipo       String?
   documentoNumero     String?
+  sexo                String?
   chaveCadastro       String?   @db.Uuid
   criadoEm            DateTime  @default(now())
   atualizadoEm        DateTime  @updatedAt
@@ -261,6 +262,7 @@ model Jogador {
   documentoTipo      String?
   documentoNumero    String?
   dataNascimento     DateTime?
+  sexo               String?
   telefone           String?
   telefoneEmergencia String?
   fotoRostoUrl       String?
@@ -780,6 +782,9 @@ model CategoriaConfiguracao {
   woPontosSetVencedor             Int?
   woPontosSetPerdedor             Int?
   woPunicaoPontos                 Int?      @default(0)
+  genero                          String?
+  idadeMinima                     Int?
+  idadeMaxima                     Int?
   pontuacaoResultado              Json?
   pontosVencedorMargem1           Int       @default(2)
   pontosPerdedorMargem1           Int       @default(1)
