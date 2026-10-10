@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | média de sets e média de pontos
+
+- pages_updated=`modulos/CLASSIFICACAO`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- O desempate por quociente entra em `src/lib/classificacao.ts`. O padrão da categoria não muda. `20261010139800_quociente_classificacao.sql` não foi aplicada. Enquanto a checagem antiga recusar os tokens, o salvamento grava a categoria sem eles.
+
 ## [2026-10-10] lint | id da presença é identity
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

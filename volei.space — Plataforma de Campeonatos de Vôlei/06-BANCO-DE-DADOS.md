@@ -5,7 +5,7 @@ category: area
 tags: [dados]
 sources: [repo:athrios/volei-space]
 summary: >-
-  SumulaPresenca em produção não tem unicidade de partida e atleta nem default no id. 20261010139700 acrescenta gênero e idade, ainda sem aplicar. 20261010142000 deixa o time da partida nulo quando há origem de vaga, ainda sem aplicar.
+  20261010139800 amplia a checagem dos critérios com média de sets e média de pontos. 20261010142000 deixa o time da partida nulo quando há origem de vaga. As duas ainda sem aplicar.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -52,6 +52,8 @@ As três migrations de 6 de outubro estão aplicadas nos dois bancos. Em produç
 `20261010137000_sumula_transacional.sql` também não foi aplicada. O prefixo fica depois de `20261010136000` e antes de `20261010138000`. Ela cria `gravar_sumula_partida` e `gravar_classificacao_calculada`. A primeira apaga e reinsere sets, presenças, ocorrências e destaques e atualiza o placar na mesma transação, com `pg_advisory_xact_lock` da liga e depois da partida. A segunda grava as linhas de classificação que o servidor já calculou, com a mesma trava da liga, inclusive `punicoes`. Não recria `recalcular_classificacao_liga`. `REVOKE` de `public` e, se o papel existir, de `anon` e `authenticated`. `GRANT` só para `service_role`, se o papel existir. Não apaga linha fora da execução da função.
 
 `20261010138000_confronto_categoria_vencedor.sql` também não foi aplicada. O prefixo fica depois de `20261010137000` e antes de `20261010139000`. Ela só faz `CREATE OR REPLACE` de `criar_confronto_categoria`: WO com sets iguais passa a valer se `vencedorId` for uma das duas equipes. O `GRANT` é só para `service_role`. Não apaga linha.
+
+`20261010139800_quociente_classificacao.sql` também não foi aplicada. O prefixo fica depois de `20261010139700` e antes de `20261010140000`. Ela troca a checagem de `CategoriaConfiguracao.criteriosClassificacao` que lista só os critérios antigos por `CategoriaConfiguracao_criterios_conhecidos_check`, incluindo `SET_AVERAGE` e `POINT_AVERAGE`. Não inclui `CONFRONTO_DIRETO`. Não cria tabela, não apaga linha e não concede a `anon` nem a `authenticated`. Enquanto essa checagem não existir, o aplicativo grava a categoria sem os dois critérios novos.
 
 `20261010139700_elegibilidade_categoria.sql` também não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`. Ela acrescenta `genero`, `idadeMinima` e `idadeMaxima` em `CategoriaConfiguracao`, e `sexo` em `Jogador` e `InscricaoEquipeJogadorRascunho`. Tudo nasce nulo. Não cria tabela, não apaga linha e não concede a `anon` nem a `authenticated`. O aplicativo não manda esses campos para `salvar_configuracao_categoria`. Se a coluna não existir, a inscrição segue sem a regra.
 

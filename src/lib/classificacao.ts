@@ -43,6 +43,8 @@ const CRITERIOS_CONHECIDOS = new Set([
   'SALDO_PONTOS',
   'SETS_PRO',
   'PONTOS_PRO',
+  'SET_AVERAGE',
+  'POINT_AVERAGE',
 ])
 
 export type TimeClassificacao = {
@@ -421,6 +423,11 @@ export function classificarPorGrupos<T extends Acumulado>(input: {
   })
 }
 
+function quociente(pro: number, contra: number) {
+  if (contra === 0) return pro > 0 ? 1_000_000_000 : 0
+  return pro / contra
+}
+
 function valorCriterio(linha: Acumulado, criterio: string) {
   if (criterio === 'PONTOS') return linha.pontos
   if (criterio === 'VITORIAS') return linha.vitorias
@@ -428,7 +435,26 @@ function valorCriterio(linha: Acumulado, criterio: string) {
   if (criterio === 'SALDO_SETS') return linha.setsPro - linha.setsContra
   if (criterio === 'SALDO_PONTOS') return linha.pontosPro - linha.pontosContra
   if (criterio === 'SETS_PRO') return linha.setsPro
+  if (criterio === 'SET_AVERAGE') return quociente(linha.setsPro, linha.setsContra)
+  if (criterio === 'POINT_AVERAGE') return quociente(linha.pontosPro, linha.pontosContra)
   return linha.pontosPro
+}
+
+/** A checagem antiga da categoria não conhece os quocientes. Sem ela, o restante do salvamento segue. */
+export function criteriosPersistiveis(valor: unknown) {
+  if (typeof valor !== 'string' || !/SET_AVERAGE|POINT_AVERAGE/.test(valor)) return valor
+  try {
+    const lista = JSON.parse(valor)
+    if (!Array.isArray(lista)) return valor
+    return JSON.stringify(lista.filter((item) => item !== 'SET_AVERAGE' && item !== 'POINT_AVERAGE'))
+  } catch {
+    return valor
+  }
+}
+
+export function erroRecusaQuociente(erro: { code?: string; message?: string; details?: string } | null | undefined) {
+  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
+  return /23514|check constraint/i.test(texto)
 }
 
 function timesDaCategoria(

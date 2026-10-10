@@ -16,6 +16,7 @@ import type { SetupIntent } from '@/lib/championship-setup-status'
 import { validateQrPhotoNameDependency } from '@/lib/championship-validation'
 import { supabaseAdmin as db } from '@/lib/supabase-admin'
 import { colunaElegibilidadeAusente, mensagemFaixaIdade, separarElegibilidade } from '@/lib/elegibilidade-categoria'
+import { criteriosPersistiveis, erroRecusaQuociente } from '@/lib/classificacao'
 
 const ALLOWED: Record<string, string[]> = {
   estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled'],
@@ -66,32 +67,50 @@ export async function saveCategorySection(args: {
     const faixa = mensagemFaixaIdade(separado.elegibilidade)
     if (faixa) return error(faixa, 422)
     const patchRpc = separado.resto
+    let patchEfetivo = patchRpc
     if (SECOES_COM_TRAVA.has(args.section)) {
       const jogos = await jogosDaCategoria(categoryId)
       if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
       const motivo = motivoBloqueioEdicao(args.section, patchRpc, jogos)
       if (motivo) return error(motivo, 409)
     }
-    const { data, error: rpcError } = await db.rpc('salvar_configuracao_categoria', {
+    let { data, error: rpcError } = await db.rpc('salvar_configuracao_categoria', {
       p_liga_id: args.ligaId,
       p_categoria_id: categoryId,
       p_organizador_id: args.organizadorId,
       p_versao: config.versao,
       p_secao: args.section,
-      p_patch: patchRpc,
+      p_patch: patchEfetivo,
       p_concluir: args.intent === 'complete',
     })
+    if (rpcError && erroRecusaQuociente(rpcError)) {
+      const semQuociente = criteriosPersistiveis(patchEfetivo.criteriosClassificacao)
+      if (semQuociente !== patchEfetivo.criteriosClassificacao) {
+        patchEfetivo = { ...patchEfetivo, criteriosClassificacao: semQuociente }
+        const segunda = await db.rpc('salvar_configuracao_categoria', {
+          p_liga_id: args.ligaId,
+          p_categoria_id: categoryId,
+          p_organizador_id: args.organizadorId,
+          p_versao: config.versao,
+          p_secao: args.section,
+          p_patch: patchEfetivo,
+          p_concluir: args.intent === 'complete',
+        })
+        data = segunda.data
+        rpcError = segunda.error
+      }
+    }
     if (rpcError) {
       if (/Operacao iniciada/i.test(rpcError.message) && SECOES_COM_TRAVA.has(args.section)) {
         const jogos = await jogosDaCategoria(categoryId)
         if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
-        const motivo = motivoBloqueioEdicao(args.section, patchRpc, jogos)
+        const motivo = motivoBloqueioEdicao(args.section, patchEfetivo, jogos)
         if (motivo) return error(motivo, 409)
-        const gravada = await gravarCategoriaComEquipes(args.ligaId, categoryId, args.section, config, patchRpc, args.intent)
+        const gravada = await gravarCategoriaComEquipes(args.ligaId, categoryId, args.section, config, patchEfetivo, args.intent)
         if (gravada instanceof Response) return gravada
         const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, gravada)
         if (comElegibilidade instanceof Response) return comElegibilidade
-        await espelharNaLiga(args.ligaId, patchRpc)
+        await espelharNaLiga(args.ligaId, patchEfetivo)
         return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
       }
       const message = /Versao alterada/i.test(rpcError.message)
@@ -102,7 +121,7 @@ export async function saveCategorySection(args: {
     const salva = data && typeof data === 'object' ? data as Record<string, unknown> : config
     const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, salva)
     if (comElegibilidade instanceof Response) return comElegibilidade
-    await espelharNaLiga(args.ligaId, patchRpc)
+    await espelharNaLiga(args.ligaId, patchEfetivo)
     return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
   } catch (cause) {
     if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
@@ -143,14 +162,25 @@ async function gravarCategoriaComEquipes(
   const alterados = camposAlterados(config, patch)
   let salva = config
   if (Object.keys(alterados).length > 0) {
-    const { data, error: updateErro } = await db
+    const gravar = (corpo: Record<string, unknown>) => db
       .from('CategoriaConfiguracao')
-      .update(alterados)
+      .update(corpo)
       .eq('categoriaCampeonatoId', categoryId)
       .eq('ligaId', ligaId)
       .eq('versao', config.versao)
       .select('*')
       .maybeSingle()
+    let corpo = alterados
+    let { data, error: updateErro } = await gravar(corpo)
+    if (updateErro && erroRecusaQuociente(updateErro)) {
+      const semQuociente = criteriosPersistiveis(corpo.criteriosClassificacao)
+      if (semQuociente !== corpo.criteriosClassificacao) {
+        corpo = { ...corpo, criteriosClassificacao: semQuociente }
+        const segunda = await gravar(corpo)
+        data = segunda.data
+        updateErro = segunda.error
+      }
+    }
     if (updateErro || !data) {
       console.error('[setup] versão da categoria mudou durante a gravação', updateErro)
       return error('A categoria foi atualizada em outra tela. Recarregue e tente de novo.', 409)
