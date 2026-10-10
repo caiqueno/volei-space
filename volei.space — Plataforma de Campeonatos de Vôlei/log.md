@@ -18,6 +18,21 @@ updated: 2026-10-10
 - pages_updated=`modulos/SUMULA-DIGITAL`, `03-REGRAS-DE-NEGOCIO`, `11-DECISOES`, `references/SUMULA-DIGITAL-E-CLASSIFICACAO`, `hot`, `log`
 - O modal lista só reservas elegíveis. Quem entrou no set só sai para o titular voltar. Depois da volta o par fecha. Líbero não conta. A API recusa a troca inválida e a 9ª substituição. O requisito bruto ainda descreve a repetição do par.
 
+## [2026-10-10] fix | papeleta de um time e alternância do saque
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- A conferência da distribuição tática voltou a mostrar um time por vez. O layout com as duas equipes e a rede no meio tinha entrado em 29/09/2026 junto com a quadra 2D (`d8982de`); essa quadra permanece na pontuação. O saque inicial alterna do set 2 ao 4 e o 5º set exige sorteio. `PUT` e `POST` da súmula recusam a sequência gravada fora dessa regra.
+
+## [2026-10-10] fix | chave, pódio e rótulos públicos
+
+- pages_updated=`09-UI-UX`, `modulos/MATA-MATA`, `modulos/CLASSIFICACAO`, `hot`, `log`
+- A página do campeonato mostra a chave e, finalizado, o pódio. Inscrição some com o campeonato fechado. Jogos e portal nomeiam a fase. Classificação abre pelo `ligaId`. Formato, nome de atleta e status usam os mesmos rótulos.
+
+## [2026-10-10] fix | um só +1 na pontuação da súmula
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- O botão `+1` da faixa de placar passou a registrar o ponto sem jogador, no lugar do par `+1` / Sem jogador. ACE, tempos, desfazer, placar e rodízio ficam. O modal de origem e atleta saiu junto com o único caminho que o abria. Ataque no atleta, bloqueio na rede e ACE continuam atribuindo o ponto.
+
 ## [2026-10-10] ingest | importação Winners e partida com categoria
 
 - pages_updated=`modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
@@ -39,7 +54,6 @@ updated: 2026-10-10
 
 - pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
 - A sessão de administrador passa a exigir `typ` e audiência `volei-admin`, além de `scope: admin` quando o campo existe. Recuperação, sessão pública e ativação têm audiência própria. O fingerprint do reset ganha o prefixo `volei-password-reset-v1`. O logout limpa o cookie com os mesmos atributos. A recuperação limita 5 pedidos por IP e 3 por e-mail a cada hora e continua respondendo 500 se o banco falhar. O webhook da main permanece: valor, vínculo com `Pagamento` e exceção de segredo só no `next dev` local. A massa de QA exige sessão de administrador. Quadras do organizador, colunas da súmula, máscara da inscrição rápida, lista fechada do PUT de partida e erros de liga entram neste lote. `ADMIN_EMAIL` continua obrigatório em produção e preview, e opcional no `next dev` local.
-
 ## [2026-10-09] fix | sessão, webhook e súmula
 
 - pages_updated=`07-SEGURANCA`, `modulos/PAGAMENTOS`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
