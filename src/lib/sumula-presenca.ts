@@ -132,14 +132,11 @@ export async function registrarOcorrencia(
   supabase: ClienteBanco,
   linha: { partidaId: number; tipo: string; jogadorId?: number | null; descricao: string },
 ): Promise<void> {
+  // `OcorrenciaPartida.id` é identity BY DEFAULT. Um id explícito (maior id + 1)
+  // não avança a sequence. `gravar_sumula_partida` preserva as linhas
+  // «Registro de %» e o insert seguinte, sem id, colide nessa chave.
   for (let tentativa = 0; tentativa < TENTATIVAS_ID; tentativa += 1) {
-    const reservado = await reservarId(supabase, 'OcorrenciaPartida')
-    if (reservado.error || reservado.id == null) {
-      console.error('[ocorrencia] id', reservado.error)
-      return
-    }
     const criado = await supabase.from('OcorrenciaPartida').insert({
-      id: reservado.id + tentativa,
       partidaId: linha.partidaId,
       tipo: linha.tipo,
       jogadorId: linha.jogadorId ?? null,

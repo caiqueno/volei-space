@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { erroDeChaveDuplicada } from '../src/lib/sumula-gravacao'
 import { gravarPresenca, inserirSumulaPresenca, registrarOcorrencia } from '../src/lib/sumula-presenca'
 
 type Linha = {
@@ -10,10 +11,11 @@ type Linha = {
   numero: number | null
 }
 
-function clienteMemoria(inicial: Linha[] = [], idsQueColidem: number[] = []) {
+function clienteMemoria(inicial: Linha[] = [], idsQueColidem: number[] = [], falhasIdentity = 0) {
   const linhas = inicial.map((linha) => ({ ...linha }))
   const colisoes = new Set(idsQueColidem)
   const ocorrencias: Array<Record<string, unknown>> = []
+  let identityAtras = falhasIdentity
 
   function from(tabela: string) {
     const filtros: Array<[string, number | number[]]> = []
@@ -46,9 +48,11 @@ function clienteMemoria(inicial: Linha[] = [], idsQueColidem: number[] = []) {
     function executar() {
       if (tabela === 'OcorrenciaPartida') {
         if (modo === 'select') return { data: [{ id: ocorrencias.length }], error: null }
-        const id = Number(pendente?.id)
-        if (colisoes.has(id)) {
-          colisoes.delete(id)
+        if (pendente && Object.prototype.hasOwnProperty.call(pendente, 'id')) {
+          return { data: null, error: { code: '23505', message: 'id explicito' } }
+        }
+        if (identityAtras > 0) {
+          identityAtras -= 1
           return { data: null, error: { code: '23505', message: 'duplicate key' } }
         }
         ocorrencias.push({ ...(pendente ?? {}) })
@@ -145,7 +149,21 @@ async function main() {
     descricao: 'Registro de presença',
   })
   assert.equal(comOcorrencia.ocorrencias.length, 1)
-  assert.equal(comOcorrencia.ocorrencias[0].id, 1)
+  assert.equal(Object.prototype.hasOwnProperty.call(comOcorrencia.ocorrencias[0], 'id'), false)
+  assert.equal(comOcorrencia.ocorrencias[0].partidaId, 1096)
+  assert.equal(comOcorrencia.ocorrencias[0].descricao, 'Registro de presença')
+
+  const atrasada = clienteMemoria([], [], 2)
+  await registrarOcorrencia(atrasada, {
+    partidaId: 1096,
+    tipo: 'OBSERVACAO',
+    descricao: 'Registro de presença depois da sequence',
+  })
+  assert.equal(atrasada.ocorrencias.length, 1)
+  assert.equal(Object.prototype.hasOwnProperty.call(atrasada.ocorrencias[0], 'id'), false)
+
+  assert.equal(erroDeChaveDuplicada({ code: '23505', message: 'duplicate key value violates unique constraint "OcorrenciaPartida_pkey"' }), true)
+  assert.equal(erroDeChaveDuplicada({ message: 'column CategoriaConfiguracao.setsPorPartidaQuartas does not exist' }), false)
 
   console.log('sumula-presenca ok')
 }

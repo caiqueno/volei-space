@@ -12,6 +12,7 @@ import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
+import { criarFilaSalvamento } from '@/lib/fila-salvamento'
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
 import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
@@ -199,6 +200,7 @@ export default function SumulaPage() {
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const [confirmarOficial, setConfirmarOficial] = useState(false)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const filaSalvamento = useRef(criarFilaSalvamento())
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
 
@@ -730,7 +732,7 @@ export default function SumulaPage() {
             if (!res.ok) throw new Error()
             setPartida((current: any) => current ? { ...current, status: 'EM_ANDAMENTO' } : current)
             addMatchEvent('system', 'Partida iniciada apos conferencia das escalações.')
-            return saveLiveSnapshot(true)
+            return enfileirarSalvamento(true)
           })
           .catch(() => addToast(AVISO_INICIO_SEM_SINCRONISMO))
       }
@@ -1074,6 +1076,15 @@ export default function SumulaPage() {
     }
   }
 
+  function enfileirarSalvamento(force = false) {
+    return filaSalvamento.current(() => saveLiveSnapshot(force)
+      .then(() => setFalhaSalvamento(null))
+      .catch((err) => {
+        setFalhaSalvamento(err instanceof Error ? err.message : 'Não foi possível salvar o andamento da súmula.')
+        throw err
+      }))
+  }
+
   function buildDemoLiveSnapshot(payload: ReturnType<typeof buildSumulaPayload>, statusOverride?: 'EM_ANDAMENTO' | 'ENCERRADA') {
     const officialSets = payload.sets.map((set, index) => ({ id: index + 1, ...set }))
     const officialSetsWon = officialSets.reduce((acc, set) => {
@@ -1114,9 +1125,7 @@ export default function SumulaPage() {
     if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     const espera = matchStatus === 'finished' ? 0 : 700
     liveSaveRef.current = setTimeout(() => {
-      saveLiveSnapshot(matchStatus === 'finished')
-        .then(() => setFalhaSalvamento(null))
-        .catch((err) => setFalhaSalvamento(err instanceof Error ? err.message : 'Não foi possível salvar o andamento da súmula.'))
+      void enfileirarSalvamento(matchStatus === 'finished').catch(() => undefined)
     }, espera)
     return () => {
       if (liveSaveRef.current) clearTimeout(liveSaveRef.current)

@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Tempo médico e substituição por lesão só aparecem com a opção ligada. Sem número gravado, a súmula continua com 2 tempos e um único botão. A súmula não inicia enquanto a vaga do mata-mata estiver sem os dois times.
+  O andamento da súmula grava o placar de novo. A ocorrência de presença deixa o id com a sequence. Os salvamentos do árbitro entram um atrás do outro.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Súmula digital
+
+**Andamento ao vivo — implementado:** o `PUT /api/sumula/{token}` grava o placar quando a sequence de `OcorrenciaPartida` está atrás do maior `id`. Confirmar presença ou trocar o número deixa esse `id` com a identity. Um valor explícito não avança a sequence. `gravar_sumula_partida` preserva a descrição que começa com «Registro de » e o insert do placar colidia em `OcorrenciaPartida_pkey` (23505 no Postgres, 409 no PostgREST, 500 na rota). A gravação repete até a sequence passar o maior id. Na tela de lançamento, cada salvamento automático espera o anterior: o placar que sai por último é o mais novo. Nenhuma migration.
 
 **Vaga sem time — implementado no código:** iniciar a partida, gravar o andamento, oficializar, aprovar ou lançar resultado manual responde 422 enquanto `equipeAId` ou `equipeBId` estiver vazio. A tela de lançamento mostra a origem da vaga e não abre a quadra. Oficializar, aprovar ou lançar o resultado manual chama `sincronizarVagasDaPartida` em seguida: a última súmula da fase de grupos preenche as semis, e o fim de cada semi preenche final e 3º lugar, no mesmo `Partida.id`. Esse preenchimento não lê `pagamentoConfirmadoEm`. Com os dois times preenchidos, o fluxo não muda. Sem as colunas de origem, os dois lados continuam obrigatórios no banco.
 
@@ -34,7 +36,7 @@ updated: 2026-10-10
 
 **Corrigir último ponto — implementado:** ao reabrir `/sumula/{token}/lancar`, o histórico do set em andamento volta a ser montado pelos eventos já gravados. O placar na descrição ordena os pontos e a troca de saque devolve o rodízio anterior. O botão da equipe desfaz esse ponto. O salvamento automático que já existia grava o placar e as ocorrências sem ele.
 
-**Presença do árbitro — implementado:** `POST /api/arbitro/partidas/[token]/presenca` e o QR em `validar-qr` leem `SumulaPresenca` por partida e atleta e atualizam só `presente`, sem apagar `numero`. Sem linha, o insert envia `id` (`maior id + 1`, nova tentativa no `23505`). Produção não tem `UNIQUE (partidaId, jogadorId)`. O `id` já é identity `BY DEFAULT`, e o valor explícito é aceito. O `upsert` com `on_conflict=partidaId,jogadorId` recebia 400 do PostgREST (`42P10`) e a rota respondia 500. `updatedAt` e `tokenSumula` são outros erros do Postgres; as colunas são `atualizadoEm` e `sumulaToken`. Nenhuma migration entrou com esta correção. O registro em `OcorrenciaPartida` também manda `id`; essa coluna é identity `BY DEFAULT`.
+**Presença do árbitro — implementado:** `POST /api/arbitro/partidas/[token]/presenca` e o QR em `validar-qr` leem `SumulaPresenca` por partida e atleta e atualizam só `presente`, sem apagar `numero`. Sem linha, o insert envia `id` (`maior id + 1`, nova tentativa no `23505`). Produção não tem `UNIQUE (partidaId, jogadorId)`. O `id` já é identity `BY DEFAULT`, e o valor explícito é aceito. O `upsert` com `on_conflict=partidaId,jogadorId` recebia 400 do PostgREST (`42P10`) e a rota respondia 500. `updatedAt` e `tokenSumula` são outros erros do Postgres; as colunas são `atualizadoEm` e `sumulaToken`. Nenhuma migration entrou com esta correção. O registro em `OcorrenciaPartida` deixa o `id` com a identity `BY DEFAULT`.
 
 **Número da camisa na partida — implementado:** no credenciamento pré-partida (`/arbitro/partida/[token]`) o badge do número abre a edição. Enter salva e abre o atleta seguinte da mesma equipe. O valor fica em `SumulaPresenca.numero` e não muda `Jogador.numero`, o cadastro da equipe. A inscrição e o elenco do capitão já gravam esse cadastro; a validação e a súmula mostram o número do cadastro quando a partida não tem outro. A súmula de lançamento já usa a coluna da partida quando o número difere do cadastro. A relação imprimível com visto de documento não entrou nesta entrega. A faixa é um inteiro de 0 a 99, e o número efetivo (o da partida, ou o do cadastro quando a partida não tem outro) não pode repetir na mesma equipe naquela partida. A outra equipe pode usar o mesmo número. Quem já abre a tela — árbitro escalado ou acesso enviado pelo organizador — grava em `POST /api/arbitro/partidas/[token]/numero`. Partida encerrada responde 409. Uma linha só com o número deixa `presente` nulo e continua Pendente; o progresso de validação não conta essa linha. A migration `202610100001_sumula_presenca_presente_nulo.sql` torna `presente` anulável. Ela está no repositório e não foi aplicada em produção.
 

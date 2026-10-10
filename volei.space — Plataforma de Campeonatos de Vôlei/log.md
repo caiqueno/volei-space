@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | andamento da súmula grava o placar
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- O `PUT` de andamento da partida 1095 respondia 500. O Postgres registrava `duplicate key` em `OcorrenciaPartida_pkey` (PostgREST 409 em `gravar_sumula_partida`). O registro de presença do PR #54 inseria `id` explícito e a sequence não andava. A função preserva «Registro de ». A ocorrência passa a omitir o `id`. A gravação repete o 23505 até a sequence alcançar o maior id. A tela enfileira os salvamentos. Nenhuma migration.
+
 ## [2026-10-10] feat | tempo médico e lesão
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`

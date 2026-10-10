@@ -9,6 +9,15 @@ type OcorrenciaEntrada = { tipo: string; descricao?: string | null; set?: number
 type DestaqueEntrada = { tipo: string; jogadorId: number }
 
 const TABELAS = ['SetPartida', 'SumulaPresenca', 'OcorrenciaPartida', 'DestaquesPartida'] as const
+const TENTATIVAS_CHAVE_DUPLICADA = 48
+
+type ErroBanco = { code?: string; message?: string; details?: string } | null | undefined
+
+/** 23505 da sequence atrás do maior id. Cada tentativa consumida avança a sequence. */
+export function erroDeChaveDuplicada(erro: ErroBanco) {
+  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
+  return /23505|duplicate key/i.test(texto)
+}
 
 export async function gravarSumulaComRestauracao(entrada: {
   partidaId: number
@@ -21,6 +30,27 @@ export async function gravarSumulaComRestauracao(entrada: {
 }) {
   const resumo = entrada.sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
   const registro = `Registro de placar pelo árbitro ${entrada.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`
+  let ultimo: unknown
+  for (let tentativa = 0; tentativa < TENTATIVAS_CHAVE_DUPLICADA; tentativa += 1) {
+    try {
+      await gravarUmaVez(entrada, registro)
+      return
+    } catch (err) {
+      ultimo = err
+      if (!erroDeChaveDuplicada(err as ErroBanco)) throw err
+    }
+  }
+  throw ultimo
+}
+
+async function gravarUmaVez(entrada: {
+  partidaId: number
+  sets: SetEntrada[]
+  presencas: PresencaEntrada[]
+  ocorrencias?: OcorrenciaEntrada[]
+  destaques?: DestaqueEntrada[]
+  partida: Record<string, unknown>
+}, registro: string) {
   const { error } = await supabase.rpc('gravar_sumula_partida', {
     p_partida_id: entrada.partidaId,
     p_sets: entrada.sets,
