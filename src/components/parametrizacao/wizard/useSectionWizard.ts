@@ -364,7 +364,7 @@ function rememberFieldFailure(
   return { fields, issues }
 }
 
-const CAMPOS_QUE_PODEM_VOLTAR_A_HERDAR = new Set(['setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar'])
+const CAMPOS_QUE_PODEM_VOLTAR_A_HERDAR = new Set(['setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaQuartas', 'setsPorPartidaOitavas', 'setsPorPartidaTerceiroLugar'])
 
 function sectionPayload<T extends object>(current: T | null, pending: Partial<T> | null) {
   const source = { ...(current ?? {}), ...(pending ?? {}) } as Record<string, unknown>

@@ -294,6 +294,7 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
 const CAMPOS_REGRA_CATEGORIA = 'categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,setsFormato,terceiroSetObrigatorio,pontosVencedorMargem1,pontosPerdedorMargem1,pontosVencedorMargem2,pontosPerdedorMargem2,criteriosClassificacao'
 const CAMPOS_REGRA_LIGA = 'setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,setsFormato,criteriosClassificacao'
 const CAMPOS_FASE = 'setsPorPartidaFinal,setsPorPartidaSemifinal,setsPorPartidaTerceiroLugar'
+const CAMPOS_FASE_NOVA = 'setsPorPartidaQuartas,setsPorPartidaOitavas'
 const CAMPOS_WO = 'woSetsVencedor,woSetsPerdedor,woPontosSetVencedor,woPontosSetPerdedor,woPunicaoPontos'
 
 type RegraCategoriaLida = {
@@ -312,6 +313,8 @@ type RegraCategoriaLida = {
   criteriosClassificacao?: string[] | string | null
   setsPorPartidaFinal?: number | null
   setsPorPartidaSemifinal?: number | null
+  setsPorPartidaQuartas?: number | null
+  setsPorPartidaOitavas?: number | null
   setsPorPartidaTerceiroLugar?: number | null
   woSetsVencedor?: number | null
   woSetsPerdedor?: number | null
@@ -322,11 +325,12 @@ type RegraCategoriaLida = {
 
 function colunaOpcionalAusente(erro: { message?: string; code?: string; details?: string } | null) {
   const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|TerceiroLugar)|woSetsVencedor|woPunicaoPontos|PGRST204|42703/i.test(texto)
+  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|woSetsVencedor|woPunicaoPontos|PGRST204|42703/i.test(texto)
 }
 
 async function listarRegrasDeCategoria(ligaId: number): Promise<RegraCategoriaLida[]> {
   const tentativas = [
+    `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_FASE},${CAMPOS_FASE_NOVA},${CAMPOS_WO}`,
     `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_FASE},${CAMPOS_WO}`,
     `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_FASE}`,
     `${CAMPOS_REGRA_CATEGORIA},${CAMPOS_WO}`,
@@ -343,6 +347,9 @@ async function listarRegrasDeCategoria(ligaId: number): Promise<RegraCategoriaLi
 }
 
 async function lerRegrasDeLiga(ligaId: number) {
+  const completa = await supabaseAdmin.from('Liga').select(`${CAMPOS_REGRA_LIGA},${CAMPOS_FASE},${CAMPOS_FASE_NOVA}`).eq('id', ligaId).maybeSingle()
+  if (!completa.error) return completa.data
+  if (!colunaOpcionalAusente(completa.error)) throw new Error(completa.error.message)
   const cheia = await supabaseAdmin.from('Liga').select(`${CAMPOS_REGRA_LIGA},${CAMPOS_FASE}`).eq('id', ligaId).maybeSingle()
   if (!cheia.error) return cheia.data
   if (!colunaOpcionalAusente(cheia.error)) throw new Error(cheia.error.message)
@@ -360,6 +367,8 @@ function regraDeSetGravada(regra: { [key: string]: any }, pontosPadrao: number) 
     diferencaMinimaSet: Number(regra.diferencaMinimaSet) > 0 ? Number(regra.diferencaMinimaSet) : 2,
     setsPorPartidaFinal: regra.setsPorPartidaFinal ?? null,
     setsPorPartidaSemifinal: regra.setsPorPartidaSemifinal ?? null,
+    setsPorPartidaQuartas: regra.setsPorPartidaQuartas ?? null,
+    setsPorPartidaOitavas: regra.setsPorPartidaOitavas ?? null,
     setsPorPartidaTerceiroLugar: regra.setsPorPartidaTerceiroLugar ?? null,
   }
 }

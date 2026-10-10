@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] feat | sets de quartas e oitavas
+
+- pages_updated=`modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- Quartas e oitavas herdam `setsPorPartida` enquanto o campo da fase estiver vazio. `20261010139900_sets_quartas_oitavas.sql` não foi aplicada. Sem as colunas, a leitura da súmula mantém final, semifinal e 3º lugar.
+
 ## [2026-10-10] feat | cargos de arbitragem
 
 - pages_updated=`modulos/PARTIDAS`, `hot`, `log`

@@ -119,6 +119,8 @@ export interface EliminatoriasSectionDTO extends SectionPatchMeta {
   setsPorPartida?: number | null
   setsPorPartidaFinal: number | null
   setsPorPartidaSemifinal: number | null
+  setsPorPartidaQuartas?: number | null
+  setsPorPartidaOitavas?: number | null
   setsPorPartidaTerceiroLugar: number | null
   /** Só leitura — pertencem a Estrutura/Classificação, usados para calcular a fase inicial automaticamente. */
   formato: string | null

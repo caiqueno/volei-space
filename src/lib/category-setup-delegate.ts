@@ -17,11 +17,12 @@ import { validateQrPhotoNameDependency } from '@/lib/championship-validation'
 import { supabaseAdmin as db } from '@/lib/supabase-admin'
 import { colunaElegibilidadeAusente, mensagemFaixaIdade, separarElegibilidade } from '@/lib/elegibilidade-categoria'
 import { criteriosPersistiveis, erroRecusaQuociente } from '@/lib/classificacao'
+import { colunaDeSetsQuartasOitavasAusente, semSetsQuartasOitavas, soSetsQuartasOitavas } from '@/lib/sets-por-fase'
 
 const ALLOWED: Record<string, string[]> = {
   estrutura: ['quantidadeEquipes', 'quantidadeEquipesMinima', 'quantidadeEquipesMaxima', 'formato', 'quantidadeGrupos', 'turnoReturno', 'setsFormato', 'setsPorPartida', 'pontosPorSet', 'diferencaMinimaSet', 'tieBreakUltimoSet', 'pontosUltimoSet', 'terceiroSetObrigatorio', 'sumulaScoutsEnabled'],
   classificacao: ['criteriosClassificacao', 'classificadosPorGrupo', 'melhoresClassificadosGerais', 'pontosVencedorMargem1', 'pontosPerdedorMargem1', 'pontosVencedorMargem2', 'pontosPerdedorMargem2', 'woSetsVencedor', 'woSetsPerdedor', 'woPontosSetVencedor', 'woPontosSetPerdedor', 'woPunicaoPontos'],
-  eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaTerceiroLugar'],
+  eliminatorias: ['faseEliminatoria', 'metodoChaveamento', 'eliminatoriaIdaVolta', 'disputaTerceiroLugar', 'goldenSet', 'setsPorPartidaFinal', 'setsPorPartidaSemifinal', 'setsPorPartidaQuartas', 'setsPorPartidaOitavas', 'setsPorPartidaTerceiroLugar'],
   calendario: ['dataInicio', 'dataFim'],
   inscricoes: ['inscricoesAbertas', 'inscricoesAberturaEm', 'inscricoesEncerramentoEm', 'inscricaoPermiteEdicaoAposEnvio', 'inscricaoPrazoEdicaoDias', 'elencoQuantidadeMinima', 'elencoQuantidadeMaxima', 'elencoCadastroDuranteInscricao', 'prazoAlteracaoElencoDias', 'qrCodeEnabled', 'formularioInscricaoConfig', 'genero', 'idadeMinima', 'idadeMaxima'],
 }
@@ -67,7 +68,8 @@ export async function saveCategorySection(args: {
     const faixa = mensagemFaixaIdade(separado.elegibilidade)
     if (faixa) return error(faixa, 422)
     const patchRpc = separado.resto
-    let patchEfetivo = patchRpc
+    const setsNovos = soSetsQuartasOitavas(patchRpc)
+    let patchEfetivo = semSetsQuartasOitavas(patchRpc)
     if (SECOES_COM_TRAVA.has(args.section)) {
       const jogos = await jogosDaCategoria(categoryId)
       if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
@@ -104,13 +106,15 @@ export async function saveCategorySection(args: {
       if (/Operacao iniciada/i.test(rpcError.message) && SECOES_COM_TRAVA.has(args.section)) {
         const jogos = await jogosDaCategoria(categoryId)
         if (jogos === 'erro') return error('Não foi possível conferir os jogos desta categoria.', 500)
-        const motivo = motivoBloqueioEdicao(args.section, patchEfetivo, jogos)
+        const motivo = motivoBloqueioEdicao(args.section, patchRpc, jogos)
         if (motivo) return error(motivo, 409)
         const gravada = await gravarCategoriaComEquipes(args.ligaId, categoryId, args.section, config, patchEfetivo, args.intent)
         if (gravada instanceof Response) return gravada
-        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, gravada)
+        const comSets = await gravarSetsQuartasOitavas(args.ligaId, categoryId, setsNovos, gravada)
+        if (comSets instanceof Response) return comSets
+        const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comSets)
         if (comElegibilidade instanceof Response) return comElegibilidade
-        await espelharNaLiga(args.ligaId, patchEfetivo)
+        await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos })
         return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
       }
       const message = /Versao alterada/i.test(rpcError.message)
@@ -119,9 +123,11 @@ export async function saveCategorySection(args: {
       return error(message, /Versao alterada/i.test(rpcError.message) ? 409 : 422)
     }
     const salva = data && typeof data === 'object' ? data as Record<string, unknown> : config
-    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, salva)
+    const comSets = await gravarSetsQuartasOitavas(args.ligaId, categoryId, setsNovos, salva)
+    if (comSets instanceof Response) return comSets
+    const comElegibilidade = await gravarElegibilidade(args.ligaId, categoryId, separado.elegibilidade, comSets)
     if (comElegibilidade instanceof Response) return comElegibilidade
-    await espelharNaLiga(args.ligaId, patchEfetivo)
+    await espelharNaLiga(args.ligaId, { ...patchEfetivo, ...setsNovos })
     return success({ ...comElegibilidade, setupStatus: args.intent === 'complete' ? 'completed' : 'in-progress' })
   } catch (cause) {
     if (cause instanceof CategoryScopeError) return error(cause.message, cause.status)
@@ -262,6 +268,29 @@ async function gravarElegibilidade(
   return error('Não foi possível gravar gênero ou idade da categoria.', 422)
 }
 
+async function gravarSetsQuartasOitavas(
+  ligaId: number,
+  categoryId: string,
+  campos: Record<string, unknown>,
+  salva: Record<string, unknown>,
+) {
+  if (Object.keys(campos).length === 0) return salva
+  const { data, error: updateErro } = await db
+    .from('CategoriaConfiguracao')
+    .update(campos)
+    .eq('categoriaCampeonatoId', categoryId)
+    .eq('ligaId', ligaId)
+    .select('*')
+    .maybeSingle()
+  if (!updateErro && data) return data
+  if (colunaDeSetsQuartasOitavasAusente(updateErro)) {
+    console.error('[setup] sets de quartas e oitavas ainda não existem nesta base; a fase segue com a quantidade do campeonato')
+    return salva
+  }
+  console.error('[setup] erro ao gravar sets de quartas ou oitavas', updateErro)
+  return error('Não foi possível gravar a quantidade de sets de quartas ou oitavas.', 422)
+}
+
 async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
   const campos = camposParaEspelharNaLiga(patch)
   if (Object.keys(campos).length === 0) return
@@ -272,7 +301,14 @@ async function espelharNaLiga(ligaId: number, patch: Record<string, unknown>) {
     .is('removidaEm', null)
   if (contagemErro) throw contagemErro
   if (count !== 1) return
-  const { error: ligaErro } = await db.from('Liga').update(campos).eq('id', ligaId)
+  let corpo = campos
+  let { error: ligaErro } = await db.from('Liga').update(corpo).eq('id', ligaId)
+  if (ligaErro && colunaDeSetsQuartasOitavasAusente(ligaErro)) {
+    corpo = semSetsQuartasOitavas(corpo)
+    if (Object.keys(corpo).length === 0) return
+    const segunda = await db.from('Liga').update(corpo).eq('id', ligaId)
+    ligaErro = segunda.error
+  }
   if (ligaErro) throw ligaErro
 }
 

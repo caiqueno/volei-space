@@ -61,12 +61,16 @@ assert.deepEqual(secoesDependentes('classificacao', { classificadosPorGrupo: 2 }
 assert.deepEqual(secoesDependentes('eliminatorias', { faseEliminatoria: 'SEMIFINAL' }), ['classificacao', 'calendario'])
 assert.deepEqual(secoesDependentes('eliminatorias', {}), [])
 assert.deepEqual(secoesDependentes('eliminatorias', { setsPorPartidaFinal: 5, setsPorPartidaSemifinal: null }), [])
+assert.deepEqual(secoesDependentes('eliminatorias', { setsPorPartidaQuartas: 5, setsPorPartidaOitavas: null }), [])
 assert.deepEqual(secoesDependentes('eliminatorias', { setsPorPartidaFinal: 5, faseEliminatoria: 'FINAL' }), ['classificacao', 'calendario'])
 
 assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaFinal: 5 }, [{ fase: 'GRUPOS', status: 'ENCERRADA' }]), null)
 assert.match(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaFinal: 5 }, [{ fase: 'FINAL', status: 'ENCERRADA' }]) ?? '', /final já tem jogo/i)
 assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaSemifinal: 3 }, [{ fase: 'FINAL', status: 'ENCERRADA' }]), null)
 assert.match(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaTerceiroLugar: 3 }, [{ fase: 'TERCEIRO_LUGAR', status: 'EM_ANDAMENTO' }]) ?? '', /3º lugar/)
+assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaQuartas: 5 }, [{ fase: 'GRUPOS', status: 'ENCERRADA' }]), null)
+assert.match(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaQuartas: 5 }, [{ fase: 'QUARTAS', status: 'EM_ANDAMENTO' }]) ?? '', /quartas já tem jogo/i)
+assert.equal(motivoBloqueioEdicao('eliminatorias', { setsPorPartidaOitavas: 3 }, [{ fase: 'QUARTAS', status: 'ENCERRADA' }]), null)
 assert.equal(motivoBloqueioEdicao('eliminatorias', { faseEliminatoria: 'FINAL' }, [{ fase: 'GRUPOS', status: 'ENCERRADA' }]), MENSAGEM_EDICAO_BLOQUEADA)
 
 assert.deepEqual(camposAlterados({ faseEliminatoria: 'NENHUMA', tieBreakUltimoSet: false }, { faseEliminatoria: 'SEMIFINAL', tieBreakUltimoSet: false }), {
@@ -79,6 +83,10 @@ assert.deepEqual(camposParaEspelharNaLiga({ faseEliminatoria: 'SEMIFINAL', terce
 assert.deepEqual(camposParaEspelharNaLiga({ setsPorPartidaFinal: 5, setsPorPartidaSemifinal: null, pontosVencedorMargem1: 2 }), {
   setsPorPartidaFinal: 5,
   setsPorPartidaSemifinal: null,
+})
+assert.deepEqual(camposParaEspelharNaLiga({ setsPorPartidaQuartas: 5, setsPorPartidaOitavas: null }), {
+  setsPorPartidaQuartas: 5,
+  setsPorPartidaOitavas: null,
 })
 assert.deepEqual(camposParaEspelharNaLiga({
   formularioInscricaoConfig: { atleta: { dataNascimento: 'disabled', documento: 'optional' } },

@@ -26,6 +26,8 @@ export function regrasDaConfiguracao(source?: Partial<CategoryMatchRules> | null
     terceiroSetObrigatorio: source?.terceiroSetObrigatorio === true,
     setsPorPartidaFinal: inteiroDeSets(source?.setsPorPartidaFinal),
     setsPorPartidaSemifinal: inteiroDeSets(source?.setsPorPartidaSemifinal),
+    setsPorPartidaQuartas: inteiroDeSets(source?.setsPorPartidaQuartas),
+    setsPorPartidaOitavas: inteiroDeSets(source?.setsPorPartidaOitavas),
     setsPorPartidaTerceiroLugar: inteiroDeSets(source?.setsPorPartidaTerceiroLugar),
   }
 }
@@ -61,6 +63,8 @@ export function montarFonteDeRegras(input: {
       terceiroSetObrigatorio: categoria.terceiroSetObrigatorio,
       setsPorPartidaFinal: categoria.setsPorPartidaFinal ?? null,
       setsPorPartidaSemifinal: categoria.setsPorPartidaSemifinal ?? null,
+      setsPorPartidaQuartas: categoria.setsPorPartidaQuartas ?? null,
+      setsPorPartidaOitavas: categoria.setsPorPartidaOitavas ?? null,
       setsPorPartidaTerceiroLugar: categoria.setsPorPartidaTerceiroLugar ?? null,
     }
   }
@@ -74,6 +78,8 @@ export function montarFonteDeRegras(input: {
     terceiroSetObrigatorio: false,
     setsPorPartidaFinal: liga.setsPorPartidaFinal ?? null,
     setsPorPartidaSemifinal: liga.setsPorPartidaSemifinal ?? null,
+    setsPorPartidaQuartas: liga.setsPorPartidaQuartas ?? null,
+    setsPorPartidaOitavas: liga.setsPorPartidaOitavas ?? null,
     setsPorPartidaTerceiroLugar: liga.setsPorPartidaTerceiroLugar ?? null,
   }
 }

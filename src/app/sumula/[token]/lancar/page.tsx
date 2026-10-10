@@ -3876,6 +3876,8 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     terceiroSetObrigatorio: readOptionalBoolean(source, ['terceiroSetObrigatorio', 'terceiro_set_obrigatorio']),
     setsPorPartidaFinal: source?.setsPorPartidaFinal,
     setsPorPartidaSemifinal: source?.setsPorPartidaSemifinal,
+    setsPorPartidaQuartas: source?.setsPorPartidaQuartas,
+    setsPorPartidaOitavas: source?.setsPorPartidaOitavas,
     setsPorPartidaTerceiroLugar: source?.setsPorPartidaTerceiroLugar,
   }, fase)
 }

@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { regrasParaFase, validateCategoryResult } from '../src/lib/category-match-rules'
 import { resumirChavePublica } from '../src/lib/chave-publica'
-import { setsDaFase } from '../src/lib/sets-por-fase'
+import { colunaDeSetsQuartasOitavasAusente, semSetsQuartasOitavas, setsDaFase } from '../src/lib/sets-por-fase'
 
 const base = {
   setsPorPartida: 3,
@@ -46,6 +46,23 @@ assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaFinal: 0 }, 'FINAL'),
 assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaFinal: 9 }, 'FINAL'), 3)
 assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaFinal: 5 }, 'QUARTAS'), 3)
 assert.equal(setsDaFase({ setsPorPartida: 3 }, 'final'), 3)
+assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaQuartas: null, setsPorPartidaOitavas: null }, 'QUARTAS'), 3)
+assert.equal(setsDaFase({ setsPorPartida: 3 }, 'OITAVAS'), 3)
+assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaQuartas: 5 }, 'QUARTAS'), 5)
+assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaOitavas: 1 }, 'OITAVAS'), 1)
+assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaQuartas: 5 }, 'OITAVAS'), 3)
+assert.equal(setsDaFase({ setsPorPartida: 3, setsPorPartidaQuartas: 5, setsPorPartidaFinal: 5 }, 'FINAL'), 5)
+const quartas = regrasParaFase({ ...base, setsPorPartidaQuartas: 5, terceiroSetObrigatorio: true }, 'QUARTAS')
+assert.equal(quartas.setsPorPartida, 5)
+assert.equal(quartas.terceiroSetObrigatorio, false)
+assert.equal(regrasParaFase({ ...base, setsPorPartidaOitavas: null }, 'OITAVAS').setsPorPartida, 3)
+assert.equal(regrasParaFase(base, 'DEZESSEIS_AVOS').setsPorPartida, 3)
+assert.equal(colunaDeSetsQuartasOitavasAusente({ code: 'PGRST204', message: 'setsPorPartidaQuartas' }), true)
+assert.equal(colunaDeSetsQuartasOitavasAusente({ code: '42703', message: 'setsPorPartidaFinal' }), false)
+assert.deepEqual(semSetsQuartasOitavas({ setsPorPartidaFinal: 5, setsPorPartidaQuartas: 3, faseEliminatoria: 'QUARTAS' }), {
+  setsPorPartidaFinal: 5,
+  faseEliminatoria: 'QUARTAS',
+})
 
 const resumo = resumirChavePublica([
   { fase: 'SEMIFINAL', slots: [{ partida: null }] },
@@ -67,5 +84,18 @@ assert.match(sql, /setsPorPartidaFinal','setsPorPartidaSemifinal','setsPorPartid
 assert.match(sql, /p_patch - 'setsPorPartidaFinal' - 'setsPorPartidaSemifinal' - 'setsPorPartidaTerceiroLugar'/)
 assert.doesNotMatch(sql, /\bgrant\b[^;]*\bto\s+(anon|authenticated)\b/i)
 assert.match(sql, /grant execute on function public.salvar_configuracao_categoria[\s\S]*to service_role/)
+
+const sqlQuartas = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20261010139900_sets_quartas_oitavas.sql'), 'utf8')
+assert.match(sqlQuartas, /add column if not exists "setsPorPartidaQuartas"/)
+assert.match(sqlQuartas, /add column if not exists "setsPorPartidaOitavas"/)
+assert.match(sqlQuartas, /Liga_sets_quartas_oitavas_check/)
+assert.match(sqlQuartas, /CategoriaConfiguracao_sets_quartas_oitavas_check/)
+assert.doesNotMatch(sqlQuartas, /\bgrant\b[^;]*\bto\s+(anon|authenticated|public)\b/i)
+assert.doesNotMatch(sqlQuartas, /create\s+table/i)
+assert.doesNotMatch(sqlQuartas, /salvar_configuracao_categoria/)
+
+const leitura = fs.readFileSync(path.join(process.cwd(), 'src/lib/regras-da-partida.ts'), 'utf8')
+assert.match(leitura, /CAMPOS_FASE_NOVA/)
+assert.ok(leitura.indexOf('CAMPOS_FASE_NOVA') < leitura.lastIndexOf('select(campos)'), 'a leitura sem as colunas novas acontece antes de abandonar final e semifinal')
 
 console.log('sets por fase ok')
