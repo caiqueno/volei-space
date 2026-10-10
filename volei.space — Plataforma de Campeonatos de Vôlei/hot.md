@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Microinterações de 150–250ms entram fora da súmula e das páginas públicas. A migration 202610100002 ainda não foi aplicada.
+  Avisos da súmula somem em 3 s. A demonstração não chama o início no servidor.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Os avisos da súmula de lançamento somem sozinhos em 3 segundos e não passam de dois na tela. O mais novo empurra o mais antigo e o temporizador é cancelado ao desmontar. Na pontuação eles ficam acima da faixa do placar e do `+1`. `prefers-reduced-motion: reduce` tira o deslocamento de entrada. A frase sem acento era o `catch` de `POST /api/arbitro/partidas/{token}/iniciar`. A súmula da captura (Set Point x Líbero FC, rodada 6, Ginásio Municipal, 15/08/2026) é a demonstração `token-demo-…`. O GET e o PUT de `/api/sumula/{token}` têm atalho e não gravam partida; o POST de iniciar não tem. Sem sessão de árbitro a rota responde 401; com sessão e sem essa partida, 404. A demonstração agora marca `EM_ANDAMENTO` localmente e não chama essa rota. Partida real que falhar de verdade mostra a frase com acento. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Microinterações só visuais em `src/app/micro-interactions.css`: entrada de tela, botão (hover, clique e foco), menu hambúrguer, abas dos documentos legais, aviso e fade de carregamento. Durações de 180–220ms, só `transform` e `opacity`. `prefers-reduced-motion: reduce` zera essas regras. Súmula, páginas públicas, pódio, painel e identificação não recebem a troca de tela nem o menu novo. Os keyframes de `globals.css` da base Noite de final ficam como estão. Fonte: [[09-UI-UX]].
 

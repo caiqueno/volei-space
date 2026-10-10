@@ -8,7 +8,6 @@ import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, texto
 import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import {
-  Activity,
   AlertCircle,
   Award,
   Check,
@@ -31,6 +30,8 @@ import {
   Users,
 } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
+import { AvisosSumula, useAvisosSumula } from '@/components/sumula/AvisosSumula'
+import { AVISO_INICIO_SEM_SINCRONISMO, tokenDeDemonstracao } from '@/lib/sumula-toasts'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
 import './sumula-micro.css'
@@ -166,7 +167,7 @@ export default function SumulaPage() {
   const [anotacoes, setAnotacoes] = useState<Anotacao[]>([])
   const [scoreHistory, setScoreHistory] = useState<Array<{ score: { teamA: number; teamB: number }; servingTeamId: TeamId; serverIndexA: number; serverIndexB: number; lineupA: string[]; lineupB: string[]; eventIds: string[] }>>([])
   const [matchNumberOverrides, setMatchNumberOverrides] = useState<Record<TeamId, Record<number, string>>>({ teamA: {}, teamB: {} })
-  const [toasts, setToasts] = useState<Array<{ id: string; message: string }>>([])
+  const { avisos, addToast } = useAvisosSumula()
   const [pointFlash, setPointFlash] = useState<{ teamId: TeamId; number: string; id: number } | null>(null)
   const [setEndPrompt, setSetEndPrompt] = useState<SetEndPrompt | null>(null)
   const [mvpId, setMvpId] = useState('')
@@ -320,12 +321,6 @@ export default function SumulaPage() {
     sorteio: Boolean(initialServerBySet[currentSet]),
     saque: Boolean(initialServerBySet[currentSet]),
     escalacao: lineupConfirmed,
-  }
-
-  function addToast(message: string) {
-    const id = `toast-${Date.now()}`
-    setToasts((current) => [...current, { id, message }])
-    setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 3600)
   }
 
   function scoreString(score = currentScore) {
@@ -650,14 +645,18 @@ export default function SumulaPage() {
         : ''
     addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
     if (currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO') {
-      fetch('/api/arbitro/partidas/' + token + '/iniciar', { method: 'POST' })
-        .then((res) => {
-          if (!res.ok) throw new Error()
-          setPartida((current: any) => current ? { ...current, status: 'EM_ANDAMENTO' } : current)
-          addMatchEvent('system', 'Partida iniciada apos conferencia das escalações.')
-          return saveLiveSnapshot(true)
-        })
-        .catch(() => addToast('Pontuacao liberada localmente. Nao foi possivel sincronizar o inicio agora.'))
+      if (tokenDeDemonstracao(String(token))) {
+        setPartida((current: any) => current ? { ...current, status: 'EM_ANDAMENTO' } : current)
+      } else {
+        fetch('/api/arbitro/partidas/' + token + '/iniciar', { method: 'POST' })
+          .then((res) => {
+            if (!res.ok) throw new Error()
+            setPartida((current: any) => current ? { ...current, status: 'EM_ANDAMENTO' } : current)
+            addMatchEvent('system', 'Partida iniciada apos conferencia das escalações.')
+            return saveLiveSnapshot(true)
+          })
+          .catch(() => addToast(AVISO_INICIO_SEM_SINCRONISMO))
+      }
     }
     setShowStartMatchConfirm(false)
     addToast('Partida iniciada. Pontuação liberada.')
@@ -1131,9 +1130,7 @@ export default function SumulaPage() {
           addMatchEvent={addMatchEvent}
           onQuickRelease={handleSkipSetup}
         />
-        <div className="official-toasts">
-          {toasts.map((toast) => <div key={toast.id}><Activity size={14} />{toast.message}</div>)}
-        </div>
+        <AvisosSumula avisos={avisos} />
       </main>
     )
   }
@@ -1415,9 +1412,7 @@ export default function SumulaPage() {
         </div>
       )}
 
-      <div className="official-toasts">
-        {toasts.map((toast) => <div key={toast.id}><Activity size={14} />{toast.message}</div>)}
-      </div>
+      <AvisosSumula avisos={avisos} />
     </main>
   )
 }
