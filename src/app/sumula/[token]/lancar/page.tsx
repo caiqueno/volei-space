@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { OrigemPontoModal } from '@/components/sumula/OrigemPontoModal'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, ROTULO_PONTO, textoPonto, textoPontoSemJogador, type OrigemPonto } from '@/lib/ponto-sumula'
+import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import {
   Activity,
   AlertCircle,
@@ -608,10 +609,13 @@ export default function SumulaPage() {
       return
     }
 
-    const chosenServer = initialServerBySet[currentSet]
-    if (!chosenServer) {
-      addToast(`Defina quem começa sacando no set ${currentSet} antes de liberar a pontuação.`)
+    const resolvido = resolverSaqueInicial(currentSet)
+    if (!resolvido.lado) {
+      addToast(resolvido.erro ?? `Defina quem começa sacando no set ${currentSet} antes de liberar a pontuação.`)
       return
+    }
+    if (initialServerBySet[currentSet] !== resolvido.lado) {
+      setInitialServerBySet((current) => ({ ...current, [currentSet]: resolvido.lado }))
     }
 
     const isFirstMatchStart = currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO'
@@ -625,14 +629,24 @@ export default function SumulaPage() {
   }
 
   function unlockPontuacao() {
-    const chosenServer = initialServerBySet[currentSet]
-    if (!chosenServer) return
+    const resolvido = resolverSaqueInicial(currentSet)
+    const chosenServer = resolvido.lado
+    if (!chosenServer) {
+      addToast(resolvido.erro ?? 'Defina o saque inicial antes de liberar a pontuação.')
+      return
+    }
     setServingTeamId(chosenServer)
     setServerIndexA(5)
     setServerIndexB(5)
     setActiveTab('pontuacao')
     const starterName = chosenServer === 'teamA' ? teamA?.name : teamB?.name
-    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
+    const anterior = initialServerBySet[currentSet - 1]
+    const motivo = modoSaqueInicial(currentSet) === 'alternancia' && (anterior === 'teamA' || anterior === 'teamB')
+      ? ` Alternância: ${starterName ?? 'A equipe'} não sacou no set ${currentSet - 1}.`
+      : modoSaqueInicial(currentSet) === 'sorteio'
+        ? ' Sorteio do tie-break definiu o saque deste set.'
+        : ''
+    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} #${startingLiberos[currentSet]?.teamA || '--'} e ${teamB?.name ?? 'Equipe B'} #${startingLiberos[currentSet]?.teamB || '--'}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
     if (currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO') {
       fetch('/api/arbitro/partidas/' + token + '/iniciar', { method: 'POST' })
         .then((res) => {
@@ -648,8 +662,53 @@ export default function SumulaPage() {
   }
 
   function setInitialServerForCurrentSet(teamId: TeamId) {
+    if (modoSaqueInicial(currentSet) === 'alternancia') return
     setInitialServerBySet((current) => ({ ...current, [currentSet]: teamId }))
   }
+
+  function registrarSorteioTieBreak(teamId: TeamId, origem: 'aplicativo' | 'mesa') {
+    if (modoSaqueInicial(currentSet) !== 'sorteio' || !teamA || !teamB) return
+    setInitialServerBySet((current) => ({ ...current, [currentSet]: teamId }))
+    const nome = teamId === 'teamA' ? teamA.name : teamB.name
+    const frase = origem === 'aplicativo'
+      ? `Sorteio do set ${currentSet}: o aplicativo sorteou ${nome}, que começa sacando. ${marcarSaqueInicial(teamId)}`
+      : `Sorteio do set ${currentSet}: a mesa registrou que ${nome} começa sacando. ${marcarSaqueInicial(teamId)}`
+    addMatchEvent('anotacao', frase)
+  }
+
+  function resolverSaqueInicial(setNumero: number) {
+    const anterior = initialServerBySet[setNumero - 1] ?? null
+    if (modoSaqueInicial(setNumero) === 'alternancia') {
+      const obrigatorio = saqueObrigatorio(setNumero, anterior)
+      if (!obrigatorio) return { lado: null as TeamId | null, erro: `O saque do set ${setNumero} depende de quem sacou no set ${setNumero - 1}.` }
+      return { lado: obrigatorio, erro: null as string | null }
+    }
+    const escolhido = initialServerBySet[setNumero] ?? null
+    if (!escolhido) {
+      return {
+        lado: null as TeamId | null,
+        erro: modoSaqueInicial(setNumero) === 'sorteio'
+          ? 'Registre o sorteio do 5º set antes de liberar a pontuação.'
+          : `Defina quem começa sacando no set ${setNumero} antes de liberar a pontuação.`,
+      }
+    }
+    return { lado: escolhido, erro: null as string | null }
+  }
+
+  useEffect(() => {
+    if (currentSet < 2 || currentSet > 4 || !teamA || !teamB) return
+    const anterior = initialServerBySet[currentSet - 1]
+    if (anterior !== 'teamA' && anterior !== 'teamB') return
+    const obrigatorio = ladoOposto(anterior)
+    if (initialServerBySet[currentSet] !== obrigatorio) {
+      setInitialServerBySet((current) => ({ ...current, [currentSet]: obrigatorio }))
+    }
+    if (matchStatus !== 'live') return
+    const jaMarcado = events.some((event) => event.set === currentSet && event.text.includes('[[SAQUE:') && event.text.includes(`:${obrigatorio}]]`))
+    if (jaMarcado) return
+    const nome = obrigatorio === 'teamA' ? teamA.name : teamB.name
+    addMatchEvent('anotacao', `Alternância do set ${currentSet}: ${nome} começa sacando. ${marcarSaqueInicial(obrigatorio)}`)
+  }, [currentSet, initialServerBySet, matchStatus, teamA, teamB, events])
 
   function setStartingLibero(teamId: TeamId, number: string) {
     if (teamId === 'teamA') setLineupConfirmedA(false)
@@ -1323,6 +1382,8 @@ export default function SumulaPage() {
             onMatchNumberChange={updateMatchNumber}
             vistaQuadra={vistaQuadra}
             sidesInverted={sidesInverted}
+            initialServers={initialServerBySet}
+            onRegistrarSorteio={registrarSorteioTieBreak}
           />
         )}
 
@@ -2157,6 +2218,8 @@ function EscalacaoTab(props: {
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
   vistaQuadra: '2d' | '3d'
   sidesInverted: boolean
+  initialServers: Record<number, TeamId | null>
+  onRegistrarSorteio: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId>('teamA')
   const [pickedNumber, setPickedNumber] = useState<string | null>(null)
@@ -2182,6 +2245,16 @@ function EscalacaoTab(props: {
   const selectedTeamConfirmed = selectedTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
   const reviewLibero = props.startingLiberos[selectedTeamId] ?? ''
   const buttonLabel = selectedTeamConfirmed ? `${team.name} confirmado` : `Confirmar ${team.name}`
+  const otherTeamId: TeamId = selectedTeamId === 'teamA' ? 'teamB' : 'teamA'
+  const otherTeam = otherTeamId === 'teamA' ? props.teamA : props.teamB
+  const otherConfirmed = otherTeamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
+  const confirmedCount = Number(props.lineupConfirmedA) + Number(props.lineupConfirmedB)
+  const modoSaque = modoSaqueInicial(props.currentSet)
+  const saqueAnterior = props.initialServers[props.currentSet - 1] ?? null
+  const saqueAlternado = saqueObrigatorio(props.currentSet, saqueAnterior)
+  const servidorExibido: TeamId | null = modoSaque === 'alternancia' ? saqueAlternado : props.initialServer
+  const nomeServidor = servidorExibido === 'teamA' ? props.teamA.name : servidorExibido === 'teamB' ? props.teamB.name : ''
+  const nomeAnterior = saqueAnterior === 'teamA' ? props.teamA.name : saqueAnterior === 'teamB' ? props.teamB.name : ''
   const ladoEsquerdoId: TeamId = props.sidesInverted ? 'teamB' : 'teamA'
   const ladoDireitoId: TeamId = props.sidesInverted ? 'teamA' : 'teamB'
   const equipeEsquerda = ladoEsquerdoId === 'teamA' ? props.teamA : props.teamB
@@ -2278,15 +2351,30 @@ function EscalacaoTab(props: {
 
   return (
     <div className="official-panel">
-      <div className="official-team-selector">
-        <button className={selectedTeamId === 'teamA' ? 'is-active' : ''} onClick={() => setSelectedTeamId('teamA')}>{props.teamA.name}{props.lineupConfirmedA ? ' ✓' : ''}</button>
-        <button className={selectedTeamId === 'teamB' ? 'is-active' : ''} onClick={() => setSelectedTeamId('teamB')}>{props.teamB.name}{props.lineupConfirmedB ? ' ✓' : ''}</button>
+      <div className="official-team-selector" role="tablist" aria-label="Times para conferir a papeleta">
+        {(['teamA', 'teamB'] as const).map((teamId) => {
+          const side = teamId === 'teamA' ? props.teamA : props.teamB
+          const confirmed = teamId === 'teamA' ? props.lineupConfirmedA : props.lineupConfirmedB
+          return (
+            <button
+              key={teamId}
+              type="button"
+              role="tab"
+              aria-selected={selectedTeamId === teamId}
+              className={`${selectedTeamId === teamId ? 'is-active' : ''} ${confirmed ? 'is-confirmed' : ''}`}
+              onClick={() => setSelectedTeamId(teamId)}
+            >
+              <span>{side.name}</span>
+              <small>{confirmed ? 'Confirmada' : 'Pendente'}</small>
+            </button>
+          )
+        })}
       </div>
       {!props.lineupConfirmed && (
         <div className="official-lineup-review">
           <span>Conferência obrigatória</span>
           <strong>Revise a escalação de {team.name}</strong>
-          <p>Você pode revisar os dois times em qualquer ordem. A pontuação só libera quando as duas papeletas estiverem confirmadas.</p>
+          <p>{confirmedCount} de 2 papeletas confirmadas. Confira este time, confirme e avance para o outro. A pontuação só libera quando as duas papeletas estiverem confirmadas.</p>
         </div>
       )}
       <div className="official-grid">
@@ -2306,7 +2394,91 @@ function EscalacaoTab(props: {
               <span>{team.name}</span>
             </div>
           </div>
-          {props.vistaQuadra === '2d' ? (
+          {!props.lineupConfirmed ? (
+          <>
+          <p className="volley-help">Toque numa posição ou arraste um atleta do banco. Esta papeleta é só de {team.name}.{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}</p>
+          <div className="official-court" aria-label={`Papeleta de ${team.name}`}>
+            <p className="official-court-net">Rede</p>
+            <div>
+              {posicoes.map((position, index) => {
+                const number = lineup[index]
+                const player = getAnyPlayer(team, number)
+                const canEditNumber = props.currentSet === 1 && !selectedTeamConfirmed && Boolean(number)
+                const displayNumber = number ? props.getMatchNumber(selectedTeamId, number) : number
+                return (
+                  <div
+                    key={position}
+                    role="button"
+                    tabIndex={0}
+                    onDragOver={(event) => {
+                      if (props.lineupConfirmed) return
+                      event.preventDefault()
+                    }}
+                    onDrop={(event) => {
+                      if (props.lineupConfirmed) return
+                      event.preventDefault()
+                      const numero = event.dataTransfer.getData('text/plain')
+                      if (!numero) return
+                      props.changeSlot(selectedTeamId, index, numero)
+                      setPickedNumber(null)
+                    }}
+                    onClick={() => {
+                      if (pickedNumber) {
+                        props.changeSlot(selectedTeamId, index, pickedNumber)
+                        setPickedNumber(null)
+                        return
+                      }
+                      props.setEditingSlot({ teamId: selectedTeamId, index })
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      if (pickedNumber) {
+                        props.changeSlot(selectedTeamId, index, pickedNumber)
+                        setPickedNumber(null)
+                        return
+                      }
+                      props.setEditingSlot({ teamId: selectedTeamId, index })
+                    }}
+                    className={`${number ? 'is-filled' : ''} ${number && number === selectedLibero ? 'is-libero-start' : ''}`}
+                  >
+                    <span>{position}</span>
+                    {number && canEditNumber && editingNumberSlot === index ? (
+                      <input
+                        className="official-slot-number-edit"
+                        value={editingNumberDraft}
+                        autoFocus
+                        aria-label="Número do atleta na partida"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => {
+                          event.stopPropagation()
+                          if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur()
+                        }}
+                        onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
+                        onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
+                      />
+                    ) : (
+                      <strong>{number ? `#${displayNumber}` : 'Sem atleta'}</strong>
+                    )}
+                    {number && number === selectedLibero && <em>Líbero</em>}
+                    <small>{player ? displayPlayerName(player.name, team.name) : 'Clique para escalar'}</small>
+                    {canEditNumber && (
+                      <button
+                        type="button"
+                        className="official-sub-action is-icon official-slot-edit-number"
+                        onClick={(event) => { event.stopPropagation(); setEditingNumberDraft(displayNumber); setEditingNumberSlot(index) }}
+                        aria-label={`Corrigir número do atleta ${number} nesta partida`}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          </>
+          ) : props.vistaQuadra === '2d' ? (
           <div className="official-facing-court" aria-label="Escalação 2D com as equipes de frente">
             {ladoEscalacao2d(ladoEsquerdoId, zonasEsquerda)}
             <div className="official-facing-net" aria-hidden="true"><span>Rede</span></div>
@@ -2314,59 +2486,15 @@ function EscalacaoTab(props: {
           </div>
           ) : (
           <>
-          <p className="volley-help">{props.lineupConfirmed ? 'A formação em quadra segue a rotação oficial. Toque em um atleta para substituir.' : 'Toque numa posição ou arraste um atleta do banco. A equipe selecionada é a que pode ser editada.'}{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}{substitutionMode ? ' Modo substituição ativo.' : ''}</p>
+          <p className="volley-help">A formação em quadra segue a rotação oficial. Toque em um atleta para substituir.{substitutionMode ? ' Modo substituição ativo.' : ''}</p>
           <QuadraVolei
             modo="escalacao"
             numeroExibido={props.getMatchNumber}
-            esquerda={ladoEscalacao(equipeEsquerda, escalacaoEsquerda, !props.lineupConfirmed && selectedTeamId === ladoEsquerdoId, props.startingLiberos[ladoEsquerdoId] ?? '')}
-            direita={ladoEscalacao(equipeDireita, escalacaoDireita, !props.lineupConfirmed && selectedTeamId === ladoDireitoId, props.startingLiberos[ladoDireitoId] ?? '')}
-            onAtivar={(teamId, indice) => {
-              if (!props.lineupConfirmed && teamId !== selectedTeamId) {
-                setSelectedTeamId(teamId)
-                setPickedNumber(null)
-                return
-              }
-              if (!props.lineupConfirmed && pickedNumber) {
-                props.changeSlot(teamId, indice, pickedNumber)
-                setPickedNumber(null)
-                return
-              }
-              if (props.lineupConfirmed) props.askSubstitution(teamId, indice)
-              else props.setEditingSlot({ teamId, index: indice })
-            }}
-            onSoltar={(teamId, indice, numero) => {
-              if (props.lineupConfirmed || teamId !== selectedTeamId) return
-              props.changeSlot(teamId, indice, numero)
-              setPickedNumber(null)
-            }}
+            esquerda={ladoEscalacao(equipeEsquerda, escalacaoEsquerda, false, props.startingLiberos[ladoEsquerdoId] ?? '')}
+            direita={ladoEscalacao(equipeDireita, escalacaoDireita, false, props.startingLiberos[ladoDireitoId] ?? '')}
+            onAtivar={(teamId, indice) => props.askSubstitution(teamId, indice)}
+            onSoltar={() => undefined}
           />
-          {props.currentSet === 1 && !selectedTeamConfirmed && (
-            <div className="volley-numbers">
-              {posicoes.map((posicao, index) => {
-                const number = lineup[index]
-                if (!number) return null
-                const displayNumber = props.getMatchNumber(selectedTeamId, number)
-                const editing = editingNumberSlot === index
-                return (
-                  <label key={posicao}>
-                    <span>{posicao}</span>
-                    {editing ? (
-                      <input
-                        value={editingNumberDraft}
-                        autoFocus
-                        aria-label={`Número de ${posicao} nesta partida`}
-                        onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
-                        onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
-                        onKeyDown={(event) => { if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur() }}
-                      />
-                    ) : (
-                      <button type="button" onClick={() => { setEditingNumberDraft(displayNumber); setEditingNumberSlot(index) }} aria-label={`Corrigir número do atleta ${number}`}>#{displayNumber}</button>
-                    )}
-                  </label>
-                )
-              })}
-            </div>
-          )}
           </>
           )}
           <div className="official-libero-start">
@@ -2384,14 +2512,40 @@ function EscalacaoTab(props: {
           {!props.lineupConfirmed && (
             <div className="official-mini-panel official-initial-serve-panel">
               <h3>Saque inicial do set {props.currentSet}</h3>
-              <p>Escolha a equipe que começa sacando neste set.</p>
-              <div className="official-two-cols">
-                <ServeChoice team={props.teamA} active={props.initialServer === 'teamA'} onClick={() => props.setInitialServer('teamA')} setNumber={props.currentSet} />
-                <ServeChoice team={props.teamB} active={props.initialServer === 'teamB'} onClick={() => props.setInitialServer('teamB')} setNumber={props.currentSet} />
-              </div>
+              {modoSaque === 'escolha' && (
+                <>
+                  <p>Escolha a equipe que começa sacando neste set.</p>
+                  <div className="official-two-cols">
+                    <ServeChoice team={props.teamA} active={props.initialServer === 'teamA'} onClick={() => props.setInitialServer('teamA')} setNumber={props.currentSet} />
+                    <ServeChoice team={props.teamB} active={props.initialServer === 'teamB'} onClick={() => props.setInitialServer('teamB')} setNumber={props.currentSet} />
+                  </div>
+                </>
+              )}
+              {modoSaque === 'alternancia' && (
+                <div className="official-serve-locked" aria-live="polite">
+                  <span>Alternância obrigatória</span>
+                  <strong>{nomeServidor || 'Saque do set anterior ainda não definido'}</strong>
+                  <p>{nomeServidor ? `${nomeServidor} começa sacando neste set porque não sacou no set ${props.currentSet - 1}. No set ${props.currentSet - 1} o saque foi de ${nomeAnterior}.` : `O saque deste set depende de quem começou sacando no set ${props.currentSet - 1}.`}</p>
+                </div>
+              )}
+              {modoSaque === 'sorteio' && (
+                <SorteioTieBreak
+                  teamA={props.teamA}
+                  teamB={props.teamB}
+                  servidor={props.initialServer}
+                  onRegistrar={props.onRegistrarSorteio}
+                />
+              )}
             </div>
           )}
-          {!props.lineupConfirmed && <button className="official-primary" disabled={!reviewLibero || !props.initialServer || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>}
+          {!props.lineupConfirmed && (
+            <div className="official-lineup-actions">
+              <button className="official-primary" disabled={!reviewLibero || !servidorExibido || selectedTeamConfirmed} onClick={() => props.confirmLineup(selectedTeamId)}>{buttonLabel}</button>
+              <button type="button" className="official-secondary" onClick={() => setSelectedTeamId(otherTeamId)}>
+                {otherConfirmed ? `Ver ${otherTeam.name}` : `Conferir ${otherTeam.name}`}
+              </button>
+            </div>
+          )}
         </section>
         <section className="official-mini-panel official-span-4">
           <div className="official-section-row"><h3>Banco de reservas</h3><span>{bench.length} atletas</span></div>
@@ -2656,6 +2810,39 @@ function PlayerValidationList({ team, validated, onToggle }: { team: Team; valid
 function PlayerAvatar({ player }: { player: Player }) {
   if (player.photoUrl) return <img className="official-player-avatar" src={player.photoUrl} alt={`Foto de ${player.name}`} />
   return <span className="official-player-avatar">{initials(player.name)}</span>
+}
+
+function SorteioTieBreak({
+  teamA,
+  teamB,
+  servidor,
+  onRegistrar,
+}: {
+  teamA: Team
+  teamB: Team
+  servidor: TeamId | null
+  onRegistrar: (teamId: TeamId, origem: 'aplicativo' | 'mesa') => void
+}) {
+  const nome = servidor === 'teamA' ? teamA.name : servidor === 'teamB' ? teamB.name : ''
+  return (
+    <div className="official-toss-setup">
+      <p>No 5º set o saque sai de um sorteio novo. Registre o resultado da mesa ou sorteie no aplicativo.</p>
+      <button type="button" className="official-secondary" onClick={() => onRegistrar(sortearLado(Math.random()), 'aplicativo')}>
+        Sortear no aplicativo
+      </button>
+      <div className="official-two-cols">
+        <button type="button" className={`official-serve ${servidor === 'teamA' ? 'is-active' : ''}`} onClick={() => onRegistrar('teamA', 'mesa')}>
+          <strong>{teamA.name}</strong>
+          <span>Registrar sorteio da mesa</span>
+        </button>
+        <button type="button" className={`official-serve ${servidor === 'teamB' ? 'is-active' : ''}`} onClick={() => onRegistrar('teamB', 'mesa')}>
+          <strong>{teamB.name}</strong>
+          <span>Registrar sorteio da mesa</span>
+        </button>
+      </div>
+      <strong>{nome ? `${nome} começa sacando neste tie-break.` : 'O sorteio ainda não definiu quem saca.'}</strong>
+    </div>
+  )
 }
 
 function ServeChoice({ team, active, onClick, setNumber = 1 }: { team: Team; active: boolean; onClick: () => void; setNumber?: number }) {
