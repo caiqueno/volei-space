@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O mata-mata agenda vaga a definir no mesmo jogo e no mesmo link do juiz. 20261010142000 não foi aplicada; sem as colunas a função fica desligada. Corrigir o último ponto volta a funcionar depois de recarregar a súmula. A presença do árbitro deixa o upsert. Gênero e idade da categoria seguem opcionais em 20261010139700, ainda sem aplicar.
+  O mata-mata agenda vaga a definir no mesmo jogo e no mesmo link do juiz. 20261010142000 não foi aplicada; sem as colunas a função fica desligada. O mesmo atleta não entra em duas equipes da categoria. Corrigir o último ponto volta a funcionar depois de recarregar a súmula.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -16,6 +16,10 @@ updated: 2026-10-10
 ## Foco atual
 
 Em 10 de outubro de 2026 o organizador pode gravar semifinal, 3º lugar e final com data, horário, quadra e link do juiz antes dos times. A origem fica em `origemVagaA` e `origemVagaB` (`1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1`, `Perdedor Semi 2`). O mesmo `Partida.id` recebe o time quando a fase de grupos fecha ou a semi termina. A súmula responde 422 enquanto faltar um lado. Página pública, chave e painel mostram a vaga. `20261010142000_vaga_a_definir.sql` não foi aplicada. Sem as colunas, a leitura não as pede e nada disso aparece. Fonte: [[modulos/MATA-MATA]], [[modulos/PARTIDAS]], [[modulos/SUMULA-DIGITAL]], [[06-BANCO-DE-DADOS]].
+
+Em 10 de outubro de 2026 o mesmo atleta não entra em duas equipes da mesma categoria. Com documento, a comparação é o número, ignorando pontuação. Sem documento, valem nome e data de nascimento juntos. Documento vazio não casa com outro vazio, e nome sem nascimento também não. A própria equipe continua podendo editar o atleta. A inscrição, a conclusão e o capitão recusam com o nome da outra equipe. Se a leitura falhar, o cadastro segue. Não houve migration. Fonte: [[modulos/INSCRICOES]], [[modulos/EQUIPES-E-ATLETAS]].
+
+Em 10 de outubro de 2026 `/painel/elenco` mostra o seletor de campeonato e abre o campeonato ativo do painel. Sem `ligaId` na consulta, entra o primeiro campeonato do organizador. Fonte: [[modulos/EQUIPES-E-ATLETAS]].
 
 Em 10 de outubro de 2026 corrigir o último ponto continua valendo depois de recarregar a súmula. O histórico do set em andamento é refeito pelos eventos gravados. Fonte: [[modulos/SUMULA-DIGITAL]].
 

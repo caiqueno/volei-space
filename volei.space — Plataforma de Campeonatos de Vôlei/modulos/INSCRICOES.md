@@ -5,12 +5,14 @@ category: modulo
 tags: [inscricoes]
 sources: [repo:athrios/volei-space/docs/requisitos/INSCRICOES-POR-EQUIPE.md]
 summary: >-
-  Gênero e idade da categoria são opcionais. Sem a coluna, a inscrição não confere esses dados. 20261010139700 não foi aplicada.
+  O mesmo atleta não entra em duas equipes da categoria. A conferência usa documento ou nome e nascimento. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
 ---
 # Inscrições por equipe
+
+**Conferência de 10 de outubro de 2026, atleta único:** salvar o atleta e concluir a inscrição recusam a mesma pessoa em outra equipe da categoria. Com `documentoNumero`, a comparação ignora pontuação e caixa. Sem documento, entram nome e data de nascimento, os dois preenchidos. Acento e espaços não separam o nome. A equipe que já tem o atleta pode editá-lo. O aviso cita o nome da outra equipe. Rascunho ainda sem equipe também entra na conferência. Se a leitura falhar, a inscrição segue. Não houve migration.
 
 **Conferência de 10 de outubro de 2026, gênero e idade:** a aba Inscrições mostra gênero e faixa etária só quando `CategoriaConfiguracao` já devolve a coluna `genero`. Masculino, feminino, misto ou vazio. A idade mínima e a máxima ficam em branco para não restringir. O formulário público pede o sexo, como opcional, só quando o gênero da categoria está preenchido. A categoria masculina ou feminina recusa o sexo informado diferente. Misto aceita os dois. Sem sexo, a inscrição passa. A idade só é conferida quando o atleta tem data de nascimento e a categoria tem mínimo ou máximo. Nascimento ilegível não bloqueia. Gênero e idade não vão para `Liga` nem para `salvar_configuracao_categoria`. Se a coluna não existir, a leitura fica desligada por dez minutos e o restante do salvamento continua. `20261010139700_elegibilidade_categoria.sql` não foi aplicada. O prefixo fica depois de `20261010139500` e antes de `20261010140000`.
 

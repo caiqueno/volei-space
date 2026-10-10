@@ -18,6 +18,16 @@ updated: 2026-10-10
 - pages_updated=`modulos/MATA-MATA`, `modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `06-BANCO-DE-DADOS`, `hot`, `log`
 - O jogo do mata-mata pode nascer sem os dois times, com origem da vaga, data, horário e quadra. O link do juiz permanece na mesma partida. A súmula não inicia até os times entrarem. `20261010142000_vaga_a_definir.sql` não foi aplicada; sem as colunas a função fica desligada.
 
+## [2026-10-10] feat | atleta único na categoria
+
+- pages_updated=`modulos/INSCRICOES`, `modulos/EQUIPES-E-ATLETAS`, `hot`, `log`
+- A mesma pessoa não entra em duas equipes da categoria. Documento tem prioridade; sem ele, nome e nascimento. A própria equipe não é bloqueada. Sem migration. Falha de leitura não interrompe a inscrição.
+
+## [2026-10-10] fix | seletor de campeonato no elenco
+
+- pages_updated=`modulos/EQUIPES-E-ATLETAS`, `hot`, `log`
+- `/painel/elenco` só pedia um campeonato e não oferecia escolha. A página abre o `ligaId` do painel e, sem ele, o primeiro campeonato do organizador. O seletor troca a consulta.
+
 ## [2026-10-10] fix | desfazer ponto depois de recarregar
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
