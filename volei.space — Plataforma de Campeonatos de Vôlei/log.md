@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | troca de lado ao encerrar o set
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- Confirmar o fim do set inverte a quadra e reusa a anotação do botão Inverter. A partida encerrada não inverte. O saque dos sets 2 a 4 e o sorteio do 5º ficam como já estavam. O pulso visual continua o de `sumula-micro-set`.
+
 ## [2026-10-10] decisao | CSP de desenvolvimento e teste do pulso da súmula
 
 - pages_updated=`hot`, `log`
