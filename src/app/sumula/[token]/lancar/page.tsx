@@ -24,6 +24,7 @@ import { quantidadeDeLiberos, rotuloSeletorLibero } from '@/lib/libero-sumula'
 import { ordenarPorCamisaDaSumula } from '@/lib/ordem-camisa-sumula'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
+import { gravarSidebarSumula, lerSidebarSumula, type PreferenciaSidebar } from '@/lib/sidebar-sumula'
 import {
   AlertCircle,
   Award,
@@ -35,6 +36,8 @@ import {
   HelpCircle,
   Menu,
   MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
   QrCode,
   Pencil,
   RefreshCw,
@@ -174,6 +177,7 @@ export default function SumulaPage() {
   const [erroOficial, setErroOficial] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarFixa, setSidebarFixa] = useState(true)
   const [vistaQuadra, setVistaQuadra] = useState<'2d' | '3d'>('3d')
   const [activeTab, setActiveTab] = useState<TabId>('pre')
   const [matchStatus, setMatchStatus] = useState<'pre-game' | 'live' | 'finished'>('pre-game')
@@ -229,6 +233,10 @@ export default function SumulaPage() {
   const rascunhoRef = useRef<RascunhoAndamento | null>(null)
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
+
+  useEffect(() => {
+    setSidebarFixa(lerSidebarSumula(window.localStorage) === 'fixa')
+  }, [])
 
   useEffect(() => {
     let ativo = true
@@ -1422,8 +1430,14 @@ export default function SumulaPage() {
     }
   }
 
+  function alternarSidebar() {
+    const proxima: PreferenciaSidebar = sidebarFixa ? 'recolhida' : 'fixa'
+    gravarSidebarSumula(window.localStorage, proxima)
+    setSidebarFixa(proxima === 'fixa')
+  }
+
   return (
-    <main className={`official-sumula ${activeTab === 'pontuacao' ? 'has-floating-score' : ''}`}>
+    <main className={`official-sumula ${activeTab === 'pontuacao' ? 'has-floating-score' : ''} ${sidebarFixa ? '' : 'is-sidebar-collapsed'}`}>
       <div className="official-mobilebar">
         <div>
           <strong>volei.space</strong>
@@ -1434,8 +1448,19 @@ export default function SumulaPage() {
 
       {sidebarOpen && <button type="button" className="official-mobile-menu-backdrop" aria-label="Fechar menu da súmula" onClick={() => setSidebarOpen(false)} />}
 
-      <aside className={`official-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+      <aside id="sumula-sidebar" className={`official-sidebar ${sidebarOpen ? 'is-open' : ''} ${sidebarFixa ? '' : 'is-collapsed'}`} aria-label="Menu da súmula">
         <div>
+          <button
+            type="button"
+            className="official-sidebar-toggle"
+            aria-expanded={sidebarFixa}
+            aria-controls="sumula-sidebar"
+            aria-label={sidebarFixa ? 'Recolher menu da súmula' : 'Fixar menu da súmula'}
+            onClick={alternarSidebar}
+          >
+            {sidebarFixa ? <PanelLeftClose size={18} aria-hidden="true" /> : <PanelLeftOpen size={18} aria-hidden="true" />}
+            <span>{sidebarFixa ? 'Recolher' : 'Fixar'}</span>
+          </button>
           <div className="official-brand">
             <div className="official-brand-logo">
               <img src="/brand/volei-space_simbolo-orbital_transparente.png" alt="volei.space" />
@@ -1475,9 +1500,12 @@ export default function SumulaPage() {
             {tabs.filter((tab) => tab.id !== 'pre').map((tab) => {
               const locked = matchStatus !== 'finished' && !lineupConfirmed
               return (
-              <button key={tab.id} type="button" disabled={locked} onClick={() => { if (!locked) { setActiveTab(tab.id); setSidebarOpen(false) } }} className={activeTab === tab.id ? 'is-active' : ''}>
-                <span>{tab.icon}{tab.label}</span>
-                <span>{locked ? 'bloq.' : activeTab === tab.id ? '>' : ''}</span>
+              <button key={tab.id} type="button" disabled={locked} aria-current={activeTab === tab.id ? 'page' : undefined} aria-label={tab.label} onClick={() => { if (!locked) { setActiveTab(tab.id); setSidebarOpen(false) } }} className={activeTab === tab.id ? 'is-active' : ''}>
+                <span className="official-nav-main">
+                  <span className="official-nav-icon" aria-hidden="true">{tab.icon}</span>
+                  <span className="official-nav-label">{tab.label}</span>
+                </span>
+                <span className="official-nav-mark">{locked ? 'bloq.' : activeTab === tab.id ? '>' : ''}</span>
               </button>
               )
             })}

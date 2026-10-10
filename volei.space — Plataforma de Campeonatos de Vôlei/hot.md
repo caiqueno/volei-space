@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A barra abaixo da quadra divide o placar em duas metades, no lado de cada time. Sem migration.
+  No desktop, a barra esquerda da súmula recolhe num trilho de ícones ou fica fixa. A escolha fica no navegador. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a barra esquerda da súmula, no desktop, ganha Recolher e Fixar. Recolhida, o cartão da partida some e o menu vira um trilho de ícones, com o botão para abrir de novo. A quadra e os controles ocupam o espaço. A escolha fica no navegador. O botão informa se o menu está aberto e a barra gruda abaixo da faixa Sair, para continuar clicável ao rolar. Abaixo de 1100px o menu do celular segue como está. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a barra de controles abaixo da quadra deixa de empilhar os dois times em faixas horizontais. Cada metade fica no lado da equipe, também com a quadra invertida. Em cima ficam o placar, o `+1` grande na cor do time e o desfazer. Embaixo ficam os cartões e o tempo. `SET X · a x b` fica no centro, e Últimos pontos ocupa a largura toda. No celular estreito as metades empilham. A quadra e a gravação do ponto não mudam. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

@@ -16856,6 +16856,73 @@ h1, h2, h3, h4,
   }
 }
 
+/* Menu da súmula no desktop: recolhido vira um trilho de ícones. */
+.official-sidebar-toggle {
+  display: none;
+}
+
+.official-nav-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+@media (min-width: 1101px) {
+  /* A faixa "Sair" cobre os primeiros 61px. O trilho gruda abaixo dela
+     para o botão Recolher/Fixar continuar clicável ao rolar a súmula. */
+  .official-sidebar {
+    top: 64px;
+    height: calc(100vh - 64px);
+  }
+
+  .official-sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 179, 49, 0.36);
+    border-radius: 12px;
+    background: rgba(255, 179, 49, 0.12);
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .official-sidebar-toggle:focus-visible {
+    outline: 2px solid #ffb331;
+    outline-offset: 2px;
+  }
+
+  .official-sidebar.is-collapsed {
+    width: 76px;
+    flex-basis: 76px;
+    padding: 12px 8px;
+  }
+
+  .official-sidebar.is-collapsed .official-brand,
+  .official-sidebar.is-collapsed .official-live-card,
+  .official-sidebar.is-collapsed .official-sidebar-footer,
+  .official-sidebar.is-collapsed .official-nav-label,
+  .official-sidebar.is-collapsed .official-nav-mark,
+  .official-sidebar.is-collapsed .official-sidebar-toggle span {
+    display: none;
+  }
+
+  .official-sidebar.is-collapsed nav button {
+    justify-content: center;
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .official-sidebar.is-collapsed .official-nav-main {
+    gap: 0;
+  }
+}
+
 /* Barra de placar abaixo da quadra: duas metades, cada uma no lado do time. */
 html body .official-score-bar {
   display: grid;

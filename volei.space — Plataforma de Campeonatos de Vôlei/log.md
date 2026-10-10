@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] fix | menu da súmula recolhe ou fica fixo no desktop
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- A barra esquerda pode virar um trilho de ícones. A escolha fica no navegador. No desktop ela gruda abaixo da faixa Sair, para Recolher/Fixar continuar clicável. Sem migration e sem mudança na gravação de pontos.
+
 ## [2026-10-10] fix | barra de placar em duas metades abaixo da quadra
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`

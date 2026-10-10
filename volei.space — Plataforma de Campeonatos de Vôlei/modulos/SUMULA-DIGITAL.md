@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A barra abaixo da quadra divide o placar em duas metades, no lado de cada time. O +1, o desfazer, os cartões e o tempo ficam nessa faixa. Sem migration.
+  No desktop, a barra esquerda da súmula pode recolher num trilho de ícones ou ficar fixa. A escolha fica no navegador. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -69,6 +69,8 @@ updated: 2026-10-10
 **Avisos da súmula — implementado:** cada aviso entra e some sozinho em 3 segundos. A mesma frase não entra de novo: o aviso que já está na fila só reinicia o tempo. A fila guarda no máximo dois; o mais novo empurra o mais antigo. O temporizador é cancelado ao sair da tela. Com `prefers-reduced-motion: reduce` não há deslocamento. Na pontuação o aviso fica acima da faixa do placar e do `+1`. A demonstração (`token-demo-…`) não chama `POST /api/arbitro/partidas/{token}/iniciar`, porque esse caminho não tem o atalho do GET e do PUT da súmula. Sem sessão a rota responde 401; com sessão e sem a partida, 404. A pontuação da demonstração segue na tela, com status local `EM_ANDAMENTO`. Se uma partida real não sincronizar o início, o aviso é «Pontuação liberada localmente. Não foi possível sincronizar o início agora.»
 
 **Troca de lado ao encerrar o set — implementado:** confirmar o fim de um set que não encerra a partida inverte os lados da quadra e grava a mesma anotação do botão Inverter, «Equipes inverteram os lados da quadra.». Reabrir a súmula conta essas anotações e restaura o lado. A partida encerrada não inverte de novo. O saque do set seguinte usa a quantidade da fase: alterna até o penúltimo e o último fica no sorteio. O rótulo do set reusa o pulso `sumula-micro-set`.
+
+**Menu da súmula — implementado no código, sem merge:** no desktop, a barra esquerda tem Recolher e Fixar. Recolhida, vira um trilho com os ícones do menu e o botão para abrir de novo; a quadra ocupa o espaço. A escolha fica em `localStorage` (`volei.space.sumula.sidebar`). O botão expõe `aria-expanded` e permanece focável. A barra gruda abaixo da faixa Sair, para o botão continuar clicável ao rolar. Abaixo de 1100px continua o menu do celular. A gravação de pontos não muda. Não há migration.
 
 **Barra de placar — implementado no código, sem merge:** abaixo da quadra, os controles dos dois times ficam lado a lado, cada metade no lado da equipe na quadra, inclusive quando os lados estão invertidos. Em cada metade, em cima ficam o placar, o `+1` grande na cor do time e o desfazer `↺`; embaixo, os cartões amarelo e vermelho e o tempo `Tempo 0/2`. `SET X · a x b` fica centralizado abaixo das duas metades. Últimos pontos ocupa a largura toda. No celular estreito as metades empilham. O ACE do sacador, o ataque e o bloqueio na quadra continuam como estavam. A gravação do ponto não muda. Não há migration.
 
