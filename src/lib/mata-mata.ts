@@ -4,6 +4,7 @@ import { rotuloValido } from '@/lib/vaga-a-definir'
 import { selecionarClassificados } from '@/lib/classificados'
 import { FASES_ELIMINATORIAS, type FaseEliminatoria, formatEliminatoryPhase, getRequiredEliminatoryTeams, normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { chaveDaVaga } from '@/lib/operacao-categoria'
+import { rodadaDaVolta, vencedorAgregado } from '@/lib/ida-volta'
 import { perdedorDaPartida, vencedorDaPartida } from '@/lib/resultado-partida'
 import type { BracketRoundView, BracketSlot, TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
 
@@ -81,25 +82,7 @@ type LegPartida = { status: string; equipeAId: number; equipeBId: number; setsPo
 // padrão de "indefinido, requer decisão manual" já usado por getMatchWinnerId
 // para um único jogo empatado em sets.
 export function getAggregateTwoLegWinnerId(leg1: LegPartida, leg2: LegPartida): number | null {
-  const finished = (partida: LegPartida) => partida.status === 'ENCERRADA' || partida.status === 'WO'
-  if (!finished(leg1) || !finished(leg2)) return null
-
-  const setsByTeam = new Map<number, number>()
-  const addLeg = (partida: LegPartida) => {
-    setsByTeam.set(partida.equipeAId, (setsByTeam.get(partida.equipeAId) ?? 0) + Number(partida.setsPorA ?? 0))
-    setsByTeam.set(partida.equipeBId, (setsByTeam.get(partida.equipeBId) ?? 0) + Number(partida.setsPorB ?? 0))
-  }
-  addLeg(leg1)
-  addLeg(leg2)
-
-  const teamIds = Array.from(setsByTeam.keys())
-  if (teamIds.length !== 2) return null
-
-  const [idA, idB] = teamIds
-  const setsA = setsByTeam.get(idA) ?? 0
-  const setsB = setsByTeam.get(idB) ?? 0
-  if (setsA === setsB) return null
-  return setsA > setsB ? idA : idB
+  return vencedorAgregado(leg1, leg2)
 }
 
 export async function getMataMataBracket(
@@ -153,6 +136,19 @@ export async function getMataMataBracket(
     partidaBySlot.set(chaveDaVaga(partida.categoriaCampeonatoId ?? categoriaChave, partida.fase, partida.rodada), partida)
   }
   const vaga = (fase: string, rodada: number) => partidaBySlot.get(chaveDaVaga(categoriaChave, fase, rodada))
+  const vencedorDoSlot = (fase: string, rodada: number) => {
+    const ida = vaga(fase, rodada)
+    if (!ida) return null
+    const volta = vaga(fase, rodadaDaVolta(rodada))
+    if (!volta) return getMatchWinnerId(ida)
+    return vencedorAgregado(ida, volta)
+  }
+  const perdedorDoSlot = (fase: string, rodada: number) => {
+    const ida = vaga(fase, rodada)
+    const vencedorId = vencedorDoSlot(fase, rodada)
+    if (!ida || vencedorId == null) return null
+    return vencedorId === Number(ida.equipeAId) ? Number(ida.equipeBId) : Number(ida.equipeAId)
+  }
 
   const classifiedOptions = Array.from(classifiedIds).map((id) => teamById.get(id)).filter((team): team is TeamOption => Boolean(team))
 
@@ -161,7 +157,7 @@ export async function getMataMataBracket(
     const usedInThisRound = new Set<number>()
     for (const partida of partidas ?? []) {
       const mesmaCategoria = !categoriaCampeonatoId || partida.categoriaCampeonatoId === categoriaCampeonatoId
-      if (partida.fase === round.fase && mesmaCategoria) {
+      if (partida.fase === round.fase && mesmaCategoria && Number(partida.rodada) <= rodadaDaVolta(0)) {
         if (Number(partida.equipeAId) > 0) usedInThisRound.add(Number(partida.equipeAId))
         if (Number(partida.equipeBId) > 0) usedInThisRound.add(Number(partida.equipeBId))
       }
@@ -176,10 +172,8 @@ export async function getMataMataBracket(
         if (roundIndex === 0) {
           eligibleOptions = classifiedOptions.filter((team) => !usedInThisRound.has(team.id))
         } else if (previousRound) {
-          const feederA = vaga(previousRound.fase, slotNumber * 2 - 1)
-          const feederB = vaga(previousRound.fase, slotNumber * 2)
-          const winnerA = feederA ? getMatchWinnerId(feederA) : null
-          const winnerB = feederB ? getMatchWinnerId(feederB) : null
+          const winnerA = vencedorDoSlot(previousRound.fase, slotNumber * 2 - 1)
+          const winnerB = vencedorDoSlot(previousRound.fase, slotNumber * 2)
           if (winnerA && winnerB) {
             eligibleOptions = [teamById.get(winnerA), teamById.get(winnerB)].filter((team): team is TeamOption => Boolean(team))
           }
@@ -202,6 +196,7 @@ export async function getMataMataBracket(
             }
           : null,
         eligibleOptions,
+        volta: resumoDaPartida(vaga(round.fase, rodadaDaVolta(slotNumber)), organizerMode),
       })
     }
 
@@ -213,7 +208,7 @@ export async function getMataMataBracket(
   const finalBruta = finalRound ? vaga(finalRound.fase, 1) : null
   let champion: TeamOption | null = null
   if (finalPartida && finalBruta) {
-    const winnerId = getMatchWinnerId(finalBruta)
+    const winnerId = vencedorDoSlot(finalRound.fase, 1)
     champion = winnerId === finalPartida.equipeA.id ? finalPartida.equipeA : winnerId === finalPartida.equipeB.id ? finalPartida.equipeB : null
   }
 
@@ -222,10 +217,8 @@ export async function getMataMataBracket(
     const partida = vaga(THIRD_PLACE_FASE, 1)
     let eligibleOptions: TeamOption[] | null = null
     if (!partida) {
-      const feederA = vaga(semifinalRound.fase, 1)
-      const feederB = vaga(semifinalRound.fase, 2)
-      const loserA = feederA ? getMatchLoserId(feederA) : null
-      const loserB = feederB ? getMatchLoserId(feederB) : null
+      const loserA = perdedorDoSlot(semifinalRound.fase, 1)
+      const loserB = perdedorDoSlot(semifinalRound.fase, 2)
       if (loserA && loserB) {
         eligibleOptions = [teamById.get(loserA), teamById.get(loserB)].filter((team): team is TeamOption => Boolean(team))
       }
@@ -247,10 +240,25 @@ export async function getMataMataBracket(
           }
         : null,
       eligibleOptions,
+      volta: resumoDaPartida(vaga(THIRD_PLACE_FASE, rodadaDaVolta(1)), organizerMode),
     }
   }
 
   return { rounds, champion, thirdPlace }
+}
+
+function resumoDaPartida(partida: any, organizerMode: boolean) {
+  if (!partida) return null
+  return {
+    id: partida.id,
+    status: partida.status,
+    equipeA: ladoDoConfronto(partida.equipeA, partida.origemVagaA),
+    equipeB: ladoDoConfronto(partida.equipeB, partida.origemVagaB),
+    setsPorA: partida.setsPorA,
+    setsPorB: partida.setsPorB,
+    sets: partida.sets ?? [],
+    sumulaToken: organizerMode ? partida.sumulaToken : null,
+  }
 }
 
 function ladoDoConfronto(value: any, origem: unknown): TeamOption {

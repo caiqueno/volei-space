@@ -1,4 +1,5 @@
 import { calcularClassificacao, criteriosComConfrontoDireto, faseContaNaClassificacao, type PartidaClassificacao } from '@/lib/classificacao'
+import { jogoDeVolta, rodadaDaVolta } from '@/lib/ida-volta'
 import { perdedoresDasSemifinais, vencedoresDosAlimentadores, type PartidaDecisao } from '@/lib/resultado-partida'
 
 export type GrupoRanqueado = { id: number; ordem: number; classificados: number[] }
@@ -121,6 +122,7 @@ export function montarConfrontosAutomaticos(input: {
   metodo?: string | null
   ranking?: number[]
   embaralhar?: (ids: number[]) => number[]
+  idaVolta?: boolean
 }): ConfrontoChave[] {
   const ocupado = (fase: string, rodada: number) => input.existentes.some((item) => item.fase === fase && Number(item.rodada) === rodada)
   const criados: ConfrontoChave[] = []
@@ -149,7 +151,7 @@ export function montarConfrontosAutomaticos(input: {
     const anterior = input.rounds[indice - 1]
     for (let slot = 1; slot <= rodada.slots; slot += 1) {
       if (ocupado(rodada.fase, slot) || criados.some((jogo) => jogo.fase === rodada.fase && jogo.rodada === slot)) continue
-      const alimentadores = conhecidas.filter((partida) => partida.fase === anterior.fase && [slot * 2 - 1, slot * 2].includes(Number(partida.rodada)))
+      const alimentadores = conhecidas.filter((partida) => partida.fase === anterior.fase && [slot * 2 - 1, slot * 2, rodadaDaVolta(slot * 2 - 1), rodadaDaVolta(slot * 2)].includes(Number(partida.rodada)))
       const vencedores = vencedoresDosAlimentadores(alimentadores, slot)
       if (!vencedores || vencedores[0] === vencedores[1]) continue
       criados.push({ fase: rodada.fase, rodada: slot, equipeAId: vencedores[0], equipeBId: vencedores[1] })
@@ -168,12 +170,29 @@ export function montarConfrontosAutomaticos(input: {
 
   const temSemi = input.rounds.some((rodada) => rodada.fase === 'SEMIFINAL')
   if (input.disputaTerceiro && temSemi && !ocupado(TERCEIRO, 1) && !criados.some((jogo) => jogo.fase === TERCEIRO)) {
-    const semis = conhecidas.filter((partida) => partida.fase === 'SEMIFINAL' && (Number(partida.rodada) === 1 || Number(partida.rodada) === 2))
+    const semis = conhecidas.filter((partida) => partida.fase === 'SEMIFINAL' && [1, 2, rodadaDaVolta(1), rodadaDaVolta(2)].includes(Number(partida.rodada)))
     const perdedores = perdedoresDasSemifinais(semis)
     if (perdedores && perdedores[0] !== perdedores[1]) {
       criados.push({ fase: TERCEIRO, rodada: 1, equipeAId: perdedores[0], equipeBId: perdedores[1] })
     }
   }
 
+  if (input.idaVolta) {
+    const jaCriado = (fase: string, rodada: number) => criados.some((jogo) => jogo.fase === fase && jogo.rodada === rodada) || ocupado(fase, rodada)
+    const bases = [
+      ...input.partidas.filter((partida) => !ehVoltaDeOutra(partida.rodada)),
+      ...criados.filter((jogo) => !ehVoltaDeOutra(jogo.rodada)),
+    ]
+    for (const jogo of bases) {
+      const volta = rodadaDaVolta(jogo.rodada)
+      if (jaCriado(jogo.fase, volta) || jogo.equipeAId === jogo.equipeBId) continue
+      criados.push(jogoDeVolta({ fase: jogo.fase, rodada: jogo.rodada, equipeAId: jogo.equipeAId, equipeBId: jogo.equipeBId }))
+    }
+  }
+
   return criados
+}
+
+function ehVoltaDeOutra(rodada: number) {
+  return Number(rodada) > rodadaDaVolta(0)
 }

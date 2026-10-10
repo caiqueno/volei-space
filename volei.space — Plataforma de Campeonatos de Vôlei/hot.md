@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O método de chaveamento monta a primeira rodada. Manual deixa essa rodada com o organizador. Sem a coluna, o cruzamento atual continua.
+  Ida e volta grava o segundo jogo sem migration. Sem o flag, o campeonato continua em jogo único.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Em 10 de outubro de 2026 a chave com ida e volta grava o segundo jogo na mesma fase, com mando invertido e rodada 1000 acima da ida. A fase seguinte soma os sets dos dois jogos. Sem o segundo jogo, ou sem o flag, segue o jogo único. O calendário automático também repete o turno do grupo quando `turnoReturno` está ligado. Se a coluna não existir, nada disso é criado. Não houve migration. Fonte: [[modulos/MATA-MATA]].
 
 Em 10 de outubro de 2026 a geração da chave usa o método gravado na categoria. Cruzamento de grupos mantém 1º A × 2º B. Ranking geral faz 1º × último entre os classificados. Sorteio embaralha esses classificados. Manual não cria a primeira rodada. Final e 3º lugar continuam saindo dos jogos decididos. Se a coluna `metodoChaveamento` não vier na leitura, o cruzamento atual segue e a fase da categoria não se perde. Não houve migration. Fonte: [[modulos/MATA-MATA]].
 

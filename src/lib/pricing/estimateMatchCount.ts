@@ -28,10 +28,8 @@ function contarPartidasDeGrupos(equipes: number, grupos: number, turnoReturno: b
  * Prévia. É sempre uma PREVISÃO: as partidas reais são geradas depois, com
  * as equipes efetivamente aprovadas.
  *
- * Nota sobre ida e volta: `eliminatoriaIdaVolta` NÃO dobra a estimativa. O
- * gerador de mata-mata cria uma única Partida por confronto (o flag hoje só
- * alimenta o cálculo de vencedor agregado), então dobrar aqui cobraria por
- * jogos que a plataforma não chega a criar.
+ * Ida e volta do mata-mata dobra só os jogos da chave. Sem o flag, a
+ * estimativa continua um jogo por confronto.
  */
 export function estimateMatchCount(input: MatchEstimateInput): MatchEstimate {
   const formato = input.formato
@@ -54,6 +52,7 @@ export function estimateMatchCount(input: MatchEstimateInput): MatchEstimate {
     eliminatorias = vagas - 1
     // Disputa de 3º só existe quando a chave passa por uma semifinal.
     if (input.disputaTerceiroLugar && vagas >= 4) eliminatorias += 1
+    if (input.eliminatoriaIdaVolta) eliminatorias *= 2
   }
 
   if (!comGrupos && eliminatorias === 0) return INDISPONIVEL

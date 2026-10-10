@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       : null
 
     const ligaLida = await lerLinha(
-      () => supabase.from('Liga').select('id,organizadorId,faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,metodoChaveamento').eq('id', ligaId).maybeSingle(),
+        () => supabase.from('Liga').select('id,organizadorId,faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,metodoChaveamento,eliminatoriaIdaVolta').eq('id', ligaId).maybeSingle(),
       () => supabase.from('Liga').select('id,organizadorId,faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo').eq('id', ligaId).maybeSingle(),
     )
     const liga = ligaLida.data
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const configLida = categoriaInformada
       ? await lerLinha(
-        () => supabase.from('CategoriaConfiguracao').select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato,metodoChaveamento').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaInformada).maybeSingle(),
+        () => supabase.from('CategoriaConfiguracao').select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato,metodoChaveamento,eliminatoriaIdaVolta').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaInformada).maybeSingle(),
         () => supabase.from('CategoriaConfiguracao').select('faseEliminatoria,disputaTerceiroLugar,classificadosPorGrupo,formato').eq('ligaId', ligaId).eq('categoriaCampeonatoId', categoriaInformada).maybeSingle(),
       )
       : { data: null, error: null }
@@ -103,6 +103,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       disputaTerceiro,
       metodo,
       ranking: metodo === 'RANKING_GERAL' ? ranquearGrupo(classificados, partidasGrupo, classificados.length) : undefined,
+      idaVolta: (config?.eliminatoriaIdaVolta ?? liga.eliminatoriaIdaVolta) === true,
       existentes,
       partidas: (partidas ?? [])
         .filter((partida) => !faseContaNaClassificacao(partida.fase))
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
 function colunaDeMetodoAusente(erro: { code?: string; message?: string } | null) {
   const texto = `${erro?.code ?? ''} ${erro?.message ?? ''}`
-  return /42703|PGRST204/i.test(texto) && /metodoChaveamento/i.test(texto)
+  return /42703|PGRST204/i.test(texto)
 }
 
 async function lerLinha(
@@ -184,4 +185,5 @@ type LinhaChave = {
   classificadosPorGrupo?: number | null
   formato?: string | null
   metodoChaveamento?: string | null
+  eliminatoriaIdaVolta?: boolean | null
 }
