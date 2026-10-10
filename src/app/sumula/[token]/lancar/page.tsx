@@ -2193,6 +2193,7 @@ function EscalacaoTab(props: {
   const [substitutionMode, setSubstitutionMode] = useState(false)
   const [editingNumberSlot, setEditingNumberSlot] = useState<number | null>(null)
   const [editingNumberDraft, setEditingNumberDraft] = useState('')
+  const [pulsoAtleta, setPulsoAtleta] = useState<string | null>(null)
   useEffect(() => {
     if (props.lineupConfirmed) return
     if (props.lineupConfirmedA && !props.lineupConfirmedB) setSelectedTeamId('teamB')
@@ -2270,16 +2271,17 @@ function EscalacaoTab(props: {
                 key={`${teamId}-${slot.label}`}
                 role="button"
                 tabIndex={0}
-                onClick={(event) => {
+                onClick={() => {
                   abrirPosicao(teamId, slot.index)
-                  pulsarMicro(event.currentTarget.querySelector('strong'), 'sumula-micro-tap')
+                  dispararPulso(setPulsoAtleta, `${teamId}-${slot.index}`)
                 }}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter' && event.key !== ' ') return
                   event.preventDefault()
                   abrirPosicao(teamId, slot.index)
                 }}
-                className={`${number ? 'is-filled' : ''} ${teamId === selectedTeamId && substitutionMode ? 'is-substitution-mode' : ''} ${number && number === sideLibero ? 'is-libero-start' : ''}`}
+                className={`${number ? 'is-filled' : ''} ${teamId === selectedTeamId && substitutionMode ? 'is-substitution-mode' : ''} ${number && number === sideLibero ? 'is-libero-start' : ''} ${pulsoAtleta === `${teamId}-${slot.index}` ? 'sumula-micro-tap' : ''}`}
+                onAnimationEnd={(event) => limparPulso(event, setPulsoAtleta)}
               >
                 <span>{slot.label}</span>
                 {number && canEditNumber && editingNumberSlot === slot.index ? (
@@ -2525,14 +2527,15 @@ function EscalacaoTab(props: {
                 key={number}
                 type="button"
                 draggable={!props.lineupConfirmed}
-                className={pickedNumber === number ? 'is-picked' : ''}
+                className={`${pickedNumber === number ? 'is-picked' : ''} ${pulsoAtleta === `banco-${number}` ? 'sumula-micro-tap' : ''}`}
+                onAnimationEnd={(event) => limparPulso(event, setPulsoAtleta)}
                 onDragStart={(event) => {
                   event.dataTransfer.setData('text/plain', number)
                   event.dataTransfer.effectAllowed = 'move'
                 }}
-                onClick={(event) => {
+                onClick={() => {
                   setPickedNumber((atual) => atual === number ? null : number)
-                  pulsarMicro(event.currentTarget, 'sumula-micro-tap')
+                  dispararPulso(setPulsoAtleta, `banco-${number}`)
                 }}
               >
                 <strong>#{props.getMatchNumber(selectedTeamId, number)}</strong>
@@ -2869,17 +2872,15 @@ function CompactScoreDock({
   )
 }
 
-function pulsarMicro(alvo: EventTarget | null, classe: string) {
-  if (!(alvo instanceof HTMLElement)) return
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  alvo.classList.remove(classe)
-  void alvo.offsetWidth
-  alvo.classList.add(classe)
-  const limpar = () => {
-    alvo.classList.remove(classe)
-    alvo.removeEventListener('animationend', limpar)
-  }
-  alvo.addEventListener('animationend', limpar)
+function dispararPulso(setPulso: (valor: string | null) => void, id: string) {
+  setPulso(null)
+  queueMicrotask(() => setPulso(id))
+}
+
+function limparPulso(event: { target: EventTarget | null; currentTarget: EventTarget | null; animationName: string }, setPulso: (valor: string | null) => void) {
+  if (event.target !== event.currentTarget) return
+  if (!event.animationName.startsWith('sumula-micro')) return
+  setPulso(null)
 }
 
 function CompactTeamControl({
@@ -2907,6 +2908,7 @@ function CompactTeamControl({
   onTimeout: () => void
   events: MatchEvent[]
 }) {
+  const [pulsoAce, setPulsoAce] = useState(false)
   const ultimo = events.find((event) => event.teamId === teamId && (event.type === 'ace' || event.type === 'attack' || event.type === 'block' || ehPontoSemJogador(event.text)))
   const rotulo = ultimo ? lerRotuloPonto(ultimo.text) ?? ROTULO_PONTO[ultimo.type as OrigemPonto] : null
   const jogador = ultimo ? lerJogadorPonto(ultimo.text) : null
@@ -2919,7 +2921,7 @@ function CompactTeamControl({
       <span className="official-compact-score-team-name">{team.name}</span>
       <strong>{score.toString().padStart(2, '0')}</strong>
       {serving ? (
-        <button className="official-compact-icon-action is-ace" type="button" onClick={(event) => { onAce(); pulsarMicro(event.currentTarget, 'sumula-micro-ace') }} aria-label={`ACE para ${team.name}`}>ACE</button>
+        <button className={`official-compact-icon-action is-ace${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
       ) : (
         <i aria-hidden="true" />
       )}
@@ -3163,6 +3165,7 @@ function RosterClickers({
   onBlock: (number: string) => void
   onSubstitution: (teamId: TeamId, index: number) => void
 }) {
+  const [pulso, setPulso] = useState<string | null>(null)
   const visualSlots = !mirrored
     ? [
       { label: 'P5', index: 3 },
@@ -3199,17 +3202,17 @@ function RosterClickers({
               className={`official-player-card ${frontRow ? 'is-front-row' : 'is-back-row'} ${servingTeam && index === serverIndex ? 'is-serving' : ''} ${scored ? 'is-scored' : ''}`}
               role="button"
               tabIndex={0}
-              onClick={(event) => {
+              onClick={() => {
                 if (!number) return
                 onAttack(number)
-                pulsarMicro(event.currentTarget.querySelector('.official-player-identity'), 'sumula-micro-tap')
+                dispararPulso(setPulso, `${index}:tap`)
               }}
               onKeyDown={(event) => {
                 if (!number) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
                   onAttack(number)
-                  pulsarMicro(event.currentTarget.querySelector('.official-player-identity'), 'sumula-micro-tap')
+                  dispararPulso(setPulso, `${index}:tap`)
                 }
               }}
               aria-label={`Ponto de ataque do atleta ${number}`}
@@ -3217,7 +3220,7 @@ function RosterClickers({
               <div className="official-player-card-top">
                 <i>{slot.label}</i>
               </div>
-              <div className="official-player-identity">
+              <div className={`official-player-identity${pulso === `${index}:tap` ? ' sumula-micro-tap' : ''}`} onAnimationEnd={(event) => limparPulso(event, setPulso)}>
                 {number ? (
                   <span className="official-player-number-edit">{getMatchNumber(teamId, number)}</span>
                 ) : (
@@ -3226,7 +3229,7 @@ function RosterClickers({
                 {nome && <small className="official-player-name">{nome}</small>}
               </div>
               <div className="official-player-actions">
-                {frontRow && number && <button className="official-point-action is-block" type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); pulsarMicro(event.currentTarget, 'sumula-micro-block') }} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
+                {frontRow && number && <button className={`official-point-action is-block${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
                 {number && <button className="official-sub-action is-icon" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
               </div>
               {scored && <b>+1</b>}
