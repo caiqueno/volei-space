@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Avisos da súmula somem em 3 s. A demonstração não chama o início no servidor.
+  Grupos, calendário e chave isolam uma categoria. Avisos da súmula somem em 3 s. Sem migration nova.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Gerar grupos, calendário e chave vale para uma categoria e não apaga as outras. Portal, tabela, jogos, ranking e pódio filtram por `categoriaCampeonatoId`. Sem migration nova e sem reaplicar o SQL de setembro. Fonte: [[modulos/GRUPOS]], [[modulos/MATA-MATA]], [[modulos/CLASSIFICACAO]], [[modulos/PARTIDAS]].
 
 Os avisos da súmula de lançamento somem sozinhos em 3 segundos e não passam de dois na tela. O mais novo empurra o mais antigo e o temporizador é cancelado ao desmontar. Na pontuação eles ficam acima da faixa do placar e do `+1`. `prefers-reduced-motion: reduce` tira o deslocamento de entrada. A frase sem acento era o `catch` de `POST /api/arbitro/partidas/{token}/iniciar`. A súmula da captura (Set Point x Líbero FC, rodada 6, Ginásio Municipal, 15/08/2026) é a demonstração `token-demo-…`. O GET e o PUT de `/api/sumula/{token}` têm atalho e não gravam partida; o POST de iniciar não tem. Sem sessão de árbitro a rota responde 401; com sessão e sem essa partida, 404. A demonstração agora marca `EM_ANDAMENTO` localmente e não chama essa rota. Partida real que falhar de verdade mostra a frase com acento. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 

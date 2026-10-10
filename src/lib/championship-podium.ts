@@ -10,13 +10,15 @@ export type PodiumTeam = {
   posicao: 1 | 2 | 3
 }
 
-export async function getChampionshipPodium(ligaId: number): Promise<PodiumTeam[]> {
-  const { data: partidas } = await supabase
+export async function getChampionshipPodium(ligaId: number, categoriaCampeonatoId?: string | null): Promise<PodiumTeam[]> {
+  let consulta = supabase
     .from('Partida')
-    .select('fase,rodada,status,vencedorId,equipeAId,equipeBId,setsPorA,setsPorB')
+    .select('fase,rodada,status,vencedorId,equipeAId,equipeBId,setsPorA,setsPorB,categoriaCampeonatoId')
     .eq('ligaId', ligaId)
     .in('fase', ['FINAL', THIRD_PLACE_FASE])
     .eq('rodada', 1)
+  if (categoriaCampeonatoId) consulta = consulta.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+  const { data: partidas } = await consulta
 
   const final = (partidas ?? []).find((p: any) => p.fase === 'FINAL')
   const campeaoId = final ? vencedorDaPartida(final) : null

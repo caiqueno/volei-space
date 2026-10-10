@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+import { categoriaDaUrl } from '@/lib/isolamento-categoria'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,8 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     if (searchParams.has('serie')) return error('A série não separa mais a categoria. Use a categoria do campeonato.', 422)
-    const categoria = searchParams.get('categoria')
-    const categoriaCampeonatoId = searchParams.get('categoriaCampeonatoId')
+    const categoria = categoriaDaUrl(searchParams)
+    if ('erro' in categoria) return error(categoria.erro, 422)
     const ligaId = Number(searchParams.get('ligaId'))
     if (!Number.isInteger(ligaId) || ligaId <= 0) return error('Escolha um campeonato.', 422)
 
@@ -26,13 +27,9 @@ export async function GET(req: NextRequest) {
       .eq('ligaId', ligaId)
       .eq('statusEquipe', 'ATIVA')
       .order('nome', { ascending: true })
-    if (categoriaCampeonatoId) {
-      q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-      equipes = equipes.eq('categoriaCampeonatoId', categoriaCampeonatoId)
-    }
-    if (categoria) {
-      q = q.eq('categoria', categoria)
-      equipes = equipes.eq('categoria', categoria)
+    if (categoria.id) {
+      q = q.eq('categoriaCampeonatoId', categoria.id)
+      equipes = equipes.eq('categoriaCampeonatoId', categoria.id)
     }
 
     const [{ data, error: err }, equipesResposta] = await Promise.all([q, equipes])

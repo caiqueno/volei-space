@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { EscolhaCampeonato } from '@/components/portal/EscolhaCampeonato'
 import { PortalAgenda } from '@/components/portal/PortalAgenda'
+import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
 import { getPortalHome } from '@/lib/portal-home'
 import { capaDoCampeonato } from '@/lib/capa-publica'
 import { createPageMetadata } from '@/lib/seo'
@@ -14,7 +15,7 @@ export const metadata = createPageMetadata({
 })
 
 type PageProps = {
-  searchParams?: Promise<{ organizador?: string; ligaId?: string; candidaturaId?: string; embed?: string }>
+  searchParams?: Promise<{ organizador?: string; ligaId?: string; candidaturaId?: string; embed?: string; categoria?: string }>
 }
 
 export default async function PortalPage({ searchParams }: PageProps) {
@@ -27,7 +28,7 @@ export default async function PortalPage({ searchParams }: PageProps) {
     )
   }
 
-  const { liga, grupos, temMais, partidasFalha, agendaGlobal } = await getPortalHome({ ligaId: params.ligaId })
+  const { liga, grupos, temMais, partidasFalha, agendaGlobal, categorias, categoriaCampeonatoId } = await getPortalHome({ ligaId: params.ligaId, categoria: params.categoria })
   if (agendaGlobal || !liga) {
     return (
       <main className="luva-shell min-h-screen overflow-hidden pb-28 lg:pb-0">
@@ -52,8 +53,13 @@ export default async function PortalPage({ searchParams }: PageProps) {
           </div>
         </div>
 
-        <div className="mt-8">
-          <PortalAgenda ligaId={ligaId} inicial={grupos} temMaisInicial={temMais} falhaInicial={partidasFalha} />
+        <div className="mt-8 grid gap-4">
+          <LinksCategoriaPublica
+            categorias={categorias ?? []}
+            atual={categoriaCampeonatoId ?? null}
+            href={(id) => `/portal?ligaId=${ligaId}&categoria=${encodeURIComponent(id)}`}
+          />
+          <PortalAgenda ligaId={ligaId} inicial={grupos} temMaisInicial={temMais} falhaInicial={partidasFalha} categoriaId={categoriaCampeonatoId ?? null} />
         </div>
         <p className="mt-6">
           <Link href="/portal" className="text-sm font-black text-[#ffb331]">Escolher outro campeonato</Link>

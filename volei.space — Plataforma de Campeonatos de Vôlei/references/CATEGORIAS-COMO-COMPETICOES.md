@@ -6,9 +6,9 @@ tags: [categorias, requisito]
 sources: [repo:athrios/volei-space/docs/requisitos/CATEGORIAS-COMO-COMPETICOES.md]
 summary: >-
   Destilação do requisito de categorias isoladas com CategoriaCampeonato.
-status: aprovado-pendente
+status: misto
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-10-10
 ---
 
 # Categorias como competições isoladas (referência)
@@ -20,7 +20,7 @@ updated: 2026-09-25
 
 - Cada categoria da `Liga` é competição interna independente.
 - Modelo-alvo: entidade `CategoriaCampeonato` e chave `categoriaCampeonatoId`.
-- Isolamento operacional e migração ainda **pendentes**.
+- Isolamento de grupos, calendário, chave e leituras públicas está no aplicativo desde 10/10/2026. Convite, recálculo SQL e o restante do requisito continuam pendentes. Nenhuma migration nova.
 - Séries Ouro/Prata são legado LUVA — não regem fluxos novos.
 
 ## Wiki compilada

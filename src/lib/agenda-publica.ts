@@ -25,12 +25,14 @@ export type FatiaAgenda = {
   erro: boolean
 }
 
-async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean, offset: number, limite: number): Promise<FatiaAgenda> {
-  const { data, error } = await supabaseAdmin
+async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean, offset: number, limite: number, categoriaCampeonatoId?: string | null): Promise<FatiaAgenda> {
+  let consulta = supabaseAdmin
     .from('Partida')
     .select(COLUNAS)
     .eq('ligaId', ligaId)
     .in('status', status)
+  if (categoriaCampeonatoId) consulta = consulta.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+  const { data, error } = await consulta
     .order('dataHora', { ascending })
     .range(offset, offset + limite)
   if (error) return { partidas: [], temMais: false, erro: true }
@@ -40,7 +42,7 @@ async function fatiaAgenda(ligaId: number, status: string[], ascending: boolean,
 
 export async function buscarAgendaCampeonato(
   ligaId: number,
-  opcoes?: { parte?: 'ao-vivo' | 'proximos' | 'encerradas'; offset?: number; limite?: number; campeonatoInformado?: boolean },
+  opcoes?: { parte?: 'ao-vivo' | 'proximos' | 'encerradas'; offset?: number; limite?: number; campeonatoInformado?: boolean; categoriaCampeonatoId?: string | null },
 ) {
   const vazio: FatiaAgenda = { partidas: [], temMais: false, erro: false }
   if (!opcoes?.campeonatoInformado) {
@@ -55,9 +57,9 @@ export async function buscarAgendaCampeonato(
   const offset = Math.max(0, opcoes?.offset ?? 0)
   const parte = opcoes?.parte
   const [aoVivo, proximos, encerradas] = await Promise.all([
-    !parte || parte === 'ao-vivo' ? fatiaAgenda(ligaId, ['EM_ANDAMENTO'], true, parte ? offset : 0, limite) : Promise.resolve(vazio),
-    !parte || parte === 'proximos' ? fatiaAgenda(ligaId, ['AGENDADA', 'PENDENTE'], true, parte ? offset : 0, limite) : Promise.resolve(vazio),
-    !parte || parte === 'encerradas' ? fatiaAgenda(ligaId, ['ENCERRADA', 'WO'], false, parte ? offset : 0, limite) : Promise.resolve(vazio),
+    !parte || parte === 'ao-vivo' ? fatiaAgenda(ligaId, ['EM_ANDAMENTO'], true, parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
+    !parte || parte === 'proximos' ? fatiaAgenda(ligaId, ['AGENDADA', 'PENDENTE'], true, parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
+    !parte || parte === 'encerradas' ? fatiaAgenda(ligaId, ['ENCERRADA', 'WO'], false, parte ? offset : 0, limite, opcoes?.categoriaCampeonatoId) : Promise.resolve(vazio),
   ])
   return { aoVivo, proximos, encerradas, erro: aoVivo.erro || proximos.erro || encerradas.erro }
 }

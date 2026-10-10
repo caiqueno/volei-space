@@ -27,7 +27,7 @@
     "test:saque-inicial": "node scripts/with-ts-node.mjs scripts/saque-inicial.test.ts",
     "test:championship-setup": "node scripts/with-ts-node.mjs scripts/championship-setup.test.ts",
     "test:pricing": "node scripts/with-ts-node.mjs scripts/pricing.test.ts",
-    "test:categorias": "node scripts/with-ts-node.mjs scripts/category-match-rules.test.ts && node scripts/with-ts-node.mjs scripts/category-pricing.test.ts && node scripts/with-ts-node.mjs scripts/category-replication.test.ts",
+    "test:categorias": "node scripts/with-ts-node.mjs scripts/category-match-rules.test.ts && node scripts/with-ts-node.mjs scripts/category-pricing.test.ts && node scripts/with-ts-node.mjs scripts/category-replication.test.ts && node scripts/with-ts-node.mjs scripts/isolamento-categoria.test.ts",
     "test:simulacao": "node scripts/with-ts-node.mjs scripts/simulacao.test.ts",
     "test:campeonato": "node scripts/with-ts-node.mjs scripts/campeonato-completo.test.ts",
     "test:set-encerrado": "node scripts/with-ts-node.mjs scripts/set-encerrado.test.ts",
