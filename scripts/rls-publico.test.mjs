@@ -7,6 +7,7 @@ import path from 'node:path'
 const raiz = process.cwd()
 const dir = path.join(raiz, 'supabase', 'migrations')
 const arquivoNovo = '20261010140000_habilitar_rls_tabelas_publicas.sql'
+const arquivoLeitura = '20261010141000_leitura_publica_sets_classificacao.sql'
 const colunasPartida = [
   'id',
   'ligaId',
@@ -195,10 +196,20 @@ function simularGrantsAnon(files) {
 const files = arquivosSql()
 assert.ok(files.includes(arquivoNovo), 'migration de RLS ausente')
 assert.equal(files.filter((name) => name.startsWith('20261010140000')).length, 1)
+const arquivoWo = '20261010139000_wo_configuravel.sql'
+const arquivoSancoes = '20261010139500_sancoes_suspensao.sql'
+assert.ok(files.includes(arquivoWo), 'migration do W.O. ausente')
+assert.ok(files.includes(arquivoSancoes), 'migration de sanções ausente')
+assert.equal(files.filter((name) => name.startsWith('20261010150000')).length, 0)
+assert.ok(files.indexOf(arquivoWo) < files.indexOf(arquivoSancoes), 'o W.O. precisa ficar antes da suspensão')
+assert.ok(files.indexOf(arquivoSancoes) < files.indexOf(arquivoNovo), 'a suspensão precisa ficar antes da migration de RLS')
+assert.ok(files.indexOf(arquivoNovo) < files.indexOf(arquivoLeitura), 'a leitura precisa ficar depois da migration de RLS')
 const posteriores = files.filter((name) => name > arquivoNovo)
+assert.deepEqual(posteriores, [arquivoLeitura])
 for (const nome of posteriores) {
   const sqlPosterior = sqlSemComentario(fs.readFileSync(path.join(dir, nome), 'utf8'))
   assert.doesNotMatch(sqlPosterior, /create\s+table/i, `${nome} cria tabela depois da migration de RLS`)
+  if (nome === arquivoLeitura) continue
   assert.doesNotMatch(sqlPosterior, /grant\s+[^;]*\bto\s+(anon|authenticated|public)\b/i, `${nome} concede leitura anônima depois da migration de RLS`)
 }
 
@@ -242,7 +253,7 @@ const semDepois = [...simularRls(files).entries()].filter(([, ligado]) => !ligad
 assert.deepEqual(semDepois, [], `tabelas public ainda sem RLS: ${semDepois.join(', ')}`)
 
 const grants = simularGrantsAnon(files)
-assert.deepEqual([...grants.keys()], ['Partida'])
+assert.deepEqual([...grants.keys()].sort(), ['ClassificacaoEntrada', 'Partida', 'SetPartida'])
 const partida = grants.get('Partida')
 assert.equal(partida.select, 'columns')
 assert.deepEqual(partida.columns, colunasPartida)
@@ -250,6 +261,33 @@ assert.equal(partida.insert, false)
 assert.equal(partida.update, false)
 assert.equal(partida.delete, false)
 assert.ok(!partida.columns.includes('sumulaToken'))
+for (const tabela of ['SetPartida', 'ClassificacaoEntrada']) {
+  const entrada = grants.get(tabela)
+  assert.equal(entrada.select, 'table', `${tabela} precisa de SELECT da tabela inteira`)
+  assert.equal(entrada.columns, null)
+  assert.equal(entrada.insert, false, `${tabela} não pode receber INSERT`)
+  assert.equal(entrada.update, false, `${tabela} não pode receber UPDATE`)
+  assert.equal(entrada.delete, false, `${tabela} não pode receber DELETE`)
+}
+
+const leitura = fs.readFileSync(path.join(dir, arquivoLeitura), 'utf8')
+const sqlLeitura = sqlSemComentario(leitura)
+assert.doesNotMatch(sqlLeitura, /sumulaToken/)
+assert.doesNotMatch(sqlLeitura, /create\s+table/i)
+assert.doesNotMatch(sqlLeitura, /\bgrant\s+(insert|update|delete|all)\b/i)
+assert.doesNotMatch(sqlLeitura, /\bfor\s+(insert|update|delete|all)\b/i)
+assert.doesNotMatch(sqlLeitura, /grant\s[^;]*\bto\s+public\b/i)
+assert.doesNotMatch(sqlLeitura, /"Partida"/)
+const concessoes = [...sqlLeitura.matchAll(/grant\s+select\s+on\s+table\s+public\."([^"]+)"\s+to\s+anon,\s+authenticated/gi)].map((match) => match[1])
+assert.deepEqual(concessoes, ['SetPartida', 'ClassificacaoEntrada'])
+assert.equal((sqlLeitura.match(/\bgrant\b/gi) ?? []).length, concessoes.length)
+assert.match(sqlLeitura, /create policy "public_read_sets"\s+on public\."SetPartida"\s+for select\s+to anon, authenticated\s+using \(true\)/i)
+assert.match(sqlLeitura, /create policy "public_read_classificacao"\s+on public\."ClassificacaoEntrada"\s+for select\s+to anon, authenticated\s+using \(true\)/i)
+assert.match(sqlLeitura, /alter table public\."SetPartida" replica identity full/i)
+assert.match(sqlLeitura, /alter table public\."ClassificacaoEntrada" replica identity full/i)
+assert.match(sqlLeitura, /alter publication supabase_realtime add table public\."SetPartida"/i)
+assert.match(sqlLeitura, /alter publication supabase_realtime add table public\."ClassificacaoEntrada"/i)
+assert.match(sqlLeitura, /pubname = 'supabase_realtime'/)
 
 const placar = fs.readFileSync(path.join(dir, '202610100002_fechar_leitura_publica_placar.sql'), 'utf8')
 assert.match(placar, /revoke all on table public\."SetPartida" from anon, authenticated/i)
@@ -382,6 +420,63 @@ grant select on table public."SetPartida" to anon;
     const placarAnon = executar(alvo.toString(), 'begin; set local role anon; select id::text from public."Partida"; commit;')
     assert.match(placarAnon, /^7$/m)
     assert.throws(() => executar(alvo.toString(), 'begin; set local role anon; select "sumulaToken" from public."Partida"; commit;'))
+
+    const arquivoLeituraSql = path.join(dir, arquivoLeitura)
+    executarArquivo(alvo.toString(), arquivoLeituraSql)
+    executar(alvo.toString(), `insert into public."SetPartida" (id) values (3)`)
+    executar(alvo.toString(), `insert into public."ClassificacaoEntrada" (id) values (4)`)
+    for (const papel of ['anon', 'authenticated']) {
+      for (const [tabela, id] of [['SetPartida', '3'], ['ClassificacaoEntrada', '4']]) {
+        assert.equal(executar(alvo.toString(), `select has_table_privilege('${papel}', 'public."${tabela}"', 'select')`).trim(), 't')
+        assert.equal(executar(alvo.toString(), `select has_table_privilege('${papel}', 'public."${tabela}"', 'insert')`).trim(), 'f')
+        assert.equal(executar(alvo.toString(), `select has_table_privilege('${papel}', 'public."${tabela}"', 'update')`).trim(), 'f')
+        assert.equal(executar(alvo.toString(), `select has_table_privilege('${papel}', 'public."${tabela}"', 'delete')`).trim(), 'f')
+        const lido = executar(alvo.toString(), `begin; set local role ${papel}; select id::text from public."${tabela}"; commit;`)
+        assert.match(lido, new RegExp(`^${id}$`, 'm'), `${papel} não leu ${tabela}`)
+        assert.throws(() => executar(alvo.toString(), `begin; set local role ${papel}; insert into public."${tabela}" (id) values (9); commit;`))
+      }
+    }
+    assert.equal(executar(alvo.toString(), `select has_table_privilege('public', 'public."SetPartida"', 'select')`).trim(), 'f')
+    assert.equal(executar(alvo.toString(), `select has_table_privilege('anon', 'public."Liga"', 'select')`).trim(), 'f')
+    assert.equal(executar(alvo.toString(), `select has_table_privilege('anon', 'public."Partida"', 'select')`).trim(), 'f')
+    assert.equal(executar(alvo.toString(), `select has_column_privilege('anon', 'public."Partida"', 'id', 'select')`).trim(), 't')
+    assert.equal(executar(alvo.toString(), `select has_column_privilege('anon', 'public."Partida"', 'sumulaToken', 'select')`).trim(), 'f')
+    assert.equal(executar(alvo.toString(), `
+      select string_agg(policyname || ':' || cmd, ',' order by tablename)
+      from pg_policies
+      where schemaname = 'public' and tablename in ('SetPartida', 'ClassificacaoEntrada')
+    `).trim(), 'public_read_classificacao:SELECT,public_read_sets:SELECT')
+    assert.equal(executar(alvo.toString(), `
+      select string_agg(c.relname || ':' || c.relreplident::text, ',' order by c.relname)
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname in ('ClassificacaoEntrada', 'Partida', 'SetPartida')
+    `).trim(), 'ClassificacaoEntrada:f,Partida:d,SetPartida:f')
+
+    const wal = executar(alvo.toString(), 'show wal_level').trim()
+    if (wal === 'logical') {
+      executar(alvo.toString(), 'create publication supabase_realtime')
+      executarArquivo(alvo.toString(), arquivoLeituraSql)
+      executarArquivo(alvo.toString(), arquivoLeituraSql)
+      assert.equal(executar(alvo.toString(), `
+        select string_agg(tablename, ',' order by tablename)
+        from pg_publication_tables
+        where pubname = 'supabase_realtime' and schemaname = 'public'
+      `).trim(), 'ClassificacaoEntrada,SetPartida')
+    } else {
+      executarArquivo(alvo.toString(), arquivoLeituraSql)
+      console.log(`SKIP publicação realtime: wal_level=${wal}`)
+    }
+    assert.equal(executar(alvo.toString(), `
+      select count(*) from pg_policies
+      where schemaname = 'public' and tablename = 'SetPartida' and policyname = 'public_read_sets'
+    `).trim(), '1')
+    assert.equal(executar(alvo.toString(), `
+      select count(*) from pg_policies
+      where schemaname = 'public' and tablename = 'ClassificacaoEntrada' and policyname = 'public_read_classificacao'
+    `).trim(), '1')
+    const ainda = executar(alvo.toString(), 'begin; set local role anon; select id::text from public."SetPartida"; commit;')
+    assert.match(ainda, /^3$/m)
     console.log(`rls-publico postgres ok: ${criadas.length} tabelas`)
   } finally {
     executar(base, `drop database if exists ${nomeBanco} with (force)`)
