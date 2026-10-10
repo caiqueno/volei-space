@@ -5,7 +5,7 @@ category: area
 tags: [seguranca]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Sets e classificação deixam de ser legíveis pela chave publicável quando a migration 202610100001 for aplicada.
+  20261010140000 liga RLS em cada tabela public e ainda não foi aplicada. Partida segue com a leitura das colunas de placar.
 status: misto
 created: 2026-09-20
 updated: 2026-10-10
@@ -77,3 +77,12 @@ A auditoria das rotas em `src/app/api` manteve públicos os fluxos de vitrine, p
 - `GET /api/ligas` e `GET /api/ligas/[slug]` selecionam `LIGA_COLUNAS_PUBLICAS`. `organizadorId`, `seedKey`, `pagamentoConfirmadoEm`, `finalizadoPor` e `simulacaoRelogio` não saem na resposta. A listagem pública usa o `service_role`, porque a chave publicável já não lê `Liga`.
 - `GET /api/equipes` e `GET /api/rankings` não embutem relação. Sem sessão, a lista de equipes só inclui campeonatos `EM_BREVE`, `ATIVA`, `ENCERRADA` ou `FINALIZADO` com `simulacao` desligada. Administrador vê o conjunto inteiro. Organizador vê os campeonatos dele. O ranking devolve nome, número, posição, foto e o nome da equipe, sem CPF, documento, telefone ou QR.
 - `.env.example` descreve `ADMIN_EMAIL` como obrigatória em produção e no preview da Vercel. No `next dev` local, vazia, a tabela `Admin` continua valendo.
+
+## RLS em todas as tabelas public (10/10/2026)
+
+**Código neste repositório. A migration ainda não foi aplicada em nenhum banco.**
+
+- O histórico ordenado deixa sem RLS: `CandidaturaArbitro`, `CandidaturaEquipe`, `CandidaturaPartidaArbitro`, `CandidaturaQuadra`, `ClassificacaoEliminatoria`, `CodigoAcessoOrganizador`, `ContaPublico`, `ConviteEquipe` e `Interessado`. As outras tabelas do Prisma têm `ENABLE` em arquivo anterior. Nos projetos, o QA encontrou cerca de 39 tabelas sem RLS, porque parte desses `ENABLE` está em migration marcada como aplicada sem o efeito no banco.
+- `20261010140000_habilitar_rls_tabelas_publicas.sql` liga RLS em cada tabela `public` do Prisma e das migrations, com `ALTER TABLE IF EXISTS` e `to_regclass`. Não usa `FORCE ROW LEVEL SECURITY` e não cita `service_role`.
+- A chave publicável no navegador assina o Realtime em `useBancoAoVivo` (`Partida`, `SetPartida`, `ClassificacaoEntrada`) e envia arquivo ao storage. Não há `supabase.from` de tabela nesse cliente. A policy `public_read_partidas` (`SELECT` para `anon` e `authenticated`, `USING (true)`) só é criada se faltar, para o `GRANT` de colunas de placar de `Partida` continuar. `sumulaToken` fica de fora desse `GRANT`. `SetPartida` e `ClassificacaoEntrada` não recebem policy nova. `anon` e `authenticated` perdem `ALL` nas demais tabelas, e `PUBLIC` perde `ALL` em todas, inclusive `Partida`.
+- O servidor segue em `supabaseAdmin`. Página pública, login, súmula e painel não passam a ler tabela com a chave publicável. O aviso do Realtime de `SetPartida` e `ClassificacaoEntrada` pode parar nesta migration; a tela já consulta a API a cada 4 segundos. `202610100002` continua responsável por apagar as policies antigas dessas duas tabelas e por reescrever `finalizar_inscricao_equipe_rascunho`. Esta migration não altera aquele arquivo.

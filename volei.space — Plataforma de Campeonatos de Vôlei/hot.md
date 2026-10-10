@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Microinterações de 150–250ms entram fora da súmula e das páginas públicas. A migration 202610100002 ainda não foi aplicada.
+  20261010140000 liga RLS em cada tabela public e ainda não foi aplicada. Partida mantém o SELECT de placar.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+`20261010140000_habilitar_rls_tabelas_publicas.sql` liga RLS em cada tabela do schema `public`. O histórico anterior deixa nove sem RLS (`CandidaturaArbitro`, `CandidaturaEquipe`, `CandidaturaPartidaArbitro`, `CandidaturaQuadra`, `ClassificacaoEliminatoria`, `CodigoAcessoOrganizador`, `ContaPublico`, `ConviteEquipe`, `Interessado`); o ENABLE das outras está repetido porque o QA ainda viu cerca de 39 tabelas abertas. Não há `FORCE`. `service_role` não muda. A policy nova é só `public_read_partidas`, se faltar. `anon` perde privilégio fora das colunas de placar de `Partida`. `202610100002` não foi editada nem é pré-requisito. Nada foi aplicado em produção. Fonte: [[07-SEGURANCA]], [[06-BANCO-DE-DADOS]].
 
 Encerrar um set que não fecha a partida inverte os lados da quadra na súmula e grava «Equipes inverteram os lados da quadra.». O saque dos sets 2 a 4 continua com quem não sacou no set anterior; o 5º set continua no sorteio. O pulso do rótulo segue `sumula-micro-set`. Fonte: [[modulos/SUMULA-DIGITAL]].
 
