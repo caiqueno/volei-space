@@ -1,6 +1,7 @@
 import { CalendarClock, ClipboardList, ExternalLink, MapPin, Radio } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import mi from '@/styles/microinteracoes.module.css'
 import { rotuloConfronto, textoLocalAusente } from '@/lib/format-partida'
 
 type Set = { numero: number; pontosA: number; pontosB: number }
@@ -32,7 +33,7 @@ const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' |
 
 // A súmula completa pede sessão de organizador ou de árbitro do jogo.
 // Na vitrine pública fica só o acompanhamento, que abre sem login.
-export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string }) {
+export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atraso = '0ms' }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string; atraso?: string }) {
   const badge = statusBadge[partida.status] ?? { label: partida.status || 'Status não informado', variant: 'neutral' as const }
   const emAndamento = partida.status === 'EM_ANDAMENTO'
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
@@ -48,7 +49,7 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { p
   const publicoHref = `/partidas/${partida.id}/ao-vivo`
 
   return (
-    <article className="luva-card flex min-h-[258px] flex-col rounded-2xl p-5">
+    <article className={`luva-card flex min-h-[258px] flex-col rounded-2xl p-5 ${mi.entrar} ${mi.toque}`} style={{ animationDelay: atraso }}>
       <div className="mb-5 flex items-start justify-between gap-3">
         <span className="min-w-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
           {partida.liga?.nome && <span className="mb-1 block normal-case tracking-normal text-slate-400">{partida.liga.nome}</span>}
@@ -63,7 +64,7 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false }: { p
         <div className="flex min-w-0 flex-col items-center pt-3 text-center">
           {mostraPlacar ? (
             <>
-              <div className={`w-full rounded-2xl px-2 py-3 font-mono text-xl font-black text-slate-950 ${emAndamento ? 'bg-sky-100' : 'bg-slate-100'}`}>
+              <div className={`w-full rounded-2xl px-2 py-3 text-xl font-black text-slate-950 ${mi.numero} ${emAndamento ? 'bg-sky-100' : 'bg-slate-100'}`}>
                 {partida.setsPorA ?? 0}<span className="px-1 text-luva-amber">x</span>{partida.setsPorB ?? 0}
               </div>
               {setAtual && (

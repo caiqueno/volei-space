@@ -8,6 +8,7 @@ import { EquipeCard } from '@/components/equipes/EquipeCard'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
+import mi from '@/styles/microinteracoes.module.css'
 import { CreatorEmptyState } from '@/components/organizador/LeagueScope'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { ConsultaCancelada, consultar } from '@/lib/api-cliente'
@@ -113,7 +114,7 @@ export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: s
               <div className="mt-5"><EstadoVazio titulo="Nenhum jogo agendado" descricao="As partidas aparecerão aqui quando forem cadastradas." /></div>
             ) : (
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                {partidas.map((partida) => <PartidaCard key={partida.id} partida={partida} />)}
+                {partidas.map((partida, index) => <PartidaCard key={partida.id} partida={partida} atraso={`${Math.min(index, 8) * 30}ms`} />)}
               </div>
             )}
           </section>
@@ -123,7 +124,7 @@ export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: s
               <div className="mt-5"><EstadoVazio titulo="Nenhuma equipe cadastrada" descricao="As equipes aparecem aqui quando a inscrição for concluída." /></div>
             ) : (
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {equipes.map((equipe) => <EquipeCard key={equipe.id} equipe={equipe} />)}
+                {equipes.map((equipe, index) => <EquipeCard key={equipe.id} equipe={equipe} atraso={`${Math.min(index, 8) * 30}ms`} />)}
               </div>
             )}
           </section>
@@ -134,9 +135,9 @@ export function InicioPortal({ organizadorId, ativo = true }: { organizadorId: s
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {(premiacoes ?? []).map((premio) => (
-                <article key={premio.id} className="luva-card rounded-2xl p-5">
-                  <Trophy size={22} className="text-luva-amber" />
-                  <p className="mt-4 text-4xl font-black text-white">{premio.colocacao}º</p>
+                <article key={premio.id} className={`luva-card rounded-2xl p-5 ${mi.entrar} ${mi.cartao} ${premio.colocacao === 1 ? mi.campeao : ''}`}>
+                  <Trophy size={22} className={`text-luva-amber ${premio.colocacao === 1 ? mi.pop : ''}`} />
+                  <p className={`mt-4 text-4xl font-black text-white ${mi.numero}`}>{premio.colocacao}º</p>
                   <p className="mt-3 text-sm font-bold leading-6 text-slate-200">{premio.descricao}</p>
                 </article>
               ))}
@@ -199,7 +200,7 @@ function HeroSlide({ slide, organizadorId }: { slide: PortalData; organizadorId:
           <Metric label="Jogos" value={partidas.length} />
         </div>
         {podium.length > 0 && (
-          <div className="mt-10 max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className={`mt-10 max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-4 ${mi.entrar}`}>
             <p className="luva-kicker mb-3">Pódio final</p>
             <PodioFinal podium={podium} variant="hero" />
           </div>
@@ -222,9 +223,9 @@ function HeroSlide({ slide, organizadorId }: { slide: PortalData; organizadorId:
         <div className="p-5">
           <p className="luva-kicker">{emAndamento ? 'Ao vivo agora' : 'Próximo jogo'}</p>
           {partidaDestaque ? (
-            <Link href={`/partidas/${partidaDestaque.id}/ao-vivo`} className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 transition hover:border-luva-amber/60">
+            <Link href={`/partidas/${partidaDestaque.id}/ao-vivo`} className={`mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 hover:border-luva-amber/60 ${mi.cartao}`}>
               <TeamIdentity nome={partidaDestaque.equipeA?.nome || 'Equipe'} cor={partidaDestaque.equipeA?.corHex} compact />
-              <span className="rounded-2xl bg-luva-amber px-3 py-2 text-sm font-black text-slate-950">
+              <span className={`rounded-2xl bg-luva-amber px-3 py-2 text-sm font-black text-slate-950 ${mi.numero}`}>
                 {emAndamento ? `${partidaDestaque.setsPorA ?? 0}x${partidaDestaque.setsPorB ?? 0}` : 'VS'}
               </span>
               <TeamIdentity nome={partidaDestaque.equipeB?.nome || 'Equipe'} cor={partidaDestaque.equipeB?.corHex} align="right" compact />
@@ -240,8 +241,8 @@ function HeroSlide({ slide, organizadorId }: { slide: PortalData; organizadorId:
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/8 p-4 shadow-sm backdrop-blur-xl">
-      <p className="text-3xl font-black text-white">{value}</p>
+    <div className={`rounded-2xl border border-white/10 bg-white/8 p-4 shadow-sm backdrop-blur-xl ${mi.cartao}`}>
+      <p className={`text-3xl font-black text-white ${mi.numero}`}>{value}</p>
       <p className="mt-1 text-sm font-bold text-slate-200">{label}</p>
     </div>
   )

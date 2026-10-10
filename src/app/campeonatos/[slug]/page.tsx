@@ -15,6 +15,7 @@ import { getMataMataBracket } from '@/lib/mata-mata'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
+import mi from '@/styles/microinteracoes.module.css'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -112,10 +113,10 @@ export default async function CampeonatoPage({ params }: PageProps) {
       </section>
 
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-8 md:grid-cols-4">
-        <InfoCard icon={<UsersRound size={22} />} label="Equipes previstas" value={liga.quantidadeEquipes ?? '-'} />
-        <InfoCard icon={<Trophy size={22} />} label="Formato" value={formatLigaFormato(liga.formato)} />
-        <InfoCard icon={<UsersRound size={22} />} label="Equipes aprovadas" value={equipesCount ?? 0} />
-        <InfoCard icon={<CalendarDays size={22} />} label="Jogos" value={jogosCount ?? 0} />
+        <InfoCard icon={<UsersRound size={22} />} label="Equipes previstas" value={liga.quantidadeEquipes ?? '-'} atraso="0ms" />
+        <InfoCard icon={<Trophy size={22} />} label="Formato" value={formatLigaFormato(liga.formato)} atraso="40ms" />
+        <InfoCard icon={<UsersRound size={22} />} label="Equipes aprovadas" value={equipesCount ?? 0} atraso="80ms" />
+        <InfoCard icon={<CalendarDays size={22} />} label="Jogos" value={jogosCount ?? 0} atraso="120ms" />
       </section>
 
       <CampeonatoMataMata
@@ -129,7 +130,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
 
       {Boolean(equipesConfirmadas?.length) && (
         <section className="mx-auto max-w-7xl px-4 pb-8">
-          <article className="championship-card rounded-[1.75rem] border p-6">
+          <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="luva-kicker">Equipes confirmadas</p>
@@ -142,7 +143,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
                 const equipe = Array.isArray(item.equipe) ? item.equipe[0] : item.equipe
                 if (!equipe) return null
                 return (
-                  <Link key={item.id} href={`/equipes/${equipe.slug}`} className="grid gap-2 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.06] sm:grid-cols-[1fr_auto] sm:items-center">
+                  <Link key={item.id} href={`/equipes/${equipe.slug}`} className={`grid gap-2 bg-white/[0.03] px-4 py-4 hover:bg-white/[0.06] sm:grid-cols-[1fr_auto] sm:items-center ${mi.linha}`}>
                     <div>
                       <p className="font-display text-lg font-black text-white">{equipe.nome}</p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">
@@ -161,7 +162,7 @@ export default async function CampeonatoPage({ params }: PageProps) {
       )}
 
       <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-12 lg:grid-cols-[1fr_0.9fr]">
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar} ${mi.cartao}`}>
           <p className="luva-kicker">Informações importantes</p>
           <h2 className="mt-3 font-display text-3xl font-black text-white">Como participar</h2>
           <div className="mt-5 grid gap-3">
@@ -184,25 +185,25 @@ export default async function CampeonatoPage({ params }: PageProps) {
               'O portal público mostra agenda, classificação, rankings e galeria deste campeonato.',
             ].map((item, index) => (
               <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-luva-amber text-sm font-black text-slate-950">{index + 1}</span>
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-luva-amber text-sm font-black text-slate-950 ${mi.numero}`}>{index + 1}</span>
                 <p className="text-sm font-bold leading-6 text-slate-100">{item}</p>
               </div>
             ))}
           </div>
         </article>
 
-        <article className="championship-card rounded-[1.75rem] border p-6">
+        <article className={`championship-card rounded-[1.75rem] border p-6 ${mi.entrar} ${mi.cartao}`} style={{ animationDelay: '60ms' }}>
           <p className="luva-kicker">Portal</p>
           <h2 className="mt-3 font-display text-3xl font-black text-white">Acompanhe a competição</h2>
           <p className="mt-3 text-sm font-semibold leading-7 text-slate-200">
             Use os atalhos abaixo para ver somente dados deste campeonato.
           </p>
           <div className="mt-5 grid gap-3">
-            <Link href={`/portal?ligaId=${liga.id}`} className="creator-mini-action justify-center">Portal</Link>
-            <Link href={`/jogos?ligaId=${liga.id}`} className="creator-mini-action justify-center">Jogos</Link>
-            <Link href={`/classificacao?ligaId=${liga.id}`} className="creator-mini-action justify-center">Classificação</Link>
-            <Link href={`/rankings?ligaId=${liga.id}`} className="creator-mini-action justify-center">Rankings</Link>
-            <Link href={`/galeria?ligaId=${liga.id}`} className="creator-mini-action justify-center">Galeria <ArrowRight size={16} /></Link>
+            <Link href={`/portal?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Portal</Link>
+            <Link href={`/jogos?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Jogos</Link>
+            <Link href={`/classificacao?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Classificação</Link>
+            <Link href={`/rankings?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Rankings</Link>
+            <Link href={`/galeria?ligaId=${liga.id}`} className={`creator-mini-action justify-center ${mi.toque}`}>Galeria <ArrowRight size={16} /></Link>
           </div>
         </article>
       </section>
@@ -220,11 +221,11 @@ async function faseDaChave(ligaId: number, faseEliminatoria?: string | null) {
   return FASES_DA_CHAVE.find((fase) => presentes.has(fase)) ?? null
 }
 
-function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function InfoCard({ icon, label, value, atraso = '0ms' }: { icon: React.ReactNode; label: string; value: React.ReactNode; atraso?: string }) {
   return (
-    <article className="championship-card rounded-[1.5rem] border p-5">
+    <article className={`championship-card rounded-[1.5rem] border p-5 ${mi.entrar} ${mi.cartao}`} style={{ animationDelay: atraso }}>
       <span className="championship-card-icon flex h-11 w-11 items-center justify-center rounded-2xl">{icon}</span>
-      <p className="mt-4 text-3xl font-black text-white">{value}</p>
+      <p className={`mt-4 text-3xl font-black text-white ${mi.numero}`}>{value}</p>
       <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-200">{label}</p>
     </article>
   )

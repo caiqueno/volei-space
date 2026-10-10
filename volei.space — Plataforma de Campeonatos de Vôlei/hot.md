@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Base visual com tokens --vs-*. A importação Winners mantém a senha do organizador ativo. A substituição fecha o par na volta.
+  Microinterações públicas leves sobre a base Noite de final. A importação Winners mantém a senha do organizador ativo.
 status: misto
 created: 2026-09-25
 updated: 2026-10-10
@@ -14,6 +14,8 @@ updated: 2026-10-10
 # Hot
 
 ## Foco atual
+
+Microinterações públicas em `src/styles/microinteracoes.module.css`, em cima da base «Noite de final». Home, campeonato, classificação, jogos, chaveamento, perfil da equipe, pódio e a aparência do painel do organizador. Animação só com `transform` e `opacity`, 160–280ms. `prefers-reduced-motion` desliga. O líder da tabela tem faixa dourada. O campeão do pódio e do chaveamento tem brilho dourado curto. Súmula, menu, toasts, loading e os utilitários de `globals.css` não mudam. Sem API, banco ou permissão. Fonte: [[09-UI-UX]].
 
 Base visual «Noite de final», sem mudar telas, rotas, API ou banco. Tokens `--vs-*` em `globals.css` e `tailwind.config.ts`. Fontes só por `next/font`: Barlow Condensed 600/700 e Manrope 400–700. Saiu o `@import` duplicado da Manrope, a redefinição de utilitários Tailwind e os `!important` dos passes de override. `--luva-*`, `--landing-*` e `--dark-*` ficam como aliases. O seletor do árbitro exclui `.referee-feedback`, e a papeleta ganha as regras novas de linha, saque e número. Fonte: [[09-UI-UX]].
 

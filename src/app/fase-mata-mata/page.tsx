@@ -10,6 +10,7 @@ import { getMataMataBracket } from '@/lib/mata-mata'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { createPageMetadata } from '@/lib/seo'
+import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
   title: 'Fase mata-mata',
@@ -48,7 +49,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
 
       <LeagueScopeBar ligas={scope.ligas} selected={scope.selectedLiga} organizadorId={scope.organizadorId} basePath="/fase-mata-mata" />
 
-      <section className="mx-auto max-w-7xl px-4 py-8">
+      <section className={`mx-auto max-w-7xl px-4 py-8 ${mi.entrar}`}>
         {scope.organizadorId && !scope.selectedLiga ? (
           <CreatorEmptyState organizadorId={scope.organizadorId} title="Nenhum campeonato selecionado." description="Escolha um campeonato para ver o chaveamento do mata-mata." />
         ) : !scope.selectedLiga ? (

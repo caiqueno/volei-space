@@ -13,6 +13,11 @@ updated: 2026-10-10
 
 # Log
 
+## [2026-10-10] decisao | microinterações públicas
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Camada visual em `src/styles/microinteracoes.module.css`. Entrada, hover, toque, líder, chaveamento e brilho do campeão usam só `transform` e `opacity`, entre 160ms e 280ms. `prefers-reduced-motion` desliga. Não altera súmula, menu, toasts, loading, API, banco nem os utilitários da base do PR #17.
+
 ## [2026-10-10] decisao | base de movimento e bola no +1
 
 - pages_updated=`09-UI-UX`, `hot`, `log`
