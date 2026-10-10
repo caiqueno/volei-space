@@ -1,5 +1,7 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { selecionarClassificados } from '@/lib/classificados'
 import { FASES_ELIMINATORIAS, type FaseEliminatoria, formatEliminatoryPhase, getRequiredEliminatoryTeams, normalizeEliminatoryPhase } from '@/lib/eliminatorias'
+import { perdedorDaPartida, vencedorDaPartida } from '@/lib/resultado-partida'
 import type { BracketRoundView, BracketSlot, TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
 
 export type BracketRound = { fase: FaseEliminatoria; slots: number }
@@ -24,61 +26,32 @@ export function getBracketRounds(faseEliminatoria?: string | null): BracketRound
 
 export async function getClassifiedTeamIds(ligaId: number): Promise<Set<number>> {
   const [{ data: liga }, { data: entradas }, { data: groupRows }, { data: groupLinks }, { data: manualRows }] = await Promise.all([
-    supabase.from('Liga').select('quantidadeGrupos,classificadosPorGrupo,faseEliminatoria').eq('id', ligaId).maybeSingle(),
+    supabase.from('Liga').select('formato,quantidadeGrupos,classificadosPorGrupo,melhoresClassificadosGerais,faseEliminatoria').eq('id', ligaId).maybeSingle(),
     supabase.from('ClassificacaoEntrada').select('equipeId,posicao').eq('ligaId', ligaId).order('posicao', { ascending: true }),
     supabase.from('GrupoCampeonato').select('id,classificados').eq('ligaId', ligaId),
     supabase.from('GrupoEquipeCampeonato').select('grupoId,equipeId').eq('ligaId', ligaId),
     supabase.from('ClassificacaoEliminatoria').select('equipeId').eq('ligaId', ligaId),
   ])
 
-  const orderedIds = (entradas ?? []).map((row: any) => Number(row.equipeId))
-  const classified = new Set<number>()
-
-  if ((groupRows ?? []).length && (groupLinks ?? []).length) {
-    const groupOf = new Map<number, number>()
-    ;(groupLinks ?? []).forEach((link: any) => groupOf.set(Number(link.equipeId), Number(link.grupoId)))
-
-    const limitByGroup = new Map<number, number>()
-    ;(groupRows ?? []).forEach((group: any) => limitByGroup.set(Number(group.id), Math.max(0, Number(group.classificados ?? 0))))
-
-    const countByGroup = new Map<number, number>()
-    orderedIds.forEach((equipeId) => {
-      const grupoId = groupOf.get(equipeId)
-      if (grupoId == null) return
-      const limit = limitByGroup.get(grupoId) ?? 0
-      const soFar = countByGroup.get(grupoId) ?? 0
-      if (soFar < limit) {
-        classified.add(equipeId)
-        countByGroup.set(grupoId, soFar + 1)
-      }
-    })
-  } else {
-    const requiredClassified = getRequiredEliminatoryTeams(liga?.faseEliminatoria)
-    const automaticLimit = Math.min(
-      requiredClassified || orderedIds.length,
-      Number(liga?.quantidadeGrupos ?? 1) * Number(liga?.classificadosPorGrupo ?? 0),
-    )
-    orderedIds.slice(0, Math.max(0, automaticLimit)).forEach((equipeId) => classified.add(equipeId))
-  }
-
-  ;(manualRows ?? []).forEach((row: any) => classified.add(Number(row.equipeId)))
-
-  return classified
+  return selecionarClassificados({
+    formato: liga?.formato,
+    faseEliminatoria: liga?.faseEliminatoria,
+    quantidadeGrupos: liga?.quantidadeGrupos,
+    classificadosPorGrupo: liga?.classificadosPorGrupo,
+    melhoresClassificadosGerais: liga?.melhoresClassificadosGerais,
+    ordenados: (entradas ?? []).map((row: any) => Number(row.equipeId)),
+    grupos: (groupRows ?? []).map((group: any) => ({ id: Number(group.id), classificados: Number(group.classificados ?? 0) })),
+    vinculos: (groupLinks ?? []).map((link: any) => ({ grupoId: Number(link.grupoId), equipeId: Number(link.equipeId) })),
+    manuais: (manualRows ?? []).map((row: any) => Number(row.equipeId)),
+  })
 }
 
-export function getMatchWinnerId(partida: { status: string; equipeAId: number; equipeBId: number; setsPorA: number | null; setsPorB: number | null }): number | null {
-  const finished = partida.status === 'ENCERRADA' || partida.status === 'WO'
-  if (!finished) return null
-  const a = Number(partida.setsPorA ?? 0)
-  const b = Number(partida.setsPorB ?? 0)
-  if (a === b) return null
-  return a > b ? partida.equipeAId : partida.equipeBId
+export function getMatchWinnerId(partida: { status: string; equipeAId: number; equipeBId: number; setsPorA: number | null; setsPorB: number | null; vencedorId?: number | null }): number | null {
+  return vencedorDaPartida(partida)
 }
 
-export function getMatchLoserId(partida: { status: string; equipeAId: number; equipeBId: number; setsPorA: number | null; setsPorB: number | null }): number | null {
-  const winnerId = getMatchWinnerId(partida)
-  if (!winnerId) return null
-  return winnerId === partida.equipeAId ? partida.equipeBId : partida.equipeAId
+export function getMatchLoserId(partida: { status: string; equipeAId: number; equipeBId: number; setsPorA: number | null; setsPorB: number | null; vencedorId?: number | null }): number | null {
+  return perdedorDaPartida(partida)
 }
 
 type LegPartida = { status: string; equipeAId: number; equipeBId: number; setsPorA: number | null; setsPorB: number | null }
@@ -123,14 +96,15 @@ export async function getMataMataBracket(
   const semifinalRound = bracketRounds.find((round) => round.fase === 'SEMIFINAL')
   const fasesParaBuscar = semifinalRound ? [...fases, THIRD_PLACE_FASE] : fases
 
-  const [{ data: entradas }, classifiedIds, { data: partidas }] = await Promise.all([
+  const [{ data: entradas }, classifiedIds, { data: partidas }, { data: ligaCfg }] = await Promise.all([
     supabase.from('ClassificacaoEntrada').select('equipeId,equipe:Equipe(id,nome,corHex,logoUrl)').eq('ligaId', ligaId),
     getClassifiedTeamIds(ligaId),
     supabase
       .from('Partida')
-      .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,sumulaToken,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
+      .select('id,fase,rodada,status,dataHora,localNome,setsPorA,setsPorB,vencedorId,sumulaToken,equipeAId,equipeBId,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl),sets:SetPartida(numero,pontosA,pontosB)')
       .eq('ligaId', ligaId)
       .in('fase', fasesParaBuscar),
+    supabase.from('Liga').select('disputaTerceiroLugar').eq('id', ligaId).maybeSingle(),
   ])
 
   const teamById = new Map<number, TeamOption>()
@@ -199,14 +173,15 @@ export async function getMataMataBracket(
 
   const finalRound = rounds[rounds.length - 1]
   const finalPartida = finalRound?.slots[0]?.partida
+  const finalBruta = finalRound ? partidaBySlot.get(`${finalRound.fase}:1`) : null
   let champion: TeamOption | null = null
-  if (finalPartida) {
-    const winnerId = getMatchWinnerId({ status: finalPartida.status, equipeAId: finalPartida.equipeA.id, equipeBId: finalPartida.equipeB.id, setsPorA: finalPartida.setsPorA, setsPorB: finalPartida.setsPorB })
+  if (finalPartida && finalBruta) {
+    const winnerId = getMatchWinnerId(finalBruta)
     champion = winnerId === finalPartida.equipeA.id ? finalPartida.equipeA : winnerId === finalPartida.equipeB.id ? finalPartida.equipeB : null
   }
 
   let thirdPlace: BracketSlot | null = null
-  if (semifinalRound) {
+  if (semifinalRound && ligaCfg?.disputaTerceiroLugar !== false) {
     const partida = partidaBySlot.get(`${THIRD_PLACE_FASE}:1`)
     let eligibleOptions: TeamOption[] | null = null
     if (!partida) {

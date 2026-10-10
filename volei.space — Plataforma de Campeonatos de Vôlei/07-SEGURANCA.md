@@ -31,7 +31,7 @@ updated: 2026-10-09
 
 ## Sessão, recuperação de senha e login
 
-**Implementado:** o JWT de sessão do administrador carrega `scope: admin` e não carrega `purpose`. `isAdminSession` recusa token com `purpose` ou com outro `scope`, inclusive o de recuperação de senha e o de ativação de conta. O link de reset dura 30 minutos, traz um fingerprint HMAC da senha (não o hash bcrypt) e deixa de valer quando a senha muda. Sessões antigas, sem `scope`, pedem login de novo.
+**Implementado:** o JWT de sessão do administrador carrega `scope: admin`, `typ: admin` e audiência `volei-admin`, e não carrega `purpose`. `isAdminSession` recusa token com `purpose`, com `scope` diferente de `admin`, ou sem esse tipo e essa audiência. Recuperação de senha, sessão pública e ativação de conta usam audiência e tipo próprios. O link de reset dura 30 minutos, traz um fingerprint HMAC da senha com prefixo `volei-password-reset-v1` (não o hash bcrypt) e deixa de valer quando a senha muda. Sessão antiga, sem tipo e audiência de administrador, pede login de novo.
 
 `ADMIN_EMAIL` é obrigatório em produção e no preview da Vercel. Sem essa variável o login de administrador é recusado. No `next dev` local, com a variável ausente, a tabela `Admin` continua sendo a lista, como em 29/09/2026.
 
@@ -48,3 +48,19 @@ Erros de autenticação, da edição pública de candidatura e do cadastro de eq
 A gravação da súmula confere cada erro e, se quebra no meio, tenta recolocar sets, presenças, ocorrências e destaques lidos antes. Isso não é transação: duas gravações simultâneas ainda podem se misturar. A correção definitiva é uma função única no banco. `GET /api/sumula/{token}?consulta=1` segue sem `requireSumulaLeitura` de propósito: é a leitura pública já filtrada. Tokens de demonstração da súmula não respondem com `NODE_ENV=production` nem em preview.
 
 Não registre tokens reais, segredos, dados de atletas nem credenciais nos documentos do vault. Ver [[06-BANCO-DE-DADOS]].
+
+## Sessão, webhook e leitura de atleta (09/10/2026)
+
+Implementado neste lote, conferido no código:
+
+- O JWT de recuperação de senha leva um HMAC da `senhaHash`, não o hash. Trocar a senha invalida o link. Tokens de admin, sessão pública, recuperação e ativação têm `aud` e `typ` próprios e a verificação recusa o tipo errado.
+- `ADMIN_EMAIL` é obrigatório em produção e no preview. No `next dev` local, sem a variável, a tabela `Admin` continua valendo. O login e o esqueci-a-senha têm limite de tentativas. A resposta de login não devolve o JWT nem `err.message`. O logout apaga `luva_token` com os mesmos atributos usados ao gravar o cookie.
+- O webhook InfinitePay recusa a chamada sem `INFINITEPAY_WEBHOOK_SECRET` fora do `next dev` local, compara a assinatura só com buffers do mesmo tamanho, confere valor e vínculo com `Pagamento`, e só ativa a candidatura nesse caminho. `parseExternalId` existe como conferência auxiliar e não substitui o schema da rota.
+- `GET` e `POST /api/dev/massa-qa` exigem sessão de administrador, além do bloqueio fora do banco de desenvolvimento. A resposta de erro não inclui a exceção.
+- `GET /api/organizador/quadras` e o `PATCH` só alcançam quadras de campeonatos do organizador autenticado.
+- Súmula e operação do árbitro listam do atleta `id`, `nome`, `numero`, `posicao`, `fotoUrl`, `fotoRostoUrl` e `equipeId`, e do árbitro `id` e `nome`.
+- `GET /api/inscricao-rapida/[token]` mascara CPF e data de nascimento. Ao concluir, o token do rascunho é substituído e o link anterior deixa de abrir a inscrição.
+- `POST` e `PUT /api/partidas` recusam equipes de outro campeonato. O `PUT` grava só liga, equipes, categoria, rodada, data, local e endereço.
+- As rotas de `ligas` registram a falha no servidor e não devolvem `err.message`.
+
+A auditoria das rotas em `src/app/api` manteve públicos os fluxos de vitrine, portal, ping, cadastro, interessados, inscrição por token, súmula por sessão e QR do atleta. Mutações de campeonato, equipe, jogador e partida continuam presas ao organizador dono.

@@ -5,6 +5,15 @@ const LIMITE_BALDES = 5000
 
 export type ResultadoCota = { permitido: boolean; retryAfterSeconds: number }
 
+function limparExpirados(agora: number) {
+  if (baldes.size < LIMITE_BALDES) return
+  const expiradas: string[] = []
+  baldes.forEach((balde, chave) => {
+    if (balde.reiniciaEm <= agora) expiradas.push(chave)
+  })
+  expiradas.forEach((chave) => baldes.delete(chave))
+}
+
 export function consumirCota(chave: string, limite: number, janelaMs: number, agora = Date.now()): ResultadoCota {
   limparExpirados(agora)
   const atual = baldes.get(chave)
@@ -19,6 +28,11 @@ export function consumirCota(chave: string, limite: number, janelaMs: number, ag
   return { permitido: true, retryAfterSeconds: 0 }
 }
 
+export function consumirLimite(chave: string, limite: number, janelaMs: number, agora = Date.now()) {
+  const cota = consumirCota(chave, limite, janelaMs, agora)
+  return { ok: cota.permitido, retryAfterSeconds: cota.retryAfterSeconds }
+}
+
 export function ipDaRequisicao(req: { headers: { get(nome: string): string | null } }) {
   const encaminhado = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
   const real = req.headers.get('x-real-ip')?.trim()
@@ -29,11 +43,6 @@ export function reiniciarCotas() {
   baldes.clear()
 }
 
-function limparExpirados(agora: number) {
-  if (baldes.size < LIMITE_BALDES) return
-  const expiradas: string[] = []
-  baldes.forEach((balde, chave) => {
-    if (balde.reiniciaEm <= agora) expiradas.push(chave)
-  })
-  expiradas.forEach((chave) => baldes.delete(chave))
+export function limparLimites() {
+  baldes.clear()
 }

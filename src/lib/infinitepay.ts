@@ -91,6 +91,26 @@ export function validateWebhookSignature(
   }
 }
 
+export function parseExternalId(externalId: string): { tipo: 'equipe' | 'arbitro'; candidaturaId: string } | null {
+  if (!externalId || externalId.length > 200) return null
+  const partes = externalId.split(':')
+  if (partes.length !== 2) return null
+  const [tipo, candidaturaId] = partes
+  if ((tipo !== 'equipe' && tipo !== 'arbitro') || !candidaturaId || candidaturaId.length > 80) return null
+  return { tipo, candidaturaId }
+}
+
+export function pagamentoConfereExternalId(
+  pagamento: { id: string; descricao?: string | null },
+  externalId: string,
+  candidatura: { id: string; pagamentoId?: string | null } | null,
+) {
+  const externo = parseExternalId(externalId)
+  if (!externo || !candidatura || externo.candidaturaId !== candidatura.id) return false
+  if (candidatura.pagamentoId && candidatura.pagamentoId === pagamento.id) return true
+  return (pagamento.descricao ?? '') === externalId
+}
+
 // O webhook pode mandar centavos do valor gravado em reais. O caminho inverso
 // (valor gravado em centavos e evento em reais) fica de fora: R$ 100 e R$ 1
 // passariam a conferir.

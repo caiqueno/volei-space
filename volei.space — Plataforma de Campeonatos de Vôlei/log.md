@@ -18,6 +18,27 @@ updated: 2026-10-10
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
 - O botão `+1` da faixa de placar passou a registrar o ponto sem jogador, no lugar do par `+1` / Sem jogador. ACE, tempos, desfazer, placar e rodízio ficam. O modal de origem e atleta saiu junto com o único caminho que o abria. Ataque no atleta, bloqueio na rede e ACE continuam atribuindo o ponto.
 
+## [2026-10-10] ingest | importação Winners e partida com categoria
+
+- pages_updated=`modulos/GRUPOS`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `06-BANCO-DE-DADOS`, `hot`, `log`
+- A geração de grupos, o mata-mata e o calendário automático gravam `categoriaCampeonatoId` e deixam `serie` nula. `GET` da estrutura passa a devolver `sumulaToken`.
+- A migration `202610090004_partida_atualizado_em_default.sql` define default `now()` em `Partida.atualizadoEm`. O prefixo `202610090001` permanece na revogação de EXECUTE. Ainda não está em produção. O script de importação não foi executado.
+- `scripts/import-winners.mjs` cria os três campeonatos pelo fluxo HTTP. A confirmação simulada usa a sessão de administrador. O campeão do Winners Teste é o vencedor da final.
+
+## [2026-10-10] fix | fluxo até o campeão
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- O cálculo da tabela saiu da RPC antiga e foi para `src/lib/classificacao.ts`. A chave legado considera os melhores gerais. Finalizar exige campeão. A súmula corrige por 30 minutos, limita 8 substituições por equipe e set, e a gravação tenta restaurar o conteúdo se quebra no meio. A função SQL atômica continua divergente e não foi alterada. Aprovar partida segue aceitando administrador ou organizador dono, e confere o placar da categoria.
+
+## [2026-10-10] test | suíte de contrato e Playwright
+
+- pages_updated=`hot`, `log`
+- Os scripts de teste continuam no `with-ts-node` da main, com Node 22 e `prisma generate && next build`. Entraram Playwright, o contrato da API e o CI de testes com Postgres local. A replicação em `replace-sections` não trata formulário publicado como conflito. Assinatura curta do webhook responde 401, e falha ao processar pagamento pago responde 5xx.
+
+## [2026-10-09] fix | sessão com audiência e leitura de atleta
+
+- pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `modulos/PAGAMENTOS`, `hot`, `log`
+- A sessão de administrador passa a exigir `typ` e audiência `volei-admin`, além de `scope: admin` quando o campo existe. Recuperação, sessão pública e ativação têm audiência própria. O fingerprint do reset ganha o prefixo `volei-password-reset-v1`. O logout limpa o cookie com os mesmos atributos. A recuperação limita 5 pedidos por IP e 3 por e-mail a cada hora e continua respondendo 500 se o banco falhar. O webhook da main permanece: valor, vínculo com `Pagamento` e exceção de segredo só no `next dev` local. A massa de QA exige sessão de administrador. Quadras do organizador, colunas da súmula, máscara da inscrição rápida, lista fechada do PUT de partida e erros de liga entram neste lote. `ADMIN_EMAIL` continua obrigatório em produção e preview, e opcional no `next dev` local.
 ## [2026-10-09] fix | sessão, webhook e súmula
 
 - pages_updated=`07-SEGURANCA`, `modulos/PAGAMENTOS`, `modulos/SUMULA-DIGITAL`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`

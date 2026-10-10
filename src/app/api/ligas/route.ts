@@ -39,7 +39,10 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error: err } = await query
-  if (err) return error('Erro ao buscar campeonatos', 500, err.message)
+  if (err) {
+    console.error('[ligas] erro ao buscar', err)
+    return error('Erro ao buscar campeonatos', 500)
+  }
 
   // Só para a listagem do próprio organizador (usada no carrossel da home):
   // anexa local principal e categorias reais em 2 queries em lote (não 1 por
@@ -127,7 +130,7 @@ export async function POST(req: NextRequest) {
     return success(data, 201)
   } catch (err) {
     console.error('[ligas] erro ao criar', err)
-    return error('Erro ao criar campeonato', 500, err instanceof Error ? err.message : err)
+    return error('Erro ao criar campeonato', 500)
   }
 }
 

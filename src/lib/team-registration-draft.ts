@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import {
   isFieldRequired,
@@ -246,6 +247,29 @@ export async function getRegistrationDraftByToken(token: string) {
   return { draft: team, liga, players, registrationStatus, canEdit: edit.allowed, canEditRoster: rosterEdit.allowed, readOnlyReason: edit.reason || rosterEdit.reason }
 }
 
+export function mascararCpf(cpf: string | null) {
+  if (!cpf?.trim()) return null
+  const digitos = cpf.replace(/\D/g, '')
+  const fim = digitos.slice(-2).padStart(2, '*')
+  return `***.***.***-${fim}`
+}
+
+export function mascararNascimento(valor: string | null) {
+  if (!valor) return null
+  return '****-**-**'
+}
+
+export function mascararLeituraInscricao<T extends { players: RegistrationPlayer[] }>(contexto: T): T {
+  return {
+    ...contexto,
+    players: contexto.players.map((player) => ({
+      ...player,
+      cpf: mascararCpf(player.cpf),
+      dataNascimento: mascararNascimento(player.dataNascimento),
+    })),
+  }
+}
+
 export async function updateRegistrationDraft(token: string, patch: Record<string, unknown>) {
   const context = await getRegistrationDraftByToken(token)
   if (!context.canEdit) throw new RegistrationDraftError(context.readOnlyReason || 'Edição não permitida.', 403)
@@ -417,12 +441,22 @@ async function uniqueTeamSlug(name: string) {
   return `${base}-${suffix}`
 }
 
+async function invalidarTokenInscricao(draftId: string, tokenAtual: string) {
+  const { error } = await supabase
+    .from('InscricaoEquipeRascunho')
+    .update({ token: randomUUID() })
+    .eq('id', draftId)
+    .eq('token', tokenAtual)
+  if (error) throw error
+}
+
 export async function finalizeRegistration(token: string) {
   const context = await getRegistrationDraftByToken(token)
   if (inscricaoConcluida(context.draft.status)) {
     if (context.registrationStatus === 'APROVADA' && context.draft.inscricaoCampeonatoId) {
       await ensureApprovedRegistrationOperations(context.draft.inscricaoCampeonatoId)
     }
+    await invalidarTokenInscricao(context.draft.id, token)
     return { equipeId: context.draft.equipeId, inscricaoCampeonatoId: context.draft.inscricaoCampeonatoId, status: context.registrationStatus, idempotent: true }
   }
   const window = registrationWindowDecision(context.liga)
@@ -450,6 +484,7 @@ export async function finalizeRegistration(token: string) {
     const { data: link } = await supabase.from('LinkInscricaoCampeonato').select('id').eq('ligaId', context.liga.id).maybeSingle()
     if (link) await registrarEventoInscricao({ ligaId: context.liga.id, linkId: link.id, tipo: 'INSCRICAO_EQUIPE_REALIZADA', resultado: 'ok' })
   }
+  await invalidarTokenInscricao(context.draft.id, token)
   return result
 }
 

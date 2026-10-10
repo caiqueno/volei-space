@@ -3,7 +3,7 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin as supabase, isSupabaseServiceConfigured } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { isReleasedPublicStatus, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
+import { clearTokenCookie, isReleasedPublicStatus, signPublicToken, signToken, setTokenCookie } from '@/lib/auth'
 import { adminEmailAllowed } from '@/lib/admin-access'
 import { emailsConferem, padraoIlikeLiteral } from '@/lib/email-lookup'
 import { loginDestination } from '@/lib/login-destination'
@@ -286,6 +286,7 @@ async function findInTables(email: string, tables: string[]): Promise<PublicUser
 
 export async function DELETE() {
   const res = NextResponse.json({ data: { mensagem: 'Logout realizado' } })
-  res.cookies.set('luva_token', '', { maxAge: 0, path: '/' })
+  const cookie = clearTokenCookie()
+  res.cookies.set(cookie.name, cookie.value, cookie.options)
   return res
 }

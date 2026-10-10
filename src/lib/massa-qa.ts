@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { setEstaEncerrado, type RegraSet } from '@/lib/set-encerrado'
+import { calcularClassificacao, type PartidaClassificacao, type RegrasCategoria, type TimeClassificacao } from '@/lib/classificacao'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const MARCA = 'MASSA-QA-2026'
@@ -155,119 +155,89 @@ function setsDaPartida(indice: number, aVence: boolean) {
 }
 
 export async function gravarClassificacao(ligaId: number) {
+  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+    const antes = await marcaDasPartidas(ligaId)
+    const gravadas = await gravarClassificacaoUmaVez(ligaId)
+    const depois = await marcaDasPartidas(ligaId)
+    if (antes === depois || tentativa === 2) return gravadas
+  }
+  return 0
+}
+
+async function marcaDasPartidas(ligaId: number) {
+  const { data, error } = await supabaseAdmin
+    .from('Partida')
+    .select('id,status,setsPorA,setsPorB,vencedorId,fase')
+    .eq('ligaId', ligaId)
+  if (error) throw new Error(error.message)
+  return JSON.stringify(data ?? [])
+}
+
+async function gravarClassificacaoUmaVez(ligaId: number) {
   const { data: inscricoes, error: falhaInscricoes } = await supabaseAdmin
     .from('InscricaoCampeonato')
-    .select('equipeId,equipe:Equipe(id,categoria,categoriaCampeonatoId)')
+    .select('equipeId,equipe:Equipe(id,categoria,categoriaCampeonatoId,statusEquipe)')
     .eq('ligaId', ligaId)
     .eq('status', 'APROVADA')
   if (falhaInscricoes) throw new Error(falhaInscricoes.message)
+
   const { data: partidas, error: falhaPartidas } = await supabaseAdmin
     .from('Partida')
-    .select('equipeAId,equipeBId,setsPorA,setsPorB,pontosPorA,pontosPorB,status,vencedorId')
+    .select('equipeAId,equipeBId,setsPorA,setsPorB,pontosPorA,pontosPorB,status,vencedorId,fase,categoriaCampeonatoId,sumulaAprovadaEm,sumulaSubmetidaEm,sets:SetPartida(numero,pontosA,pontosB)')
     .eq('ligaId', ligaId)
-    .eq('status', 'ENCERRADA')
   if (falhaPartidas) throw new Error(falhaPartidas.message)
 
-  type Acumulado = {
-    equipeId: number
-    categoriaId: string
-    categoria: string
-    pontos: number
-    jogos: number
-    vitorias: number
-    derrotas: number
-    setsPro: number
-    setsContra: number
-    pontosPro: number
-    pontosContra: number
-  }
-  const tabela = new Map<number, Acumulado>()
-  for (const inscricao of inscricoes ?? []) {
-    const equipe = Array.isArray(inscricao.equipe) ? inscricao.equipe[0] : inscricao.equipe
-    if (!equipe?.categoriaCampeonatoId) continue
-    tabela.set(equipe.id, {
-      equipeId: equipe.id,
-      categoriaId: equipe.categoriaCampeonatoId,
-      categoria: equipe.categoria || 'MASC',
-      pontos: 0, jogos: 0, vitorias: 0, derrotas: 0, setsPro: 0, setsContra: 0, pontosPro: 0, pontosContra: 0,
-    })
-  }
-  for (const partida of partidas ?? []) {
-    const setsA = Number(partida.setsPorA ?? 0)
-    const setsB = Number(partida.setsPorB ?? 0)
-    if (setsA === setsB) continue
-    const lados = [
-      { id: partida.equipeAId, setsPro: setsA, setsContra: setsB, pontosPro: Number(partida.pontosPorA ?? 0), pontosContra: Number(partida.pontosPorB ?? 0), venceu: setsA > setsB },
-      { id: partida.equipeBId, setsPro: setsB, setsContra: setsA, pontosPro: Number(partida.pontosPorB ?? 0), pontosContra: Number(partida.pontosPorA ?? 0), venceu: setsB > setsA },
-    ]
-    for (const lado of lados) {
-      const linha = tabela.get(lado.id)
-      if (!linha) continue
-      linha.jogos += 1
-      linha.vitorias += lado.venceu ? 1 : 0
-      linha.derrotas += lado.venceu ? 0 : 1
-      linha.setsPro += lado.setsPro
-      linha.setsContra += lado.setsContra
-      linha.pontosPro += lado.pontosPro
-      linha.pontosContra += lado.pontosContra
-      linha.pontos += lado.venceu ? (lado.setsContra === 0 ? 4 : 3) : (lado.setsPro === 0 ? 0 : 1)
-    }
-  }
-
-  const { data: emAndamento, error: falhaAndamento } = await supabaseAdmin
-    .from('Partida')
-    .select('equipeAId,equipeBId,categoriaCampeonatoId,sets:SetPartida(numero,pontosA,pontosB)')
-    .eq('ligaId', ligaId)
-    .eq('status', 'EM_ANDAMENTO')
-  if (falhaAndamento) throw new Error(falhaAndamento.message)
   const { data: regrasCategoria, error: falhaRegras } = await supabaseAdmin
     .from('CategoriaConfiguracao')
-    .select('categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet')
+    .select('categoriaCampeonatoId,setsPorPartida,pontosPorSet,tieBreakUltimoSet,pontosUltimoSet,diferencaMinimaSet,pontosVencedorMargem1,pontosPerdedorMargem1,pontosVencedorMargem2,pontosPerdedorMargem2,criteriosClassificacao')
     .eq('ligaId', ligaId)
   if (falhaRegras) throw new Error(falhaRegras.message)
-  const regrasPorCategoria = new Map<string, RegraSet>()
-  for (const regra of regrasCategoria ?? []) {
-    regrasPorCategoria.set(regra.categoriaCampeonatoId, {
-      setsPorPartida: Number(regra.setsPorPartida) > 0 ? Number(regra.setsPorPartida) : 3,
-      pontosPorSet: Number(regra.pontosPorSet) > 0 ? Number(regra.pontosPorSet) : 21,
-      tieBreakUltimoSet: regra.tieBreakUltimoSet === true,
-      pontosUltimoSet: Number(regra.pontosUltimoSet) > 0 ? Number(regra.pontosUltimoSet) : 15,
-      diferencaMinimaSet: Number(regra.diferencaMinimaSet) > 0 ? Number(regra.diferencaMinimaSet) : 2,
+
+  const times: TimeClassificacao[] = []
+  for (const inscricao of inscricoes ?? []) {
+    const equipe = Array.isArray(inscricao.equipe) ? inscricao.equipe[0] : inscricao.equipe
+    if (!equipe?.id) continue
+    if (equipe.statusEquipe && equipe.statusEquipe !== 'ATIVA') continue
+    times.push({
+      equipeId: equipe.id,
+      categoriaCampeonatoId: equipe.categoriaCampeonatoId ?? null,
+      categoria: equipe.categoria || '',
     })
   }
-  const regraPadrao: RegraSet = { setsPorPartida: 3, pontosPorSet: 21, tieBreakUltimoSet: false, pontosUltimoSet: 15, diferencaMinimaSet: 2 }
-  for (const partida of emAndamento ?? []) {
-    const regra = regrasPorCategoria.get(partida.categoriaCampeonatoId) ?? regraPadrao
-    for (const set of partida.sets ?? []) {
-      if (!setEstaEncerrado(set, regra)) continue
-      const aVenceu = set.pontosA > set.pontosB
-      const lados = [
-        { id: partida.equipeAId, setsPro: aVenceu ? 1 : 0, setsContra: aVenceu ? 0 : 1, pontosPro: set.pontosA, pontosContra: set.pontosB },
-        { id: partida.equipeBId, setsPro: aVenceu ? 0 : 1, setsContra: aVenceu ? 1 : 0, pontosPro: set.pontosB, pontosContra: set.pontosA },
-      ]
-      for (const lado of lados) {
-        const linha = tabela.get(lado.id)
-        if (!linha) continue
-        linha.setsPro += lado.setsPro
-        linha.setsContra += lado.setsContra
-        linha.pontosPro += lado.pontosPro
-        linha.pontosContra += lado.pontosContra
-      }
+
+  const regras: Record<string, RegrasCategoria> = {}
+  for (const regra of regrasCategoria ?? []) {
+    regras[regra.categoriaCampeonatoId] = {
+      faixas: {
+        pontosVencedorMargem1: Number(regra.pontosVencedorMargem1 ?? 2),
+        pontosPerdedorMargem1: Number(regra.pontosPerdedorMargem1 ?? 1),
+        pontosVencedorMargem2: Number(regra.pontosVencedorMargem2 ?? 3),
+        pontosPerdedorMargem2: Number(regra.pontosPerdedorMargem2 ?? 0),
+      },
+      criterios: regra.criteriosClassificacao,
+      set: {
+        setsPorPartida: Number(regra.setsPorPartida) > 0 ? Number(regra.setsPorPartida) : 3,
+        pontosPorSet: Number(regra.pontosPorSet) > 0 ? Number(regra.pontosPorSet) : 21,
+        tieBreakUltimoSet: regra.tieBreakUltimoSet === true,
+        pontosUltimoSet: Number(regra.pontosUltimoSet) > 0 ? Number(regra.pontosUltimoSet) : 15,
+        diferencaMinimaSet: Number(regra.diferencaMinimaSet) > 0 ? Number(regra.diferencaMinimaSet) : 2,
+      },
     }
   }
 
-  const ranque = Array.from(tabela.values()).sort((a, b) => (
-    b.pontos - a.pontos || b.vitorias - a.vitorias || (b.setsPro - b.setsContra) - (a.setsPro - a.setsContra) || (b.pontosPro - b.pontosContra) - (a.pontosPro - a.pontosContra)
-  ))
-  for (let indice = 0; indice < ranque.length; indice += 1) {
-    const linha = ranque[indice]
-    const { error } = await supabaseAdmin.from('ClassificacaoEntrada').upsert({
+  const ranque = calcularClassificacao({
+    times,
+    partidas: (partidas ?? []) as PartidaClassificacao[],
+    regras,
+  })
+  if (ranque.length > 0) {
+    const { error } = await supabaseAdmin.from('ClassificacaoEntrada').upsert(ranque.map((linha) => ({
       equipeId: linha.equipeId,
       ligaId,
-      categoriaCampeonatoId: linha.categoriaId,
+      categoriaCampeonatoId: linha.categoriaCampeonatoId,
       categoria: linha.categoria,
       serie: null,
-      posicao: indice + 1,
+      posicao: linha.posicao,
       pontos: linha.pontos,
       jogos: linha.jogos,
       vitorias: linha.vitorias,
@@ -277,9 +247,15 @@ export async function gravarClassificacao(ligaId: number) {
       pontosPro: linha.pontosPro,
       pontosContra: linha.pontosContra,
       punicoes: 0,
-    }, { onConflict: 'ligaId,equipeId' })
+      atualizadoEm: new Date().toISOString(),
+    })), { onConflict: 'ligaId,equipeId' })
     if (error) throw new Error(error.message)
   }
+
+  const ids = ranque.map((linha) => linha.equipeId)
+  const apagar = supabaseAdmin.from('ClassificacaoEntrada').delete().eq('ligaId', ligaId)
+  const { error: erroApagar } = ids.length > 0 ? await apagar.not('equipeId', 'in', `(${ids.join(',')})`) : await apagar
+  if (erroApagar) throw new Error(erroApagar.message)
   return ranque.length
 }
 

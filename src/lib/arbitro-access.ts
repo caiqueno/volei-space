@@ -16,7 +16,8 @@ export type ArbitroPartidaAccess = {
   partida: any
 }
 
-const PARTIDA_OPERACAO = '*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(*)), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(*)), presencas:SumulaPresenca(*, jogador:Jogador(*)), escala:EscalaArbitro(*, arbitro:Arbitro(*))'
+const JOGADOR_PARTIDA = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
+const PARTIDA_OPERACAO = `*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), presencas:SumulaPresenca(*, jogador:Jogador(${JOGADOR_PARTIDA})), escala:EscalaArbitro(*, arbitro:Arbitro(id,nome))`
 
 export async function requireArbitroPartidaAccess(
   req: NextRequest,
