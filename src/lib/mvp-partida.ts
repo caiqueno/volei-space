@@ -1,3 +1,5 @@
+import { lanceForaDoRanking } from '@/lib/classificacao-jogadores'
+
 export type AtletaMvp = {
   id: number
   equipeId: number | string
@@ -126,4 +128,96 @@ export function deveAbrirModalMvp(entrada: {
 /** Enquanto a súmula espera oficialização, o botão reabre o modal. */
 export function reabreModalMvp(entrada: { partidaEncerrada: boolean; sumulaAprovada: boolean }) {
   return entrada.partidaEncerrada && !entrada.sumulaAprovada
+}
+
+export type PontosMvp = {
+  ataque: number
+  bloqueio: number
+  ace: number
+  total: number
+}
+
+export type OcorrenciaPontosMvp = {
+  tipo?: string | null
+  jogadorId?: number | string | null
+  descricao?: string | null
+}
+
+const FUNDAMENTO_MVP: Record<string, keyof Omit<PontosMvp, 'total'>> = {
+  attack: 'ataque',
+  ataque: 'ataque',
+  block: 'bloqueio',
+  bloqueio: 'bloqueio',
+  ace: 'ace',
+  saque: 'ace',
+}
+
+export const PONTOS_MVP_ZERADOS: PontosMvp = Object.freeze({ ataque: 0, bloqueio: 0, ace: 0, total: 0 })
+
+function semAcento(valor: string) {
+  return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
+
+/** Ataque, bloqueio e ace desta ocorrência. Ponto genérico e lance desfeito ficam de fora. */
+export function fundamentoPontosMvp(ocorrencia: OcorrenciaPontosMvp): keyof Omit<PontosMvp, 'total'> | null {
+  if (ocorrencia.jogadorId == null || String(ocorrencia.jogadorId).trim() === '') return null
+  if (lanceForaDoRanking(ocorrencia.descricao)) return null
+  return FUNDAMENTO_MVP[semAcento(String(ocorrencia.tipo ?? ''))] ?? null
+}
+
+/** Totais de ataque, bloqueio e ace já presentes nas ocorrências desta partida. */
+export function pontosPorJogador(ocorrencias: readonly OcorrenciaPontosMvp[]) {
+  const mapa = new Map<string, PontosMvp>()
+  for (const ocorrencia of ocorrencias) {
+    const fundamento = fundamentoPontosMvp(ocorrencia)
+    if (!fundamento || ocorrencia.jogadorId == null) continue
+    const id = String(ocorrencia.jogadorId)
+    const atual = mapa.get(id) ?? { ataque: 0, bloqueio: 0, ace: 0, total: 0 }
+    atual[fundamento] += 1
+    atual.total += 1
+    mapa.set(id, atual)
+  }
+  return mapa
+}
+
+export function pontosMvpDoJogador(pontos: ReadonlyMap<string, PontosMvp>, jogadorId: number | string) {
+  return pontos.get(String(jogadorId)) ?? PONTOS_MVP_ZERADOS
+}
+
+/** Maior total primeiro. Empate: ace, depois bloqueio, depois ataque. */
+export function compararPontosMvp(a: PontosMvp, b: PontosMvp) {
+  return b.total - a.total
+    || b.ace - a.ace
+    || b.bloqueio - a.bloqueio
+    || b.ataque - a.ataque
+}
+
+/**
+ * Maior pontuador dentre os atletas informados.
+ * Sem scout, ou com empate depois de ace, bloqueio e ataque, não há um nome só.
+ * O retorno não escolhe o MVP.
+ */
+export function idDoMaiorPontuador(
+  atletas: readonly { id: number | string }[],
+  pontos: ReadonlyMap<string, PontosMvp>,
+) {
+  let melhor: { id: string; pontos: PontosMvp } | null = null
+  let empate = false
+  for (const atleta of atletas) {
+    const atual = pontosMvpDoJogador(pontos, atleta.id)
+    if (atual.total <= 0) continue
+    if (!melhor) {
+      melhor = { id: String(atleta.id), pontos: atual }
+      continue
+    }
+    const ordem = compararPontosMvp(atual, melhor.pontos)
+    if (ordem < 0) {
+      melhor = { id: String(atleta.id), pontos: atual }
+      empate = false
+    } else if (ordem === 0) {
+      empate = true
+    }
+  }
+  if (!melhor || empate) return null
+  return melhor.id
 }

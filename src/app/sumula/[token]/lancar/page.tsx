@@ -8,7 +8,7 @@ import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { atletaRepetidoNaPapeleta, escalacaoParaJogo, papeletaCompleta, papeletaDoProximoSet } from '@/lib/escalacao-inicial'
-import { AVISO_ESCOLHA_MVP, camisaDaSumula, destaqueDoJogador, deveAbrirModalMvp, equipeIdPeloNome, mvpDasOcorrencias, passoDeFechamento, reabreModalMvp } from '@/lib/mvp-partida'
+import { AVISO_ESCOLHA_MVP, camisaDaSumula, compararPontosMvp, destaqueDoJogador, deveAbrirModalMvp, equipeIdPeloNome, idDoMaiorPontuador, mvpDasOcorrencias, passoDeFechamento, pontosMvpDoJogador, pontosPorJogador, reabreModalMvp, type OcorrenciaPontosMvp } from '@/lib/mvp-partida'
 import { MARCA_SEM_NUMERO, NUMERO_SEM_CAMISA, numeroMvpDaLista, numeroSemCamisa, passagemDeNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
@@ -1944,6 +1944,11 @@ export default function SumulaPage() {
           onOficializar={oficializarNoModal}
           onFechar={() => setModalMvpAberto(false)}
           getMatchNumber={getMatchNumber}
+          ocorrencias={events.map((event) => ({
+            tipo: event.type,
+            jogadorId: event.jogadorId ?? null,
+            descricao: event.text,
+          }))}
         />
       )}
 
@@ -3863,6 +3868,7 @@ function ModalEscolhaMvp({
   onOficializar,
   onFechar,
   getMatchNumber,
+  ocorrencias,
 }: {
   teamA: Team
   teamB: Team
@@ -3877,6 +3883,7 @@ function ModalEscolhaMvp({
   onOficializar: () => void
   onFechar: () => void
   getMatchNumber: (teamId: TeamId, number: string) => string
+  ocorrencias: readonly OcorrenciaPontosMvp[]
 }) {
   const painelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -3893,6 +3900,11 @@ function ModalEscolhaMvp({
   const equipes = [teamA, teamB]
   const nomeVencedora = vencedorId === 'teamA' ? teamA.name : vencedorId === 'teamB' ? teamB.name : ''
   const mvpGravado = Boolean(mvpId) && mvpId === escolhaId
+  const pontos = useMemo(() => pontosPorJogador(ocorrencias), [ocorrencias])
+  const sugestaoId = useMemo(() => idDoMaiorPontuador(
+    [...teamA.players, ...teamA.reserves, ...teamB.players, ...teamB.reserves],
+    pontos,
+  ), [teamA, teamB, pontos])
 
   function camisa(teamId: TeamId, player: Player) {
     return camisaDaSumula({
@@ -3906,10 +3918,14 @@ function ModalEscolhaMvp({
 
   function atletas(team: Team) {
     return [...team.players, ...team.reserves].sort((a, b) => {
-      const numeroA = Number(camisa(team.id, a))
-      const numeroB = Number(camisa(team.id, b))
-      const ordemA = Number.isFinite(numeroA) && camisa(team.id, a) !== '' ? numeroA : 999
-      const ordemB = Number.isFinite(numeroB) && camisa(team.id, b) !== '' ? numeroB : 999
+      const porPontos = compararPontosMvp(pontosMvpDoJogador(pontos, a.id), pontosMvpDoJogador(pontos, b.id))
+      if (porPontos !== 0) return porPontos
+      const camisaA = camisa(team.id, a)
+      const camisaB = camisa(team.id, b)
+      const numeroA = Number(camisaA)
+      const numeroB = Number(camisaB)
+      const ordemA = Number.isFinite(numeroA) && camisaA !== '' ? numeroA : 999
+      const ordemB = Number.isFinite(numeroB) && camisaB !== '' ? numeroB : 999
       if (ordemA !== ordemB) return ordemA - ordemB
       return a.name.localeCompare(b.name, 'pt-BR')
     })
@@ -3933,6 +3949,7 @@ function ModalEscolhaMvp({
             <h2 id="modal-mvp-titulo">Escolha o MVP</h2>
             <p id="modal-mvp-texto">{AVISO_ESCOLHA_MVP}</p>
             {nomeVencedora ? <strong>{nomeVencedora} venceu por {setsWon.teamA} x {setsWon.teamB}</strong> : <strong>A partida precisa de uma equipe vencedora antes do MVP.</strong>}
+            <p className="official-mvp-dica">{sugestaoId ? 'O destaque é o maior pontuador desta partida. Ele não fica selecionado.' : 'Nesta partida não há um pontuador único de ataque, bloqueio ou ace. A escolha é manual.'}</p>
           </div>
           <button type="button" className="official-mvp-fechar" onClick={onFechar}>Fechar</button>
         </header>
@@ -3949,19 +3966,32 @@ function ModalEscolhaMvp({
                   {atletas(team).map((player) => {
                     const id = String(player.id)
                     const selecionado = escolhaId === id
+                    const sugestao = sugestaoId === id
                     const numero = camisa(team.id, player) || 's/n'
                     const nome = displayPlayerName(player.name, team.name)
+                    const feitos = pontosMvpDoJogador(pontos, player.id)
                     return (
                       <button
                         key={player.id}
                         type="button"
-                        className={`official-mvp-atleta${selecionado ? ' is-selected' : ''}${mvpId === id ? ' is-gravado' : ''}`}
+                        className={`official-mvp-atleta${selecionado ? ' is-selected' : ''}${mvpId === id ? ' is-gravado' : ''}${sugestao ? ' is-sugestao' : ''}`}
                         aria-pressed={selecionado}
                         onClick={() => onEscolher(id)}
                       >
                         <strong>#{numero}</strong>
-                        <span>{nome}</span>
-                        {mvpId === id ? <em>MVP</em> : null}
+                        <span className="official-mvp-nome">
+                          {nome}
+                          <small>ATQ {feitos.ataque} · BLQ {feitos.bloqueio} · ACE {feitos.ace}</small>
+                        </span>
+                        <span className="official-mvp-pontos">
+                          <b>{feitos.total}</b>
+                          {sugestao || mvpId === id ? (
+                            <span className="official-mvp-selos">
+                              {sugestao ? <em className="is-sugestao">Sugestão</em> : null}
+                              {mvpId === id ? <em>MVP</em> : null}
+                            </span>
+                          ) : null}
+                        </span>
                       </button>
                     )
                   })}

@@ -13,6 +13,11 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | pontos desta partida no modal do MVP
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- O modal mostra total, ATQ, BLQ e ACE das ocorrências já carregadas, ordena cada equipe e destaca o maior pontuador sem selecionar. Sem banco.
+
 ## [2026-10-11] fix | tabela de grupo horizontal no celular
 
 - pages_updated=`modulos/CLASSIFICACAO`, `09-UI-UX`, `hot`, `log`

@@ -5,12 +5,14 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A tabela do grupo no celular é horizontal, com a equipe fixa e os números ao lado. As vagas pulsam em verde.
+  No modal do MVP, cada atleta mostra o total e ATQ, BLQ e ACE desta partida. A sugestão destaca o maior, sem selecionar.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Interface e experiência
+
+Em 11 de outubro de 2026 o modal «Escolha o MVP» mostra, em cada atleta, o total desta partida e, menor, ATQ, BLQ e ACE. Cada equipe fica do maior para o menor. O maior pontuador da partida ganha o selo «Sugestão» e o fundo âmbar, sem ficar selecionado. Sem scout único, a escolha é manual. Sem banco. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 11 de outubro de 2026 a tabela de cada grupo em `/classificacao` e em `/rankings` deixa o cartão vertical no celular. A linha tem círculo, escudo e nome, e os números P, J, V, D, SP, SC, DS, DP e PE ficam lado a lado. Posição e equipe ficam fixas; os números rolam na horizontal. A rolagem da página segue na vertical. Quem está na vaga tem círculo dourado e fundo verde, com pulso só de opacidade. Com menos movimento, o verde fica parado. O story do grupo continua. Sem banco. Fonte: [[modulos/CLASSIFICACAO]].
 

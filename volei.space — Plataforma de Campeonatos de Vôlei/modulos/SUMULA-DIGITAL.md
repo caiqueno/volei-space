@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O modal do MVP abre uma vez. A presença sugere a última partida. A quadra 2D mostra o escudo. A substituição fica sob o nome. Sem migration.
+  O modal do MVP mostra o total e ATQ, BLQ e ACE desta partida, ordena cada equipe e destaca o maior pontuador, sem selecionar. Sem banco.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Súmula digital
+
+**Pontos no modal do MVP — implementado na tela, sem banco:** em «Escolha o MVP», cada atleta mostra o total desta partida e, menor, ATQ, BLQ e ACE. A conta usa as ocorrências já carregadas na súmula: `attack`, `block` e `ace`, e também ataque, bloqueio e saque. Ponto sem atleta, `point` genérico, lance desfeito, anulado, excluído e «Registro de » ficam de fora. Cada equipe fica do maior total para o menor. O desempate é ace, depois bloqueio, depois ataque; a camisa só ordena quem continua empatado. O maior pontuador da partida, nas duas equipes, recebe o destaque «Sugestão». Esse destaque não seleciona o atleta e não grava. Sem scout, ou com empate completo, não há sugestão e a escolha é manual. A regra aprovada limita a sugestão aos atletas da vencedora; nesta tela o destaque é o maior da partida, como pedido. «Selecionar MVP» continua no `PUT` que já existia e ainda exige atleta da vencedora. Não há coluna nova.
 
 **Escudo na quadra 2D — implementado, sem migration:** o cabeçalho de cada lado da quadra 2D mostra `Equipe.logoUrl` ao lado do nome, no mesmo componente das telas públicas, com cerca de 36px. Sem logo, ficam as iniciais. A leitura já vinha no GET da súmula. Não há coluna nova.
 
@@ -98,7 +100,7 @@ updated: 2026-10-11
 
 - Sets regulares com alvo `Np` livre; último set com alvo `Nt` separado; todo set requer alvo e dois pontos de diferença, sem teto.
 - Melhor de 3 termina em 2×0 somente quando terceiro set não for obrigatório. Quando for, registrar o terceiro com pontuação configurada.
-- Oito substituições por equipe e set, com o par vinculado podendo trocar de novo, e o MVP da vencedora antes de oficializar estão no fluxo. A sugestão automática por `attack`, `block` e `ace`, com desempate, continua pendente. Líbero somente informativo.
+- Oito substituições por equipe e set, com o par vinculado podendo trocar de novo, e o MVP da vencedora antes de oficializar estão no fluxo. No modal, a sugestão destaca o maior pontuador desta partida, sem selecionar. Líbero somente informativo.
 - Resumo público destaca nome, número, posição e scouts da partida do MVP.
 - Link corrige até 30 minutos do primeiro encerramento, sem renovar `sumulaAprovadaEm`; depois só o organizador. Corrigir atualiza a classificação em seguida; se esse recálculo falhar, a súmula permanece publicada.
 - A gravação oficial chama `gravar_sumula_partida`. Sets, presenças, ocorrências, destaques e o placar entram na mesma transação, com `pg_advisory_xact_lock` da liga e da partida. A migration `20261010137000_sumula_transacional.sql` ainda não foi aplicada; até lá o servidor volta à gravação em passos, com restauração se uma chamada quebra no meio.

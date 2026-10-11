@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A tabela do grupo no celular é horizontal, com a equipe fixa. As vagas pulsam em verde. Sem banco.
+  O modal do MVP mostra os pontos desta partida e destaca o maior pontuador, sem selecionar. Sem banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,8 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 o modal «Escolha o MVP» mostra o total e ATQ, BLQ e ACE feitos nesta partida, lidos das ocorrências já carregadas. Cada equipe fica do maior para o menor. O maior pontuador recebe «Sugestão» e não fica selecionado. Sem banco. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Em 11 de outubro de 2026 a tabela de cada grupo em `/classificacao` e em `/rankings` fica numa linha: círculo, escudo, nome e os números lado a lado. No celular, posição e equipe ficam fixas e os números rolam na horizontal, sem levar a página ao topo. As vagas do grupo ganham círculo dourado e fundo verde, com pulso só de opacidade. O story do grupo continua. Sem banco. Fonte: [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
 

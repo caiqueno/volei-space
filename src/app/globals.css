@@ -8204,6 +8204,44 @@ html body .official-mvp-atleta span {
   overflow-wrap: anywhere;
 }
 
+html body .official-mvp-nome {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+html body .official-mvp-atleta small {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  line-height: 1.2;
+}
+
+html body .official-mvp-pontos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 36px;
+}
+
+html body .official-mvp-pontos b {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+html body .official-mvp-selos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
 html body .official-mvp-atleta em {
   color: #052e1a;
   border-radius: 999px;
@@ -8214,10 +8252,27 @@ html body .official-mvp-atleta em {
   padding: 6px 10px;
 }
 
+html body .official-mvp-atleta em.is-sugestao {
+  background: #ffb331;
+  color: #1c1405;
+}
+
+html body .official-mvp-atleta.is-sugestao {
+  border-color: rgba(255, 179, 49, .9);
+  background: rgba(255, 179, 49, .1);
+}
+
 html body .official-mvp-atleta.is-selected {
   border-color: #ffb331;
   background: rgba(255, 179, 49, .16);
   box-shadow: inset 0 0 0 2px #ffb331;
+}
+
+html body .official-mvp-modal-topo p.official-mvp-dica {
+  margin-top: 8px;
+  color: #fde68a;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 html body .official-mvp-status,

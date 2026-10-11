@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   AVISO_ESCOLHA_MVP,
   atletaPelaCamisaDaSumula,
   camisaDaSumula,
+  compararPontosMvp,
   destaqueDoJogador,
   deveAbrirModalMvp,
   equipeIdPeloNome,
+  idDoMaiorPontuador,
   mvpDasOcorrencias,
   passoDeFechamento,
+  pontosMvpDoJogador,
+  pontosPorJogador,
   reabreModalMvp,
   type AtletaMvp,
 } from '../src/lib/mvp-partida'
@@ -120,5 +125,69 @@ assert.equal(deveAbrirModalMvp({
 assert.equal(reabreModalMvp({ partidaEncerrada: true, sumulaAprovada: false }), true)
 assert.equal(reabreModalMvp({ partidaEncerrada: true, sumulaAprovada: true }), false)
 assert.equal(reabreModalMvp({ partidaEncerrada: false, sumulaAprovada: false }), false)
+
+const atletasPartida = [
+  { id: 1 },
+  { id: 2 },
+  { id: 3 },
+]
+const pontos = pontosPorJogador([
+  { tipo: 'attack', jogadorId: 1 },
+  { tipo: 'ataque', jogadorId: 1 },
+  { tipo: 'block', jogadorId: 1 },
+  { tipo: 'ace', jogadorId: 1 },
+  { tipo: 'ACE', jogadorId: 2 },
+  { tipo: 'saque', jogadorId: 2 },
+  { tipo: 'bloqueio', jogadorId: 2 },
+  { tipo: 'attack', jogadorId: 2 },
+  { tipo: 'attack', jogadorId: 2 },
+  { tipo: 'point', jogadorId: 1, descricao: '+1 — Sem jogador. Ponto para Set Point sem jogador atribuído.' },
+  { tipo: 'ponto', jogadorId: 3, descricao: 'Ponto de ataque para a equipe' },
+  { tipo: 'attack', jogadorId: 3, descricao: 'Lance desfeito pelo árbitro' },
+  { tipo: 'block', jogadorId: 3, descricao: 'Bloqueio anulado' },
+  { tipo: 'ace', jogadorId: 3, descricao: 'Registro de andamento' },
+  { tipo: 'attack', jogadorId: 3, descricao: '10:00 | 1 x 0 | Lance excluido' },
+  { tipo: 'attack', jogadorId: null },
+  { tipo: 'timeout', jogadorId: 1, descricao: 'Tempo' },
+])
+assert.deepEqual(pontosMvpDoJogador(pontos, 1), { ataque: 2, bloqueio: 1, ace: 1, total: 4 })
+assert.deepEqual(pontosMvpDoJogador(pontos, 2), { ataque: 2, bloqueio: 1, ace: 2, total: 5 })
+assert.deepEqual(pontosMvpDoJogador(pontos, 3), { ataque: 0, bloqueio: 0, ace: 0, total: 0 })
+assert.equal(idDoMaiorPontuador(atletasPartida, pontos), '2')
+assert.equal(idDoMaiorPontuador([{ id: 9 }], pontos), null)
+
+const empate = pontosPorJogador([
+  { tipo: 'attack', jogadorId: 1 },
+  { tipo: 'ace', jogadorId: 1 },
+  { tipo: 'attack', jogadorId: 2 },
+  { tipo: 'ace', jogadorId: 2 },
+])
+assert.equal(idDoMaiorPontuador([{ id: 1 }, { id: 2 }], empate), null)
+
+const desempateAce = pontosPorJogador([
+  { tipo: 'attack', jogadorId: 1 },
+  { tipo: 'attack', jogadorId: 1 },
+  { tipo: 'attack', jogadorId: 2 },
+  { tipo: 'ace', jogadorId: 2 },
+])
+assert.equal(idDoMaiorPontuador([{ id: 1 }, { id: 2 }], desempateAce), '2')
+
+const desempateBloqueio = pontosPorJogador([
+  { tipo: 'attack', jogadorId: 1 },
+  { tipo: 'ace', jogadorId: 1 },
+  { tipo: 'block', jogadorId: 2 },
+  { tipo: 'ace', jogadorId: 2 },
+])
+assert.equal(idDoMaiorPontuador([{ id: 1 }, { id: 2 }], desempateBloqueio), '2')
+
+assert.ok(compararPontosMvp(
+  { ataque: 3, bloqueio: 0, ace: 1, total: 4 },
+  { ataque: 1, bloqueio: 0, ace: 1, total: 4 },
+) < 0)
+
+const tela = readFileSync('src/app/sumula/[token]/lancar/page.tsx', 'utf8')
+assert.equal(tela.includes('setEscolhaMvpId(sugestaoId)'), false)
+assert.equal(tela.includes('setMvpId(sugestaoId)'), false)
+assert.equal(tela.includes('idDoMaiorPontuador'), true)
 
 console.log('mvp-partida: ok')
