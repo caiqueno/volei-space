@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  As páginas públicas compartilham story. A papeleta vazia busca a camisa da súmula. Sem banco.
+  A classificação no celular mantém a rolagem durante a releitura. /jogos público abre pela escolha do campeonato. Sem banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -15,7 +15,13 @@ updated: 2026-10-11
 
 ## Foco atual
 
-Em 11 de outubro de 2026 ranking, classificação, quadro, jogos, ao vivo, resultado e mata-mata públicos ganham o botão de story do Instagram. A prévia nasce na paleta preta e azul e a cor não é salva. A súmula pública só entra se a pessoa marcar «Incluir súmula». Painel, árbitro, súmula, capitão e admin ficam sem o botão. Sem migration. Fonte: [[09-UI-UX]], [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
+Em 11 de outubro de 2026 `/classificacao` no celular e no tablet deixa de voltar ao topo sozinha. O cartão não recebe mais o `transform` da animação de entrada. A releitura dos scouts, a cada 12 segundos, e a da tabela só redesenham quando os dados mudam, e não substituem a lista por «Carregando...». A rolagem, se cair, é recolocada. A chave estreita não monta a grade larga. Sem banco, API nova ou migration. Fonte: [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 a página pública `/jogos` abre na escolha do campeonato, com os mesmos cards de capa do portal. `/jogos?ligaId=` lista só os jogos desse campeonato, com os filtros Todos, Ao vivo, Não iniciado e Encerrados e o botão de story em cada cartão. «Escolher outro campeonato» volta para `/jogos`. Organizador e capitão seguem na agenda que já existia. Sem banco, API nova ou migration. Fonte: [[09-UI-UX]], [[modulos/PARTIDAS]].
+
+Em 11 de outubro de 2026 a sessão do organizador e do administrador passa a ser cookie de navegador, sem `maxAge` nem `expires`, e cai depois de 2 horas sem uso no painel ou no admin, com volta ao login. O botão Sair continua. O link do árbitro por código e as páginas públicas não entram nesse corte. A guia do painel e a do admin mostram «Bem-vindo» com o nome da sessão, ou o e-mail se o nome estiver vazio. Sem migration e sem escrita no banco. Fonte: [[07-SEGURANCA]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 cada cartão público gera o próprio story do Instagram: um fundamento do ranking, um grupo, a chave ou um jogo. A imagem é a captura desse cartão em 1080×1920, na paleta do site. No cartão de jogo o botão fica com a mesma altura de «Resumo da partida». A súmula pública só entra se a pessoa marcar «Incluir súmula». Painel, árbitro, súmula, capitão e admin ficam sem o botão. Sem migration. Fonte: [[09-UI-UX]], [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 
 Em 11 de outubro de 2026 a papeleta vazia aceita a camisa digitada em cada posição. O campo só recebe dígitos, no máximo dois, e o toque abre o teclado numérico no mesmo gesto. `01` e `1` acham o mesmo atleta, pela camisa da súmula do time daquela posição. Número inexistente, atleta já escalado ou líbero fora da lista não preenchem e mostram um aviso curto. O foco segue para a próxima posição vazia. A lista continua e o `PUT` não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

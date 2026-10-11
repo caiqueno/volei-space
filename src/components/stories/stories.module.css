@@ -1,21 +1,52 @@
-.botao {
+.botao,
+.botaoLinha {
   display: inline-flex;
-  height: 48px;
-  width: 48px;
-  min-width: 48px;
-  min-height: 48px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  border: 0;
-  background: linear-gradient(135deg, #833ab4, #e1306c 55%, #f77737);
-  color: #fff;
-  box-shadow: 0 8px 20px rgba(225, 48, 108, 0.28);
   cursor: pointer;
 }
 
-.botao:focus-visible {
+button.botao[type='button'],
+button.botaoLinha[type='button'] {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background-color: transparent;
+  background-image: linear-gradient(135deg, #833ab4, #e1306c 55%, #f77737);
+  color: #fff;
+  line-height: 0;
+  box-shadow: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+button.botao[type='button'] {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 16px;
+}
+
+button.botaoLinha[type='button'] {
+  align-self: center;
+  box-sizing: border-box;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  border-radius: 14px;
+}
+
+button.botaoLinha[type='button'] svg {
+  width: 22px;
+  height: 22px;
+}
+
+.botao:focus-visible,
+.botaoLinha:focus-visible {
   outline: 3px solid #8fc8ff;
   outline-offset: 3px;
 }
@@ -42,13 +73,29 @@
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
-.previa {
-  display: block;
-  width: min(100%, 240px);
-  height: auto;
-  margin: 0 auto 12px;
+.janela {
+  width: 270px;
+  height: 480px;
+  margin: 12px auto;
+  overflow: hidden;
   border-radius: 18px;
   background: #070d1a;
+}
+
+.escala {
+  width: 1080px;
+  height: 1920px;
+  transform: scale(0.25);
+  transform-origin: top left;
+}
+
+.captura {
+  position: fixed;
+  left: -1080px;
+  top: 0;
+  width: 1080px;
+  height: 1920px;
+  pointer-events: none;
 }
 
 .paletas {
@@ -130,6 +177,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .botao,
+  .botaoLinha,
   .painel,
   .velo,
   .enviar,

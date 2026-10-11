@@ -5,14 +5,14 @@ category: modulo
 tags: [scouts]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O ranking público compartilha o top 5 nos stories. A leitura continua a cada 12 segundos e não consulta createdAt.
+  Cada caixinha do ranking público gera o próprio story. A leitura continua a cada 12 segundos e não consulta createdAt.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Scouts e rankings
 
-**Story do ranking — implementado, sem migration:** em `/rankings`, ao lado do título Top 5, o botão do Instagram gera a imagem com as cinco primeiras posições da classificação geral (nome, equipe e total). A cor da prévia não é gravada. A leitura dos scouts não muda. Ver [[09-UI-UX]].
+**Story do ranking — implementado, sem migration:** em `/rankings` e em `/classificacao`, cada caixinha (Top Atacantes, Top Bloqueadores, Top Sacadores) tem o próprio botão. A imagem traz só aquele título, o ícone e até cinco linhas, com medalha, nome, equipe e o valor daquele fundamento. Não junta as três caixas nem a classificação geral. A cor da prévia não é gravada. A leitura dos scouts não muda. Ver [[09-UI-UX]].
 
 **Quadro de scouts — implementado, sem migration:** os cinco primeiros de ataque, bloqueio e saque e a tabela Scouts gerais (PTS, ATQ, BLQ, ACE) aparecem em `/classificacao` e em `/rankings`. PTS é a soma dos três. A ordem é PTS, ataque, bloqueio, saque e nome. Entram todos os atletas, inclusive com zero. A camisa `-1` não aparece. A releitura segue a cada 12 segundos.
 

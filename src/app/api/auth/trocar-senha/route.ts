@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     status: String(data.status || 'ATIVA'),
     trocarSenha: false,
   })
-  const cookie = setTokenCookie(token)
+  const cookie = setTokenCookie(token, session.tipo === 'organizador' ? 'navegador' : 'persistente')
   const res = success({ redirectTo: '/painel' })
   res.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<typeof res.cookies.set>[2])
   return res

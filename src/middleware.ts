@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminSession } from '@/lib/admin-access'
+import { classificarCookieGestao, clearTokenCookie, setTokenCookie } from '@/lib/cookie-gestao'
+import { sessaoGestaoExpirada } from '@/lib/sessao-gestao'
 import { lerToken } from '@/lib/token-verify'
 
 const ADMIN_PREFIX = '/admin'
@@ -39,7 +41,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (pathname === '/painel' || pathname.startsWith('/painel/')) {
+  if (pathname === '/painel' || pathname.startsWith('/painel/') || pathname === '/trocar-senha') {
+    const token = req.cookies.get('luva_token')?.value
+    if (token && classificarCookieGestao(token) === 'expirada') {
+      return redirectToLogin(req, true)
+    }
+    if (pathname === '/trocar-senha') return nextResponse(pathname)
+
     const aguardandoTroca = await organizerMustReplacePassword(req)
     if (aguardandoTroca) {
       const url = req.nextUrl.clone()
@@ -47,6 +55,7 @@ export async function middleware(req: NextRequest) {
       url.search = ''
       return NextResponse.redirect(url)
     }
+    return await respostaComCookieDeNavegador(pathname, token)
   }
 
   if (!pathname.startsWith(ADMIN_PREFIX)) {
@@ -57,8 +66,10 @@ export async function middleware(req: NextRequest) {
   if (!token) return redirectToLogin(req)
 
   const payload = await lerToken<Record<string, unknown>>(token, 'admin')
-  if (!payload || !isAdminSession(payload)) return redirectToLogin(req)
-  return nextResponse(pathname)
+  if (!payload || !isAdminSession(payload) || sessaoGestaoExpirada(payload)) {
+    return redirectToLogin(req, classificarCookieGestao(token) === 'expirada')
+  }
+  return await respostaComCookieDeNavegador(pathname, token)
 }
 
 async function organizerMustReplacePassword(req: NextRequest) {
@@ -69,12 +80,29 @@ async function organizerMustReplacePassword(req: NextRequest) {
   return (payload.tipo === 'organizador' || payload.tipo === 'arbitro') && payload.trocarSenha === true
 }
 
-function redirectToLogin(req: NextRequest) {
+function redirectToLogin(req: NextRequest, limparGestao = false) {
   const url = req.nextUrl.clone()
   url.pathname = LOGIN_PATH
   url.searchParams.set('next', req.nextUrl.pathname)
+  if (limparGestao) url.searchParams.set('sessao', 'expirada')
   const response = NextResponse.redirect(url)
   response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive')
+  if (limparGestao) {
+    const cookie = clearTokenCookie()
+    response.cookies.set(cookie.name, cookie.value, cookie.options)
+  }
+  return response
+}
+
+async function respostaComCookieDeNavegador(pathname: string, token?: string) {
+  const response = nextResponse(pathname)
+  if (!token || classificarCookieGestao(token) !== 'valida') return response
+  const organizador = await lerToken<{ tipo?: unknown }>(token, 'public')
+  const admin = await lerToken<Record<string, unknown>>(token, 'admin')
+  const gestao = organizador?.tipo === 'organizador' || Boolean(admin && isAdminSession(admin))
+  if (!gestao) return response
+  const cookie = setTokenCookie(token, 'navegador')
+  response.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<NextResponse['cookies']['set']>[2])
   return response
 }
 

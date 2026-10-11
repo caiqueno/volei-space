@@ -8,7 +8,7 @@ summary: >-
   20261010140000 liga RLS e ainda não foi aplicada. 20261010141000 devolve o SELECT de sets e classificação ao anon.
 status: misto
 created: 2026-09-20
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 # Segurança e permissões
 
@@ -36,6 +36,8 @@ updated: 2026-10-10
 `ADMIN_EMAIL` é obrigatório em produção e no preview da Vercel. Sem essa variável o login de administrador é recusado. No `next dev` local, com a variável ausente, a tabela `Admin` continua sendo a lista, como em 29/09/2026.
 
 O login responde «Usuário ou senha não conferem.» antes de a senha conferir. Depois da senha correta, perfil errado ou organizador aguardando liberação usam a frase específica. O limite em memória é de 30 tentativas por IP e 8 por IP e e-mail a cada 10 minutos, por instância. O cookie `luva_token` segue sendo a sessão; o corpo do login de administrador não devolve o JWT. Curingas `%` e `_` no `ILIKE` do e-mail são escapados, e a linha lida ainda precisa ser o mesmo e-mail.
+
+O cookie `luva_token` do organizador e do administrador não leva `maxAge` nem `expires`: é cookie de sessão do navegador e some quando o navegador fecha. A mesma sessão cai depois de 2 horas sem uso no painel ou no admin; a próxima abertura vai para `/login`. O uso no painel renova essa marca. O botão Sair continua apagando o cookie. A expiração por inatividade apaga só `luva_token`. O cookie `luva_acesso_arbitro`, do link da súmula por código, continua com 8 horas. Conta pública, equipe, quadra e o login próprio do árbitro também continuam com o cookie de 8 horas. A súmula e as rotas `/api/sumula` e `/api/arbitro` não aplicam esse corte de 2 horas. Não há coluna nova nem escrita de sessão no banco.
 
 Erros de autenticação, da edição pública de candidatura, do cadastro de equipe, árbitro e quadra e da inscrição rápida não devolvem mensagem interna do banco. A duplicidade de e-mail continua respondendo 409 com a frase já usada na tela. A validação do formulário continua devolvendo a lista de campos.
 

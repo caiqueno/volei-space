@@ -13,6 +13,31 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | rolagem da classificação no celular
+
+- pages_updated=`modulos/CLASSIFICACAO`, `09-UI-UX`, `hot`, `log`
+- A releitura deixa de remontar o quadro e de puxar a página para o topo. O cartão da classificação não anima com transform. Sem banco, API nova ou migration.
+
+## [2026-10-11] feat | jogos públicos por campeonato
+
+- pages_updated=`09-UI-UX`, `modulos/PARTIDAS`, `hot`, `log`
+- `/jogos` mostra a escolha do campeonato. `/jogos?ligaId=` lista só os jogos desse id, com os filtros e o story de cada cartão. Sem banco, API nova ou migration.
+
+## [2026-10-11] fix | story sem menu e sem título repetido
+
+- pages_updated=`09-UI-UX`, `log`
+- O PNG clona só o cartaz. O cabeçalho leva só o nome do campeonato; o título do cartão fica uma vez no cartão. Sem migration.
+
+## [2026-10-11] fix | story de um cartão só
+
+- pages_updated=`09-UI-UX`, `modulos/SCOUTS`, `modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
+- Cada botão captura só o próprio cartão, no desenho da tela, em 1080×1920. O botão do jogo fica com a altura do vizinho. Sem migration e sem escrita.
+
+## [2026-10-11] fix | sessão do painel e saudação
+
+- pages_updated=`07-SEGURANCA`, `09-UI-UX`, `hot`, `log`
+- O cookie do organizador e do administrador fica sem prazo do navegador e expira após 2 horas sem uso. O link da súmula por código não muda. A guia mostra «Bem-vindo» com o nome da sessão. Sem migration e sem escrita no banco.
+
 ## [2026-10-11] fix | camisa digitada na posição vazia da papeleta
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`

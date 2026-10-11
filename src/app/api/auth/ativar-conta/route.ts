@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       tipo: 'organizador',
       status: candidatura.status,
     })
-    const cookie = setTokenCookie(token)
+    const cookie = setTokenCookie(token, 'navegador')
     const res = success({ mensagem: 'Conta ativada com sucesso.' })
     res.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<typeof res.cookies.set>[2])
     return res

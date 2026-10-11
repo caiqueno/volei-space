@@ -1,0 +1,486 @@
+.cartaz {
+  position: relative;
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: linear-gradient(165deg, var(--story-fundo-a), var(--story-fundo-b));
+  color: var(--story-texto);
+  font-family: var(--font-sans), Manrope, "Segoe UI", sans-serif;
+}
+
+.cartaz :global(.team-mark) {
+  animation: none;
+}
+
+.cabecalho {
+  position: absolute;
+  top: 250px;
+  left: 72px;
+  right: 72px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.campeonato,
+.titulo,
+.rotulo,
+.nome,
+.valor,
+.placarGrande,
+.miudo,
+.marca,
+.link,
+.frase,
+.mvp {
+  margin: 0;
+  color: var(--story-texto);
+}
+
+.campeonato {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--story-ouro);
+}
+
+.titulo {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+  max-height: 128px;
+  overflow: hidden;
+}
+
+.miolo {
+  position: absolute;
+  top: 450px;
+  left: 72px;
+  right: 72px;
+  height: 1070px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.rodape {
+  position: absolute;
+  top: 1520px;
+  left: 72px;
+  right: 72px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  overflow: hidden;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.simbolo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.link {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 28px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cartao {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--story-borda);
+  border-radius: 28px;
+  background: var(--story-superficie);
+  color: var(--story-texto);
+  overflow: hidden;
+}
+
+.vazio {
+  font-size: 44px;
+  font-weight: 700;
+}
+
+.topoRanking {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 32px 8px;
+}
+
+.icone {
+  display: inline-flex;
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--story-elevada);
+  color: var(--story-ouro);
+}
+
+.tituloCartao {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linhaRanking {
+  display: grid;
+  grid-template-columns: 92px 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  height: 180px;
+  margin: 0 32px;
+  border-top: 1px solid var(--story-borda);
+}
+
+.posto,
+.valor,
+.placarGrande,
+.numero {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.posto {
+  font-size: 44px;
+}
+
+.nome {
+  display: block;
+  overflow: hidden;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.miudo {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--story-suave);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.valor {
+  font-size: 52px;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tabela th {
+  padding: 16px 8px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--story-suave);
+  text-align: right;
+}
+
+.tabela th:nth-child(1),
+.tabela th:nth-child(2),
+.tabela td:nth-child(2) {
+  text-align: left;
+}
+
+.tabela td {
+  height: 112px;
+  padding: 0 8px;
+  overflow: hidden;
+  border-top: 1px solid var(--story-borda);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tabela td:nth-child(2) {
+  max-width: 0;
+  font-size: 44px;
+  text-overflow: ellipsis;
+}
+
+.tabela td:nth-child(3) {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 52px;
+}
+
+.classifica {
+  box-shadow: inset 8px 0 0 var(--story-ouro);
+  color: var(--story-ouro);
+}
+
+.chave {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.semis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.rotuloFase {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--story-ouro);
+}
+
+.cartaoChave {
+  padding: 20px 24px 24px;
+}
+
+.ouro {
+  border: 3px solid var(--story-ouro);
+}
+
+.topoChave,
+.linhaChave,
+.parciaisChave {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topoChave {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rotulo {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--story-suave);
+}
+
+.linhaChave {
+  min-height: 72px;
+}
+
+.linhaChave .nome {
+  flex: 1;
+  min-width: 0;
+}
+
+.venceu,
+.venceu .nome,
+.venceu .valor {
+  color: var(--story-ouro);
+}
+
+.parciaisChave {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.parciaisChave span,
+.aoVivo {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--story-suave);
+}
+
+.aoVivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--story-texto);
+}
+
+.escudo {
+  display: inline-flex;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--story-texto);
+}
+
+.placar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.lado,
+.ladoDestaque,
+.centroPlacar {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid var(--story-borda);
+  border-radius: 28px;
+  background: var(--story-superficie);
+  padding: 24px;
+  text-align: center;
+}
+
+.ladoDestaque {
+  border-color: var(--story-ouro);
+}
+
+.ladoDestaque .nome,
+.ladoDestaque .placarGrande {
+  color: var(--story-ouro);
+}
+
+.placarGrande {
+  font-size: 84px;
+  line-height: 0.9;
+}
+
+.centroPlacar {
+  min-width: 180px;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--story-ouro);
+}
+
+.resultado,
+.listaParciais {
+  display: grid;
+  width: 100%;
+  gap: 16px;
+}
+
+.parcial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  margin: 0;
+  font-size: 44px;
+  font-weight: 700;
+}
+
+.parcial b {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 52px;
+  font-variant-numeric: tabular-nums;
+}
+
+.frase,
+.mvp {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--story-ouro);
+}
+
+.sumula {
+  display: grid;
+  gap: 8px;
+}
+
+.jogo {
+  display: grid;
+  width: 100%;
+  gap: 28px;
+  padding: 36px;
+}
+
+.topoJogo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tabuleiro {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 20px;
+}
+
+.time {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  min-width: 0;
+  text-align: center;
+}
+
+.time .nome {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.caixaPlacar {
+  min-width: 220px;
+  border-radius: 28px;
+  background: var(--story-elevada);
+  padding: 20px 28px;
+  text-align: center;
+}
+
+.meta {
+  display: grid;
+  gap: 12px;
+  border-radius: 24px;
+  background: var(--story-elevada);
+  padding: 24px 28px;
+}
+
+.meta p {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}

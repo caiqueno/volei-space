@@ -7,6 +7,7 @@ import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { PlacarJogo } from '@/components/partidas/PlacarJogo'
 import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import { cartazPartida, montarSumulaPublica } from '@/lib/stories-cartaz'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
@@ -153,11 +154,13 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
           {agenda.local ? <p><Clock size={16} /> {agenda.local}</p> : null}
           {finished && match.oficial ? <p>Resultado oficial, visível sem login.</p> : null}
         </div>
-        <div className="live-match-scoreboard">
-          <div><strong><NomeLado equipe={match.equipeA} /></strong><b>{scoreA}</b></div>
-          <span>{match.setsPorA ?? 0} x {match.setsPorB ?? 0}<em>sets</em></span>
-          <div><strong><NomeLado equipe={match.equipeB} /></strong><b>{scoreB}</b></div>
-        </div>
+        <PlacarJogo
+          ladoA={<NomeLado equipe={match.equipeA} />}
+          ladoB={<NomeLado equipe={match.equipeB} />}
+          valorA={scoreA}
+          valorB={scoreB}
+          centro={<>{match.setsPorA ?? 0} x {match.setsPorB ?? 0}<em>sets</em></>}
+        />
       </section>
 
       <section className="live-match-grid">

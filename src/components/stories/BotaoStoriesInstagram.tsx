@@ -2,33 +2,33 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { arquivoDoCanvas, desenharCartaz } from '@/lib/stories-imagem'
+import { CartazVisual } from '@/components/stories/CartazVisual'
+import { capturarCartaz } from '@/lib/stories-imagem'
 import { AVISO_STORIES_FALLBACK, compartilharStories, deepLinkStories } from '@/lib/stories-compartilhar'
 import { PALETA_OFICIAL_ID, PALETAS_STORIES, paletaDaCorLivre, paletaOficial, paletaPorId, type PaletaStories } from '@/lib/stories-paleta'
-import { cartazJogos, cartazMataMata, type CartazStories, type ChaveCartaz, type JogoCartaz } from '@/lib/stories-cartaz'
+import { cartazMataMata, type CartazStories, type ChaveCartaz } from '@/lib/stories-cartaz'
 import estilos from '@/components/stories/stories.module.css'
 
 type Props = {
   titulo: string
-  montar: (opcoes: { incluirSumula: boolean; link: string }) => CartazStories
+  montar: (opcoes: { incluirSumula: boolean; link: string; grupoId: string | null }) => CartazStories
   oferecerSumula?: boolean
   versao?: string | number
+  variante?: 'icone' | 'linha'
 }
 
-export function BotaoStoriesInstagram({ titulo, montar, oferecerSumula = false, versao }: Props) {
+export function BotaoStoriesInstagram({ titulo, montar, oferecerSumula = false, versao, variante = 'icone' }: Props) {
   const [aberto, setAberto] = useState(false)
   const [paletaId, setPaletaId] = useState(PALETA_OFICIAL_ID)
   const [corLivre, setCorLivre] = useState<string | null>(null)
   const [incluirSumula, setIncluirSumula] = useState(false)
   const [aviso, setAviso] = useState('')
   const [enviando, setEnviando] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const capturaRef = useRef<HTMLDivElement>(null)
   const botaoRef = useRef<HTMLButtonElement>(null)
   const painelRef = useRef<HTMLDivElement>(null)
-  const montarRef = useRef(montar)
   const sumulaId = useId()
   const tituloId = useId()
-  montarRef.current = montar
   const paleta = useMemo(() => (corLivre ? paletaDaCorLivre(corLivre) : paletaPorId(paletaId)), [corLivre, paletaId])
 
   function abrir() {
@@ -39,10 +39,7 @@ export function BotaoStoriesInstagram({ titulo, montar, oferecerSumula = false, 
     setAberto(true)
   }
 
-  useEffect(() => {
-    if (!aberto || !canvasRef.current) return
-    desenharCartaz(canvasRef.current, montarRef.current({ incluirSumula, link: linkDaPagina() }), paleta)
-  }, [aberto, paleta, incluirSumula, versao])
+  const cartaz = aberto ? montar({ incluirSumula, link: linkDaPagina(), grupoId: null }) : null
 
   useEffect(() => {
     if (!aberto) return
@@ -60,13 +57,13 @@ export function BotaoStoriesInstagram({ titulo, montar, oferecerSumula = false, 
   }, [aberto])
 
   async function compartilhar() {
-    const canvas = canvasRef.current
-    if (!canvas || enviando) return
+    const no = capturaRef.current
+    if (!no || enviando) return
     setEnviando(true)
     setAviso('')
     try {
       deepLinkStories()
-      const arquivo = await arquivoDoCanvas(canvas)
+      const arquivo = await capturarCartaz(no)
       const resultado = await compartilharStories(arquivo, linkDaPagina(), titulo)
       if (resultado === 'fallback') setAviso(AVISO_STORIES_FALLBACK)
       if (resultado === 'nativo') setAberto(false)
@@ -79,7 +76,7 @@ export function BotaoStoriesInstagram({ titulo, montar, oferecerSumula = false, 
 
   return (
     <>
-      <button ref={botaoRef} type="button" className={estilos.botao} aria-label="Compartilhar nos stories do Instagram" onClick={abrir}>
+      <button ref={botaoRef} type="button" className={variante === 'linha' ? estilos.botaoLinha : estilos.botao} aria-label="Compartilhar nos stories do Instagram" onClick={abrir}>
         <IconeInstagram />
       </button>
       {aberto && typeof document !== 'undefined' && createPortal(
@@ -95,7 +92,20 @@ export function BotaoStoriesInstagram({ titulo, montar, oferecerSumula = false, 
           >
             <h2 id={tituloId} className="font-display text-2xl font-bold">Prévia do story</h2>
             <p className="mt-1 text-sm font-semibold text-[#9AA8C1]">A cor vale só para esta imagem.</p>
-            <canvas ref={canvasRef} className={estilos.previa} aria-label="Prévia da imagem para os stories" />
+            {cartaz && (
+              <div className={estilos.janela} aria-label="Prévia da imagem para os stories">
+                <div className={estilos.escala}>
+                  <CartazVisual key={versao ?? 'cartaz'} cartaz={cartaz} paleta={paleta} />
+                </div>
+              </div>
+            )}
+            {cartaz && (
+              <div className={estilos.captura} aria-hidden="true">
+                <div ref={capturaRef}>
+                  <CartazVisual key={versao ?? 'captura'} cartaz={cartaz} paleta={paleta} />
+                </div>
+              </div>
+            )}
             <div className={estilos.paletas} role="group" aria-label="Paletas">
               {PALETAS_STORIES.map((item) => (
                 <button
@@ -158,16 +168,6 @@ export function BotaoChaveStories({ chave, campeonato }: { chave: ChaveCartaz; c
       titulo="Chave do mata-mata"
       versao={jogos}
       montar={({ link }) => cartazMataMata(chave, link, campeonato)}
-    />
-  )
-}
-
-export function BotaoJogosStories({ jogos, titulo = 'Jogos' }: { jogos: JogoCartaz[]; titulo?: string }) {
-  return (
-    <BotaoStoriesInstagram
-      titulo={titulo}
-      versao={jogos.map((jogo) => `${jogo.nomeA}${jogo.setsPorA ?? ''}${jogo.status}`).join('|')}
-      montar={({ link }) => cartazJogos(jogos, link)}
     />
   )
 }

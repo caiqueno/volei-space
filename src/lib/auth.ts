@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { ADMIN_SESSION_SCOPE, configuredAdminEmail, isAdminSession } from '@/lib/admin-access'
+import { COOKIE_SESSAO, classificarCookieGestao, setTokenCookie } from '@/lib/cookie-gestao'
 import { fingerprintSenha, fingerprintsConferem } from '@/lib/password-fingerprint'
+import { caminhoIsentoDeInatividade, sessaoGestaoExpirada } from '@/lib/sessao-gestao'
 import { assinarToken, lerToken } from '@/lib/token-verify'
 
-const COOKIE_NAME = 'luva_token'
-const SESSION_MAX_AGE = 60 * 60 * 8
+export { classificarCookieGestao, setTokenCookie }
+export { clearTokenCookie, tokenCookieOptions } from '@/lib/cookie-gestao'
+
+const COOKIE_NAME = COOKIE_SESSAO
 export const OFFICIAL_ADMIN_EMAIL = configuredAdminEmail() || ''
 
 export const passwordResetFingerprint = fingerprintSenha
@@ -52,22 +56,21 @@ export type AccountActivationPayload = {
   email: string
 }
 
-export function tokenCookieOptions(maxAge: number) {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge,
-    path: '/',
-  }
-}
-
 export async function signToken(payload: JWTPayload): Promise<string> {
-  return assinarToken({ ...payload, scope: ADMIN_SESSION_SCOPE }, 'admin', '8h')
+  return assinarToken({
+    ...payload,
+    scope: ADMIN_SESSION_SCOPE,
+    act: Math.floor(Date.now() / 1000),
+  }, 'admin', '2h')
 }
 
 export async function signPublicToken(payload: PublicJWTPayload): Promise<string> {
-  return assinarToken({ ...payload, scope: 'public-user' }, 'public', '8h')
+  const organizador = payload.tipo === 'organizador'
+  return assinarToken({
+    ...payload,
+    scope: 'public-user',
+    ...(organizador ? { act: Math.floor(Date.now() / 1000) } : {}),
+  }, 'public', '8h')
 }
 
 export async function readPublicSession(): Promise<PublicJWTPayload | null> {
@@ -75,7 +78,10 @@ export async function readPublicSession(): Promise<PublicJWTPayload | null> {
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
     if (!token) return null
-    return lerSessaoPublica(token)
+    const payload = await lerSessaoPublica(token)
+    if (!payload) return null
+    if (payload.tipo === 'organizador' && sessaoGestaoExpirada(payload)) return null
+    return payload
   } catch {
     return null
   }
@@ -94,7 +100,12 @@ export async function verifyPublicToken(req: NextRequest): Promise<PublicJWTPayl
       ?? req.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return null
-    return lerSessaoPublica(token)
+    const payload = await lerSessaoPublica(token)
+    if (!payload) return null
+    if (payload.tipo === 'organizador' && !caminhoIsentoDeInatividade(req.nextUrl.pathname) && sessaoGestaoExpirada(payload)) {
+      return null
+    }
+    return payload
   } catch {
     return null
   }
@@ -155,7 +166,7 @@ export async function verifyToken(req: NextRequest): Promise<JWTPayload | null> 
 
     if (!token) return null
     const payload = await lerToken<JWTPayload>(token, 'admin')
-    if (!payload || !isAdminSession(payload)) return null
+    if (!payload || !isAdminSession(payload) || sessaoGestaoExpirada(payload)) return null
     return payload
   } catch {
     return null
@@ -170,18 +181,56 @@ export async function requireAuth(req: NextRequest): Promise<NextResponse | null
   return null
 }
 
-export function setTokenCookie(token: string): { name: string; value: string; options: ReturnType<typeof tokenCookieOptions> } {
-  return {
-    name: COOKIE_NAME,
-    value: token,
-    options: tokenCookieOptions(SESSION_MAX_AGE),
+export type EstadoGestao =
+  | { estado: 'ausente' }
+  | { estado: 'outra' }
+  | { estado: 'expirada' }
+  | { estado: 'valida'; perfil: 'admin'; adminId: number; nome: string; email: string }
+  | { estado: 'valida'; perfil: 'organizador'; payload: PublicJWTPayload }
+
+export async function lerEstadoGestao(): Promise<EstadoGestao> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIE_NAME)?.value
+    if (!token) return { estado: 'ausente' }
+
+    const admin = await lerToken<JWTPayload>(token, 'admin')
+    if (admin && isAdminSession(admin)) {
+      if (sessaoGestaoExpirada(admin)) return { estado: 'expirada' }
+      return {
+        estado: 'valida',
+        perfil: 'admin',
+        adminId: Number(admin.adminId),
+        nome: admin.nome,
+        email: admin.email,
+      }
+    }
+
+    const publico = await lerSessaoPublica(token)
+    if (publico?.tipo === 'organizador') {
+      if (sessaoGestaoExpirada(publico)) return { estado: 'expirada' }
+      return { estado: 'valida', perfil: 'organizador', payload: publico }
+    }
+
+    if (classificarCookieGestao(token) === 'expirada') return { estado: 'expirada' }
+    return { estado: 'outra' }
+  } catch {
+    return { estado: 'ausente' }
   }
 }
 
-export function clearTokenCookie(): { name: string; value: string; options: ReturnType<typeof tokenCookieOptions> } {
-  return {
-    name: COOKIE_NAME,
-    value: '',
-    options: tokenCookieOptions(0),
+export async function renovarCookieGestao(estado: Extract<EstadoGestao, { estado: 'valida' }>) {
+  if (estado.perfil === 'admin') {
+    const token = await signToken({ adminId: estado.adminId, email: estado.email, nome: estado.nome })
+    return setTokenCookie(token, 'navegador')
   }
+  const token = await signPublicToken({
+    userId: estado.payload.userId,
+    email: estado.payload.email,
+    nome: estado.payload.nome,
+    tipo: 'organizador',
+    status: estado.payload.status,
+    trocarSenha: estado.payload.trocarSenha,
+  })
+  return setTokenCookie(token, 'navegador')
 }

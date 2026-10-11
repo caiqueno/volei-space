@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       status: usuario.status,
       trocarSenha,
     })
-    const cookie = setTokenCookie(token)
+    const cookie = setTokenCookie(token, usuario.tipo === 'organizador' ? 'navegador' : 'persistente')
     const redirectTo = loginDestination(usuario.tipo, trocarSenha)
     const res = success({
       redirectTo,
@@ -153,7 +153,7 @@ async function loginAdmin(email: string, senha: string) {
   if (!senhaOk) return error(CREDENCIAIS, 401)
 
   const token = await signToken({ adminId: admin.id, email: admin.email, nome: admin.nome })
-  const cookie = setTokenCookie(token)
+  const cookie = setTokenCookie(token, 'navegador')
 
   const res = success({ admin: { id: admin.id, nome: admin.nome, email: admin.email }, redirectTo: '/admin' })
   res.cookies.set(cookie.name, cookie.value, cookie.options as Parameters<typeof res.cookies.set>[2])
@@ -284,16 +284,18 @@ async function findInTables(email: string, tables: string[]): Promise<PublicUser
   return publicAccount
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   const res = NextResponse.json({ data: { mensagem: 'Logout realizado' } })
   const cookie = clearTokenCookie()
   res.cookies.set(cookie.name, cookie.value, cookie.options)
-  res.cookies.set('luva_acesso_arbitro', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 0,
-    path: '/',
-  })
+  if (req.nextUrl.searchParams.get('gestao') !== '1') {
+    res.cookies.set('luva_acesso_arbitro', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    })
+  }
   return res
 }

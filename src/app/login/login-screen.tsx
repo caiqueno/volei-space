@@ -12,6 +12,7 @@ import { lerSessaoPublica } from '@/lib/sessao-publica'
 export function LoginScreen() {
   const searchParams = useSearchParams()
   const contaCriada = searchParams.get('conta') === 'criada'
+  const sessaoExpirada = searchParams.get('sessao') === 'expirada'
   const [etapa, setEtapa] = useState<'escolha' | 'membro'>(searchParams.get('modo') === 'membro' || searchParams.get('conta') === 'criada' ? 'membro' : 'escolha')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
@@ -20,9 +21,27 @@ export function LoginScreen() {
 
   useEffect(() => {
     const sessao = lerSessaoPublica()
-    if (sessao?.tipo) {
-      window.location.replace(loginDestination(sessao.tipo, Boolean(sessao.trocarSenha)))
+    const tipo = sessao?.tipo
+    if (!tipo) return
+    const trocarSenha = Boolean(sessao?.trocarSenha)
+    if (tipo !== 'organizador') {
+      window.location.replace(loginDestination(tipo, trocarSenha))
+      return
     }
+    let ativo = true
+    fetch('/api/auth/sessao', { cache: 'no-store' })
+      .then((res) => {
+        if (!ativo) return
+        if (!res.ok) {
+          try { window.localStorage.removeItem('luva_session') } catch { /* A sessão local já saiu. */ }
+          return
+        }
+        window.location.replace(loginDestination(tipo, trocarSenha))
+      })
+      .catch(() => {
+        // Sem resposta do servidor, a sessão local não entra sozinha.
+      })
+    return () => { ativo = false }
   }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -97,6 +116,11 @@ export function LoginScreen() {
               {contaCriada && (
                 <p className="cadastro-field-ok mt-4 text-sm font-semibold leading-6">
                   Conta criada. Entre com o e-mail e a senha que você acabou de definir.
+                </p>
+              )}
+              {sessaoExpirada && (
+                <p className="mt-4 text-sm font-semibold leading-6 text-slate-200">
+                  Sua sessão expirou. Entre novamente.
                 </p>
               )}
             </div>

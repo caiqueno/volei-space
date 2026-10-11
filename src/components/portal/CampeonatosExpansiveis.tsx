@@ -7,7 +7,6 @@ import { formatLigaStatus } from '@/lib/format-liga'
 import { PainelClassificacao } from '@/components/portal/PainelClassificacao'
 import { PainelGaleria } from '@/components/portal/PainelGaleria'
 import { PainelRanking } from '@/components/portal/PainelRanking'
-import mi from '@/styles/microinteracoes.module.css'
 
 type Campeonato = {
   id: number
@@ -81,10 +80,25 @@ export function CampeonatosExpansiveis({
   }, [ligaIdInicial])
 
   useEffect(() => {
+    if (modulo !== 'classificacao') return
+    const html = document.documentElement
+    const anterior = html.style.scrollBehavior
+    html.style.scrollBehavior = 'auto'
+    return () => {
+      html.style.scrollBehavior = anterior
+    }
+  }, [modulo])
+
+  useEffect(() => {
     if (ligaIdInicial == null || rolou.current || carregando) return
     if (!campeonatos.some((item) => item.id === ligaIdInicial)) return
     rolou.current = true
-    document.getElementById(`campeonato-${ligaIdInicial}`)?.scrollIntoView({ block: 'nearest' })
+    if (window.scrollY > 24) return
+    const alvo = document.getElementById(`campeonato-${ligaIdInicial}`)
+    if (!alvo) return
+    const caixa = alvo.getBoundingClientRect()
+    if (caixa.top >= 0 && caixa.bottom <= window.innerHeight) return
+    alvo.scrollIntoView({ block: 'start', behavior: 'auto' })
   }, [campeonatos, carregando, ligaIdInicial])
 
   function alternar(id: number) {
@@ -93,18 +107,18 @@ export function CampeonatosExpansiveis({
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-10">
-      <p className={`text-xs font-black uppercase tracking-[0.2em] text-[#ffb331] ${modulo === 'classificacao' ? mi.entrar : ''}`}>{kicker}</p>
-      <h1 className={`mt-2 font-display text-4xl font-black text-white ${modulo === 'classificacao' ? mi.entrar : ''}`}>{titulo}</h1>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ffb331]">{kicker}</p>
+      <h1 className="mt-2 font-display text-4xl font-black text-white">{titulo}</h1>
       <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">{descricao}</p>
       {erro && <p className="mt-6 text-sm font-bold text-red-200">{erro}</p>}
       {carregando && <p className="mt-8 text-sm font-semibold text-slate-300">Carregando...</p>}
       {!carregando && !erro && campeonatos.length === 0 && <p className="mt-8 text-sm font-semibold text-slate-300">{vazioLista}</p>}
       <div className="mt-8 grid gap-4">
-        {campeonatos.map((campeonato, index) => {
+        {campeonatos.map((campeonato) => {
           const aberto = abertos.includes(campeonato.id)
           return (
-            <article id={`campeonato-${campeonato.id}`} key={campeonato.id} className={`scroll-mt-24 overflow-hidden rounded-3xl border bg-white/[0.04] ${campeonato.id === ligaIdInicial ? 'border-[#ffb331]' : 'border-white/10'} ${modulo === 'classificacao' ? `${mi.cartao} ${mi.entrar}` : ''}`} style={modulo === 'classificacao' ? { animationDelay: `${Math.min(index, 6) * 40}ms` } : undefined}>
-              <button type="button" aria-expanded={aberto} onClick={() => alternar(campeonato.id)} className={`flex w-full items-center gap-4 p-4 text-left ${modulo === 'classificacao' ? mi.toque : ''}`}>
+            <article id={`campeonato-${campeonato.id}`} key={campeonato.id} className={`scroll-mt-24 overflow-hidden rounded-3xl border bg-white/[0.04] ${campeonato.id === ligaIdInicial ? 'border-[#ffb331]' : 'border-white/10'}`}>
+              <button type="button" aria-expanded={aberto} onClick={() => alternar(campeonato.id)} className="flex w-full items-center gap-4 p-4 text-left">
                 <img src={capaDoCampeonato(campeonato.id, campeonato.capaUrl, campeonato.logoUrl)} alt="" className="h-16 w-24 shrink-0 rounded-2xl object-cover sm:w-28" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-black text-white">{campeonato.nome}</span>
@@ -118,8 +132,8 @@ export function CampeonatosExpansiveis({
               </button>
               {aberto && (
                 <div className="border-t border-white/10 px-4 py-4">
-                  {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} />}
-                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} />}
+                  {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} campeonato={campeonato.nome} />}
+                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} campeonato={campeonato.nome} />}
                   {modulo === 'galeria' && <PainelGaleria ligaId={campeonato.id} />}
                 </div>
               )}

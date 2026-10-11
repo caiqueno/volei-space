@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { abasDaChave, colunasSimetricas, caminhoConector, trechosConectores, vencedorDaPartida } from '../src/lib/chave-visual'
 import { liderDaTabela, ordenarScouts, pontosDoAtleta, saldoComSinal, topCinco, type AtletaQuadro, type LinhaGrupo } from '../src/lib/quadro-publico'
 
@@ -60,5 +61,22 @@ assert.equal(liderDaTabela(linhas)?.equipe, 'Alfa')
 assert.equal(saldoComSinal(3), '+3')
 assert.equal(saldoComSinal(-2), '-2')
 assert.equal(liderDaTabela([]), null)
+
+const quadro = readFileSync('src/components/portal/QuadroPublico.tsx', 'utf8')
+assert.equal(quadro.includes('setBlocos(null)'), false)
+assert.equal(quadro.includes('setAtletas(null)'), false)
+assert.equal(quadro.includes('setChave(null)'), false)
+assert.match(quadro, /serie === texto\.current/)
+assert.match(quadro, /window\.scrollTo\(0, alvo\)/)
+
+const lista = readFileSync('src/components/portal/CampeonatosExpansiveis.tsx', 'utf8')
+assert.equal(lista.includes('mi.cartao'), false)
+assert.equal(lista.includes('mi.entrar'), false)
+assert.match(lista, /window\.scrollY > 24/)
+assert.match(lista, /scrollBehavior = 'auto'/)
+
+const chave = readFileSync('src/components/mata-mata/ChaveamentoMataMata.tsx', 'utf8')
+assert.match(chave, /useTelaLarga/)
+assert.match(chave, /!larga &&/)
 
 console.log('quadro publico ok')

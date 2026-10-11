@@ -5,7 +5,9 @@ import type { JWTPayload } from 'jose'
 import { Home, LogOut, ShieldCheck, Trophy } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 import { AdminNav } from './AdminNav'
+import { SessaoGestao } from '@/components/sessao/SessaoGestao'
 import { isAdminSession } from '@/lib/admin-access'
+import { nomeDaSessao, sessaoGestaoExpirada } from '@/lib/sessao-gestao'
 import { lerToken } from '@/lib/token-verify'
 import { AvisoAmbienteBanco } from '@/components/admin/AvisoAmbienteBanco'
 
@@ -14,12 +16,17 @@ async function getAdmin(): Promise<JWTPayload | null> {
   const token = cookieStore.get('luva_token')?.value
   if (!token) return null
   const payload = await lerToken<JWTPayload>(token, 'admin')
-  if (!payload || !isAdminSession(payload)) return null
+  if (!payload || !isAdminSession(payload) || sessaoGestaoExpirada(payload)) return null
   return payload
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await getAdmin()
+  const rotulo = nomeDaSessao(
+    typeof admin?.nome === 'string' ? admin.nome : '',
+    typeof admin?.email === 'string' ? admin.email : '',
+  )
+  const saudacao = rotulo ? `Bem-vindo, ${rotulo}` : ''
 
   if (!admin) {
     return (
@@ -32,6 +39,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="admin-shell min-h-screen text-white lg:grid lg:grid-cols-[292px_1fr]">
+      <SessaoGestao />
       <aside className="admin-sidebar border-r text-white lg:min-h-screen">
         <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
           <span className="relative h-12 w-12 overflow-hidden rounded-xl">
@@ -56,7 +64,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </div>
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,.8)]" />
             </div>
-            <p className="mt-3 truncate rounded-2xl bg-white/[0.055] px-3 py-2 text-xs font-bold text-white/80">{String(admin.email ?? '')}</p>
+            {saudacao ? <p className="mt-3 text-sm font-black text-white">{saudacao}</p> : null}
+            <p className={`${saudacao ? 'mt-2' : 'mt-3'} truncate rounded-2xl bg-white/[0.055] px-3 py-2 text-xs font-bold text-white/80`}>{String(admin.email ?? '')}</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <LogoutButton icon={<LogOut size={14} />} />
               <Link href="/" className="inline-flex items-center justify-center gap-1 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-black text-white/75 transition hover:bg-white/10 hover:text-white">
@@ -75,6 +84,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-luva-amber">Painel da organização</p>
               <h1 className="mt-1 text-2xl font-black text-white">volei.space</h1>
+              {saudacao ? <p className="mt-1 text-sm font-bold text-white/80">{saudacao}</p> : null}
             </div>
             <div className="flex items-center gap-2">
               <LogoutButton icon={<LogOut size={14} />} />

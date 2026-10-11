@@ -20,15 +20,24 @@ export function lerSessaoPublica(): SessaoPublica | null {
 }
 
 export async function encerrarSessaoPublica() {
+  await limparSessaoLocal('/api/auth')
+  window.location.replace('/login')
+}
+
+export async function encerrarSessaoPorInatividade() {
+  await limparSessaoLocal('/api/auth?gestao=1')
+  window.location.replace('/login?sessao=expirada')
+}
+
+async function limparSessaoLocal(caminho: string) {
   try {
     window.localStorage.removeItem('luva_session')
   } catch {
     // A sessão local já está ilegível.
   }
   try {
-    await fetch('/api/auth', { method: 'DELETE' })
+    await fetch(caminho, { method: 'DELETE' })
   } catch {
     // O cookie expira sozinho se a rede falhar; a sessão local já saiu.
   }
-  window.location.replace('/login')
 }

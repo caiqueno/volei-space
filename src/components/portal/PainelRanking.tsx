@@ -15,7 +15,7 @@ type Ranking = {
   concluido: boolean
 }
 
-export function PainelRanking({ ligaId, concluido, categoriaInicial = null }: { ligaId: number; concluido: boolean; categoriaInicial?: string | null }) {
+export function PainelRanking({ ligaId, concluido, categoriaInicial = null, campeonato }: { ligaId: number; concluido: boolean; categoriaInicial?: string | null; campeonato?: string }) {
   const { categorias, categoriaId, setCategoriaId, pronto } = useCategoriaDoCampeonato(ligaId, categoriaInicial)
 
   if (!pronto) return <p className="text-sm font-semibold text-vs-muted">Carregando...</p>
@@ -24,7 +24,7 @@ export function PainelRanking({ ligaId, concluido, categoriaInicial = null }: { 
     <div className="grid gap-4">
       <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       <CartaoMvp ligaId={ligaId} concluido={concluido} categoriaId={categoriaId} />
-      <QuadroPublico ligaId={ligaId} categoriaId={categoriaId} destaque="ranking" />
+      <QuadroPublico ligaId={ligaId} categoriaId={categoriaId} destaque="ranking" campeonato={campeonato} />
     </div>
   )
 }

@@ -1,46 +1,108 @@
-import { ordenarScouts, pontosDoAtleta, type AtletaQuadro, type LinhaGrupo } from '@/lib/quadro-publico'
+import { vencedorDaPartida } from '@/lib/chave-visual'
+import { topCinco, type AtletaQuadro, type LinhaGrupo } from '@/lib/quadro-publico'
 import { tipoSancao } from '@/lib/sancoes'
 
-export type LinhaCartaz = {
-  tipo: 'posto' | 'secao' | 'nota' | 'placar'
-  texto: string
-  detalhe?: string
-  valor?: string
-  destaque?: boolean
+export const LIMITE_RANKING = 5
+export const LIMITE_GRUPO = 8
+export const ALTURA_LINHA_RANKING = 180
+
+export type FundamentoCartaz = 'ataque' | 'bloqueio' | 'saque'
+
+export const TITULO_FUNDAMENTO: Record<FundamentoCartaz, string> = {
+  ataque: 'Top Atacantes',
+  bloqueio: 'Top Bloqueadores',
+  saque: 'Top Sacadores',
 }
 
-export type CartazStories = {
-  kicker: string
-  titulo: string
-  linhas: LinhaCartaz[]
-  link: string
+export type LinhaTabelaCartaz = {
+  equipe: string
+  pontos: number
+  jogos?: number
+  vitorias?: number
+  derrotas?: number
+  setsPro?: number
+  setsContra?: number
+  saldoSets?: number
+  saldoPontos?: number
+  pontosPro?: number
+  pontosContra?: number
+  punicoes?: number
+}
+
+export type AtletaCartaz = AtletaQuadro & { pontos: number }
+
+export type LadoCartaz = {
+  nome: string
+  definir: boolean
+  cor: string | null
+  logo: string | null
+}
+
+export type ConfrontoCartaz = {
+  tag: string
+  status: string
+  ladoA: LadoCartaz
+  ladoB: LadoCartaz
+  setsPorA: number | null
+  setsPorB: number | null
+  parciais: Array<{ numero: number; pontosA: number; pontosB: number }>
+  vencedor: 'A' | 'B' | null
+  volta: string | null
 }
 
 export type GrupoCartaz = {
+  id?: string
   nome: string
-  linhas: Array<Pick<LinhaGrupo, 'equipe' | 'pontos' | 'vitorias' | 'derrotas' | 'setsPro' | 'setsContra'>>
+  vagas?: number
+  linhas: Array<Pick<LinhaGrupo, 'equipe' | 'pontos'> & Partial<LinhaTabelaCartaz>>
 }
 
 export type JogoCartaz = {
   nomeA: string
   nomeB: string
+  corA?: string | null
+  corB?: string | null
+  logoA?: string | null
+  logoB?: string | null
   status: string
   setsPorA: number | null
   setsPorB: number | null
+  parciais?: ResultadoCartaz['parciais']
   campeonato?: string | null
+  rotulo?: string | null
+  data?: string | null
+  local?: string | null
+}
+
+export type CartaoJogoCartaz = {
+  nomeA: string
+  nomeB: string
+  corA: string | null
+  corB: string | null
+  logoA: string | null
+  logoB: string | null
+  status: string
+  aoVivo: boolean
+  encerrado: boolean
+  setsPorA: number | null
+  setsPorB: number | null
+  parciais: ResultadoCartaz['parciais']
+  rotulo: string
+  data: string | null
+  local: string | null
 }
 
 export type PartidaChaveCartaz = {
   status?: string | null
-  equipeA?: { nome?: string | null } | null
-  equipeB?: { nome?: string | null } | null
+  equipeA?: { id?: number; nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null
+  equipeB?: { id?: number; nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null
   setsPorA?: number | null
   setsPorB?: number | null
-  sets?: Array<{ pontosA: number; pontosB: number }>
+  sets?: Array<{ numero?: number; pontosA: number; pontosB: number }>
 }
 
 export type ChaveCartaz = {
-  rounds: Array<{ fase: string; label: string; slots: Array<{ partida: PartidaChaveCartaz | null }> }>
+  rounds: Array<{ fase: string; label: string; slots: Array<{ partida: PartidaChaveCartaz | null; volta?: PartidaChaveCartaz | null }> }>
   thirdPlace?: { fase?: string | null; partida: PartidaChaveCartaz | null } | null
 }
 
@@ -62,6 +124,21 @@ export type SumulaCartaz = {
   fundamentos: Array<{ equipe: string; ataque: number; bloqueio: number; saque: number }>
   cartoes: Array<{ tipo: string; nome: string }>
 }
+
+type BaseCartaz = {
+  kicker: string
+  titulo: string
+  campeonato: string
+  link: string
+  lider: { equipe: string; pontos: number } | null
+}
+
+export type CartazStories =
+  | (BaseCartaz & { tipo: 'ranking'; fundamento: FundamentoCartaz; atletas: AtletaCartaz[] })
+  | (BaseCartaz & { tipo: 'grupo'; grupo: { nome: string; vagas: number; linhas: LinhaTabelaCartaz[] } | null; grupos: Array<{ id: string; nome: string }>; grupoId: string | null })
+  | (BaseCartaz & { tipo: 'chave'; semis: ConfrontoCartaz[]; rotuloSemis: string; final: ConfrontoCartaz | null; terceiro: ConfrontoCartaz | null })
+  | (BaseCartaz & { tipo: 'resultado' | 'aovivo'; resultado: ResultadoCartaz; fraseVencedor: string | null; sumula: SumulaCartaz | null })
+  | (BaseCartaz & { tipo: 'jogo'; jogo: CartaoJogoCartaz })
 
 const ROTULO_SANCAO: Record<string, string> = {
   ADVERTENCIA: 'Advertência',
@@ -89,161 +166,108 @@ export function linkCurto(url: string) {
   }
 }
 
-export function cartazRanking(atletas: AtletaQuadro[], link: string, campeonato?: string) {
-  const top = ordenarScouts(atletas).slice(0, 5)
-  const linhas: LinhaCartaz[] = campeonato ? [{ tipo: 'nota', texto: campeonato }] : []
-  if (top.length === 0) {
-    linhas.push({ tipo: 'nota', texto: 'Sem dados ainda' })
-  } else {
-    top.forEach((atleta, indice) => {
-      linhas.push({
-        tipo: 'posto',
-        texto: `${indice + 1}º ${atleta.nome}`,
-        detalhe: atleta.equipe,
-        valor: String(pontosDoAtleta(atleta)),
-        destaque: indice === 0,
-      })
-    })
-  }
-  return { kicker: 'Ranking', titulo: 'Top 5', linhas, link: linkCurto(link) } satisfies CartazStories
+export function cartazRanking(atletas: AtletaQuadro[], fundamento: FundamentoCartaz, link: string, campeonato?: string) {
+  return {
+    tipo: 'ranking' as const,
+    kicker: 'Ranking',
+    titulo: TITULO_FUNDAMENTO[fundamento],
+    fundamento,
+    campeonato: campeonato ?? '',
+    link: linkCurto(link),
+    lider: null,
+    atletas: topCinco(atletas, fundamento).slice(0, LIMITE_RANKING).map((atleta) => ({ ...atleta, pontos: atleta[fundamento] })),
+  } satisfies CartazStories
 }
 
-export function cartazClassificacao(grupos: GrupoCartaz[], link: string, lider?: { equipe: string; pontos: number } | null) {
-  const linhas: LinhaCartaz[] = []
-  if (lider) linhas.push({ tipo: 'nota', texto: `Líder: ${lider.equipe}`, valor: String(lider.pontos), destaque: true })
-  const blocos = grupos.filter((grupo) => grupo.linhas.length > 0).slice(0, 2)
-  if (blocos.length === 0) {
-    linhas.push({ tipo: 'nota', texto: 'Sem dados ainda' })
-  }
-  for (const grupo of blocos) {
-    linhas.push({ tipo: 'secao', texto: grupo.nome })
-    grupo.linhas.slice(0, 6).forEach((linha, indice) => {
-      linhas.push({
-        tipo: 'posto',
-        texto: `${indice + 1}º ${linha.equipe}`,
-        detalhe: `${linha.vitorias}V ${linha.derrotas}D · ${linha.setsPro}-${linha.setsContra}`,
-        valor: String(linha.pontos),
-        destaque: indice === 0,
-      })
-    })
-  }
-  return { kicker: 'Classificação', titulo: 'Tabela', linhas, link: linkCurto(link) } satisfies CartazStories
+export function cartazClassificacao(
+  grupos: GrupoCartaz[],
+  link: string,
+  lider?: { equipe: string; pontos: number } | null,
+  grupoId?: string | null,
+  campeonato?: string,
+) {
+  const comDados = grupos.filter((grupo) => grupo.linhas.length > 0)
+  const opcoes = comDados.map((grupo, indice) => ({ id: grupo.id || grupo.nome || String(indice), nome: grupo.nome }))
+  const escolhido = comDados.find((grupo, indice) => (grupo.id || grupo.nome || String(indice)) === grupoId) ?? comDados[0] ?? null
+  const id = escolhido ? (escolhido.id || escolhido.nome) : null
+  return {
+    tipo: 'grupo' as const,
+    kicker: 'Classificação',
+    titulo: escolhido?.nome || 'Tabela',
+    campeonato: campeonato ?? '',
+    link: linkCurto(link),
+    lider: lider ?? null,
+    grupo: escolhido ? { nome: escolhido.nome, vagas: escolhido.vagas ?? 0, linhas: escolhido.linhas.slice(0, LIMITE_GRUPO) } : null,
+    grupos: opcoes,
+    grupoId: id,
+  } satisfies CartazStories
 }
 
-export function cartazQuadro(entrada: { lider?: { equipe: string; pontos: number } | null; atletas: AtletaQuadro[]; grupos: GrupoCartaz[] }, link: string) {
-  const linhas: LinhaCartaz[] = []
-  if (entrada.lider) linhas.push({ tipo: 'nota', texto: `Líder: ${entrada.lider.equipe}`, valor: `${entrada.lider.pontos} pts`, destaque: true })
-  const top = ordenarScouts(entrada.atletas).slice(0, 5)
-  if (top.length > 0) {
-    linhas.push({ tipo: 'secao', texto: 'Top 5' })
-    top.forEach((atleta, indice) => {
-      linhas.push({ tipo: 'posto', texto: `${indice + 1}º ${atleta.nome}`, detalhe: atleta.equipe, valor: String(pontosDoAtleta(atleta)), destaque: indice === 0 })
-    })
-  }
-  const grupo = entrada.grupos.find((item) => item.linhas.length > 0)
-  if (grupo) {
-    linhas.push({ tipo: 'secao', texto: grupo.nome })
-    grupo.linhas.slice(0, 5).forEach((linha, indice) => {
-      linhas.push({ tipo: 'posto', texto: `${indice + 1}º ${linha.equipe}`, detalhe: `${linha.vitorias}V ${linha.derrotas}D`, valor: String(linha.pontos), destaque: indice === 0 })
-    })
-  }
-  if (linhas.length === 0) linhas.push({ tipo: 'nota', texto: 'Sem dados ainda' })
-  return { kicker: 'Quadro', titulo: 'Campeonato', linhas, link: linkCurto(link) } satisfies CartazStories
-}
-
-export function cartazJogos(jogos: JogoCartaz[], link: string) {
-  const linhas: LinhaCartaz[] = jogos.slice(0, 8).map((jogo) => ({
-    tipo: 'placar' as const,
-    texto: `${jogo.nomeA} x ${jogo.nomeB}`,
-    detalhe: jogo.campeonato || rotuloStatus(jogo.status),
-    valor: placarSets(jogo.status, jogo.setsPorA, jogo.setsPorB),
-    destaque: jogo.status === 'EM_ANDAMENTO',
-  }))
-  if (linhas.length === 0) linhas.push({ tipo: 'nota', texto: 'Nenhum jogo encontrado' })
-  return { kicker: 'Jogos', titulo: 'Agenda', linhas, link: linkCurto(link) } satisfies CartazStories
+export function cartazJogo(jogo: JogoCartaz, link: string, campeonato?: string) {
+  const encerrado = jogo.status === 'ENCERRADA' || jogo.status === 'WO'
+  const aoVivo = jogo.status === 'EM_ANDAMENTO'
+  const nomeCampeonato = campeonato || jogo.campeonato || ''
+  return {
+    tipo: 'jogo' as const,
+    kicker: 'Jogo',
+    titulo: jogo.rotulo || `${jogo.nomeA} x ${jogo.nomeB}`,
+    campeonato: nomeCampeonato,
+    link: linkCurto(link),
+    lider: null,
+    jogo: {
+      nomeA: jogo.nomeA,
+      nomeB: jogo.nomeB,
+      corA: jogo.corA ?? null,
+      corB: jogo.corB ?? null,
+      logoA: jogo.logoA ?? null,
+      logoB: jogo.logoB ?? null,
+      status: rotuloStatus(jogo.status),
+      aoVivo,
+      encerrado,
+      setsPorA: jogo.setsPorA,
+      setsPorB: jogo.setsPorB,
+      parciais: jogo.parciais ?? [],
+      rotulo: jogo.rotulo || 'Jogo',
+      data: jogo.data ?? null,
+      local: jogo.local ?? null,
+    },
+  } satisfies CartazStories
 }
 
 export function cartazMataMata(chave: ChaveCartaz, link: string, campeonato?: string) {
-  const linhas: LinhaCartaz[] = []
-  if (campeonato) linhas.push({ tipo: 'nota', texto: campeonato })
-  const fases = [
-    { id: 'semi', titulo: 'Semifinais' },
-    { id: 'terceiro', titulo: '3º lugar' },
-    { id: 'final', titulo: 'Final' },
-  ] as const
-  for (const fase of fases) {
-    const jogos = jogosDaFase(chave, fase.id)
-    if (jogos.length === 0) continue
-    linhas.push({ tipo: 'secao', texto: fase.titulo })
-    for (const jogo of jogos) linhas.push(linhaConfronto(jogo))
-  }
-  if (linhas.every((linha) => linha.tipo === 'nota')) linhas.push({ tipo: 'nota', texto: 'Sem chave ainda' })
-  return { kicker: 'Mata-mata', titulo: 'Chave', linhas, link: linkCurto(link) } satisfies CartazStories
+  const semis = confrontosDaFase(chave, 'semi')
+  const superior = semis.jogos.length > 0 ? semis : confrontosDaFase(chave, 'outra')
+  return {
+    tipo: 'chave' as const,
+    kicker: 'Mata-mata',
+    titulo: 'Chave',
+    campeonato: campeonato ?? '',
+    link: linkCurto(link),
+    lider: null,
+    semis: superior.jogos,
+    rotuloSemis: superior.rotulo,
+    final: confrontosDaFase(chave, 'final').jogos[0] ?? null,
+    terceiro: confrontosDaFase(chave, 'terceiro').jogos[0] ?? null,
+  } satisfies CartazStories
 }
 
-export function cartazPartida(jogo: ResultadoCartaz, link: string, sumula?: SumulaCartaz | null) {
-  if (!jogo.aoVivo) return cartazResultado(jogo, link, sumula)
-  const linhas: LinhaCartaz[] = [
-    {
-      tipo: 'placar',
-      texto: `${jogo.nomeA} x ${jogo.nomeB}`,
-      detalhe: `Sets ${jogo.setsPorA} x ${jogo.setsPorB}`,
-      valor: `${jogo.pontosA ?? 0} x ${jogo.pontosB ?? 0}`,
-      destaque: true,
-    },
-  ]
-  for (const set of jogo.parciais) {
-    linhas.push({ tipo: 'posto', texto: `Set ${set.numero}`, valor: `${set.pontosA} x ${set.pontosB}` })
-  }
-  return { kicker: 'Ao vivo', titulo: `${jogo.nomeA} x ${jogo.nomeB}`, linhas, link: linkCurto(link) } satisfies CartazStories
+export function cartazPartida(jogo: ResultadoCartaz, link: string, sumula?: SumulaCartaz | null, campeonato?: string) {
+  const fraseVencedor = !jogo.aoVivo && jogo.vencedor ? `${jogo.vencedor.toLocaleUpperCase('pt-BR')} venceu` : null
+  return {
+    tipo: jogo.aoVivo ? 'aovivo' as const : 'resultado' as const,
+    kicker: jogo.aoVivo ? 'Ao vivo' : 'Fim de jogo',
+    titulo: jogo.aoVivo ? `${jogo.nomeA} x ${jogo.nomeB}` : 'Fim de jogo',
+    campeonato: campeonato ?? '',
+    link: linkCurto(link),
+    lider: null,
+    resultado: jogo,
+    fraseVencedor,
+    sumula: sumula ?? null,
+  } satisfies CartazStories
 }
 
-export function cartazResultado(jogo: ResultadoCartaz, link: string, sumula?: SumulaCartaz | null) {
-  const linhas: LinhaCartaz[] = []
-  if (jogo.vencedor) linhas.push({ tipo: 'nota', texto: `${jogo.vencedor.toLocaleUpperCase('pt-BR')} venceu`, destaque: true })
-  linhas.push({
-    tipo: 'placar',
-    texto: jogo.nomeA,
-    valor: String(jogo.setsPorA),
-    destaque: jogo.vencedor != null && jogo.vencedor === jogo.nomeA,
-  })
-  linhas.push({
-    tipo: 'placar',
-    texto: jogo.nomeB,
-    valor: String(jogo.setsPorB),
-    destaque: jogo.vencedor != null && jogo.vencedor === jogo.nomeB,
-  })
-  linhas.push({ tipo: 'secao', texto: 'Parciais' })
-  if (jogo.parciais.length === 0) linhas.push({ tipo: 'nota', texto: 'Sem parciais' })
-  for (const set of jogo.parciais) {
-    linhas.push({ tipo: 'posto', texto: `Set ${set.numero}`, valor: `${set.pontosA} x ${set.pontosB}` })
-  }
-  if (jogo.mvp) linhas.push({ tipo: 'nota', texto: `MVP ${jogo.mvp}`, destaque: true })
-  if (sumula) linhas.push(...linhasDaSumula(sumula))
-  return { kicker: 'Fim de jogo', titulo: 'Fim de jogo', linhas, link: linkCurto(link) } satisfies CartazStories
-}
-
-export function linhasDaSumula(sumula: SumulaCartaz): LinhaCartaz[] {
-  const linhas: LinhaCartaz[] = [{ tipo: 'secao', texto: 'Súmula' }]
-  if (sumula.parciais.length === 0) linhas.push({ tipo: 'nota', texto: 'Sem parciais' })
-  for (const set of sumula.parciais) {
-    linhas.push({ tipo: 'posto', texto: `Set ${set.numero}`, valor: `${set.pontosA} x ${set.pontosB}` })
-  }
-  linhas.push({ tipo: 'secao', texto: 'Fundamentos' })
-  if (sumula.fundamentos.length === 0) linhas.push({ tipo: 'nota', texto: 'Sem pontos por fundamento' })
-  for (const equipe of sumula.fundamentos) {
-    linhas.push({
-      tipo: 'posto',
-      texto: equipe.equipe,
-      detalhe: `Ataque ${equipe.ataque} · Bloqueio ${equipe.bloqueio} · Saque ${equipe.saque}`,
-    })
-  }
-  linhas.push({ tipo: 'secao', texto: 'Cartões' })
-  if (sumula.cartoes.length === 0) linhas.push({ tipo: 'nota', texto: 'Nenhum cartão' })
-  for (const cartao of sumula.cartoes.slice(0, 6)) {
-    linhas.push({ tipo: 'nota', texto: `${cartao.tipo}${cartao.nome ? ` · ${cartao.nome}` : ''}` })
-  }
-  return linhas
+export function linhasDaSumula(sumula: SumulaCartaz) {
+  return sumula
 }
 
 export function montarSumulaPublica(entrada: {
@@ -281,24 +305,64 @@ export function montarSumulaPublica(entrada: {
   }
 }
 
-function jogosDaFase(chave: ChaveCartaz, fase: 'semi' | 'terceiro' | 'final') {
-  const jogos: PartidaChaveCartaz[] = []
+function confrontosDaFase(chave: ChaveCartaz, fase: 'semi' | 'terceiro' | 'final' | 'outra') {
+  const jogos: ConfrontoCartaz[] = []
+  let rotulo = fase === 'semi' ? 'Semifinais' : fase === 'final' ? 'Final' : fase === 'terceiro' ? '3º lugar' : ''
   for (const round of chave.rounds) {
-    if (classeDaFase(round.fase) !== fase && classeDaFase(round.label) !== fase) continue
+    const classe = classeDaFase(round.fase) ?? classeDaFase(round.label)
+    const entra = fase === 'outra' ? classe == null : classe === fase
+    if (!entra) continue
+    if (!rotulo) rotulo = round.label || round.fase
     for (const slot of round.slots) {
-      if (slot.partida) jogos.push(slot.partida)
+      if (!slot.partida) continue
+      jogos.push(confrontoDe(slot.partida, round.slots.length > 1 ? `${round.label} · Jogo ${jogos.length + 1}` : (round.label || rotulo), slot.volta))
     }
   }
   if (fase === 'terceiro' && chave.thirdPlace?.partida) {
-    const extra = chave.thirdPlace.partida
-    const jaTem = jogos.some((jogo) => mesmaPartida(jogo, extra))
+    const extra = confrontoDe(chave.thirdPlace.partida, '3º lugar', null)
+    const jaTem = jogos.some((jogo) => jogo.ladoA.nome === extra.ladoA.nome && jogo.ladoB.nome === extra.ladoB.nome && jogo.setsPorA === extra.setsPorA)
     if (!jaTem) jogos.push(extra)
   }
-  return jogos
+  return { jogos, rotulo }
 }
 
-function mesmaPartida(a: PartidaChaveCartaz, b: PartidaChaveCartaz) {
-  return a.equipeA?.nome === b.equipeA?.nome && a.equipeB?.nome === b.equipeB?.nome && a.setsPorA === b.setsPorA && a.setsPorB === b.setsPorB
+function confrontoDe(jogo: PartidaChaveCartaz, tag: string, volta?: PartidaChaveCartaz | null): ConfrontoCartaz {
+  const ladoA = ladoDe(jogo.equipeA)
+  const ladoB = ladoDe(jogo.equipeB)
+  const idVencedor = vencedorDaPartida({
+    status: jogo.status,
+    setsPorA: jogo.setsPorA,
+    setsPorB: jogo.setsPorB,
+    equipeA: jogo.equipeA?.id != null ? { id: jogo.equipeA.id } : ladoA.definir ? null : { id: 1 },
+    equipeB: jogo.equipeB?.id != null ? { id: jogo.equipeB.id } : ladoB.definir ? null : { id: 2 },
+  })
+  let vencedor: 'A' | 'B' | null = null
+  if (idVencedor != null && !ladoA.definir && jogo.equipeA?.id != null && idVencedor === jogo.equipeA.id) vencedor = 'A'
+  else if (idVencedor != null && !ladoB.definir && jogo.equipeB?.id != null && idVencedor === jogo.equipeB.id) vencedor = 'B'
+  else if (idVencedor === 1 && !ladoA.definir) vencedor = 'A'
+  else if (idVencedor === 2 && !ladoB.definir) vencedor = 'B'
+  const setsVolta = volta && (volta.setsPorA != null || volta.setsPorB != null) ? `Volta: ${volta.setsPorA ?? 0}–${volta.setsPorB ?? 0}` : null
+  return {
+    tag,
+    status: jogo.status ?? '',
+    ladoA,
+    ladoB,
+    setsPorA: jogo.setsPorA ?? null,
+    setsPorB: jogo.setsPorB ?? null,
+    parciais: (jogo.sets ?? []).map((set, indice) => ({ numero: set.numero ?? indice + 1, pontosA: set.pontosA, pontosB: set.pontosB })),
+    vencedor,
+    volta: setsVolta,
+  }
+}
+
+function ladoDe(equipe?: PartidaChaveCartaz['equipeA']): LadoCartaz {
+  const definir = !equipe?.nome || Boolean(equipe.vaga)
+  return {
+    nome: definir ? 'A definir' : equipe?.nome || 'A definir',
+    definir,
+    cor: equipe?.corHex ?? null,
+    logo: equipe?.logoUrl ?? null,
+  }
 }
 
 function classeDaFase(fase?: string | null) {
@@ -310,32 +374,12 @@ function classeDaFase(fase?: string | null) {
   return null
 }
 
-function linhaConfronto(jogo: PartidaChaveCartaz): LinhaCartaz {
-  const nomeA = jogo.equipeA?.nome || 'A definir'
-  const nomeB = jogo.equipeB?.nome || 'A definir'
-  const encerrado = jogo.status === 'ENCERRADA' || jogo.status === 'WO'
-  const setsA = Number(jogo.setsPorA ?? 0)
-  const setsB = Number(jogo.setsPorB ?? 0)
-  const temPlacar = encerrado || jogo.setsPorA != null || jogo.setsPorB != null
-  const parciais = (jogo.sets ?? []).map((set) => `${set.pontosA}-${set.pontosB}`).join(' · ')
-  return {
-    tipo: 'placar',
-    texto: `${nomeA} x ${nomeB}`,
-    detalhe: parciais || undefined,
-    valor: temPlacar ? `${setsA} x ${setsB}` : 'a definir',
-    destaque: encerrado && setsA !== setsB,
-  }
-}
-
-function placarSets(status: string, setsA: number | null, setsB: number | null) {
-  if (status === 'EM_ANDAMENTO' || status === 'ENCERRADA' || status === 'WO') return `${setsA ?? 0} x ${setsB ?? 0}`
-  return rotuloStatus(status)
-}
-
 function rotuloStatus(status: string) {
-  if (status === 'EM_ANDAMENTO') return 'Ao vivo'
-  if (status === 'ENCERRADA') return 'Encerrado'
+  if (status === 'EM_ANDAMENTO') return 'Em andamento'
+  if (status === 'ENCERRADA') return 'Encerrada'
   if (status === 'WO') return 'W.O.'
-  if (status === 'AGENDADA' || status === 'PENDENTE') return 'Agendado'
+  if (status === 'AGENDADA') return 'Agendada'
+  if (status === 'PENDENTE' || status === 'PENDENTE_APROVACAO') return 'Em análise'
+  if (status === 'CANCELADA') return 'Cancelada'
   return 'Jogo'
 }

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Radio, Trophy } from 'lucide-react'
+import { Radio, Trophy } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { MioloConfronto } from '@/components/mata-mata/MioloConfronto'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { abasDaChave, caminhoConector, colunasSimetricas, gradeDaChave, trechosConectores, vencedorDaPartida, type ColunaVisual } from '@/lib/chave-visual'
-import { iniciais } from '@/lib/iniciais'
 import { agendaDaPartida, formatFaseMataMata } from '@/lib/format-partida'
 import mi from '@/styles/microinteracoes.module.css'
 
@@ -45,14 +45,6 @@ type Props = {
   categoriaCampeonatoId?: string | null
 }
 
-const STATUS: Record<string, string> = {
-  AGENDADA: 'Agendada',
-  EM_ANDAMENTO: 'Ao vivo',
-  PENDENTE_APROVACAO: 'Em análise',
-  ENCERRADA: 'Encerrada',
-  WO: 'W.O.',
-}
-
 export function ChaveamentoMataMata({
   ligaId,
   rounds,
@@ -61,21 +53,22 @@ export function ChaveamentoMataMata({
   organizerMode,
   categoriaCampeonatoId = null,
 }: Props) {
+  const larga = useTelaLarga()
   const [aba, setAba] = useState(rounds[rounds.length - 1]?.fase ?? '')
   if (rounds.length === 0) return null
 
-  const colunas = colunasSimetricas(rounds.map((round) => ({
+  const colunas = larga ? colunasSimetricas(rounds.map((round) => ({
     fase: round.fase,
     label: round.label,
     slots: round.slots.map((slot) => ({ rodada: slot.rodada, avancou: avancou(slot) })),
-  })))
-  const trechos = trechosConectores(colunas)
+  }))) : []
+  const trechos = larga ? trechosConectores(colunas) : []
   const abas = abasDaChave(rounds)
   const abaAtiva = abas.some((item) => item.id === aba) ? aba : abas[0]?.id
 
   return (
     <div>
-      <div className="lg:hidden">
+      {!larga && <div className="lg:hidden">
         <div role="tablist" aria-label="Fases do mata-mata" className="flex snap-x gap-2 overflow-x-auto pb-3">
           {abas.map((item) => (
             <button
@@ -107,9 +100,9 @@ export function ChaveamentoMataMata({
             )}
           </div>
         ))}
-      </div>
+      </div>}
 
-      <div className="hidden lg:grid lg:gap-4" style={{ gridTemplateColumns: gradeDaChave(colunas.length) }}>
+      {larga && <div className="hidden lg:grid lg:gap-4" style={{ gridTemplateColumns: gradeDaChave(colunas.length) }}>
         <div style={{ gridColumn: colunaCentral(colunas), gridRow: 1 }}>
           <Trofeu champion={champion} />
         </div>
@@ -134,9 +127,21 @@ export function ChaveamentoMataMata({
             <CartaoJogo slot={thirdPlace} roundLabel={formatFaseMataMata(thirdPlace.fase) ?? '3º lugar'} multiSlot={false} ligaId={ligaId} organizerMode={organizerMode} categoriaCampeonatoId={categoriaCampeonatoId} compacto />
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
+}
+
+function useTelaLarga() {
+  const [larga, setLarga] = useState(false)
+  useEffect(() => {
+    const consulta = window.matchMedia('(min-width: 1024px)')
+    const aplicar = () => setLarga(consulta.matches)
+    aplicar()
+    consulta.addEventListener('change', aplicar)
+    return () => consulta.removeEventListener('change', aplicar)
+  }, [])
+  return larga
 }
 
 function colunaCentral(colunas: ColunaVisual[]) {
@@ -240,38 +245,26 @@ function CartaoPartida({
   compacto: boolean
 }) {
   const agenda = agendaDaPartida(partida, tag)
-  const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
   const vencedorId = vencedorDaPartida(partida)
   const rotulo = `${tag}, ${partida.equipeA.nome} contra ${partida.equipeB.nome}`
   const parciais = [...partida.sets].sort((a, b) => a.numero - b.numero)
+  const textoAgenda = [agenda.data, agenda.local].filter(Boolean).join(' · ')
 
   return (
     <article aria-label={rotulo} className={`min-h-20 min-w-0 rounded-xl border bg-vs-surface px-3 py-2 ${mi.chave} ${destaque ? 'border-vs-gold' : 'border-vs-border'} ${compacto ? 'text-sm' : ''}`}>
-      <header className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-vs-muted">{tag}</p>
-          {(agenda.data || agenda.local) && (
-            <p className={`mt-0.5 text-xs font-semibold ${partida.status === 'AGENDADA' ? 'text-vs-blue' : 'text-vs-muted'}`}>
-              {[agenda.data, agenda.local].filter(Boolean).join(' · ')}
-            </p>
-          )}
-        </div>
-        <StatusPartida status={partida.status} />
-      </header>
-      <ul>
-        <LinhaTime equipe={partida.equipeA} sets={partida.setsPorA} venceu={vencedorId === partida.equipeA.id && !partida.equipeA.vaga} encerrada={encerrada} />
-        <LinhaTime equipe={partida.equipeB} sets={partida.setsPorB} venceu={vencedorId === partida.equipeB.id && !partida.equipeB.vaga} encerrada={encerrada} />
-      </ul>
-      {parciais.length > 0 && (
-        <p className="mt-2 flex flex-wrap gap-1">
-          {parciais.map((set) => (
-            <span key={set.numero} className="rounded-md bg-vs-elevated px-1.5 py-0.5 text-xs font-semibold tabular-nums text-vs-muted">{set.pontosA}-{set.pontosB}</span>
-          ))}
-        </p>
-      )}
-      {volta && (
-        <p className="mt-2 text-xs font-semibold text-vs-muted">Volta: {volta.setsPorA ?? 0}–{volta.setsPorB ?? 0}</p>
-      )}
+      <MioloConfronto
+        tag={tag}
+        status={partida.status}
+        agenda={textoAgenda}
+        agendada={partida.status === 'AGENDADA'}
+        ladoA={ladoDoTime(partida.equipeA)}
+        ladoB={ladoDoTime(partida.equipeB)}
+        setsPorA={partida.setsPorA}
+        setsPorB={partida.setsPorB}
+        parciais={parciais}
+        vencedor={vencedorId === partida.equipeA.id && !partida.equipeA.vaga ? 'A' : vencedorId === partida.equipeB.id && !partida.equipeB.vaga ? 'B' : null}
+        volta={volta ? `Volta: ${volta.setsPorA ?? 0}–${volta.setsPorB ?? 0}` : null}
+      />
       <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-vs-border py-2 text-xs font-bold text-vs-text transition-colors duration-vs-tap ease-vs-out hover:border-vs-gold">
         <Radio size={12} aria-hidden="true" /> Resumo da partida
       </a>
@@ -282,42 +275,9 @@ function CartaoPartida({
   )
 }
 
-function StatusPartida({ status }: { status: string }) {
-  if (status === 'EM_ANDAMENTO') {
-    return (
-      <b className="inline-flex items-center gap-1 font-display text-xs font-bold tracking-[0.12em] text-vs-live">
-        <span className="h-2 w-2 rounded-full bg-vs-live motion-safe:animate-pulse" aria-hidden="true" />
-        AO VIVO
-      </b>
-    )
-  }
-  return <span className="rounded-full border border-vs-border px-2 py-0.5 text-xs font-bold text-vs-muted">{STATUS[status] ?? status}</span>
-}
-
-function LinhaTime({ equipe, sets, venceu, encerrada }: { equipe: TeamOption; sets: number | null; venceu: boolean; encerrada: boolean }) {
+function ladoDoTime(equipe: TeamOption) {
   const definir = equipe.vaga || equipe.id <= 0
-  return (
-    <li className={`flex min-h-8 items-center gap-2 border-l-4 py-1 pl-2 ${venceu ? 'border-vs-gold' : 'border-transparent'} ${encerrada && !venceu && !definir ? 'opacity-60' : ''}`}>
-      <Escudo nome={equipe.nome} cor={equipe.corHex} logoUrl={equipe.logoUrl} />
-      <span className={`min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-vs-text ${venceu ? 'font-bold' : 'font-semibold'} ${definir ? 'italic text-vs-muted' : ''}`}>
-        <NomeEquipe nome={definir ? 'A definir' : equipe.nome} />
-      </span>
-      {venceu && <Check size={14} className="shrink-0 text-vs-gold" aria-label="Vencedor" />}
-      <b className={`w-6 text-right font-display text-xl font-bold tabular-nums ${venceu ? 'text-vs-gold' : 'text-vs-muted'}`}>{definir ? '—' : sets ?? '—'}</b>
-    </li>
-  )
-}
-
-function Escudo({ nome, cor, logoUrl }: { nome: string; cor: string | null; logoUrl: string | null }) {
-  const sigla = iniciais(nome)
-  if (logoUrl) {
-    return <img src={logoUrl} alt="" className="h-6 w-6 shrink-0 object-contain" />
-  }
-  return (
-    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-vs-text" style={{ background: cor ?? '#16243D' }}>
-      {sigla || '–'}
-    </span>
-  )
+  return { nome: definir ? 'A definir' : equipe.nome, definir, cor: equipe.corHex, logo: equipe.logoUrl }
 }
 
 function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId, options, destaque }: { slot: BracketSlot; tag: string; ligaId: number; categoriaCampeonatoId: string | null; options: TeamOption[]; destaque: boolean }) {

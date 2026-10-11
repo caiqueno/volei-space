@@ -8,6 +8,11 @@ export type PaletaStories = {
   texto: string
   textoSuave: string
   sobreDestaque: string
+  superficie: string
+  elevada: string
+  borda: string
+  ouro: string
+  sobreOuro: string
 }
 
 export const PALETA_OFICIAL_ID = 'oficial'
@@ -54,6 +59,30 @@ function textoQuePassa(fundos: string[], preferida?: string) {
   return candidatas.find((cor) => fundos.every((fundo) => contraste(fundo, cor) >= 4.5)) ?? TEXTO_CLARO
 }
 
+function fundoQuePassa(preferida: string, texto: string) {
+  const reserva = luminancia(texto) > 0.5 ? '#070D1A' : '#F5F7FB'
+  const candidatas = [
+    preferida,
+    misturar(preferida, '#000000', 0.3),
+    misturar(preferida, '#000000', 0.55),
+    misturar(preferida, '#FFFFFF', 0.35),
+    reserva,
+  ]
+  return candidatas.find((cor) => contraste(cor, texto) >= 4.5) ?? reserva
+}
+
+function acentoSobre(acento: string, fundos: string[]) {
+  const reservas = [acento, '#FFE08A', '#FFB331', '#8FC8FF', '#12315F', '#F5F7FB', '#12141A']
+  for (const cor of reservas) {
+    let atual = cor
+    for (let passo = 0; passo < 6; passo += 1) {
+      if (fundos.every((fundo) => contraste(fundo, atual) >= 4.5) && contraste(atual, textoQuePassa([atual])) >= 4.5) return atual
+      atual = luminancia(fundos[0]) < 0.45 ? misturar(atual, '#FFFFFF', 0.2) : misturar(atual, '#12141A', 0.25)
+    }
+  }
+  return luminancia(fundos[0]) < 0.45 ? '#F5F7FB' : '#12141A'
+}
+
 function fecharPaleta(bruta: {
   id: string
   nome: string
@@ -63,9 +92,16 @@ function fecharPaleta(bruta: {
   destaque: string
   texto?: string
   textoSuave?: string
+  superficie?: string
+  elevada?: string
+  borda?: string
+  ouro?: string
+  sobreOuro?: string
 }): PaletaStories {
-  const fundos = [bruta.fundoA, bruta.fundoB]
-  const texto = textoQuePassa(fundos, bruta.texto)
+  const texto = textoQuePassa([bruta.fundoA, bruta.fundoB], bruta.texto)
+  const superficie = fundoQuePassa(bruta.superficie ?? misturar(bruta.fundoA, bruta.fundoB, 0.55), texto)
+  const elevada = fundoQuePassa(bruta.elevada ?? misturar(superficie, bruta.primaria, 0.35), texto)
+  const fundos = [bruta.fundoA, bruta.fundoB, superficie, elevada]
   const textoSuave = textoQuePassa(fundos, bruta.textoSuave ?? texto)
   let destaque = bruta.destaque
   let sobreDestaque = textoQuePassa([destaque], luminancia(destaque) > 0.4 ? TEXTO_ESCURO : TEXTO_CLARO)
@@ -73,6 +109,8 @@ function fecharPaleta(bruta: {
     destaque = luminancia(bruta.fundoA) < 0.4 ? '#D6E6FF' : '#12315F'
     sobreDestaque = textoQuePassa([destaque])
   }
+  const ouro = acentoSobre(bruta.ouro ?? destaque, fundos)
+  const sobreOuro = bruta.sobreOuro && contraste(ouro, bruta.sobreOuro) >= 4.5 ? bruta.sobreOuro : textoQuePassa([ouro])
   return {
     id: bruta.id,
     nome: bruta.nome,
@@ -83,6 +121,11 @@ function fecharPaleta(bruta: {
     texto,
     textoSuave,
     sobreDestaque,
+    superficie,
+    elevada,
+    borda: bruta.borda ?? misturar(superficie, texto, 0.22),
+    ouro,
+    sobreOuro,
   }
 }
 
@@ -91,11 +134,16 @@ export const PALETAS_STORIES: PaletaStories[] = [
     id: PALETA_OFICIAL_ID,
     nome: 'Preto e azul',
     fundoA: '#070D1A',
-    fundoB: '#12315F',
-    primaria: '#185FA5',
-    destaque: '#8FC8FF',
+    fundoB: '#0F1A2E',
+    primaria: '#3B82F6',
+    destaque: '#FFB331',
     texto: TEXTO_CLARO,
-    textoSuave: '#D5E2F4',
+    textoSuave: '#9AA8C1',
+    superficie: '#0F1A2E',
+    elevada: '#16243D',
+    borda: '#22324F',
+    ouro: '#FFB331',
+    sobreOuro: '#1A1205',
   }),
   fecharPaleta({
     id: 'verde',
@@ -203,7 +251,8 @@ export function paletaDaCorLivre(cor: string) {
 }
 
 export function paletaTemContraste(paleta: PaletaStories) {
-  const fundos = [paleta.fundoA, paleta.fundoB]
-  return fundos.every((fundo) => contraste(fundo, paleta.texto) >= 4.5 && contraste(fundo, paleta.textoSuave) >= 4.5)
+  const fundos = [paleta.fundoA, paleta.fundoB, paleta.superficie, paleta.elevada]
+  return fundos.every((fundo) => contraste(fundo, paleta.texto) >= 4.5 && contraste(fundo, paleta.textoSuave) >= 4.5 && contraste(fundo, paleta.ouro) >= 4.5)
     && contraste(paleta.destaque, paleta.sobreDestaque) >= 4.5
+    && contraste(paleta.ouro, paleta.sobreOuro) >= 4.5
 }

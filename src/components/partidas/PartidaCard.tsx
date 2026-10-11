@@ -1,12 +1,16 @@
+'use client'
+
 import { CalendarClock, ClipboardList, ExternalLink, MapPin, Radio } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import mi from '@/styles/microinteracoes.module.css'
 import { agendaDaPartida } from '@/lib/format-partida'
+import { cartazJogo } from '@/lib/stories-cartaz'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 
 type Set = { numero: number; pontosA: number; pontosB: number }
-type Equipe = { id: number; nome: string; corHex: string | null; vaga?: boolean }
+type Equipe = { id: number; nome: string; corHex: string | null; logoUrl?: string | null; vaga?: boolean }
 type Partida = {
   id: number
   rodada: number
@@ -34,7 +38,7 @@ const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' |
 
 // A súmula completa pede sessão de organizador ou de árbitro do jogo.
 // Na vitrine pública fica só o acompanhamento, que abre sem login.
-export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atraso = '0ms' }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string; atraso?: string }) {
+export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atraso = '0ms', compartilhar = false }: { partida: Partida; showSumulaLink?: boolean; roundLabel?: string; atraso?: string; compartilhar?: boolean }) {
   const badge = statusBadge[partida.status] ?? { label: partida.status || 'Status não informado', variant: 'neutral' as const }
   const emAndamento = partida.status === 'EM_ANDAMENTO'
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
@@ -112,11 +116,36 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
             <ExternalLink size={14} />
           </a>
         )}
-        <a href={publicoHref} target="_blank" rel="noreferrer" className="match-public-action">
-          <Radio size={15} />
-          <span>{liveLabel}</span>
-          <ExternalLink size={14} />
-        </a>
+        <div className="flex items-center gap-2">
+          <a href={publicoHref} target="_blank" rel="noreferrer" className="match-public-action min-w-0 flex-1">
+            <Radio size={15} />
+            <span>{liveLabel}</span>
+            <ExternalLink size={14} />
+          </a>
+          {compartilhar && (
+            <BotaoStoriesInstagram
+              variante="linha"
+              titulo={agenda.rotulo}
+              versao={`${partida.status}-${partida.setsPorA ?? ''}-${partida.setsPorB ?? ''}-${partida.sets?.length ?? 0}`}
+              montar={({ link }) => cartazJogo({
+                nomeA: partida.equipeA?.nome || 'A definir',
+                nomeB: partida.equipeB?.nome || 'A definir',
+                corA: partida.equipeA?.corHex ?? null,
+                corB: partida.equipeB?.corHex ?? null,
+                logoA: partida.equipeA?.logoUrl ?? null,
+                logoB: partida.equipeB?.logoUrl ?? null,
+                status: partida.status,
+                setsPorA: partida.setsPorA,
+                setsPorB: partida.setsPorB,
+                parciais: (partida.sets ?? []).map((set) => ({ numero: set.numero, pontosA: set.pontosA, pontosB: set.pontosB })),
+                campeonato: partida.liga?.nome ?? null,
+                rotulo: agenda.rotulo,
+                data: agenda.data,
+                local: agenda.local,
+              }, link)}
+            />
+          )}
+        </div>
       </div>
     </article>
   )

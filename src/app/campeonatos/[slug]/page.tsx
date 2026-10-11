@@ -152,6 +152,7 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
         thirdPlace={bracket.thirdPlace}
         podium={podium}
         finalizado={finalizado}
+        campeonato={liga.nome}
       />
 
       <section className="mx-auto max-w-7xl px-4 pb-8">

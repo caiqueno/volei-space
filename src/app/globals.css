@@ -4213,6 +4213,19 @@ html body .profile-sidebar-brand {
   border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
+html body .profile-sidebar-welcome {
+  margin: 12px 0 4px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+html body .profile-welcome-bar {
+  display: none;
+}
+
 html body .profile-sidebar-brand strong {
   display: block;
   font-size: 1.1rem;
@@ -4401,6 +4414,22 @@ html body:has(.profile-sidebar) > div > main {
 }
 
 @media (max-width: 1023px) {
+  html body .profile-welcome-bar {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 55;
+    margin: 0;
+    padding: 10px 16px;
+    background: rgba(3, 12, 24, 0.98);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.35;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    overflow-wrap: anywhere;
+  }
+
   html body .profile-mobile-nav {
     overflow: hidden;
     justify-content: flex-start;

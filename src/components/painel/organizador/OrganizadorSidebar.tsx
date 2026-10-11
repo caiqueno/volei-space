@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { CalendarDays, ClipboardCheck, Home, Images, LogOut, Radio, Settings, SlidersHorizontal, Table2, Trophy, UsersRound, type LucideIcon } from 'lucide-react'
+import { SessaoGestao } from '@/components/sessao/SessaoGestao'
 import { consultar } from '@/lib/api-cliente'
-import { encerrarSessaoPublica } from '@/lib/sessao-publica'
+import { saudacaoSessao } from '@/lib/sessao-gestao'
+import { encerrarSessaoPublica, lerSessaoPublica } from '@/lib/sessao-publica'
 
 export type PainelView = 'home' | 'parametrizacao' | 'campeonatos' | 'tabela' | 'jogos' | 'aovivo' | 'galeria' | 'settings' | 'elenco'
 
@@ -68,6 +70,12 @@ export function OrganizadorSidebar() {
   const [organizacaoNome, setOrganizacaoNome] = useState<string | null>(null)
   const [organizacaoLogoUrl, setOrganizacaoLogoUrl] = useState<string | null>(null)
   const [perfilLido, setPerfilLido] = useState(false)
+  const [saudacao, setSaudacao] = useState('')
+
+  useEffect(() => {
+    const sessao = lerSessaoPublica()
+    setSaudacao(saudacaoSessao(sessao?.nome, sessao?.email))
+  }, [])
 
   useEffect(() => {
     const controlador = new AbortController()
@@ -98,12 +106,15 @@ export function OrganizadorSidebar() {
 
   return (
     <>
+      <SessaoGestao />
+      {saudacao ? <p className="profile-welcome-bar">{saudacao}</p> : null}
       <aside className="profile-sidebar">
         <Link href={enderecoDoItem(ITENS[0], ligaId)} className="profile-sidebar-brand">
           <span className="relative h-[45px] w-[135px] shrink-0">
             <Image src="/brand/volei-space_wordmark_transparente.png" alt="volei.space" fill sizes="135px" className="object-contain object-left" priority />
           </span>
         </Link>
+        {saudacao ? <p className="profile-sidebar-welcome">{saudacao}</p> : null}
 
         <nav className={`profile-sidebar-nav ${obfuscated ? 'pointer-events-none opacity-40 saturate-50 brightness-90' : ''}`} style={{ marginTop: obfuscated ? 24 : undefined }} aria-hidden={obfuscated}>
           {ITENS.map((item) => {

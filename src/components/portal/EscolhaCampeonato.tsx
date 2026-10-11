@@ -12,7 +12,19 @@ type Campeonato = {
   logoUrl: string | null
 }
 
-export function EscolhaCampeonato() {
+type EscolhaCampeonatoProps = {
+  basePath?: string
+  kicker?: string
+  descricao?: string
+  filtro?: string
+}
+
+export function EscolhaCampeonato({
+  basePath = '/portal',
+  kicker = 'Portal',
+  descricao = 'Toque em um campeonato para abrir a agenda, a tabela e as fotos dele.',
+  filtro,
+}: EscolhaCampeonatoProps = {}) {
   const [campeonatos, setCampeonatos] = useState<Campeonato[]>([])
   const [busca, setBusca] = useState('')
   const [consulta, setConsulta] = useState('')
@@ -65,9 +77,9 @@ export function EscolhaCampeonato() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-10">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ffb331]">Portal</p>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ffb331]">{kicker}</p>
       <h1 className="mt-2 font-display text-4xl font-black text-white">Escolha seu campeonato</h1>
-      <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">Toque em um campeonato para abrir a agenda, a tabela e as fotos dele.</p>
+      <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">{descricao}</p>
       <label className="mt-6 block max-w-md">
         <span className="sr-only">Pesquisar campeonato</span>
         <input
@@ -82,7 +94,7 @@ export function EscolhaCampeonato() {
       {!carregando && campeonatos.length === 0 && <p className="mt-8 text-sm font-semibold text-slate-300">Nenhum campeonato encontrado.</p>}
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {campeonatos.map((campeonato) => (
-          <Link key={campeonato.id} href={`/portal?ligaId=${campeonato.id}`} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
+          <Link key={campeonato.id} href={hrefDoCampeonato(basePath, campeonato.id, filtro)} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
             <div className="aspect-video bg-slate-950">
               <img src={capaDoCampeonato(campeonato.id, campeonato.capaUrl, campeonato.logoUrl)} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
             </div>
@@ -100,4 +112,11 @@ export function EscolhaCampeonato() {
       )}
     </section>
   )
+}
+
+function hrefDoCampeonato(basePath: string, id: number, filtro?: string) {
+  const params = new URLSearchParams()
+  params.set('ligaId', String(id))
+  if (filtro && filtro !== 'todos') params.set('filtro', filtro)
+  return `${basePath}?${params.toString()}`
 }

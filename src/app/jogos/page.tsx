@@ -5,6 +5,7 @@ import { CalendarDays, RotateCcw } from 'lucide-react'
 import { PageHero } from '@/components/layout/PageHero'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
 import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
+import { EscolhaCampeonato } from '@/components/portal/EscolhaCampeonato'
 import { JogosPublicos } from '@/components/portal/JogosPublicos'
 import { PortalAgenda } from '@/components/portal/PortalAgenda'
 import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
@@ -52,7 +53,22 @@ type PageProps = {
 export default async function JogosPage({ searchParams }: PageProps) {
   noStore()
   const params = searchParams ? await searchParams : {}
-  if (!params.candidaturaId && !params.ligaId) return <JogosPublicos filtro={params.filtro} pagina={params.pagina} />
+  if (!params.candidaturaId && !params.organizador) {
+    const ligaId = Number(params.ligaId)
+    if (!Number.isInteger(ligaId) || ligaId <= 0) {
+      return (
+        <main className="luva-shell min-h-screen overflow-hidden pb-28 lg:pb-0">
+          <EscolhaCampeonato
+            basePath="/jogos"
+            kicker="Jogos"
+            descricao="Toque em um campeonato para ver só os jogos dele."
+            filtro={params.filtro}
+          />
+        </main>
+      )
+    }
+    return <JogosPublicos filtro={params.filtro} pagina={params.pagina} ligaId={ligaId} />
+  }
   const retryParams = new URLSearchParams()
   if (params.organizador) retryParams.set('organizador', params.organizador)
   if (params.ligaId) retryParams.set('ligaId', params.ligaId)
@@ -168,15 +184,15 @@ export default async function JogosPage({ searchParams }: PageProps) {
                 return `/jogos?${consulta.toString()}`
               }}
             />
-            <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} categoriaId={categoriaId} compartilhar={!scope.organizadorId && !equipeCapitao} />
+            <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} categoriaId={categoriaId} compartilhar={!scope.organizadorId && !equipeCapitao} campeonato={scope.selectedLiga.nome} />
           </div>
         ) : partidas.length === 0 ? (
           <EstadoVazio titulo={equipeCapitao ? 'Nenhum jogo para sua equipe' : 'Nenhum jogo cadastrado'} descricao={equipeCapitao ? 'As partidas do seu time aparecerão aqui quando o campeonato montar o calendário.' : 'As partidas aparecerão aqui quando a organização montar o calendário.'} />
         ) : !scope.selectedLiga && !equipeCapitao ? (
           <div className="grid gap-8">
-            <GradeJogos titulo="Em andamento" partidas={partidas.filter((partida) => partida.status === 'EM_ANDAMENTO')} />
-            <GradeJogos titulo="Próximos jogos" partidas={partidas.filter((partida) => partida.status === 'AGENDADA' || partida.status === 'PENDENTE')} />
-            <GradeJogos titulo="Resultados" partidas={partidas.filter((partida) => partida.status === 'ENCERRADA' || partida.status === 'WO')} />
+            <GradeJogos titulo="Em andamento" partidas={partidas.filter((partida) => partida.status === 'EM_ANDAMENTO')} compartilhar />
+            <GradeJogos titulo="Próximos jogos" partidas={partidas.filter((partida) => partida.status === 'AGENDADA' || partida.status === 'PENDENTE')} compartilhar />
+            <GradeJogos titulo="Resultados" partidas={partidas.filter((partida) => partida.status === 'ENCERRADA' || partida.status === 'WO')} compartilhar />
           </div>
         ) : (
           <>
@@ -209,7 +225,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
   )
 }
 
-function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
+function GradeJogos({ titulo, partidas, compartilhar = false }: { titulo: string; partidas: any[]; compartilhar?: boolean }) {
   if (partidas.length === 0) return null
   const primeiros = partidas.slice(0, 8)
   const resto = partidas.slice(8)
@@ -217,13 +233,13 @@ function GradeJogos({ titulo, partidas }: { titulo: string; partidas: any[] }) {
     <section>
       <h2 className="font-display text-2xl font-black text-white">{titulo}</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {primeiros.map((partida, index) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} atraso={`${Math.min(index, 8) * 30}ms`} />)}
+        {primeiros.map((partida, index) => <PartidaCard key={`${titulo}-${partida.id}`} partida={partida} atraso={`${Math.min(index, 8) * 30}ms`} compartilhar={compartilhar} />)}
       </div>
       {resto.length > 0 && (
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-black text-[#ffb331]">Ver mais {resto.length} jogos</summary>
           <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {resto.map((partida) => <PartidaCard key={`${titulo}-mais-${partida.id}`} partida={partida} />)}
+            {resto.map((partida) => <PartidaCard key={`${titulo}-mais-${partida.id}`} partida={partida} compartilhar={compartilhar} />)}
           </div>
         </details>
       )}
