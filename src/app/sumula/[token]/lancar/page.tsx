@@ -4,9 +4,11 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useParams } from 'next/navigation'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { QuadraVolei } from '@/components/sumula/QuadraVolei'
 import { atletaRepetidoNaPapeleta, escalacaoParaJogo, papeletaCompleta, papeletaDoProximoSet } from '@/lib/escalacao-inicial'
-import { camisaDaSumula, destaqueDoJogador, equipeIdPeloNome, mvpDasOcorrencias, passoDeFechamento } from '@/lib/mvp-partida'
+import { AVISO_ESCOLHA_MVP, camisaDaSumula, destaqueDoJogador, deveAbrirModalMvp, equipeIdPeloNome, mvpDasOcorrencias, passoDeFechamento, reabreModalMvp } from '@/lib/mvp-partida'
 import { MARCA_SEM_NUMERO, NUMERO_SEM_CAMISA, numeroMvpDaLista, numeroSemCamisa, passagemDeNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
@@ -79,6 +81,8 @@ type Team = {
   id: TeamId
   dbId: number
   name: string
+  logoUrl?: string | null
+  corHex?: string | null
   players: Player[]
   reserves: Player[]
 }
@@ -235,6 +239,9 @@ export default function SumulaPage() {
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const [confirmarOficial, setConfirmarOficial] = useState(false)
+  const [modalMvpAberto, setModalMvpAberto] = useState(false)
+  const [escolhaMvpId, setEscolhaMvpId] = useState('')
+  const modalMvpAutoRef = useRef(false)
   const [confirmarDesfazer, setConfirmarDesfazer] = useState<{ teamId: TeamId; collateral: number; nome: string; outro: string } | null>(null)
   const [confirmarTempo, setConfirmarTempo] = useState<{ tipo: 'tecnico' | 'equipe' | 'medico'; teamId: TeamId; nome: string } | null>(null)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -248,6 +255,23 @@ export default function SumulaPage() {
   useEffect(() => {
     setSidebarFixa(lerSidebarSumula(window.localStorage) === 'fixa')
   }, [])
+
+  useEffect(() => {
+    if (loading || notFound || submitted || setEndPrompt) return
+    if (matchStatus !== 'finished') {
+      modalMvpAutoRef.current = false
+      return
+    }
+    if (!deveAbrirModalMvp({
+      partidaEncerrada: true,
+      temMvp: Boolean(mvpId),
+      sumulaAprovada: Boolean(partida?.sumulaAprovadaEm),
+      jaAbriuNestaDeteccao: modalMvpAutoRef.current,
+    })) return
+    modalMvpAutoRef.current = true
+    setEscolhaMvpId(mvpId)
+    setModalMvpAberto(true)
+  }, [loading, notFound, submitted, setEndPrompt, matchStatus, mvpId, partida?.sumulaAprovadaEm])
 
   useEffect(() => {
     let ativo = true
@@ -1162,9 +1186,56 @@ export default function SumulaPage() {
     addMatchEvent('anotacao', textoTempoMedico(team.name), teamId)
   }
 
-  function escolherMvp(jogadorId: string) {
+  function escolherMvp(jogadorId: string, avisar = true) {
+    if (jogadorId && !jogadoresVencedores.some((player) => String(player.id) === jogadorId)) {
+      setErroOficial('O MVP precisa ser um atleta da equipe vencedora.')
+      addToast('O MVP precisa ser um atleta da equipe vencedora.')
+      return false
+    }
     setMvpId(jogadorId)
-    if (jogadorId) addToast('MVP da equipe vencedora gravado na súmula.')
+    if (rascunhoRef.current) rascunhoRef.current = { ...rascunhoRef.current, mvpId: jogadorId }
+    if (avisar && jogadorId && jogadorId !== mvpId) addToast('MVP da equipe vencedora gravado na súmula.')
+    if (jogadorId) setErroOficial('')
+    return true
+  }
+
+  function abrirModalMvp() {
+    if (!reabreModalMvp({
+      partidaEncerrada: matchStatus === 'finished',
+      sumulaAprovada: Boolean(partida?.sumulaAprovadaEm),
+    })) return
+    setEscolhaMvpId(mvpId)
+    setModalMvpAberto(true)
+    setSidebarOpen(false)
+  }
+
+  function marcarEscolhaMvp(jogadorId: string) {
+    setEscolhaMvpId(jogadorId)
+    if (!jogadoresVencedores.some((player) => String(player.id) === jogadorId)) {
+      setErroOficial('O MVP precisa ser um atleta da equipe vencedora.')
+      return
+    }
+    setErroOficial('')
+  }
+
+  function confirmarEscolhaMvp() {
+    if (!escolhaMvpId) {
+      setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      addToast('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      return
+    }
+    escolherMvp(escolhaMvpId)
+  }
+
+  function oficializarNoModal() {
+    const id = escolhaMvpId || mvpId
+    if (!id) {
+      setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      addToast('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      return
+    }
+    if (!escolherMvp(id, id !== mvpId)) return
+    pedirOficializacao()
   }
 
   function saveNote(payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) {
@@ -1373,7 +1444,11 @@ export default function SumulaPage() {
   function mvpParaOficializar() {
     if (!teamA || !teamB) return ''
     const daVencedora = (id: string) => jogadoresVencedores.some((player) => String(player.id) === id)
-    if (mvpId && daVencedora(mvpId)) return mvpId
+    const atual = rascunhoRef.current?.mvpId ?? mvpId
+    if (atual && daVencedora(atual)) {
+      if (atual !== mvpId) setMvpId(atual)
+      return atual
+    }
     const textos = [
       ...anotacoes.map((note) => ({ descricao: `[${note.tipo}] ${note.equipeRelacionada} - ${note.pessoaRelacionada}: ${note.descricao}` })),
       ...events.map((event) => ({ descricao: event.text })),
@@ -1407,10 +1482,9 @@ export default function SumulaPage() {
   function pedirOficializacao() {
     if (matchStatus !== 'finished') return
     if (!mvpParaOficializar()) {
-      setActiveTab('anotacoes')
-      setSidebarOpen(false)
+      setModalMvpAberto(true)
       setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
-      addToast('Escolha o MVP da equipe vencedora na aba Anotações.')
+      addToast('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
       return
     }
     const motivo = motivoDaOficializacao()
@@ -1548,14 +1622,14 @@ export default function SumulaPage() {
   })
   const motivoPresencaOficial = matchStatus === 'finished' ? motivoDaOficializacao() : null
   const avisoOficial = [
-    mvpId ? null : 'A partida já tem vencedor. Escolha o MVP e oficialize a súmula.',
+    mvpId ? null : AVISO_ESCOLHA_MVP,
     motivoPresencaOficial,
     mvpId && !motivoPresencaOficial ? 'MVP definido. A súmula pode ser oficializada.' : null,
   ].filter(Boolean).join(' ')
 
   function acaoFechamento() {
     if (matchStatus === 'finished') {
-      pedirOficializacao()
+      abrirModalMvp()
       return
     }
     if (podeEncerrarSet) {
@@ -1854,6 +1928,24 @@ export default function SumulaPage() {
           <AnotacoesTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} anotacoes={anotacoes} saveNote={saveNote} mvpId={mvpId} setMvpId={escolherMvp} allPlayers={jogadoresVencedores} mvpTeamId={setsWon.teamA > setsWon.teamB ? 'teamA' : 'teamB'} getMatchNumber={getMatchNumber} />
         )}
       </section>
+
+      {modalMvpAberto && (
+        <ModalEscolhaMvp
+          teamA={teamA}
+          teamB={teamB}
+          vencedorId={setsWon.teamA === setsWon.teamB ? null : setsWon.teamA > setsWon.teamB ? 'teamA' : 'teamB'}
+          setsWon={setsWon}
+          escolhaId={escolhaMvpId}
+          mvpId={mvpId}
+          erro={erroOficial}
+          submitting={submitting}
+          onEscolher={marcarEscolhaMvp}
+          onSelecionar={confirmarEscolhaMvp}
+          onOficializar={oficializarNoModal}
+          onFechar={() => setModalMvpAberto(false)}
+          getMatchNumber={getMatchNumber}
+        />
+      )}
 
       {setEndPrompt && (
         <SetEndConfirmModal
@@ -2819,7 +2911,9 @@ function EscalacaoTab(props: {
     const sideLibero = props.startingLiberos[teamId] ?? ''
     return (
       <div className={`official-court is-facing ${teamId === selectedTeamId ? 'is-selected' : ''}`}>
-        <strong>{sideTeam.name}</strong>
+        <strong className="official-side-brand">
+          <CabecalhoLado team={sideTeam} />
+        </strong>
         <div>
           {zonas.map((slot) => {
             const number = sideLineup[slot.index]
@@ -3755,6 +3849,141 @@ function PenaltyModal({
   )
 }
 
+function ModalEscolhaMvp({
+  teamA,
+  teamB,
+  vencedorId,
+  setsWon,
+  escolhaId,
+  mvpId,
+  erro,
+  submitting,
+  onEscolher,
+  onSelecionar,
+  onOficializar,
+  onFechar,
+  getMatchNumber,
+}: {
+  teamA: Team
+  teamB: Team
+  vencedorId: TeamId | null
+  setsWon: { teamA: number; teamB: number }
+  escolhaId: string
+  mvpId: string
+  erro: string
+  submitting: boolean
+  onEscolher: (jogadorId: string) => void
+  onSelecionar: () => void
+  onOficializar: () => void
+  onFechar: () => void
+  getMatchNumber: (teamId: TeamId, number: string) => string
+}) {
+  const painelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    painelRef.current?.focus()
+  }, [])
+  useEffect(() => {
+    function aoTeclar(event: KeyboardEvent) {
+      if (event.key === 'Escape') onFechar()
+    }
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+  }, [onFechar])
+
+  const equipes = [teamA, teamB]
+  const nomeVencedora = vencedorId === 'teamA' ? teamA.name : vencedorId === 'teamB' ? teamB.name : ''
+  const mvpGravado = Boolean(mvpId) && mvpId === escolhaId
+
+  function camisa(teamId: TeamId, player: Player) {
+    return camisaDaSumula({
+      id: player.id,
+      equipeId: teamId,
+      nome: player.name,
+      numeroCadastro: player.number,
+      numeroSumula: getMatchNumber(teamId, player.number),
+    })
+  }
+
+  function atletas(team: Team) {
+    return [...team.players, ...team.reserves].sort((a, b) => {
+      const numeroA = Number(camisa(team.id, a))
+      const numeroB = Number(camisa(team.id, b))
+      const ordemA = Number.isFinite(numeroA) && camisa(team.id, a) !== '' ? numeroA : 999
+      const ordemB = Number.isFinite(numeroB) && camisa(team.id, b) !== '' ? numeroB : 999
+      if (ordemA !== ordemB) return ordemA - ordemB
+      return a.name.localeCompare(b.name, 'pt-BR')
+    })
+  }
+
+  return (
+    <div className="official-mvp-modal" onClick={onFechar}>
+      <div
+        ref={painelRef}
+        className="official-mvp-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-mvp-titulo"
+        aria-describedby="modal-mvp-texto"
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="official-mvp-modal-topo">
+          <div>
+            <span>Súmula oficial</span>
+            <h2 id="modal-mvp-titulo">Escolha o MVP</h2>
+            <p id="modal-mvp-texto">{AVISO_ESCOLHA_MVP}</p>
+            {nomeVencedora ? <strong>{nomeVencedora} venceu por {setsWon.teamA} x {setsWon.teamB}</strong> : <strong>A partida precisa de uma equipe vencedora antes do MVP.</strong>}
+          </div>
+          <button type="button" className="official-mvp-fechar" onClick={onFechar}>Fechar</button>
+        </header>
+        <div className="official-mvp-equipes">
+          {equipes.map((team) => {
+            const vencedora = team.id === vencedorId
+            return (
+              <section key={team.id} className={vencedora ? 'is-vencedora' : ''} aria-label={team.name}>
+                <header>
+                  <h3>{team.name}</h3>
+                  <em>{vencedora ? 'Vencedora' : 'Adversária'}</em>
+                </header>
+                <div className="official-mvp-lista">
+                  {atletas(team).map((player) => {
+                    const id = String(player.id)
+                    const selecionado = escolhaId === id
+                    const numero = camisa(team.id, player) || 's/n'
+                    const nome = displayPlayerName(player.name, team.name)
+                    return (
+                      <button
+                        key={player.id}
+                        type="button"
+                        className={`official-mvp-atleta${selecionado ? ' is-selected' : ''}${mvpId === id ? ' is-gravado' : ''}`}
+                        aria-pressed={selecionado}
+                        onClick={() => onEscolher(id)}
+                      >
+                        <strong>#{numero}</strong>
+                        <span>{nome}</span>
+                        {mvpId === id ? <em>MVP</em> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+        {mvpGravado ? <p className="official-mvp-status" role="status">MVP gravado na súmula. A oficialização publica o resultado.</p> : null}
+        {erro ? <p className="official-mvp-erro" role="alert">{erro}</p> : null}
+        <div className="official-mvp-acoes">
+          <button type="button" onClick={onSelecionar}>Selecionar MVP</button>
+          <ActionBar type="button" onClick={onOficializar} loading={submitting} loadingLabel="Enviando" disabled={submitting}>
+            <Send size={18} />
+            Oficializar súmula
+          </ActionBar>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SetEndConfirmModal({
   teamName,
   score,
@@ -3901,7 +4130,9 @@ function RosterClickers({
   return (
     <section className="official-mini-panel">
       <div className="official-section-row official-roster-header">
-        <h3>{team.name}</h3>
+        <h3 className="official-side-brand">
+          <CabecalhoLado team={team} />
+        </h3>
       </div>
       <div className="official-player-grid is-facing">
         {visualSlots.map((slot) => {
@@ -4506,9 +4737,20 @@ function makeTeam(id: TeamId, data: any, presencas: any[] = []): Team {
     id,
     dbId: data?.id ?? 0,
     name: normalizarNomeEquipe(String(data?.nome ?? '')),
+    logoUrl: data?.logoUrl ?? null,
+    corHex: data?.corHex ?? null,
     players: players.slice(0, 6),
     reserves: players.slice(6),
   }
+}
+
+function CabecalhoLado({ team }: { team: Team }) {
+  return (
+    <>
+      <TeamIdentity nome={team.name} cor={team.corHex} logoUrl={team.logoUrl} compact showName={false} />
+      <NomeEquipe nome={team.name} />
+    </>
+  )
 }
 
 function numeroGravadoNaLista(jogadorId: number, presencas: any[]): number | null {

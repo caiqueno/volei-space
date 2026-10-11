@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { comTimesProvisorios, type GrupoProvisorio, type LadoChave } from '../src/lib/semi-provisoria'
+import { comTimesProvisorios, gruposDaTabela, type GrupoProvisorio, type LadoChave } from '../src/lib/semi-provisoria'
 
 const grupos: GrupoProvisorio[] = [
   {
@@ -127,3 +127,37 @@ const duplicado = comTimesProvisorios(chave([
 ]), grupos)
 assert.equal(duplicado[0].slots[0].partida?.equipeB.nome, '1º Grupo A')
 assert.equal(duplicado[0].slots[0].partida?.equipeB.provisorio, undefined)
+
+const montados = gruposDaTabela([
+  {
+    grupos: [
+      {
+        nome: 'Grupo A',
+        vagas: 2,
+        linhas: [
+          { posicao: 1, equipeId: 10, equipe: 'TARGET', logoUrl: '/t.png', corHex: '#111111' },
+          { posicao: 2, equipeId: 0, equipe: 'Fora', logoUrl: null, corHex: null },
+        ],
+      },
+    ],
+  },
+  {
+    grupos: [
+      {
+        nome: 'Grupo B',
+        linhas: [
+          { posicao: 1, equipeId: 20, equipe: 'RS', logoUrl: null, corHex: null },
+        ],
+      },
+    ],
+  },
+  { grupos: undefined },
+])
+assert.equal(montados.length, 2)
+assert.equal(montados[0].vagas, 2)
+assert.equal(montados[0].linhas.length, 1)
+assert.equal(montados[0].linhas[0].equipe, 'TARGET')
+assert.equal(montados[0].linhas[0].logoUrl, '/t.png')
+assert.equal(montados[1].vagas, 0)
+assert.equal(montados[1].linhas[0].equipe, 'RS')
+assert.equal(montados[1].linhas[0].corHex, null)

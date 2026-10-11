@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck, X } from 'lucide-react'
+import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck, UserPlus, X } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { numeroNaPartida, presencaFoiDecidida, proximoAtletaNoElenco, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
+import { presencaNaTela, validarNovoAtleta } from '@/lib/presenca-herdada'
 import { jogoJaIniciado } from '@/lib/arbitro-responsavel'
 import { formatarDataPartida } from '@/lib/format-partida'
 
@@ -28,6 +29,11 @@ export default function OperacaoArbitroPage() {
   const [numeroSalvoId, setNumeroSalvoId] = useState<number | null>(null)
   const [avisoNumero, setAvisoNumero] = useState('')
   const badgeRefs = useRef<Record<number, HTMLButtonElement | null>>({})
+  const [formEquipeId, setFormEquipeId] = useState<number | null>(null)
+  const [nomeAtleta, setNomeAtleta] = useState('')
+  const [numeroAtleta, setNumeroAtleta] = useState('')
+  const [erroAtleta, setErroAtleta] = useState('')
+  const [salvandoAtleta, setSalvandoAtleta] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [scanError, setScanError] = useState('')
@@ -72,11 +78,12 @@ export default function OperacaoArbitroPage() {
   const jogadoresA = useMemo(() => ordenarAtletasPorNome(partida?.equipeA?.jogadores ?? []), [partida])
   const jogadoresB = useMemo(() => ordenarAtletasPorNome(partida?.equipeB?.jogadores ?? []), [partida])
   const totalAtletas = jogadoresA.length + jogadoresB.length
-  const presencasDecididas = presencas.filter((item: { presente?: boolean | null }) => presencaFoiDecidida(item))
-  const totalValidados = presencasDecididas.length
+  const exibidosA = jogadoresA.filter((jogador) => presencaDoAtleta(presencas, jogador) != null)
+  const exibidosB = jogadoresB.filter((jogador) => presencaDoAtleta(presencas, jogador) != null)
+  const totalValidados = exibidosA.length + exibidosB.length
   const progresso = totalAtletas > 0 ? Math.round((totalValidados / totalAtletas) * 100) : 0
-  const presentesA = presencasDecididas.filter((p: any) => p.equipeId === partida?.equipeAId).length
-  const presentesB = presencasDecididas.filter((p: any) => p.equipeId === partida?.equipeBId).length
+  const presentesA = exibidosA.length
+  const presentesB = exibidosB.length
   const partidaEncerrada = String(partida?.status || '').toUpperCase() === 'ENCERRADA'
 
   async function validateQrToken(value: string, keepScanning = false) {
@@ -315,6 +322,74 @@ export default function OperacaoArbitroPage() {
     }
   }
 
+  function abrirFormAtleta(equipeId: number) {
+    if (salvandoAtleta) return
+    if (formEquipeId === equipeId) {
+      setFormEquipeId(null)
+      setErroAtleta('')
+      return
+    }
+    setFormEquipeId(equipeId)
+    setNomeAtleta('')
+    setNumeroAtleta('')
+    setErroAtleta('')
+  }
+
+  async function adicionarAtleta(equipeId: number) {
+    if (salvandoAtleta || !partida) return
+    const elenco = Number(equipeId) === Number(partida.equipeAId) ? jogadoresA : jogadoresB
+    const validado = validarNovoAtleta({
+      nome: nomeAtleta,
+      numero: numeroAtleta,
+      atletas: elenco,
+      equipeId,
+    })
+    if ('erro' in validado) {
+      setErroAtleta(validado.erro)
+      return
+    }
+    setSalvandoAtleta(true)
+    setErroAtleta('')
+    setMsg('')
+    try {
+      const res = await fetch('/api/jogadores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: validado.nome,
+          numero: validado.numero,
+          equipeId,
+          sumulaToken: token,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErroAtleta(json.error ?? 'Não foi possível adicionar o atleta.')
+        return
+      }
+      const criado = json.data
+      const presenca = await fetch(`/api/arbitro/partidas/${token}/presenca`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jogadorId: criado.id, presente: true }),
+      })
+      const presencaJson = await presenca.json().catch(() => ({}))
+      await fetchPartida()
+      if (!presenca.ok) {
+        setMsg(presencaJson.error ?? `${validado.nome} entrou no elenco, mas a presença não foi gravada.`)
+        return
+      }
+      setFormEquipeId(null)
+      setNomeAtleta('')
+      setNumeroAtleta('')
+      setMsg(`${validado.nome} entrou no elenco e está presente.`)
+    } catch {
+      setErroAtleta('Falha de conexão. O atleta não foi adicionado.')
+    } finally {
+      setSalvandoAtleta(false)
+    }
+  }
+
   async function iniciarPartida() {
     if (starting) return
     setStarting(true)
@@ -399,8 +474,8 @@ export default function OperacaoArbitroPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <TeamRoster team={partida.equipeA} jogadores={jogadoresA} presencas={presencas} presentes={presentesA} savingId={savingId} salvandoNumeroId={salvandoNumeroId} podeEditarNumero={!partidaEncerrada} editorNumero={editorNumero} rascunhoNumero={rascunhoNumero} erroNumero={erroNumero}   numeroSalvoId={numeroSalvoId} onPresenca={marcarPresenca} onAbrirNumero={abrirNumero} onRascunhoNumero={alterarRascunhoNumero} onSalvarNumero={salvarNumero} onCancelarNumero={cancelarNumero} badgeRef={(jogadorId, elemento) => { badgeRefs.current[jogadorId] = elemento }} />
-          <TeamRoster team={partida.equipeB} jogadores={jogadoresB} presencas={presencas} presentes={presentesB} savingId={savingId} salvandoNumeroId={salvandoNumeroId} podeEditarNumero={!partidaEncerrada} editorNumero={editorNumero} rascunhoNumero={rascunhoNumero} erroNumero={erroNumero} numeroSalvoId={numeroSalvoId} onPresenca={marcarPresenca} onAbrirNumero={abrirNumero} onRascunhoNumero={alterarRascunhoNumero} onSalvarNumero={salvarNumero} onCancelarNumero={cancelarNumero} badgeRef={(jogadorId, elemento) => { badgeRefs.current[jogadorId] = elemento }} />
+          <TeamRoster team={partida.equipeA} jogadores={jogadoresA} presencas={presencas} presentes={presentesA} savingId={savingId} salvandoNumeroId={salvandoNumeroId} podeEditarNumero={!partidaEncerrada} editorNumero={editorNumero} rascunhoNumero={rascunhoNumero} erroNumero={erroNumero} numeroSalvoId={numeroSalvoId} onPresenca={marcarPresenca} onAbrirNumero={abrirNumero} onRascunhoNumero={alterarRascunhoNumero} onSalvarNumero={salvarNumero} onCancelarNumero={cancelarNumero} badgeRef={(jogadorId, elemento) => { badgeRefs.current[jogadorId] = elemento }} formAberto={formEquipeId === partida.equipeAId} nomeAtleta={nomeAtleta} numeroAtleta={numeroAtleta} erroAtleta={erroAtleta} salvandoAtleta={salvandoAtleta} onAbrirForm={() => abrirFormAtleta(partida.equipeAId)} onNomeAtleta={setNomeAtleta} onNumeroAtleta={(valor) => { setNumeroAtleta(valor); setErroAtleta('') }} onAdicionar={() => adicionarAtleta(partida.equipeAId)} />
+          <TeamRoster team={partida.equipeB} jogadores={jogadoresB} presencas={presencas} presentes={presentesB} savingId={savingId} salvandoNumeroId={salvandoNumeroId} podeEditarNumero={!partidaEncerrada} editorNumero={editorNumero} rascunhoNumero={rascunhoNumero} erroNumero={erroNumero} numeroSalvoId={numeroSalvoId} onPresenca={marcarPresenca} onAbrirNumero={abrirNumero} onRascunhoNumero={alterarRascunhoNumero} onSalvarNumero={salvarNumero} onCancelarNumero={cancelarNumero} badgeRef={(jogadorId, elemento) => { badgeRefs.current[jogadorId] = elemento }} formAberto={formEquipeId === partida.equipeBId} nomeAtleta={nomeAtleta} numeroAtleta={numeroAtleta} erroAtleta={erroAtleta} salvandoAtleta={salvandoAtleta} onAbrirForm={() => abrirFormAtleta(partida.equipeBId)} onNomeAtleta={setNomeAtleta} onNumeroAtleta={(valor) => { setNumeroAtleta(valor); setErroAtleta('') }} onAdicionar={() => adicionarAtleta(partida.equipeBId)} />
         </div>
 
         <div className="referee-card rounded-[2rem] border p-6">
@@ -496,10 +571,18 @@ function ordenarAtletasPorNome<T extends { id: number; nome?: string | null }>(j
   ))
 }
 
-function rotuloPresenca(presencas: any[], jogadorId: number) {
-  const registro = presencas.find((item) => item.jogadorId === jogadorId)
-  if (!presencaFoiDecidida(registro)) return 'Pendente'
-  return registro.presente ? 'Confirmado' : 'Ausente'
+function presencaDoAtleta(presencas: any[], jogador: { id: number; presencaHerdada?: boolean | null }) {
+  const registro = presencas.find((item) => item.jogadorId === jogador.id)
+  return presencaNaTela({
+    presenteDesteJogo: presencaFoiDecidida(registro) ? registro.presente : null,
+    presencaHerdada: jogador.presencaHerdada,
+  })
+}
+
+function rotuloPresenca(valor: boolean | null) {
+  if (valor === true) return 'Confirmado'
+  if (valor === false) return 'Ausente'
+  return 'Pendente'
 }
 
 function TeamRoster({
@@ -520,6 +603,15 @@ function TeamRoster({
   onSalvarNumero,
   onCancelarNumero,
   badgeRef,
+  formAberto,
+  nomeAtleta,
+  numeroAtleta,
+  erroAtleta,
+  salvandoAtleta,
+  onAbrirForm,
+  onNomeAtleta,
+  onNumeroAtleta,
+  onAdicionar,
 }: {
   team: any
   jogadores: any[]
@@ -538,6 +630,15 @@ function TeamRoster({
   onSalvarNumero: (jogadorId: number, numero: number | null | '') => void
   onCancelarNumero: (jogadorId: number) => void
   badgeRef: (jogadorId: number, elemento: HTMLButtonElement | null) => void
+  formAberto: boolean
+  nomeAtleta: string
+  numeroAtleta: string
+  erroAtleta: string
+  salvandoAtleta: boolean
+  onAbrirForm: () => void
+  onNomeAtleta: (valor: string) => void
+  onNumeroAtleta: (valor: string) => void
+  onAdicionar: () => void
 }) {
   return (
     <div className="referee-card rounded-[2rem] border p-5">
@@ -545,12 +646,58 @@ function TeamRoster({
         <TeamBox team={team} />
         <span className="referee-status is-open rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-wide">{presentes}/{jogadores.length}</span>
       </div>
+      {team.ultimaPartidaId ? (
+        <p className="mb-4 text-sm font-bold leading-6 text-white/75">Sugestão da última partida desta equipe na liga. O verde e o vermelho ainda não estão gravados neste jogo. Toque em ✓ ou X para confirmar ou alterar.</p>
+      ) : null}
+      <button type="button" onClick={onAbrirForm} disabled={salvandoAtleta} className="referee-primary mb-4 inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-4 text-base font-black disabled:opacity-45">
+        <UserPlus size={20} />
+        Adicionar atleta
+      </button>
+      {formAberto && (
+        <form
+          className="referee-add-athlete mb-4 grid gap-3 rounded-2xl border p-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onAdicionar()
+          }}
+        >
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide">
+            Nome
+            <input
+              value={nomeAtleta}
+              onChange={(event) => onNomeAtleta(event.target.value)}
+              autoComplete="name"
+              disabled={salvandoAtleta}
+              className="referee-input h-14 rounded-xl border px-3 text-base font-bold normal-case tracking-normal outline-none"
+            />
+          </label>
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide">
+            Número
+            <input
+              value={numeroAtleta}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              enterKeyHint="done"
+              autoComplete="off"
+              maxLength={2}
+              disabled={salvandoAtleta}
+              onChange={(event) => onNumeroAtleta(event.target.value.replace(/\D/g, '').slice(0, 2))}
+              className="referee-input h-14 rounded-xl border px-3 text-base font-bold outline-none"
+            />
+          </label>
+          {erroAtleta && <p className="referee-feedback is-error text-sm font-bold" role="alert">{erroAtleta}</p>}
+          <button type="submit" disabled={salvandoAtleta} className="referee-primary inline-flex h-14 items-center justify-center rounded-xl px-3 text-base font-black disabled:opacity-45">
+            {salvandoAtleta ? 'Adicionando' : 'Adicionar'}
+          </button>
+        </form>
+      )}
       <div className="grid gap-3">
         {jogadores.length === 0 ? (
           <p className="referee-empty rounded-2xl border p-4 text-sm font-bold">Nenhum atleta cadastrado.</p>
         ) : (
           jogadores.map((jogador) => {
-            const status = rotuloPresenca(presencas, jogador.id)
+            const valorPresenca = presencaDoAtleta(presencas, jogador)
+            const status = rotuloPresenca(valorPresenca)
             const salvando = savingId === jogador.id
             const editando = editorNumero === jogador.id
             const salvandoNumero = salvandoNumeroId === jogador.id
@@ -572,12 +719,12 @@ function TeamRoster({
                         aria-controls={editando ? `editor-numero-${jogador.id}` : undefined}
                         disabled={salvando || salvandoNumero}
                         onClick={() => editando ? onCancelarNumero(jogador.id) : onAbrirNumero(jogador)}
-                        className={`referee-number inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black disabled:opacity-45 ${numeroSalvoId === jogador.id ? 'is-saved' : ''}`}
+                        className={`referee-number inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-sm font-black disabled:opacity-45 ${numeroSalvoId === jogador.id ? 'is-saved' : ''}`}
                       >
                         {textoNumero}
                       </button>
                     ) : (
-                      <span className="referee-number inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black" aria-label={`Número ${textoNumero} de ${jogador.nome}`}>
+                      <span className="referee-number inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-sm font-black" aria-label={`Número ${textoNumero} de ${jogador.nome}`}>
                         {textoNumero}
                       </span>
                     )}
@@ -592,11 +739,11 @@ function TeamRoster({
                       {status === 'Confirmado' ? <CheckCircle2 size={14} /> : status === 'Ausente' ? <X size={14} /> : <UserCheck size={14} />}
                       {salvando ? 'Salvando' : status}
                     </span>
-                    <button type="button" aria-label={`Confirmar ${jogador.nome}`} disabled={salvando || salvandoNumero} onClick={() => onPresenca(jogador.id, true)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500 text-slate-950 disabled:opacity-45">
-                      <CheckCircle2 size={18} />
+                    <button type="button" aria-label={`Confirmar ${jogador.nome}`} disabled={salvando || salvandoNumero} onClick={() => onPresenca(jogador.id, true)} className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500 text-slate-950 disabled:opacity-45">
+                      <CheckCircle2 size={22} />
                     </button>
-                    <button type="button" aria-label={`Marcar ${jogador.nome} como ausente`} disabled={salvando || salvandoNumero} onClick={() => onPresenca(jogador.id, false)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-500 text-white disabled:opacity-45">
-                      <X size={18} />
+                    <button type="button" aria-label={`Marcar ${jogador.nome} como ausente`} disabled={salvando || salvandoNumero} onClick={() => onPresenca(jogador.id, false)} className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-red-500 text-white disabled:opacity-45">
+                      <X size={22} />
                     </button>
                   </div>
                 </div>

@@ -9,7 +9,7 @@ import { queryCategoria } from '@/components/portal/SeletorCategoria'
 import { VistaChavePublica } from '@/components/portal/VistaChavePublica'
 import { INTERVALO_RANKING_JOGADORES_MS, type LinhaJogadorRanking } from '@/lib/classificacao-jogadores'
 import { liderDaTabela, type AtletaQuadro, type LinhaGrupo } from '@/lib/quadro-publico'
-import type { GrupoProvisorio } from '@/lib/semi-provisoria'
+import { gruposDaTabela } from '@/lib/semi-provisoria'
 import type { ChavePublica } from '@/lib/portal-chave'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 
@@ -189,22 +189,4 @@ export function QuadroPublico({ ligaId, categoriaId, destaque = 'quadro', campeo
       <TabelaScouts atletas={atletas} />
     </div>
   )
-}
-
-function gruposDaTabela(blocos: Bloco[]): GrupoProvisorio[] {
-  return blocos.flatMap((bloco) => (bloco.grupos ?? []).map((grupo) => ({
-    nome: grupo.nome,
-    vagas: Number.isFinite(grupo.vagas) ? Number(grupo.vagas) : 0,
-    linhas: grupo.linhas.flatMap((linha) => {
-      const equipeId = Number(linha.equipeId)
-      if (!Number.isInteger(equipeId) || equipeId <= 0) return []
-      return [{
-        posicao: linha.posicao,
-        equipeId,
-        equipe: linha.equipe,
-        logoUrl: linha.logoUrl ?? null,
-        corHex: linha.corHex ?? null,
-      }]
-    }),
-  })))
 }

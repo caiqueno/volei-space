@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Na quadra, a substituição fica sob o nome, o B cresce e o sacador pulsa em laranja. A semi vazia mostra o time provisório. Sem banco.
+  A semi provisória aparece no portal e na página do campeonato. Sem API nova e sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,12 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 a semi provisória também aparece em `/portal` e em `/campeonatos/[slug]`. Quando a chave não recebe grupos, o navegador lê `GET /api/portal/classificacao` e monta 1º A × 2º B e 1º B × 2º A. A releitura escuta `ClassificacaoEntrada` e `Partida`. Em `/classificacao` os grupos continuam os da tabela já aberta. Nada é gravado. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 a quadra 2D da súmula mostra o escudo da equipe ao lado do nome, nos dois lados, com cerca de 36px. Sem logo, ficam as iniciais. O dado já vinha em `Equipe.logoUrl`. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026, na súmula de lançamento, o aviso «A partida já tem vencedor. Escolha o MVP e oficialize a súmula.» abre o modal do MVP uma vez. As duas equipes entram na lista, com botões altos. «Selecionar MVP» grava o destaque que já existia. «Oficializar súmula» no modal usa a confirmação e o `POST` de antes. Se a pessoa fecha, o botão «Oficializar súmula» reabre. O atleta tem de ser da vencedora. Na validação do árbitro, a última partida da equipe na liga sugere presença: verde com ✓ e vermelho com X, sem gravar ao abrir. «Adicionar atleta» insere nome e número e marca presente. Número repetido não entra. Não há `UPDATE` nem `DELETE` de atleta, nem migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Em 11 de outubro de 2026 o cartão da quadra 2D coloca a substituição logo abaixo do nome, à esquerda, e aumenta o B do canto inferior direito para 48×48px. Quem saca pulsa em laranja, borda e brilho, em 1s, só na opacidade. Com menos movimento, o laranja fica fixo. Sem banco, API nova ou migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 

@@ -5,14 +5,14 @@ category: modulo
 tags: [classificacao]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A semi vazia da classificação mostra o time da posição atual, com logo e origem. A releitura não mexe na rolagem.
+  A semi vazia mostra o time da posição no portal, no campeonato e na classificação. Nada é gravado.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Classificação
 
-**Semi provisória na chave — implementado, sem migration:** em `/classificacao` e em `/rankings`, o cartão que já existe de Semifinal jogo 1 e jogo 2 deixa de mostrar só «A definir» enquanto o lado não tem equipe gravada. A tela usa a classificação que já veio de `GET /api/portal/classificacao`: 1º do primeiro grupo contra 2º do segundo, e 1º do segundo contra 2º do primeiro, pelo `cruzarGrupos` e pelo número de vagas do grupo. Se o lado já traz a origem, por exemplo `1º Grupo A`, vale essa origem, desde que a posição esteja dentro das vagas. Logo e nome entram no lugar de «A definir», com a linha `1º Grupo A · provisório`. Quando a vaga está gravada, o cartão mostra o time real. Final e 3º lugar continuam como estão. A troca de time no lado acende um fundo dourado curto, sem `transform` e sem remontar a chave. A releitura da tabela, a mesma que já existia, atualiza esse preenchimento e devolve a rolagem se ela cair. Nada é gravado. O story da chave continua com o que a API devolveu.
+**Semi provisória na chave — implementado, sem migration:** o cartão de Semifinal jogo 1 e jogo 2 mostra logo, nome e a origem, por exemplo `1º Grupo A · provisório`, enquanto o lado não tem equipe gravada. A regra é 1º do primeiro grupo contra 2º do segundo, e 1º do segundo contra 2º do primeiro, pelo `cruzarGrupos` e pelas vagas do grupo. Se o lado já traz a origem, vale essa origem, desde que a posição esteja dentro das vagas. Com a vaga gravada, o cartão mostra o time real. Final e 3º lugar continuam como estão. Em `/classificacao` e `/rankings`, `QuadroPublico` passa os grupos da tabela que já carregou. Em `/portal` e em `/campeonatos/[slug]`, a chave busca no navegador o `GET /api/portal/classificacao` que já existia, com `ligaId` e a categoria, e monta os mesmos grupos. A releitura escuta `ClassificacaoEntrada` e `Partida`. A troca de time acende um fundo dourado curto, sem `transform`. Nada é gravado. O story da chave continua com o que a API de mata-mata devolveu.
 
 **Story da tabela — implementado, sem migration:** em `/classificacao` e em `/rankings`, cada grupo tem o próprio botão no cabeçalho da tabela. A imagem traz só aquele grupo, no máximo oito linhas, com as colunas da tela. Não junta líder, ranking e tabela numa imagem só. A imagem é só no navegador. Ver [[09-UI-UX]].
 

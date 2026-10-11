@@ -13,6 +13,26 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | semi provisória no portal e na página do campeonato
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `09-UI-UX`, `hot`, `log`
+- A chave de `/portal` e de `/campeonatos/[slug]` lê a classificação no navegador e mostra o time provisório da semi. Sem API nova e sem migration.
+
+## [2026-10-11] fix | escudo no cabeçalho da quadra 2D
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- A quadra 2D mostra o logo da equipe ao lado do nome. Sem logo, ficam as iniciais. Sem migration.
+
+## [2026-10-11] fix | presença sugerida e atleta novo no credenciamento
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- A validação do árbitro mostra a presença da última partida da equipe, sem gravar ao abrir. «Adicionar atleta» só insere o atleta e marca presente. Sem migration.
+
+## [2026-10-11] fix | modal do MVP ao detectar o vencedor
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- A súmula encerrada sem MVP abre o modal uma vez, com as duas equipes. Oficializar reabre. Sem migration.
+
 ## [2026-10-11] feat | cartão da quadra com substituição, B maior e sacador laranja
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

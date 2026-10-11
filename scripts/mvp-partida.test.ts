@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
 import {
+  AVISO_ESCOLHA_MVP,
   atletaPelaCamisaDaSumula,
   camisaDaSumula,
   destaqueDoJogador,
+  deveAbrirModalMvp,
   equipeIdPeloNome,
   mvpDasOcorrencias,
   passoDeFechamento,
+  reabreModalMvp,
   type AtletaMvp,
 } from '../src/lib/mvp-partida'
 
@@ -82,5 +85,40 @@ assert.equal(passoDeFechamento({
   setAtualPodeFechar: false,
   vencedorDoSetAtual: null,
 }), null)
+
+assert.equal(AVISO_ESCOLHA_MVP, 'A partida já tem vencedor. Escolha o MVP e oficialize a súmula.')
+assert.equal(deveAbrirModalMvp({
+  partidaEncerrada: true,
+  temMvp: false,
+  sumulaAprovada: false,
+  jaAbriuNestaDeteccao: false,
+}), true)
+assert.equal(deveAbrirModalMvp({
+  partidaEncerrada: true,
+  temMvp: false,
+  sumulaAprovada: false,
+  jaAbriuNestaDeteccao: true,
+}), false)
+assert.equal(deveAbrirModalMvp({
+  partidaEncerrada: true,
+  temMvp: true,
+  sumulaAprovada: false,
+  jaAbriuNestaDeteccao: false,
+}), false)
+assert.equal(deveAbrirModalMvp({
+  partidaEncerrada: false,
+  temMvp: false,
+  sumulaAprovada: false,
+  jaAbriuNestaDeteccao: false,
+}), false)
+assert.equal(deveAbrirModalMvp({
+  partidaEncerrada: true,
+  temMvp: false,
+  sumulaAprovada: true,
+  jaAbriuNestaDeteccao: false,
+}), false)
+assert.equal(reabreModalMvp({ partidaEncerrada: true, sumulaAprovada: false }), true)
+assert.equal(reabreModalMvp({ partidaEncerrada: true, sumulaAprovada: true }), false)
+assert.equal(reabreModalMvp({ partidaEncerrada: false, sumulaAprovada: false }), false)
 
 console.log('mvp-partida: ok')

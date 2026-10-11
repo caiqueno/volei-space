@@ -155,6 +155,7 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
         finalizado={finalizado}
         campeonato={liga.nome}
         logoCampeonato={liga.logoUrl}
+        categoriaId={categoriaId}
       />
 
       <section className="mx-auto max-w-7xl px-4 pb-8">

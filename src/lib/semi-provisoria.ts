@@ -164,3 +164,40 @@ function vagaAberta(lado?: { id?: number; vaga?: boolean } | null) {
   const id = Number(lado.id)
   return !Number.isInteger(id) || id <= 0
 }
+
+type LinhaDaTabela = {
+  posicao: number
+  equipeId?: number | null
+  equipe: string
+  logoUrl?: string | null
+  corHex?: string | null
+}
+
+type GrupoDaTabela = {
+  nome: string
+  vagas?: number
+  linhas: readonly LinhaDaTabela[]
+}
+
+type BlocoDaTabela = {
+  grupos?: readonly GrupoDaTabela[] | null
+}
+
+/** A tabela pública vira os grupos que a semi provisória lê. */
+export function gruposDaTabela(blocos: readonly BlocoDaTabela[]): GrupoProvisorio[] {
+  return blocos.flatMap((bloco) => (bloco.grupos ?? []).map((grupo) => ({
+    nome: grupo.nome,
+    vagas: Number.isFinite(grupo.vagas) ? Number(grupo.vagas) : 0,
+    linhas: grupo.linhas.flatMap((linha) => {
+      const equipeId = Number(linha.equipeId)
+      if (!Number.isInteger(equipeId) || equipeId <= 0) return []
+      return [{
+        posicao: linha.posicao,
+        equipeId,
+        equipe: linha.equipe,
+        logoUrl: linha.logoUrl ?? null,
+        corHex: linha.corHex ?? null,
+      }]
+    }),
+  })))
+}

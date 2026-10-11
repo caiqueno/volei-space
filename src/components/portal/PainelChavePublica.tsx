@@ -27,5 +27,5 @@ export function PainelChavePublica({ ligaId, categoriaId }: { ligaId: number; ca
   }, [ligaId, categoriaId])
 
   if (!chave?.temMataMata) return null
-  return <VistaChavePublica ligaId={ligaId} chave={chave} />
+  return <VistaChavePublica ligaId={ligaId} chave={chave} categoriaId={categoriaId} />
 }

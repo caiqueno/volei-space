@@ -6245,6 +6245,11 @@ button.referee-number.is-saved {
   background: #7f1d1d;
 }
 
+.referee-add-athlete {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .referee-scanner-modal {
   color: #ffffff;
 }
@@ -8027,6 +8032,276 @@ button.referee-number.is-saved {
   font-weight: 800;
   padding: 10px 16px;
   white-space: nowrap;
+}
+
+html body .official-mvp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 105;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, .72);
+  backdrop-filter: blur(10px);
+}
+
+html body .official-mvp-modal-card {
+  width: min(100%, 980px);
+  max-height: min(100%, calc(100dvh - 40px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid rgba(52, 211, 153, .4);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, .98), rgba(8, 18, 33, .98));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .44);
+  padding: 22px;
+  outline: none;
+  overflow: hidden;
+}
+
+html body .official-mvp-modal-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+
+html body .official-mvp-modal-topo span {
+  color: #34d399;
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+html body .official-mvp-modal-topo h2 {
+  color: #ffffff;
+  font-size: 32px;
+  line-height: 1.1;
+  margin: 6px 0 8px;
+}
+
+html body .official-mvp-modal-topo p,
+html body .official-mvp-modal-topo strong {
+  color: #d1fae5;
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0;
+}
+
+html body .official-mvp-modal-topo strong {
+  margin-top: 8px;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+html body .official-mvp-fechar {
+  min-width: 112px;
+  min-height: 56px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(148, 163, 184, .4);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, .92);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+html body .official-mvp-equipes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+html body .official-mvp-equipes section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, .24);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(15, 23, 42, .55);
+}
+
+html body .official-mvp-equipes section.is-vencedora {
+  border-color: rgba(52, 211, 153, .7);
+  background: rgba(52, 211, 153, .08);
+}
+
+html body .official-mvp-equipes header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+html body .official-mvp-equipes h3 {
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+html body .official-mvp-equipes header em {
+  color: #cbd5e1;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+html body .official-mvp-equipes section.is-vencedora header em {
+  color: #34d399;
+}
+
+html body .official-mvp-lista {
+  display: grid;
+  gap: 10px;
+}
+
+html body .official-mvp-atleta {
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, .45);
+  color: #ffffff;
+  padding: 12px 14px;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+html body .official-mvp-atleta strong {
+  min-width: 64px;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+html body .official-mvp-atleta span {
+  color: #f8fafc;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+html body .official-mvp-atleta em {
+  color: #052e1a;
+  border-radius: 999px;
+  background: #34d399;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+html body .official-mvp-atleta.is-selected {
+  border-color: #ffb331;
+  background: rgba(255, 179, 49, .16);
+  box-shadow: inset 0 0 0 2px #ffb331;
+}
+
+html body .official-mvp-status,
+html body .official-mvp-erro {
+  margin: 0;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 12px 14px;
+}
+
+html body .official-mvp-status {
+  background: rgba(52, 211, 153, .14);
+  color: #d1fae5;
+}
+
+html body .official-mvp-erro {
+  background: rgba(185, 28, 28, .2);
+  color: #fecaca;
+}
+
+html body .official-mvp-acoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+html body .official-mvp-acoes > button,
+html body .official-mvp-acoes > .action-bar {
+  min-height: 64px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+html body .official-mvp-acoes > button {
+  border: 1px solid rgba(255, 179, 49, .7);
+  background: rgba(255, 179, 49, .12);
+  color: #ffda8a;
+}
+
+html body .official-mvp-acoes > button:last-child,
+html body .official-mvp-acoes > .action-bar {
+  border: 0;
+  background: #34d399;
+  color: #052e1a;
+}
+
+html body .official-mvp-acoes > .action-bar.is-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+@media (max-width: 800px) {
+  html body .official-mvp-modal-card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  html body .official-mvp-modal-topo {
+    flex-direction: column-reverse;
+  }
+
+  html body .official-mvp-fechar,
+  html body .official-mvp-modal-topo {
+    width: 100%;
+  }
+
+  html body .official-mvp-equipes,
+  html body .official-mvp-acoes {
+    grid-template-columns: 1fr;
+  }
+
+  html body .official-mvp-modal-topo h2 {
+    font-size: 26px;
+  }
 }
 
 .official-serve {
@@ -16872,6 +17147,38 @@ html body .official-court.is-facing > strong {
   color: #f8fafc;
   font-size: 14px;
   text-align: center;
+}
+
+html body .official-side-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+html body .official-roster-header h3.official-side-brand {
+  justify-content: flex-start;
+}
+
+html body .official-roster-header .official-side-brand span,
+html body .official-court.is-facing .official-side-brand span {
+  display: inline-flex;
+}
+
+html body .official-side-brand .nome-equipe {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html body .official-side-brand .team-mark,
+html body .official-side-brand span.inline-flex {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
 }
 
 html body .official-court.is-facing.is-selected > strong {

@@ -5,12 +5,18 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Oficializar conta quem jogou. Na quadra, a substituição fica sob o nome, o B tem 48px e o sacador pulsa em laranja. Sem migration.
+  O modal do MVP abre uma vez. A presença sugere a última partida. A quadra 2D mostra o escudo. A substituição fica sob o nome. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Súmula digital
+
+**Escudo na quadra 2D — implementado, sem migration:** o cabeçalho de cada lado da quadra 2D mostra `Equipe.logoUrl` ao lado do nome, no mesmo componente das telas públicas, com cerca de 36px. Sem logo, ficam as iniciais. A leitura já vinha no GET da súmula. Não há coluna nova.
+
+**Modal do MVP — implementado, sem migration:** quando a partida encerrada ainda não tem MVP, o aviso «A partida já tem vencedor. Escolha o MVP e oficialize a súmula.» abre o modal uma vez. A lista mostra os atletas das duas equipes, com alvos grandes para o tablet. Tocar marca o atleta. «Selecionar MVP» grava o mesmo destaque da aba Anotações, no `PUT` de andamento. «Oficializar súmula», no modal, segue a confirmação e o `POST` que já existiam. Fechar não abre de novo sozinho. O botão «Oficializar súmula» da faixa e da barra reabre. O MVP continua sendo um atleta da equipe vencedora. Não há coluna nova.
+
+**Presença sugerida e atleta novo — implementado, sem migration:** em `/arbitro/partida/{token}`, se a equipe já jogou na mesma liga, a tela mostra a presença da última partida dela. Presente fica com a linha verde e o ✓; ausente, com a linha vermelha e o X. A última partida é a mais recente por `dataHora` e, no empate, pelo id maior, com status de jogo já realizado. Quem não estava nessa partida continua pendente. Presença já gravada neste jogo fica por cima da sugestão. Abrir a tela não grava. O toque em ✓ ou X usa o `POST` de presença que já existia. «Adicionar atleta» pede nome e número, com teclado numérico, e só insere em `Jogador` pelo `POST /api/jogadores` quando o acesso da partida confere a equipe. Número repetido no elenco, de 0 a 99, é recusado. Não há `UPDATE` nem `DELETE` de atleta. O atleta novo segue para o mesmo `POST` de presença, já como presente. Sem coluna nova e sem script.
 
 **Camisa entre jogos — implementado, sem migration:** ao abrir a súmula ou a validação do árbitro, o atleta aparece com a última `SumulaPresenca.numero` preenchida dele em outra partida da mesma liga. A mais recente é a de `dataHora` mais nova; sem data, vale a partida de id maior e, no empate, a presença de id maior. `-1` é camisa vazia e não cai no cadastro. `0` vale. Se esta partida já tem número gravado, ele permanece. Sem número aqui, a tela usa essa camisa anterior e, se não houver, `Jogador.numero`. O `PUT` não grava a camisa só porque ela apareceu: grava o número que o árbitro editou nesta partida, ou o que já estava salvo. A próxima súmula herda o que foi gravado. A leitura não altera linhas antigas e não há migration.
 
@@ -70,7 +76,7 @@ updated: 2026-10-11
 
 **Sessão antes de oficializar — implementado:** confirmar a papeleta e encerrar a partida gravam ocorrências `system`. O filtro que tirava esse tipo do `PUT` saiu, então o recarregamento restaura a conferência e o estado «encerrada, aguardando oficialização» enquanto `Partida.status` segue `EM_ANDAMENTO`. A consulta pública e o ao vivo escondem `system` e as linhas «Registro de ». Oficializar continua no `POST`.
 
-**MVP — implementado:** a lista da equipe vencedora mostra `SumulaPresenca.numero` quando a partida tem número próprio. Sem número gravado nesta partida, usa a última camisa do atleta na mesma liga e, se não houver, o cadastro. O valor enviado segue sendo o id do atleta. Escolher o MVP grava o destaque e não envia a súmula. A anotação «#camisa …: MVP» usa essa mesma camisa da súmula. Oficializar abre uma confirmação. Sem MVP, o mesmo botão muda para a aba Anotações e pede a escolha. Com a partida já decidida, «Encerrar partida» e «Oficializar súmula» aparecem no conteúdo e na barra lateral.
+**MVP — implementado:** a lista da equipe vencedora mostra `SumulaPresenca.numero` quando a partida tem número próprio. Sem número gravado nesta partida, usa a última camisa do atleta na mesma liga e, se não houver, o cadastro. O valor enviado segue sendo o id do atleta. Escolher o MVP grava o destaque e não envia a súmula. A anotação «#camisa …: MVP» usa essa mesma camisa da súmula. Oficializar abre uma confirmação. Sem MVP, «Oficializar súmula» abre o modal com as duas equipes; a aba Anotações continua com o mesmo campo. Com a partida já decidida, «Encerrar partida» e «Oficializar súmula» aparecem no conteúdo e na barra lateral.
 
 **Últimos pontos — implementado:** cada lance guarda o placar como equipe A × equipe B. A lista mostra o lado que a quadra tinha naquele momento. Um ponto anterior à troca de lado não inverte junto com o placar principal.
 

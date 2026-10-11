@@ -13,6 +13,8 @@ export type DestaqueMvp = {
 
 export type PassoFechamento = 'encerrar-set' | 'encerrar-partida' | 'oficializar'
 
+export const AVISO_ESCOLHA_MVP = 'A partida já tem vencedor. Escolha o MVP e oficialize a súmula.'
+
 function normalizar(valor: string) {
   return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 }
@@ -105,4 +107,23 @@ export function passoDeFechamento(entrada: {
   const setsB = entrada.setsB + (entrada.vencedorDoSetAtual === 'teamB' ? 1 : 0)
   if (setsA >= entrada.setsParaVencer || setsB >= entrada.setsParaVencer) return 'encerrar-partida'
   return 'encerrar-set'
+}
+
+/**
+ * O aviso de vencedor sem MVP abre o modal uma vez nesta detecção.
+ * Fechar não arma de novo; um novo fim de partida, depois de sair de encerrada, arma outra vez.
+ */
+export function deveAbrirModalMvp(entrada: {
+  partidaEncerrada: boolean
+  temMvp: boolean
+  sumulaAprovada: boolean
+  jaAbriuNestaDeteccao: boolean
+}) {
+  if (!entrada.partidaEncerrada || entrada.temMvp || entrada.sumulaAprovada) return false
+  return !entrada.jaAbriuNestaDeteccao
+}
+
+/** Enquanto a súmula espera oficialização, o botão reabre o modal. */
+export function reabreModalMvp(entrada: { partidaEncerrada: boolean; sumulaAprovada: boolean }) {
+  return entrada.partidaEncerrada && !entrada.sumulaAprovada
 }

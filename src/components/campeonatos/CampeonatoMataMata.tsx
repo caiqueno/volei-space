@@ -1,8 +1,12 @@
+'use client'
+
 import Link from 'next/link'
 import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
 import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import type { PodiumTeam } from '@/lib/championship-podium'
+import { comTimesProvisorios } from '@/lib/semi-provisoria'
+import { useGruposProvisorios } from '@/lib/use-grupos-provisorios'
 
 export function CampeonatoMataMata({
   ligaId,
@@ -13,6 +17,7 @@ export function CampeonatoMataMata({
   finalizado,
   campeonato,
   logoCampeonato,
+  categoriaId = null,
 }: {
   ligaId: number
   rounds: BracketRoundView[]
@@ -22,7 +27,10 @@ export function CampeonatoMataMata({
   finalizado: boolean
   campeonato?: string
   logoCampeonato?: string | null
+  categoriaId?: string | null
 }) {
+  const grupos = useGruposProvisorios(ligaId, categoriaId, rounds.length > 0)
+  const roundsVisiveis = comTimesProvisorios(rounds, grupos)
   if (rounds.length === 0 && podium.length === 0) return null
 
   return (
@@ -54,7 +62,7 @@ export function CampeonatoMataMata({
           <div className="mt-6">
             <ChaveamentoMataMata
               ligaId={ligaId}
-              rounds={rounds}
+              rounds={roundsVisiveis}
               champion={champion}
               thirdPlace={thirdPlace}
               organizerMode={false}

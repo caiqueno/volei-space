@@ -5,12 +5,18 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A semi vazia mostra o time provisório. Na quadra, a substituição fica sob o nome e o sacador pulsa em laranja.
+  A semi provisória aparece no portal e na página do campeonato. O modal do MVP tem alvos grandes. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Interface e experiência
+
+Em 11 de outubro de 2026 a quadra 2D da súmula mostra o escudo da equipe ao lado do nome, em cada lado, com cerca de 36px. Sem logo, ficam as iniciais, no mesmo componente das telas públicas. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
+
+Em 11 de outubro de 2026 a súmula encerrada sem MVP abre um modal com os atletas das duas equipes. Cada atleta é um botão alto, e «Selecionar MVP» e «Oficializar súmula» ficam na base, com altura de 64px. Fechar deixa o aviso na página; o botão «Oficializar súmula» reabre o modal. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
+
+Em 11 de outubro de 2026 a validação do árbitro sugere a presença da última partida da equipe: linha verde com ✓ para quem estava presente e linha vermelha com X para quem estava ausente. A sugestão continua editável. «Adicionar atleta» abre nome e número, este com teclado numérico, e o atleta novo já entra como presente. Os alvos têm 56px. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 11 de outubro de 2026 a validação dos atletas antes do jogo, em `/arbitro/partida/{token}`, pinta a linha inteira: verde quando o árbitro confirma e vermelha quando marca ausente. Pendente continua na cor neutra do cartão. Cada equipe lista os atletas pelo nome, em ordem alfabética. A ordem não muda a gravação da presença nem o número da camisa. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
@@ -22,7 +28,7 @@ O painel oferece primeiro acesso, perfil/organização, campeonatos e central de
 
 Em 11 de outubro de 2026 a quadra 2D da súmula muda só o cartão do atleta. A substituição fica logo abaixo do nome, à esquerda. O B dourado continua no canto inferior direito, com 48×48px e a letra maior. O atleta que saca deixa a borda dourada e pulsa em laranja, borda e brilho, em cerca de 1s, só com opacidade. Quem prefere menos movimento vê o laranja parado. Sem API, banco ou migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
-Em 11 de outubro de 2026 a semifinal da classificação, enquanto o lado não tem time gravado, mostra o escudo e o nome de quem está naquela vaga pela tabela, e embaixo a origem em texto pequeno, por exemplo `1º Grupo A · provisório`. O fundo do lado fica dourado por um instante quando o time da vaga muda. A animação é só `background-color`. A chave não remonta e a página não volta ao topo. Com o time gravado, a linha provisória some. Sem API, banco ou migration.
+Em 11 de outubro de 2026 a semifinal da classificação, do portal e da página do campeonato, enquanto o lado não tem time gravado, mostra o escudo e o nome de quem está naquela vaga pela tabela, e embaixo a origem em texto pequeno, por exemplo `1º Grupo A · provisório`. No portal e em `/campeonatos/[slug]` a chave busca a classificação no navegador. O fundo do lado fica dourado por um instante quando o time da vaga muda. A animação é só `background-color`. Com o time gravado, a linha provisória some. Sem API nova, banco ou migration.
 
 Em 11 de outubro de 2026 a prévia de compartilhamento das páginas públicas usa `public/brand/og-image.png`, 1200×630, com a bola dourada, a órbita e o texto volei.space no azul-escuro. A URL é absoluta, a partir de `metadataBase`. O cartaz da LUV saiu de `public/brand`. Sem API, banco ou migration.
 

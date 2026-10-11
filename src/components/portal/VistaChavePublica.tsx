@@ -5,9 +5,25 @@ import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
 import type { ChavePublica } from '@/lib/portal-chave'
 import { comTimesProvisorios, type GrupoProvisorio } from '@/lib/semi-provisoria'
+import { useGruposProvisorios } from '@/lib/use-grupos-provisorios'
 
-export function VistaChavePublica({ ligaId, chave, campeonato, logoCampeonato, grupos = [] }: { ligaId: number; chave: ChavePublica; campeonato?: string; logoCampeonato?: string | null; grupos?: GrupoProvisorio[] }) {
-  const rounds = comTimesProvisorios(chave.rounds, grupos)
+export function VistaChavePublica({
+  ligaId,
+  chave,
+  campeonato,
+  logoCampeonato,
+  grupos,
+  categoriaId = null,
+}: {
+  ligaId: number
+  chave: ChavePublica
+  campeonato?: string
+  logoCampeonato?: string | null
+  grupos?: GrupoProvisorio[]
+  categoriaId?: string | null
+}) {
+  const buscados = useGruposProvisorios(ligaId, categoriaId, grupos === undefined && chave.temMataMata)
+  const rounds = comTimesProvisorios(chave.rounds, grupos ?? buscados)
   if (!chave.temMataMata) return null
 
   return (
