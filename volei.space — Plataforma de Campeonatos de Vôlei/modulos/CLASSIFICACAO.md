@@ -5,12 +5,14 @@ category: modulo
 tags: [classificacao]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  No celular, a tabela do grupo fica numa linha: equipe fixa e números na horizontal. As vagas pulsam em verde.
+  Na tabela e no story do grupo, o nome fica maior e com escudo. No story o nome inteiro cabe, sem reticências.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Classificação
+
+**Nome do time no story e na tabela — implementado, sem migration:** o story do grupo reserva a coluna da equipe, com escudo (`logoUrl` ou iniciais) e o nome inteiro. Se não couber, o nome quebra em duas linhas e não usa reticências. As colunas numéricas ficam mais estreitas. Na tabela da tela, o nome e o escudo ficam maiores e o nome também quebra, sem cortar. Nada é gravado.
 
 **Tabela do grupo — implementado, sem migration:** em `/classificacao` e em `/rankings`, cada grupo mostra uma linha por equipe: posição num círculo, escudo, nome e as colunas P, J, V, D, SP, SC, DS, DP e PE lado a lado. No celular, posição e equipe ficam fixas e os números rolam na horizontal. A página continua rolando na vertical e não volta ao topo por causa dessa faixa. As primeiras posições, até as vagas do grupo, ficam com círculo dourado e fundo verde. O verde pulsa só na opacidade. Com menos movimento, o fundo fica parado. O botão de story do grupo continua no cabeçalho e a imagem segue a tabela do cartaz. Nada é gravado.
 

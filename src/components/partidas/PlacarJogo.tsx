@@ -17,12 +17,12 @@ export function PlacarJogo({ tom = 'site', ladoA, ladoB, valorA, valorB, centro,
     return (
       <div className={estilos.placar}>
         <div className={destaqueA ? estilos.ladoDestaque : estilos.lado}>
-          <span className={estilos.nome}>{ladoA}</span>
+          <span className={estilos.ladoNome}>{ladoA}</span>
           <b className={estilos.placarGrande}>{valorA}</b>
         </div>
         <span className={estilos.centroPlacar}>{centro}</span>
         <div className={destaqueB ? estilos.ladoDestaque : estilos.lado}>
-          <span className={estilos.nome}>{ladoB}</span>
+          <span className={estilos.ladoNome}>{ladoB}</span>
           <b className={estilos.placarGrande}>{valorB}</b>
         </div>
       </div>

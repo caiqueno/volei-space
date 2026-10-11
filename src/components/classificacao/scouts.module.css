@@ -67,7 +67,7 @@
 }
 
 .linha {
-  min-height: 4.85rem;
+  min-height: 5.6rem;
   padding: 0.8rem 0.85rem;
   border-top: 1px solid var(--vs-border);
 }
@@ -116,6 +116,16 @@
   font-weight: 800;
   line-height: 1.25;
   overflow-wrap: break-word;
+}
+
+.equipe {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--vs-text) !important;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .camisa {

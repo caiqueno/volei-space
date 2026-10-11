@@ -35,10 +35,10 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  width: 11.75rem;
-  min-width: 11.75rem;
-  max-width: 58vw;
-  padding: 0.45rem 0.7rem;
+  width: 13.5rem;
+  min-width: 13.5rem;
+  max-width: 62vw;
+  padding: 0.45rem 0.55rem;
   text-align: left;
   background: var(--vs-surface);
   box-shadow: 10px 0 12px -12px rgba(0, 0, 0, 0.8);
@@ -49,8 +49,8 @@
 }
 
 .numero {
-  min-width: 2.55rem;
-  padding: 0.45rem 0.3rem;
+  min-width: 2.2rem;
+  padding: 0.4rem 0.15rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -84,16 +84,32 @@
 }
 
 .nome {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 700;
+  overflow: visible;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
-.marca :global(.h-10) {
-  width: 1.75rem;
-  height: 1.75rem;
+.marca {
+  display: flex;
+  flex: 0 0 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  overflow: hidden;
+}
+
+.marca :global(.h-11),
+.marca :global(.team-mark),
+.marca :global(img) {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 0;
+  max-width: 2.5rem;
+  max-height: 2.5rem;
 }
 
 .vaga {

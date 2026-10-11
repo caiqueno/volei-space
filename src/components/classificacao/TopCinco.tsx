@@ -2,6 +2,7 @@
 
 import { Medal, Shield, Swords, Zap } from 'lucide-react'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import { topCinco, type AtletaQuadro } from '@/lib/quadro-publico'
 import { cartazRanking } from '@/lib/stories-cartaz'
@@ -43,9 +44,12 @@ export function TopCinco({ atletas, campeonato, logoCampeonato }: { atletas: Atl
                   <li key={atleta.jogadorId} className={`flex items-center gap-3 ${indice === 0 ? 'min-h-14' : 'min-h-11'}`}>
                     <span className={`w-8 shrink-0 font-display text-sm font-bold ${MEDALHA[indice]}`}>{indice + 1}º</span>
                     {indice < 3 && <Medal size={16} className={MEDALHA[indice]} aria-hidden="true" />}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-bold text-vs-text">{atleta.nome}</span>
-                      <span className="block truncate text-xs font-semibold text-vs-muted"><NomeEquipe nome={atleta.equipe} /></span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <TeamIdentity nome={atleta.equipe} cor={atleta.corHex} logoUrl={atleta.logoUrl} compact showName={false} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-bold text-vs-text">{atleta.nome}</span>
+                        <span className="block text-sm font-black leading-tight text-vs-text [overflow-wrap:anywhere]"><NomeEquipe nome={atleta.equipe} /></span>
+                      </span>
                     </span>
                     <b className={`font-display font-bold tabular-nums ${indice === 0 ? 'text-3xl text-vs-gold' : 'text-xl text-vs-text'}`}>{atleta[quadro.chave]}</b>
                   </li>

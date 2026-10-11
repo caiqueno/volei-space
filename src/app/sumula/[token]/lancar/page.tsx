@@ -3749,7 +3749,10 @@ function CompactTeamControl({
     <div className={`official-compact-team-control is-${teamId} ${serving ? 'is-serving' : ''}`}>
       <div className="official-score-bar-top">
         <div className="official-score-bar-points">
-          <span className="official-compact-score-team-name">{team.name}</span>
+          <span className="official-compact-score-team-name">
+            <TeamIdentity nome={team.name} cor={team.corHex} logoUrl={team.logoUrl} compact showName={false} />
+            <NomeEquipe nome={team.name} />
+          </span>
           <strong>{score.toString().padStart(2, '0')}</strong>
         </div>
         {serving && !encerrada ? (
@@ -3897,14 +3900,12 @@ function ModalEscolhaMvp({
     return () => window.removeEventListener('keydown', aoTeclar)
   }, [onFechar])
 
-  const equipes = [teamA, teamB]
-  const nomeVencedora = vencedorId === 'teamA' ? teamA.name : vencedorId === 'teamB' ? teamB.name : ''
+  const vencedora = vencedorId === 'teamA' ? teamA : vencedorId === 'teamB' ? teamB : null
   const mvpGravado = Boolean(mvpId) && mvpId === escolhaId
   const pontos = useMemo(() => pontosPorJogador(ocorrencias), [ocorrencias])
-  const sugestaoId = useMemo(() => idDoMaiorPontuador(
-    [...teamA.players, ...teamA.reserves, ...teamB.players, ...teamB.reserves],
-    pontos,
-  ), [teamA, teamB, pontos])
+  const sugestaoId = useMemo(() => (
+    vencedora ? idDoMaiorPontuador([...vencedora.players, ...vencedora.reserves], pontos) : null
+  ), [vencedora, pontos])
 
   function camisa(teamId: TeamId, player: Player) {
     return camisaDaSumula({
@@ -3948,57 +3949,54 @@ function ModalEscolhaMvp({
             <span>Súmula oficial</span>
             <h2 id="modal-mvp-titulo">Escolha o MVP</h2>
             <p id="modal-mvp-texto">{AVISO_ESCOLHA_MVP}</p>
-            {nomeVencedora ? <strong>{nomeVencedora} venceu por {setsWon.teamA} x {setsWon.teamB}</strong> : <strong>A partida precisa de uma equipe vencedora antes do MVP.</strong>}
-            <p className="official-mvp-dica">{sugestaoId ? 'O destaque é o maior pontuador desta partida. Ele não fica selecionado.' : 'Nesta partida não há um pontuador único de ataque, bloqueio ou ace. A escolha é manual.'}</p>
           </div>
           <button type="button" className="official-mvp-fechar" onClick={onFechar}>Fechar</button>
         </header>
-        <div className="official-mvp-equipes">
-          {equipes.map((team) => {
-            const vencedora = team.id === vencedorId
+        {vencedora ? (
+          <div className="official-mvp-campea">
+            <TeamIdentity nome={vencedora.name} cor={vencedora.corHex} logoUrl={vencedora.logoUrl} showName={false} />
+            <div>
+              <h3><NomeEquipe nome={vencedora.name} /></h3>
+              <strong>Venceu por {vencedorId === 'teamA' ? setsWon.teamA : setsWon.teamB} x {vencedorId === 'teamA' ? setsWon.teamB : setsWon.teamA}</strong>
+            </div>
+          </div>
+        ) : (
+          <strong className="official-mvp-sem-vencedor">A partida precisa de uma equipe vencedora antes do MVP.</strong>
+        )}
+        <p className="official-mvp-dica">{sugestaoId ? 'O destaque é o maior pontuador da equipe vencedora. Ele não fica selecionado.' : 'Nesta partida não há um pontuador único de ataque, bloqueio ou ace. A escolha é manual.'}</p>
+        <div className="official-mvp-lista">
+          {vencedora ? atletas(vencedora).map((player) => {
+            const id = String(player.id)
+            const selecionado = escolhaId === id
+            const sugestao = sugestaoId === id
+            const numero = camisa(vencedora.id, player) || 's/n'
+            const nome = displayPlayerName(player.name, vencedora.name)
+            const feitos = pontosMvpDoJogador(pontos, player.id)
             return (
-              <section key={team.id} className={vencedora ? 'is-vencedora' : ''} aria-label={team.name}>
-                <header>
-                  <h3>{team.name}</h3>
-                  <em>{vencedora ? 'Vencedora' : 'Adversária'}</em>
-                </header>
-                <div className="official-mvp-lista">
-                  {atletas(team).map((player) => {
-                    const id = String(player.id)
-                    const selecionado = escolhaId === id
-                    const sugestao = sugestaoId === id
-                    const numero = camisa(team.id, player) || 's/n'
-                    const nome = displayPlayerName(player.name, team.name)
-                    const feitos = pontosMvpDoJogador(pontos, player.id)
-                    return (
-                      <button
-                        key={player.id}
-                        type="button"
-                        className={`official-mvp-atleta${selecionado ? ' is-selected' : ''}${mvpId === id ? ' is-gravado' : ''}${sugestao ? ' is-sugestao' : ''}`}
-                        aria-pressed={selecionado}
-                        onClick={() => onEscolher(id)}
-                      >
-                        <strong>#{numero}</strong>
-                        <span className="official-mvp-nome">
-                          {nome}
-                          <small>ATQ {feitos.ataque} · BLQ {feitos.bloqueio} · ACE {feitos.ace}</small>
-                        </span>
-                        <span className="official-mvp-pontos">
-                          <b>{feitos.total}</b>
-                          {sugestao || mvpId === id ? (
-                            <span className="official-mvp-selos">
-                              {sugestao ? <em className="is-sugestao">Sugestão</em> : null}
-                              {mvpId === id ? <em>MVP</em> : null}
-                            </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
+              <button
+                key={player.id}
+                type="button"
+                className={`official-mvp-atleta${selecionado ? ' is-selected' : ''}${mvpId === id ? ' is-gravado' : ''}${sugestao ? ' is-sugestao' : ''}`}
+                aria-pressed={selecionado}
+                onClick={() => onEscolher(id)}
+              >
+                <strong>#{numero}</strong>
+                <span className="official-mvp-nome">
+                  {nome}
+                  <small>ATQ {feitos.ataque} · BLQ {feitos.bloqueio} · ACE {feitos.ace}</small>
+                </span>
+                <span className="official-mvp-pontos">
+                  <b>{feitos.total}</b>
+                  {sugestao || mvpId === id ? (
+                    <span className="official-mvp-selos">
+                      {sugestao ? <em className="is-sugestao">Sugestão</em> : null}
+                      {mvpId === id ? <em>MVP</em> : null}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
             )
-          })}
+          }) : null}
         </div>
         {mvpGravado ? <p className="official-mvp-status" role="status">MVP gravado na súmula. A oficialização publica o resultado.</p> : null}
         {erro ? <p className="official-mvp-erro" role="alert">{erro}</p> : null}
@@ -4094,6 +4092,8 @@ function ladoQuadra(team: Team, escalacao: string[], sacando: boolean, indiceSaq
   return {
     id: team.id,
     nome: team.name,
+    logoUrl: team.logoUrl,
+    corHex: team.corHex,
     atletas: [...team.players, ...team.reserves],
     escalacao,
     sacando,
@@ -4105,6 +4105,8 @@ function ladoEscalacao(team: Team, escalacao: string[], editavel: boolean, liber
   return {
     id: team.id,
     nome: team.name,
+    logoUrl: team.logoUrl,
+    corHex: team.corHex,
     atletas: [...team.players, ...team.reserves],
     escalacao,
     libero,

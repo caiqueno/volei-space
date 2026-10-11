@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Radio, Trophy } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { MioloConfronto } from '@/components/mata-mata/MioloConfronto'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { abasDaChave, caminhoConector, colunasSimetricas, gradeDaChave, trechosConectores, vencedorDaPartida, type ColunaVisual } from '@/lib/chave-visual'
@@ -183,7 +184,10 @@ function Trofeu({ champion }: { champion: TeamOption | null }) {
       <Trophy size={64} strokeWidth={1.75} className="text-vs-gold" aria-hidden="true" />
       <p className="luva-kicker mt-2 font-display text-sm font-bold tracking-[0.12em]">Final</p>
       {champion ? (
-        <b className="mt-1 font-display text-2xl font-bold text-vs-gold"><NomeEquipe nome={champion.nome} /></b>
+        <>
+          <span className="mt-2"><TeamIdentity nome={champion.nome} cor={champion.corHex} logoUrl={champion.logoUrl} showName={false} /></span>
+          <b className="mt-1 max-w-[12rem] text-center font-display text-2xl font-bold leading-tight text-vs-gold [overflow-wrap:anywhere]"><NomeEquipe nome={champion.nome} /></b>
+        </>
       ) : (
         <p className="mt-1 text-sm font-semibold text-vs-muted">Definido após a final</p>
       )}

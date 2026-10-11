@@ -51,7 +51,7 @@ export function TopScoutsCards({ dados, equipeInfoById }: Props) {
                       <TeamIdentity nome={equipe?.nome ?? 'Equipe'} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-black text-slate-950">{entrada.nome}</p>
-                        <p className="truncate text-xs font-bold text-slate-400"><NomeEquipe nome={equipe?.nome} /></p>
+                        <p className="text-sm font-black leading-tight text-slate-800 [overflow-wrap:anywhere]"><NomeEquipe nome={equipe?.nome} /></p>
                       </div>
                       <span className="shrink-0 text-xl font-black text-slate-950">{entrada[categoria.key]}</span>
                     </div>

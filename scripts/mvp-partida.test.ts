@@ -186,8 +186,16 @@ assert.ok(compararPontosMvp(
 ) < 0)
 
 const tela = readFileSync('src/app/sumula/[token]/lancar/page.tsx', 'utf8')
+const modal = tela.slice(tela.indexOf('function ModalEscolhaMvp'), tela.indexOf('function SetEndConfirmModal'))
+const css = readFileSync('src/app/globals.css', 'utf8')
 assert.equal(tela.includes('setEscolhaMvpId(sugestaoId)'), false)
 assert.equal(tela.includes('setMvpId(sugestaoId)'), false)
-assert.equal(tela.includes('idDoMaiorPontuador'), true)
+assert.equal(modal.includes('Adversária'), false)
+assert.equal(modal.includes('idDoMaiorPontuador([...vencedora.players, ...vencedora.reserves], pontos)'), true)
+assert.equal(modal.includes('logoUrl={vencedora.logoUrl}'), true)
+assert.equal(modal.includes('atletas(vencedora)'), true)
+assert.equal(modal.includes('official-mvp-campea'), true)
+assert.equal(/\.official-mvp-equipes \{[^}]*grid-template-columns:\s*1fr 1fr/.test(css), false)
+assert.equal(/\.official-mvp-lista \{[^}]*grid-template-columns:\s*1fr/.test(css), true)
 
 console.log('mvp-partida: ok')

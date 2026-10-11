@@ -20,7 +20,7 @@ export function TeamIdentity({ nome, cor, logoUrl, align = 'left', compact = fal
     .join('')
     .toUpperCase()
 
-  const sizeClasses = compact ? 'h-10 w-10 text-[11px]' : 'h-12 w-12 text-xs'
+  const sizeClasses = compact ? 'h-11 w-11 min-w-0 text-xs' : 'h-14 w-14 min-w-0 text-sm'
 
   return (
     <div className={`flex min-w-0 max-w-full items-center gap-3 ${align === 'right' ? 'flex-row-reverse text-right' : ''} ${align === 'center' ? 'flex-col text-center' : ''}`}>
@@ -35,7 +35,7 @@ export function TeamIdentity({ nome, cor, logoUrl, align = 'left', compact = fal
       )}
       {showName && (
         <span className="min-w-0 flex-1">
-          <NomeEquipe nome={nome} className="block truncate font-black leading-tight text-slate-950" />
+          <NomeEquipe nome={nome} className="block font-black leading-tight text-slate-950 [overflow-wrap:anywhere]" />
         </span>
       )}
     </div>

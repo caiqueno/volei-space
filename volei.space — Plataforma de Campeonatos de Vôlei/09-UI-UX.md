@@ -5,20 +5,22 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  No modal do MVP, cada atleta mostra o total e ATQ, BLQ e ACE desta partida. A sugestão destaca o maior, sem selecionar.
+  Nome do time maior e sempre com o escudo. O modal do MVP mostra só a vencedora, com Sugestão no maior pontuador dela.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Interface e experiência
 
-Em 11 de outubro de 2026 o modal «Escolha o MVP» mostra, em cada atleta, o total desta partida e, menor, ATQ, BLQ e ACE. Cada equipe fica do maior para o menor. O maior pontuador da partida ganha o selo «Sugestão» e o fundo âmbar, sem ficar selecionado. Sem scout único, a escolha é manual. Sem banco. Fonte: [[modulos/SUMULA-DIGITAL]].
+Em 11 de outubro de 2026 o nome do time fica maior e sempre com o escudo nas tabelas de grupo, nos jogos, na chave, no ao vivo, nos rankings e na súmula. No story do grupo a coluna da equipe é a mais larga: escudo e nome inteiro, com quebra de linha e sem reticências. As colunas de números ficam mais compactas. Sem banco. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/SUMULA-DIGITAL]].
+
+Em 11 de outubro de 2026 o modal «Escolha o MVP» mostra só a equipe vencedora: escudo e nome grande no topo, e os atletas numa coluna que usa a largura do tablet. Cada atleta traz o total desta partida e, menor, ATQ, BLQ e ACE. O maior pontuador da vencedora ganha o selo «Sugestão» e o fundo âmbar, sem ficar selecionado. A lista da outra equipe saiu. Sem scout único, a escolha é manual. Sem banco. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 11 de outubro de 2026 a tabela de cada grupo em `/classificacao` e em `/rankings` deixa o cartão vertical no celular. A linha tem círculo, escudo e nome, e os números P, J, V, D, SP, SC, DS, DP e PE ficam lado a lado. Posição e equipe ficam fixas; os números rolam na horizontal. A rolagem da página segue na vertical. Quem está na vaga tem círculo dourado e fundo verde, com pulso só de opacidade. Com menos movimento, o verde fica parado. O story do grupo continua. Sem banco. Fonte: [[modulos/CLASSIFICACAO]].
 
 Em 11 de outubro de 2026 a quadra 2D da súmula mostra o escudo da equipe ao lado do nome, em cada lado, com cerca de 36px. Sem logo, ficam as iniciais, no mesmo componente das telas públicas. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
-Em 11 de outubro de 2026 a súmula encerrada sem MVP abre um modal com os atletas das duas equipes. Cada atleta é um botão alto, e «Selecionar MVP» e «Oficializar súmula» ficam na base, com altura de 64px. Fechar deixa o aviso na página; o botão «Oficializar súmula» reabre o modal. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
+Em 11 de outubro de 2026 a súmula encerrada sem MVP abre o modal uma vez, só com os atletas da vencedora. Cada atleta é um botão alto, e «Selecionar MVP» e «Oficializar súmula» ficam na base, com altura de 64px. Fechar deixa o aviso na página; o botão «Oficializar súmula» reabre o modal. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 11 de outubro de 2026 a validação do árbitro sugere a presença da última partida da equipe: linha verde com ✓ para quem estava presente e linha vermelha com X para quem estava ausente. A sugestão continua editável. «Adicionar atleta» abre nome e número, este com teclado numérico, e o atleta novo já entra como presente. Os alvos têm 56px. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

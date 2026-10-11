@@ -16,6 +16,8 @@ export const TITULO_FUNDAMENTO: Record<FundamentoCartaz, string> = {
 
 export type LinhaTabelaCartaz = {
   equipe: string
+  logoUrl?: string | null
+  corHex?: string | null
   pontos: number
   jogos?: number
   vitorias?: number
@@ -112,6 +114,10 @@ export type ChaveCartaz = {
 export type ResultadoCartaz = {
   nomeA: string
   nomeB: string
+  logoA?: string | null
+  logoB?: string | null
+  corA?: string | null
+  corB?: string | null
   setsPorA: number
   setsPorB: number
   parciais: Array<{ numero: number; pontosA: number; pontosB: number }>
@@ -124,7 +130,7 @@ export type ResultadoCartaz = {
 
 export type SumulaCartaz = {
   parciais: Array<{ numero: number; pontosA: number; pontosB: number }>
-  fundamentos: Array<{ equipe: string; ataque: number; bloqueio: number; saque: number }>
+  fundamentos: Array<{ equipe: string; ataque: number; bloqueio: number; saque: number; logoUrl?: string | null; corHex?: string | null }>
   cartoes: Array<{ tipo: string; nome: string }>
 }
 
@@ -288,14 +294,18 @@ export function linhasDaSumula(sumula: SumulaCartaz) {
 export function montarSumulaPublica(entrada: {
   nomeA: string
   nomeB: string
+  logoA?: string | null
+  logoB?: string | null
+  corA?: string | null
+  corB?: string | null
   parciais: Array<{ numero: number; pontosA: number; pontosB: number }>
   ocorrencias: Array<{ tipo?: string | null; descricao?: string | null; jogadorId?: number | null }>
   jogadoresA: Array<{ id: number; nome: string }>
   jogadoresB: Array<{ id: number; nome: string }>
 }): SumulaCartaz {
   const times = [
-    { equipe: entrada.nomeA, ids: new Set(entrada.jogadoresA.map((jogador) => jogador.id)), ataque: 0, bloqueio: 0, saque: 0 },
-    { equipe: entrada.nomeB, ids: new Set(entrada.jogadoresB.map((jogador) => jogador.id)), ataque: 0, bloqueio: 0, saque: 0 },
+    { equipe: entrada.nomeA, logoUrl: entrada.logoA ?? null, corHex: entrada.corA ?? null, ids: new Set(entrada.jogadoresA.map((jogador) => jogador.id)), ataque: 0, bloqueio: 0, saque: 0 },
+    { equipe: entrada.nomeB, logoUrl: entrada.logoB ?? null, corHex: entrada.corB ?? null, ids: new Set(entrada.jogadoresB.map((jogador) => jogador.id)), ataque: 0, bloqueio: 0, saque: 0 },
   ]
   const nomes = new Map<number, string>()
   for (const jogador of [...entrada.jogadoresA, ...entrada.jogadoresB]) nomes.set(jogador.id, jogador.nome)
@@ -315,7 +325,7 @@ export function montarSumulaPublica(entrada: {
   }
   return {
     parciais: entrada.parciais,
-    fundamentos: times.map(({ equipe, ataque, bloqueio, saque }) => ({ equipe, ataque, bloqueio, saque })),
+    fundamentos: times.map(({ equipe, ataque, bloqueio, saque, logoUrl, corHex }) => ({ equipe, ataque, bloqueio, saque, logoUrl, corHex })),
     cartoes,
   }
 }

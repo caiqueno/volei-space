@@ -1,4 +1,5 @@
 import type { UIEvent } from 'react'
+import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import estilos from '@/components/classificacao/scouts.module.css'
 import { pontosDoAtleta, type AtletaQuadro } from '@/lib/quadro-publico'
@@ -17,6 +18,7 @@ export function LinhaScout({ atleta, indice, onScroll }: { atleta: AtletaQuadro;
         <TeamIdentity nome={atleta.equipe} cor={atleta.corHex} logoUrl={atleta.logoUrl} compact showName={false} />
         <span className={estilos.pessoa}>
           <strong className={estilos.nome}>{atleta.nome}</strong>
+          <span className={estilos.equipe}><NomeEquipe nome={atleta.equipe} /></span>
           {atleta.numero != null && <span className={estilos.camisa}>#{atleta.numero}</span>}
         </span>
       </div>

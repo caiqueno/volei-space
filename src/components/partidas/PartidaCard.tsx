@@ -152,20 +152,13 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
 }
 
 function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 'left' | 'right' }) {
-  if (equipe?.vaga) {
-    return (
-      <div className={`match-team min-w-0 ${align === 'right' ? 'is-away text-right' : ''}`}>
-        <p className="mt-3 min-h-[42px] text-sm font-black leading-[1.35] text-slate-950">{equipe.nome}</p>
-      </div>
-    )
-  }
   const nome = equipe?.nome || 'Equipe'
   return (
     <div className={`match-team min-w-0 ${align === 'right' ? 'is-away text-right' : ''}`}>
       <div className={`flex ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
         <TeamIdentity nome={nome} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
       </div>
-      <p className="mt-3 min-h-[42px] overflow-hidden text-sm font-black leading-[1.35] text-slate-950 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+      <p className="mt-2 text-base font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
         <NomeEquipe nome={nome} />
       </p>
     </div>

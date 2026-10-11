@@ -44,11 +44,11 @@ type LivePlayer = {
 }
 
 function NomeLado({ equipe }: { equipe: { nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null }) {
-  if (equipe?.vaga) return <span>{equipe.nome || 'A definir'}</span>
+  const nome = equipe?.nome || (equipe?.vaga ? 'A definir' : 'Equipe')
   return (
-    <span className="inline-flex min-w-0 items-center gap-2">
-      <TeamIdentity nome={equipe?.nome || 'Equipe'} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
-      <NomeEquipe nome={equipe?.nome} />
+    <span className="inline-flex min-w-0 max-w-full flex-col items-center gap-1 text-center">
+      <TeamIdentity nome={nome} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
+      <NomeEquipe nome={nome} className="font-black leading-tight [overflow-wrap:anywhere]" />
     </span>
   )
 }
@@ -156,7 +156,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
               <em>{formatStatus(match.status)}</em>
             </span>
           </div>
-          <h1><NomeLado equipe={match.equipeA} /> <small>vs</small> <NomeLado equipe={match.equipeB} /></h1>
+          <h1 className="live-match-hero-times"><NomeLado equipe={match.equipeA} /> <small>vs</small> <NomeLado equipe={match.equipeB} /></h1>
           <p><CalendarDays size={16} /> {agenda.rotulo}{agenda.data ? ` · ${agenda.data}` : ''}</p>
           {agenda.local ? <p><Clock size={16} /> {agenda.local}</p> : null}
           {finished && match.oficial ? <p>Resultado oficial, visível sem login.</p> : null}
@@ -214,7 +214,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
               <section key={team.teamId}>
                 <h3 className="inline-flex items-center gap-2">
                   <TeamIdentity nome={team.teamName} cor={team.corHex} logoUrl={team.logoUrl} compact showName={false} />
-                  <NomeEquipe nome={team.teamName} />
+                  <NomeEquipe nome={team.teamName} className="text-lg font-black leading-tight [overflow-wrap:anywhere]" />
                 </h3>
                 {team.players.length ? (
                   <div className="live-match-scout-table">
@@ -269,6 +269,10 @@ function resultadoDoPlacar(match: LiveMatch, pontosA: number, pontosB: number, e
     aoVivo: !encerrado,
     pontosA,
     pontosB,
+    logoA: match.equipeA?.logoUrl ?? null,
+    logoB: match.equipeB?.logoUrl ?? null,
+    corA: match.equipeA?.corHex ?? null,
+    corB: match.equipeB?.corHex ?? null,
   }
 }
 
@@ -276,6 +280,10 @@ function sumulaDoPlacar(match: LiveMatch) {
   return montarSumulaPublica({
     nomeA: match.equipeA?.nome || 'Equipe A',
     nomeB: match.equipeB?.nome || 'Equipe B',
+    logoA: match.equipeA?.logoUrl ?? null,
+    logoB: match.equipeB?.logoUrl ?? null,
+    corA: match.equipeA?.corHex ?? null,
+    corB: match.equipeB?.corHex ?? null,
     parciais: (match.sets ?? []).map((set) => ({ numero: set.numero, pontosA: set.pontosA, pontosB: set.pontosB })),
     ocorrencias: match.ocorrencias ?? [],
     jogadoresA: (match.equipeA?.jogadores ?? []).map((jogador) => ({ id: jogador.id, nome: jogador.nome })),

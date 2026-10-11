@@ -8113,12 +8113,82 @@ html body .official-mvp-fechar {
   touch-action: manipulation;
 }
 
+html body .official-mvp-campea {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  min-width: 0;
+  border: 1px solid rgba(52, 211, 153, .7);
+  border-radius: 18px;
+  background: rgba(52, 211, 153, .08);
+  padding: 14px 16px;
+}
+
+html body .official-mvp-campea > .flex {
+  flex: 0 0 auto;
+}
+
+html body .official-mvp-campea .team-mark,
+html body .official-mvp-campea span.inline-flex {
+  width: 72px;
+  height: 72px;
+  min-width: 0;
+  flex: 0 0 72px;
+  overflow: hidden;
+}
+
+html body .official-mvp-campea span.inline-flex img {
+  width: 72px;
+  height: 72px;
+  min-width: 0;
+  object-fit: contain;
+}
+
+html body .official-mvp-campea h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+html body .official-mvp-campea .nome-equipe {
+  font-size: inherit;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+html body .official-mvp-campea strong,
+html body .official-mvp-sem-vencedor {
+  display: block;
+  margin: 4px 0 0;
+  color: #34d399;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+html body .official-mvp-sem-vencedor {
+  flex: 0 0 auto;
+  margin: 0;
+  color: #ffffff;
+}
+
+html body p.official-mvp-dica {
+  margin: 0;
+  flex: 0 0 auto;
+  color: #fde68a;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 html body .official-mvp-equipes {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
   align-items: start;
 }
@@ -8167,8 +8237,13 @@ html body .official-mvp-equipes section.is-vencedora header em {
 }
 
 html body .official-mvp-lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
+  align-content: start;
 }
 
 html body .official-mvp-atleta {
@@ -13361,8 +13436,28 @@ html body .official-sumula .live-match-page.is-dock .live-match-hero h1 small {
 .sumula-registro header h1 {
   margin: 8px 0;
   color: #ffffff;
-  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-size: clamp(1.35rem, 4.2vw, 2.2rem);
   line-height: 1.15;
+}
+
+.sumula-registro header h1 .team-mark,
+.sumula-registro header h1 span.inline-flex {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+}
+
+.sumula-registro h3 .nome-equipe {
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.sumula-registro h3 .team-mark,
+.sumula-registro h3 span.inline-flex {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
 }
 
 .sumula-registro header h1 small {
@@ -13511,11 +13606,15 @@ html body .official-sumula .live-match-page.is-dock .live-match-hero h1 small {
 }
 
 .live-match-hero h1 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   margin: 14px 0;
   color: #ffffff;
-  font-size: clamp(32px, 4.2vw, 54px);
-  line-height: 1.04;
-  font-weight: 700;
+  font-size: clamp(22px, 4.2vw, 40px);
+  line-height: 1.1;
+  font-weight: 800;
   max-width: 760px;
 }
 
@@ -13556,9 +13655,11 @@ html body .official-sumula .live-match-page.is-dock .live-match-hero h1 small {
 }
 
 .live-match-scoreboard strong {
-  color: #cbd5e1;
-  font-size: 14px;
-  font-weight: 700;
+  max-width: 100%;
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .live-match-scoreboard b {
@@ -13931,7 +14032,7 @@ html body .official-sumula .live-match-page.is-dock .live-match-hero h1 small {
   }
 
   .live-match-hero h1 {
-    font-size: clamp(30px, 9vw, 42px);
+    font-size: clamp(16px, 4.6vw, 22px);
   }
 
   .live-match-hero p {
@@ -13968,8 +14069,8 @@ html body .official-sumula .live-match-page.is-dock .live-match-hero h1 small {
   }
 
   .live-match-scoreboard strong {
-    max-width: 92px;
-    font-size: 11px;
+    max-width: 100%;
+    font-size: 14px;
   }
 
   .live-match-scoreboard b {
@@ -15457,16 +15558,26 @@ html body .official-card-icon.is-red {
 }
 
 html body .official-compact-score-team-name {
+  display: grid;
+  justify-items: center;
   justify-self: stretch;
+  gap: 2px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
   color: #f8fafc;
   font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 800;
+  line-height: 1.1;
   text-align: center;
+  white-space: normal;
+}
+
+html body .official-compact-score-team-name .team-mark,
+html body .official-compact-score-team-name span.inline-flex {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  font-size: 9px;
 }
 
 html body .official-team-score-group .official-compact-team-control > strong {
@@ -15629,7 +15740,7 @@ html body .official-compact-timeout-action:disabled {
   }
 
   html body .official-compact-score-team-name {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   html body .official-team-score-group .official-compact-team-meta em {
@@ -16703,16 +16814,37 @@ html body .legal-page th {
   gap: 8px;
   align-items: center;
   color: #e2e8f0;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.volley-names strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  line-height: 1.15;
 }
 
 .volley-names strong:last-child,
 .volley-help {
+  justify-content: flex-end;
   text-align: right;
 }
 
-.volley-names span,
+.volley-names .nome-equipe {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.volley-names .team-mark,
+.volley-names span.inline-flex {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
+.volley-names > span,
 .volley-help {
   color: #d4af37;
   font-size: 11px;
@@ -17200,7 +17332,7 @@ html body .official-court.is-facing {
 
 html body .official-court.is-facing > strong {
   color: #f8fafc;
-  font-size: 14px;
+  font-size: 1.05rem;
   text-align: center;
 }
 
@@ -17208,6 +17340,7 @@ html body .official-side-brand {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
   max-width: 100%;
@@ -17224,16 +17357,22 @@ html body .official-court.is-facing .official-side-brand span {
 
 html body .official-side-brand .nome-equipe {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html body .official-roster-header .official-side-brand .nome-equipe {
+  font-size: 1.25rem;
 }
 
 html body .official-side-brand .team-mark,
 html body .official-side-brand span.inline-flex {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
 }
 
 html body .official-court.is-facing.is-selected > strong {
@@ -17516,8 +17655,8 @@ html body .official-score-bar-points {
 }
 
 html body .official-score-bar-points .official-compact-score-team-name {
-  max-width: 9rem;
-  font-size: 11px;
+  max-width: 5.75rem;
+  font-size: 13px;
   text-align: center;
 }
 

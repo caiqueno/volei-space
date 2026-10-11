@@ -53,7 +53,7 @@ function PodioSpot({ team, isHero }: { team: PodiumTeam; isHero: boolean }) {
     <div role="listitem" className={`flex flex-col items-center ${celebracao ? `${mi.campeao} ${mi.entrar}` : mi.entrar}`} style={{ animationDelay: atraso }}>
       <Trophy size={isHero ? 14 : 20} className={`mb-1 shrink-0 ${accent} ${celebracao ? mi.pop : ''}`} aria-hidden="true" />
       <TeamIdentity nome={team.nome} cor={team.corHex} logoUrl={team.logoUrl} compact={markCompact} showName={false} />
-      <p className={`mt-1.5 max-w-[86px] truncate text-center font-black text-white ${isHero ? 'text-[11px]' : 'text-sm'}`}>
+      <p className={`mt-1.5 max-w-[6.75rem] text-center font-black leading-tight text-white [overflow-wrap:anywhere] ${isHero ? 'text-xs' : 'text-sm'}`}>
         <NomeEquipe nome={team.nome} />
       </p>
       <p className={`text-[9px] font-black uppercase tracking-[0.12em] ${accent}`}>{POSITION_TAG[team.posicao]}</p>

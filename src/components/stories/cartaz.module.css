@@ -232,6 +232,19 @@
   white-space: nowrap;
 }
 
+.equipeMiudo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  min-width: 0;
+  color: var(--story-suave);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+}
+
 .valor {
   font-size: 52px;
 }
@@ -242,8 +255,20 @@
   table-layout: fixed;
 }
 
+.colPosto {
+  width: 44px;
+}
+
+.colEquipe {
+  width: 48%;
+}
+
+.colNumero {
+  width: 46px;
+}
+
 .tabela th {
-  padding: 16px 8px;
+  padding: 12px 2px;
   font-size: 28px;
   font-weight: 700;
   color: var(--story-suave);
@@ -257,8 +282,9 @@
 }
 
 .tabela td {
-  height: 112px;
-  padding: 0 8px;
+  height: auto;
+  min-height: 96px;
+  padding: 8px 2px;
   overflow: hidden;
   border-top: 1px solid var(--story-borda);
   font-size: 28px;
@@ -266,17 +292,35 @@
   font-weight: 700;
   text-align: right;
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .tabela td:nth-child(2) {
-  max-width: 0;
-  font-size: 44px;
-  text-overflow: ellipsis;
+  overflow: visible;
+  font-size: 40px;
+  white-space: normal;
+}
+
+.equipeLinha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nomeEquipe {
+  min-width: 0;
+  overflow: visible;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .tabela td:nth-child(3) {
   font-family: var(--font-display), "Arial Narrow", sans-serif;
-  font-size: 52px;
+  font-size: 36px;
 }
 
 .classifica {
@@ -348,6 +392,12 @@
 .linhaChave .nome {
   flex: 1;
   min-width: 0;
+  overflow: visible;
+  font-size: 32px;
+  line-height: 1.15;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .venceu,
@@ -375,18 +425,40 @@
   color: var(--story-texto);
 }
 
-.escudo {
+.escudo,
+.escudoTabela,
+.escudoMenor,
+.escudoJogo {
   display: inline-flex;
-  width: 64px;
-  height: 64px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   border-radius: 999px;
+  object-fit: contain;
   font-size: 28px;
   font-weight: 700;
   color: var(--story-texto);
+}
+
+.escudo {
+  width: 64px;
+  height: 64px;
+}
+
+.escudoTabela {
+  width: 56px;
+  height: 56px;
+}
+
+.escudoMenor {
+  width: 48px;
+  height: 48px;
+}
+
+.escudoJogo {
+  width: 84px;
+  height: 84px;
 }
 
 .placar {
@@ -417,6 +489,7 @@
 }
 
 .ladoDestaque .nome,
+.ladoDestaque .ladoNome,
 .ladoDestaque .placarGrande {
   color: var(--story-ouro);
 }
@@ -444,10 +517,39 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 72px;
+  gap: 12px;
+  height: auto;
+  min-height: 72px;
   margin: 0;
-  font-size: 44px;
+  font-size: 32px;
   font-weight: 700;
+}
+
+.parcialNome {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.ladoNome {
+  display: flex;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  overflow: visible;
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .parcial b {
@@ -507,10 +609,13 @@
 }
 
 .time .nome {
+  display: block;
+  overflow: visible;
+  font-size: 36px;
+  line-height: 1.15;
+  text-overflow: clip;
   white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  overflow-wrap: break-word;
 }
 
 .caixaPlacar {

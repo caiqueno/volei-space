@@ -44,7 +44,7 @@ const linhasGrupo = Array.from({ length: 9 }, (_, indice) => ({
 }))
 const tabela = cartazClassificacao([
   { nome: 'Grupo A', vagas: 2, linhas: linhasGrupo },
-  { nome: 'Grupo B', linhas: [{ equipe: 'Aurora', pontos: 6 }] },
+  { nome: 'Grupo B', linhas: [{ equipe: 'Aurora', pontos: 6, logoUrl: '/images/equipes/rs.webp', corHex: '#123456' }] },
 ], 'https://volei.space/classificacao', { equipe: 'Time 1', pontos: 9 }, 'Grupo A', 'Winners Oficial')
 assert.equal(tabela.tipo, 'grupo')
 assert.equal(tabela.titulo, 'Grupo A')
@@ -54,6 +54,11 @@ assert.equal(tabela.grupo?.linhas.length, 8)
 assert.equal(tabela.grupo?.linhas.some((linha) => linha.equipe === 'Time 9'), false)
 assert.equal(tabela.lider?.equipe, 'Time 1')
 assert.equal(tabela.grupos.length, 2)
+const grupoB = cartazClassificacao([
+  { nome: 'Grupo B', linhas: [{ equipe: 'Winners Pride', pontos: 6, logoUrl: '/images/equipes/rs.webp', corHex: '#123456' }] },
+], 'https://volei.space/classificacao')
+assert.equal(grupoB.grupo?.linhas[0].logoUrl, '/images/equipes/rs.webp')
+assert.equal(grupoB.grupo?.linhas[0].corHex, '#123456')
 
 const jogo = cartazJogo({
   nomeA: 'Winners Pride',
@@ -303,6 +308,16 @@ assert.match(css, /\.topoChave[\s\S]*background:\s*var\(--story-primaria\)/)
 assert.equal(css.includes('#070D1A'), false)
 assert.equal(css.includes('#16243D'), false)
 assert.equal(/font-size:\s*(?:[0-9]|1[0-9]|2[0-7])px/.test(css), false)
+assert.equal(css.includes('max-width: 0'), false)
+assert.equal(/\.tabela td:nth-child\(2\) \{[^}]*ellipsis/.test(css), false)
+assert.equal(/\.tabela td:nth-child\(2\) \{[^}]*nowrap/.test(css), false)
+const nomeEquipe = css.match(/\.nomeEquipe \{[\s\S]*?\}/)?.[0] ?? ''
+assert.match(nomeEquipe, /white-space:\s*normal/)
+assert.equal(nomeEquipe.includes('ellipsis'), false)
+const timeNome = css.match(/\.time \.nome \{[\s\S]*?\}/)?.[0] ?? ''
+assert.equal(timeNome.includes('line-clamp'), false)
+assert.match(visual, /linha\.logoUrl/)
+assert.match(visual, /estilos\.nomeEquipe/)
 
 const botaoCss = readFileSync('src/components/stories/stories.module.css', 'utf8')
 assert.match(botaoCss, /prefers-reduced-motion:\s*reduce/)

@@ -13,6 +13,16 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | modal do MVP só com a vencedora
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- O modal lista só a equipe vencedora, com escudo e nome grande. O selo Sugestão fica no maior pontuador dela. Sem banco.
+
+## [2026-10-11] fix | nome do time maior, com escudo
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- O nome fica maior e sempre com o escudo. No story do grupo o nome inteiro quebra a linha, sem reticências. Sem banco.
+
 ## [2026-10-11] fix | pontos desta partida no modal do MVP
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

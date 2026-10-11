@@ -2,6 +2,7 @@
 
 import { useState, type DragEvent } from 'react'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 export type LadoQuadra = 'teamA' | 'teamB'
@@ -44,6 +45,8 @@ const ZONAS_DIREITA: Zona[] = [
 export type LadoDaQuadra = {
   id: LadoQuadra
   nome: string
+  logoUrl?: string | null
+  corHex?: string | null
   atletas: AtletaQuadra[]
   escalacao: string[]
   sacando?: boolean
@@ -71,9 +74,17 @@ export function QuadraVolei({ esquerda, direita, modo, numeroExibido, destaque, 
   return (
     <div className="volley-board">
       <div className="volley-names">
-        <strong><NomeEquipe nome={esquerda.nome} />{esquerda.sacando ? ' · Sacando' : ''}</strong>
+        <strong>
+          <TeamIdentity nome={esquerda.nome} cor={esquerda.corHex} logoUrl={esquerda.logoUrl} compact showName={false} />
+          <NomeEquipe nome={esquerda.nome} />
+          {esquerda.sacando ? ' · Sacando' : ''}
+        </strong>
         <span>Rede</span>
-        <strong>{direita.sacando ? 'Sacando · ' : ''}<NomeEquipe nome={direita.nome} /></strong>
+        <strong>
+          {direita.sacando ? 'Sacando · ' : ''}
+          <NomeEquipe nome={direita.nome} />
+          <TeamIdentity nome={direita.nome} cor={direita.corHex} logoUrl={direita.logoUrl} compact showName={false} />
+        </strong>
       </div>
       <div className="volley-court" role="group" aria-label={`Quadra de ${normalizarNomeEquipe(esquerda.nome)} contra ${normalizarNomeEquipe(direita.nome)}`}>
         <img src="/images/quadra-padrao.png" alt="" />

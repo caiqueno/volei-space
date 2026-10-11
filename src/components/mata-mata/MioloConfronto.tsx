@@ -114,7 +114,7 @@ function LinhaTime({ lado, sets, venceu, encerrada }: { lado: LadoCartaz; sets: 
   return (
     <li data-provisorio={lado.provisorio ? 'true' : undefined} data-origem={lado.origem ?? undefined} className={`${mi.lado} flex min-h-8 items-center gap-2 rounded-md border-l-4 py-1 pl-2 ${venceu ? 'border-vs-gold' : 'border-transparent'} ${encerrada && !venceu && !lado.definir ? 'opacity-60' : ''} ${brilho ? mi.troca : ''}`}>
       <Escudo nome={lado.nome} cor={lado.cor} logoUrl={lado.logo} />
-      <span className={`min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-vs-text ${venceu ? 'font-bold' : 'font-semibold'} ${lado.definir ? 'italic text-vs-muted' : ''}`}>
+      <span className={`min-w-0 flex-1 whitespace-normal break-words text-base leading-5 text-vs-text ${venceu ? 'font-bold' : 'font-semibold'} ${lado.definir ? 'italic text-vs-muted' : ''}`}>
         <NomeEquipe nome={lado.definir ? 'A definir' : lado.nome} />
         {lado.provisorio && (
           <span className="mt-0.5 block text-[11px] font-semibold leading-4 text-vs-muted">
@@ -157,7 +157,7 @@ function LinhaStory({ lado, sets, venceu }: { lado: LadoCartaz; sets: number | n
 function Escudo({ nome, cor, logoUrl, grande = false }: { nome: string; cor: string | null; logoUrl: string | null; grande?: boolean }) {
   const sigla = iniciais(nome)
   if (logoUrl) {
-    return <img src={logoUrl} alt="" className={grande ? estilos.escudo : 'h-6 w-6 shrink-0 object-contain'} />
+    return <img src={logoUrl} alt="" className={grande ? estilos.escudo : 'h-9 w-9 shrink-0 object-contain'} />
   }
   if (grande) {
     return (
@@ -165,7 +165,7 @@ function Escudo({ nome, cor, logoUrl, grande = false }: { nome: string; cor: str
     )
   }
   return (
-    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-vs-text" style={{ background: cor ?? '#16243D' }}>
+    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-vs-text" style={{ background: cor ?? '#16243D' }}>
       {sigla || '–'}
     </span>
   )

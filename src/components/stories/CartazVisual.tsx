@@ -88,7 +88,10 @@ function Ranking({ cartaz, paleta }: { cartaz: Extract<CartazStories, { tipo: 'r
             {indice < 3 ? <Medal size={40} color={corMedalha(indice, paleta)} aria-hidden="true" /> : <span />}
             <span>
               <span className={estilos.nome}>{nomeDoAtleta(atleta)}</span>
-              <span className={estilos.miudo}><NomeEquipe nome={atleta.equipe} /></span>
+              <span className={estilos.equipeMiudo}>
+                <EscudoCartaz nome={atleta.equipe} cor={atleta.corHex} logo={atleta.logoUrl} menor />
+                <NomeEquipe nome={atleta.equipe} />
+              </span>
             </span>
             <b className={estilos.valor} style={{ color: indice === 0 ? paleta.ouro : paleta.texto }}>{atleta.pontos}</b>
           </li>
@@ -108,6 +111,11 @@ function Grupo({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'grupo' }> }
       </header>
       <table className={estilos.tabela}>
         <caption className="sr-only">Classificação de {grupo.nome}</caption>
+        <colgroup>
+          <col className={estilos.colPosto} />
+          <col className={estilos.colEquipe} />
+          {COLUNAS_GRUPO.slice(2).map((coluna) => <col key={coluna} className={estilos.colNumero} />)}
+        </colgroup>
         <thead>
           <tr>
             {COLUNAS_GRUPO.map((coluna) => <th key={coluna}>{coluna}</th>)}
@@ -120,7 +128,12 @@ function Grupo({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'grupo' }> }
             return (
               <tr key={`${grupo.nome}-${linha.equipe}`}>
                 <td className={classifica ? estilos.classifica : undefined}>{indice + 1}</td>
-                <td><NomeEquipe nome={linha.equipe} /></td>
+                <td>
+                  <span className={estilos.equipeLinha}>
+                    <EscudoCartaz nome={linha.equipe} cor={linha.corHex} logo={linha.logoUrl} tabela />
+                    <span className={estilos.nomeEquipe}><NomeEquipe nome={linha.equipe} /></span>
+                  </span>
+                </td>
                 <td>{numeros.pontos}</td>
                 <td>{numeros.jogos}</td>
                 <td>{numeros.vitorias}</td>
@@ -173,8 +186,8 @@ function Resultado({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'resulta
       <p className={estilos.rotuloFase}>{aoVivo ? 'Ao vivo' : 'Fim de jogo'}</p>
       <PlacarJogo
         tom="story"
-        ladoA={<NomeEquipe nome={jogo.nomeA} />}
-        ladoB={<NomeEquipe nome={jogo.nomeB} />}
+        ladoA={<LadoResultado nome={jogo.nomeA} cor={jogo.corA} logo={jogo.logoA} />}
+        ladoB={<LadoResultado nome={jogo.nomeB} cor={jogo.corB} logo={jogo.logoB} />}
         valorA={valorA}
         valorB={valorB}
         centro={aoVivo ? `${jogo.setsPorA} x ${jogo.setsPorB}` : 'sets'}
@@ -202,7 +215,10 @@ function SumulaBloco({ sumula }: { sumula: SumulaCartaz | null }) {
       <p className={estilos.rotuloFase}>Súmula</p>
       {sumula.fundamentos.map((equipe) => (
         <p key={equipe.equipe} className={estilos.parcial}>
-          <span className={estilos.nome}>{equipe.equipe}</span>
+          <span className={estilos.parcialNome}>
+            <EscudoCartaz nome={equipe.equipe} cor={equipe.corHex} logo={equipe.logoUrl} menor />
+            <NomeEquipe nome={equipe.equipe} />
+          </span>
           <b>{equipe.ataque} · {equipe.bloqueio} · {equipe.saque}</b>
         </p>
       ))}
@@ -251,14 +267,25 @@ function Jogo({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'jogo' }> }) 
 function Time({ nome, cor, logo }: { nome: string; cor: string | null; logo: string | null }) {
   return (
     <div className={estilos.time}>
-      {logo ? (
-        <img className={estilos.escudo} src={logo} alt="" />
-      ) : (
-        <span className="team-mark" style={{ width: 84, height: 84, fontSize: 28, ['--team-color' as string]: cor ?? 'var(--story-primaria)' }}>{iniciais(nome) || '–'}</span>
-      )}
+      <EscudoCartaz nome={nome} cor={cor} logo={logo} jogo />
       <span className={estilos.nome}><NomeEquipe nome={nome} /></span>
     </div>
   )
+}
+
+function LadoResultado({ nome, cor, logo }: { nome: string; cor?: string | null; logo?: string | null }) {
+  return (
+    <>
+      <EscudoCartaz nome={nome} cor={cor} logo={logo} />
+      <NomeEquipe nome={nome} />
+    </>
+  )
+}
+
+function EscudoCartaz({ nome, cor, logo, menor = false, tabela = false, jogo = false }: { nome: string; cor?: string | null; logo?: string | null; menor?: boolean; tabela?: boolean; jogo?: boolean }) {
+  const classe = jogo ? estilos.escudoJogo : tabela ? estilos.escudoTabela : menor ? estilos.escudoMenor : estilos.escudo
+  if (logo) return <img className={classe} src={logo} alt="" />
+  return <span className={classe} style={{ background: cor ?? 'var(--story-elevada)' }}>{iniciais(nome) || '–'}</span>
 }
 
 function corMedalha(indice: number, paleta: PaletaStories) {
