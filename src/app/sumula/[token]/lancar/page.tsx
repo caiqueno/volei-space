@@ -23,6 +23,7 @@ import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } 
 import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
 import { lerLiberosIniciais, numeroDeLibero, quantidadeDeLiberos, rotuloSeletorLibero, textoLiberoInicial } from '@/lib/libero-sumula'
 import { ordenarPorCamisaDaSumula } from '@/lib/ordem-camisa-sumula'
+import { AVISO_CAMISA, apenasDigitosCamisa, decidirCamisa, proximaPosicaoVazia } from '@/lib/busca-camisa-papeleta'
 import { ladoOposto, marcarSaqueInicial, modoSaqueInicial, saqueObrigatorio, sortearLado } from '@/lib/saque-inicial'
 import { transicaoAoEncerrarSet } from '@/lib/troca-set'
 import { gravarSidebarSumula, lerSidebarSumula, type PreferenciaSidebar } from '@/lib/sidebar-sumula'
@@ -1724,6 +1725,7 @@ export default function SumulaPage() {
             closeSubModal={() => setSubModal(null)}
             getMatchNumber={getMatchNumber}
             onMatchNumberChange={updateMatchNumber}
+            onAviso={addToast}
             vistaQuadra={vistaQuadra}
             sidesInverted={sidesInverted}
             initialServers={initialServerBySet}
@@ -2575,6 +2577,7 @@ function EscalacaoTab(props: {
   closeSubModal: () => void
   getMatchNumber: (teamId: TeamId, number: string) => string
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
+  onAviso: (mensagem: string) => void
   vistaQuadra: '2d' | '3d'
   sidesInverted: boolean
   initialServers: Record<number, TeamId | null>
@@ -2587,6 +2590,10 @@ function EscalacaoTab(props: {
   const [substitutionMode, setSubstitutionMode] = useState(false)
   const [editingNumberSlot, setEditingNumberSlot] = useState<number | null>(null)
   const [editingNumberDraft, setEditingNumberDraft] = useState('')
+  const [rascunhosCamisa, setRascunhosCamisa] = useState<Record<number, string>>({})
+  const rascunhoCamisaRef = useRef<Record<number, string>>({})
+  const camposCamisaRef = useRef<Array<HTMLInputElement | null>>([])
+  const pulandoBlurCamisa = useRef<number | null>(null)
   const [pulsoAtleta, setPulsoAtleta] = useState<string | null>(null)
   useEffect(() => {
     if (props.lineupConfirmed) return
@@ -2597,6 +2604,8 @@ function EscalacaoTab(props: {
     setSubstitutionMode(false)
     setEditingNumberSlot(null)
     setPickedNumber(null)
+    rascunhoCamisaRef.current = {}
+    setRascunhosCamisa({})
   }, [selectedTeamId, props.currentSet, props.lineupConfirmed])
   const team = selectedTeamId === 'teamA' ? props.teamA : props.teamB
   const lineup = selectedTeamId === 'teamA' ? props.lineupA : props.lineupB
@@ -2647,6 +2656,37 @@ function EscalacaoTab(props: {
     if (teamId !== selectedTeamId) setSelectedTeamId(teamId)
     if (props.lineupConfirmed) props.askSubstitution(teamId, index)
     else props.setEditingSlot({ teamId, index })
+  }
+
+  function guardarCamisa(index: number, digitos: string) {
+    rascunhoCamisaRef.current[index] = digitos
+    setRascunhosCamisa((atual) => ({ ...atual, [index]: digitos }))
+  }
+
+  function aplicarCamisa(index: number, bruto: string, forcar: boolean) {
+    const digitos = apenasDigitosCamisa(bruto)
+    const elenco = [...team.players, ...team.reserves].map((player) => ({
+      numero: player.number,
+      camisa: props.getMatchNumber(selectedTeamId, player.number),
+      libero: Boolean(player.isLibero),
+    }))
+    const decisao = decidirCamisa({
+      digitado: digitos,
+      elenco,
+      ocupados: lineup.filter((item, posicao) => posicao !== index && String(item ?? '').trim()),
+      liberoSelecionado: selectedLibero,
+      forcar,
+    })
+    if (decisao.acao === 'esperar') return
+    guardarCamisa(index, '')
+    if (decisao.acao === 'avisar') {
+      props.onAviso(AVISO_CAMISA[decisao.aviso])
+      return
+    }
+    const proxima = proximaPosicaoVazia(lineup.map((item, posicao) => (posicao === index ? decisao.numero : item)), index)
+    if (proxima != null) pulandoBlurCamisa.current = index
+    props.changeSlot(selectedTeamId, index, decisao.numero)
+    if (proxima != null) camposCamisaRef.current[proxima]?.focus()
   }
 
   function ladoEscalacao2d(teamId: TeamId, zonas: Array<{ label: string; index: number }>) {
@@ -2765,7 +2805,7 @@ function EscalacaoTab(props: {
           </div>
           {!props.lineupConfirmed ? (
           <>
-          <p className="volley-help">Toque numa posição ou arraste um atleta do banco. Esta papeleta é só de {team.name}.{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}</p>
+          <p className="volley-help">Digite a camisa, toque em Lista ou arraste um atleta do banco. Esta papeleta é só de {team.name}.{pickedNumber ? ` Atleta #${pickedNumber} selecionado.` : ''}</p>
           <div className="official-court" aria-label={`Papeleta de ${team.name}`}>
             <p className="official-court-net">Rede</p>
             <div>
@@ -2777,8 +2817,9 @@ function EscalacaoTab(props: {
                 return (
                   <div
                     key={position}
-                    role="button"
-                    tabIndex={0}
+                    role={number ? 'button' : undefined}
+                    tabIndex={number ? 0 : undefined}
+                    className={`official-slot ${number ? 'is-filled' : ''} ${number && number === selectedLibero ? 'is-libero-start' : ''}`}
                     onDragOver={(event) => {
                       if (props.lineupConfirmed) return
                       event.preventDefault()
@@ -2791,7 +2832,8 @@ function EscalacaoTab(props: {
                       props.changeSlot(selectedTeamId, index, numero)
                       setPickedNumber(null)
                     }}
-                    onClick={() => {
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('.official-slot-jersey-input')) return
                       if (pickedNumber) {
                         props.changeSlot(selectedTeamId, index, pickedNumber)
                         setPickedNumber(null)
@@ -2800,6 +2842,7 @@ function EscalacaoTab(props: {
                       props.setEditingSlot({ teamId: selectedTeamId, index })
                     }}
                     onKeyDown={(event) => {
+                      if ((event.target as HTMLElement).closest('.official-slot-jersey-input')) return
                       if (event.key !== 'Enter' && event.key !== ' ') return
                       event.preventDefault()
                       if (pickedNumber) {
@@ -2809,7 +2852,6 @@ function EscalacaoTab(props: {
                       }
                       props.setEditingSlot({ teamId: selectedTeamId, index })
                     }}
-                    className={`${number ? 'is-filled' : ''} ${number && number === selectedLibero ? 'is-libero-start' : ''}`}
                   >
                     <span>{position}</span>
                     {number && canEditNumber && editingNumberSlot === index ? (
@@ -2826,11 +2868,77 @@ function EscalacaoTab(props: {
                         onChange={(event) => setEditingNumberDraft(event.target.value.replace(/[^\dA-Za-z-]/g, '').slice(0, 4))}
                         onBlur={() => { props.onMatchNumberChange(selectedTeamId, number, editingNumberDraft); setEditingNumberSlot(null) }}
                       />
+                    ) : !number && !pickedNumber ? (
+                      <input
+                        ref={(elemento) => { camposCamisaRef.current[index] = elemento }}
+                        className="official-slot-jersey-input"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        enterKeyHint="done"
+                        maxLength={2}
+                        placeholder="Nº"
+                        aria-label={`Camisa de ${position} em ${team.name}`}
+                        value={rascunhosCamisa[index] ?? ''}
+                        onTouchStart={(event) => {
+                          event.stopPropagation()
+                          event.currentTarget.focus()
+                        }}
+                        onPointerDown={(event) => {
+                          event.stopPropagation()
+                          event.currentTarget.focus()
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => {
+                          event.stopPropagation()
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            aplicarCamisa(index, rascunhoCamisaRef.current[index] ?? '', true)
+                            return
+                          }
+                          if (event.ctrlKey || event.metaKey || event.altKey) return
+                          if (event.key.length === 1 && !/[0-9]/.test(event.key)) event.preventDefault()
+                        }}
+                        onChange={(event) => {
+                          const digitos = apenasDigitosCamisa(event.target.value)
+                          guardarCamisa(index, digitos)
+                          aplicarCamisa(index, digitos, false)
+                        }}
+                        onBlur={() => {
+                          if (pulandoBlurCamisa.current === index) {
+                            pulandoBlurCamisa.current = null
+                            return
+                          }
+                          aplicarCamisa(index, rascunhoCamisaRef.current[index] ?? '', true)
+                        }}
+                      />
                     ) : (
                       <strong>{number ? rotuloCamisa(displayNumber) : 'Sem atleta'}</strong>
                     )}
                     {number && number === selectedLibero && <em>Líbero</em>}
-                    <small>{player ? displayPlayerName(player.name, team.name) : 'Clique para escalar'}</small>
+                    {player ? (
+                      <small>{displayPlayerName(player.name, team.name)}</small>
+                    ) : (
+                      <button
+                        type="button"
+                        className="official-slot-open-list"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          if (pickedNumber) {
+                            props.changeSlot(selectedTeamId, index, pickedNumber)
+                            setPickedNumber(null)
+                            return
+                          }
+                          props.setEditingSlot({ teamId: selectedTeamId, index })
+                        }}
+                      >
+                        Lista
+                      </button>
+                    )}
                     {canEditNumber && (
                       <button
                         type="button"

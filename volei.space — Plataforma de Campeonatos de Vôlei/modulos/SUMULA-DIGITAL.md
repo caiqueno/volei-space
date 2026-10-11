@@ -5,7 +5,7 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Ajustes só de tela: toque de 44px, confirmações, código morto e iniciais do avatar. A gravação de pontos não muda.
+  Na papeleta vazia, a posição aceita a camisa da súmula. 01 e 1 são a mesma. Sem API nem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
@@ -19,6 +19,8 @@ updated: 2026-10-11
 **Camisa repetida — implementado no código, sem merge:** ao atribuir um número de 0 a 99 que outro atleta da mesma equipe já usa nesta partida, o editado fica com a camisa e quem tinha o número fica sem camisa. Os dois entram no mesmo salvamento: na súmula, no `PUT` de andamento; no credenciamento, no mesmo `POST /api/arbitro/partidas/{token}/numero`. O aviso é «Camisa 10 passou para Fulano; Beltrano ficou sem número». `SumulaPresenca.numero` nulo continua valendo `Jogador.numero`. A camisa vazia desta partida grava `-1`, sem coluna nova e sem função SQL. A outra equipe pode usar o mesmo número. Não há migration.
 
 **Papeleta vazia — implementado no código, sem merge desta etapa:** as seis posições abrem vazias em todos os sets. Encerrar o set zera as duas escalações na tela; a formação do set anterior não continua. O operador toca na posição e escolhe o atleta, ou arrasta do banco. A lista sai em ordem numérica crescente da camisa da súmula (`SumulaPresenca.numero`; sem número e `-1` por último, e o nome desempata). O seletor de líbero usa a mesma ordem. O mesmo atleta não entra em duas posições. Confirmar a papeleta só fica disponível com as seis preenchidas. O líbero inicial é opcional: em branco vale nenhum e não bloqueia a confirmação. Se a súmula recarregar sem a marca de formação daquele set, as posições ficam vazias e o elenco não é colocado automaticamente. Formação já gravada naquele set volta ao reabrir. A gravação de pontos não muda. Não há migration.
+
+**Camisa na posição vazia — implementado no código, sem merge:** cada posição vazia da papeleta tem um campo de no máximo dois dígitos. O toque foca o campo no mesmo gesto (`inputMode="numeric"`, `pattern="[0-9]*"`), para o teclado do iPad abrir só com números. O que não é dígito é descartado. A busca usa a camisa da súmula do time daquela posição, a mesma da lista: a metade em conferência é um time e a outra é o outro. `01` e `1` são a mesma camisa. Se o número não existe, se o atleta já está em outra posição ou se é o líbero que a lista não deixa escalar, a tela mostra um aviso curto e não preenche. Quando preenche, o foco vai para a próxima posição vazia e a posição recebe o número do cadastro, o mesmo da lista. A lista, o arraste e o `PUT` não mudam. Não há migration.
 
 **Seletor de líbero — implementado:** «Selecionar líbero» lista quem está fora da escalação, como o banco. O banco mostra `SumulaPresenca.numero`. O seletor mostrava `Jogador.numero`. Na ALL BLACK, Daniel está no banco como #1 e no cadastro como 13; a escalação já usa o cadastro 1 de outro atleta, então o #1 do banco não aparecia na lista. O rótulo passa a ser a camisa da súmula. O valor gravado continua o número do cadastro, para a troca e o recarregamento acharem o mesmo atleta. Ninguém no Winners Oficial tem `posicao` LB, e `quantidadeLiberos` não existe nessa base: a lista não estava cortada por essas regras. Não há migration.
 

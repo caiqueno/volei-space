@@ -13,6 +13,11 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | camisa digitada na posição vazia da papeleta
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- A posição vazia busca a camisa da súmula do time daquele lado. `01` e `1` são a mesma. Sem API, banco, migration ou payload novo.
+
 ## [2026-10-11] lint | quadro reusa a vista da chave e as iniciais ficam num helper
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `hot`, `log`

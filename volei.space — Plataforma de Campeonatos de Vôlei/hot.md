@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Ajustes só de tela na súmula e na chave. O quadro público reusa a vista da chave. As iniciais saem de um helper. Sem API, banco, migration ou payload novo.
+  Na papeleta vazia, a posição aceita a camisa da súmula. 01 e 1 são a mesma. Sem API, banco, migration ou payload novo.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,8 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 a papeleta vazia aceita a camisa digitada em cada posição. O campo só recebe dígitos, no máximo dois, e o toque abre o teclado numérico no mesmo gesto. `01` e `1` acham o mesmo atleta, pela camisa da súmula do time daquela posição. Número inexistente, atleta já escalado ou líbero fora da lista não preenchem e mostram um aviso curto. O foco segue para a próxima posição vazia. A lista continua e o `PUT` não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 11 de outubro de 2026 a súmula e a chave ganham só ajustes de tela. Saem os componentes mortos `ScoreSide`, `CompactScoreDock` e `FloatingScoreBar`. A tela deixa de ler `exigirLiberoInicial`; o líbero inicial continua opcional e o corpo do `PUT` não muda. O cartão da chave usa `vencedorDaPartida` em `chave-visual.ts`, só para pintar quem avançou. As abas da chave no celular ganham `id`, `aria-controls` e `aria-labelledby`. Os selects Time A e Time B ganham rótulo. Criar o confronto solta o botão no `finally` e não quebra se a resposta não for JSON. Cartão, bloqueio, substituição, ACE e tempo passam a ter área de toque de 44px por `::after`, sem alargar a barra de duas metades. O ↺ fica afastado do `+1`. Se a correção também apaga ponto do adversário, um diálogo pede confirmação e depois chama a mesma função. Tempo técnico, de equipe e médico pedem confirmação leve antes da função que já existia. O alerta de falha ao salvar ganha «Tentar salvar agora», que dispara o mesmo `enfileirarSalvamento`. O menu do celular informa se está aberto. No trilho recolhido, o ícone mostra o nome no tooltip. O `+1` escreve o nome do time e continua na cor do lado. Não há mudança de API, banco, migration nem do payload. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/MATA-MATA]], [[09-UI-UX]].
 
