@@ -13,6 +13,11 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | tabela de grupo horizontal no celular
+
+- pages_updated=`modulos/CLASSIFICACAO`, `09-UI-UX`, `hot`, `log`
+- A tabela do grupo deixa o cartão vertical. Equipe fica fixa e os números rolam na horizontal. As vagas pulsam em verde, só na opacidade. Sem banco.
+
 ## [2026-10-11] fix | semi provisória no portal e na página do campeonato
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `09-UI-UX`, `hot`, `log`

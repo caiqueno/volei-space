@@ -5,12 +5,14 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A semi provisória aparece no portal e na página do campeonato. O modal do MVP tem alvos grandes. Sem migration.
+  A tabela do grupo no celular é horizontal, com a equipe fixa e os números ao lado. As vagas pulsam em verde.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Interface e experiência
+
+Em 11 de outubro de 2026 a tabela de cada grupo em `/classificacao` e em `/rankings` deixa o cartão vertical no celular. A linha tem círculo, escudo e nome, e os números P, J, V, D, SP, SC, DS, DP e PE ficam lado a lado. Posição e equipe ficam fixas; os números rolam na horizontal. A rolagem da página segue na vertical. Quem está na vaga tem círculo dourado e fundo verde, com pulso só de opacidade. Com menos movimento, o verde fica parado. O story do grupo continua. Sem banco. Fonte: [[modulos/CLASSIFICACAO]].
 
 Em 11 de outubro de 2026 a quadra 2D da súmula mostra o escudo da equipe ao lado do nome, em cada lado, com cerca de 36px. Sem logo, ficam as iniciais, no mesmo componente das telas públicas. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

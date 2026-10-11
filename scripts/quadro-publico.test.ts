@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { abasDaChave, colunasSimetricas, caminhoConector, trechosConectores, vencedorDaPartida } from '../src/lib/chave-visual'
-import { liderDaTabela, ordenarScouts, pontosDoAtleta, saldoComSinal, topCinco, type AtletaQuadro, type LinhaGrupo } from '../src/lib/quadro-publico'
+import { classificaNaVaga, liderDaTabela, ordenarScouts, pontosDoAtleta, saldoComSinal, topCinco, type AtletaQuadro, type LinhaGrupo } from '../src/lib/quadro-publico'
 
 const semis = [
   { fase: 'SEMIFINAL', label: 'Semifinal', slots: [{ rodada: 1, avancou: true }, { rodada: 2, avancou: false }] },
@@ -61,6 +61,23 @@ assert.equal(liderDaTabela(linhas)?.equipe, 'Alfa')
 assert.equal(saldoComSinal(3), '+3')
 assert.equal(saldoComSinal(-2), '-2')
 assert.equal(liderDaTabela([]), null)
+assert.equal(classificaNaVaga(0, 2), true)
+assert.equal(classificaNaVaga(1, 2), true)
+assert.equal(classificaNaVaga(2, 2), false)
+assert.equal(classificaNaVaga(0, 0), false)
+assert.equal(classificaNaVaga(0, 1), true)
+
+const tabela = readFileSync('src/components/classificacao/TabelaGrupos.tsx', 'utf8')
+const estilo = readFileSync('src/components/classificacao/tabela-grupo.module.css', 'utf8')
+assert.equal(tabela.includes('data-stack'), false)
+assert.match(tabela, /cartazClassificacao/)
+assert.match(estilo, /overflow-x: auto/)
+assert.match(estilo, /touch-action: pan-x pan-y/)
+assert.match(estilo, /position: sticky/)
+const pulso = estilo.match(/@keyframes pulso-vaga \{[\s\S]*?\}/)?.[0] ?? ''
+assert.match(pulso, /opacity/)
+assert.equal(pulso.includes('transform'), false)
+assert.match(estilo, /prefers-reduced-motion: reduce/)
 
 const quadro = readFileSync('src/components/portal/QuadroPublico.tsx', 'utf8')
 assert.equal(quadro.includes('setBlocos(null)'), false)

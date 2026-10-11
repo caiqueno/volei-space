@@ -64,3 +64,9 @@ export function saldoComSinal(valor: number) {
   if (valor > 0) return `+${valor}`
   return String(valor)
 }
+
+/** As primeiras posições do grupo, até o número de vagas, entram como classificadas. */
+export function classificaNaVaga(indice: number, vagas: number) {
+  const limite = Number(vagas)
+  return Number.isInteger(indice) && indice >= 0 && Number.isFinite(limite) && limite > 0 && indice < limite
+}
