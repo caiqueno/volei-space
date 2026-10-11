@@ -4,8 +4,10 @@ import { ChaveamentoMataMata } from '@/components/mata-mata/ChaveamentoMataMata'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
 import type { ChavePublica } from '@/lib/portal-chave'
+import { comTimesProvisorios, type GrupoProvisorio } from '@/lib/semi-provisoria'
 
-export function VistaChavePublica({ ligaId, chave, campeonato, logoCampeonato }: { ligaId: number; chave: ChavePublica; campeonato?: string; logoCampeonato?: string | null }) {
+export function VistaChavePublica({ ligaId, chave, campeonato, logoCampeonato, grupos = [] }: { ligaId: number; chave: ChavePublica; campeonato?: string; logoCampeonato?: string | null; grupos?: GrupoProvisorio[] }) {
+  const rounds = comTimesProvisorios(chave.rounds, grupos)
   if (!chave.temMataMata) return null
 
   return (
@@ -30,7 +32,7 @@ export function VistaChavePublica({ ligaId, chave, campeonato, logoCampeonato }:
         <div className="mt-4">
           <ChaveamentoMataMata
             ligaId={ligaId}
-            rounds={chave.rounds}
+            rounds={rounds}
             champion={chave.champion}
             thirdPlace={chave.thirdPlace}
             organizerMode={false}

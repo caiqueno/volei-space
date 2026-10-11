@@ -3942,11 +3942,13 @@ function RosterClickers({
                   <span>--</span>
                 )}
                 {nome && <small className="official-player-name">{nome}</small>}
+                {!encerrada && number && (
+                  <button className="official-sub-action is-icon official-toque-44" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={18} /></button>
+                )}
               </div>
-              {!encerrada && (
+              {!encerrada && frontRow && number && (
               <div className="official-player-actions">
-                {frontRow && number && <button className={`official-point-action is-block official-toque-44${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
-                {number && <button className="official-sub-action is-icon official-toque-44" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
+                <button className={`official-point-action is-block official-toque-44${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>
               </div>
               )}
               {scored && <b>+1</b>}

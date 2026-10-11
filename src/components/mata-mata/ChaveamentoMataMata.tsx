@@ -11,7 +11,7 @@ import { abasDaChave, caminhoConector, colunasSimetricas, gradeDaChave, trechosC
 import { agendaDaPartida, formatFaseMataMata } from '@/lib/format-partida'
 import mi from '@/styles/microinteracoes.module.css'
 
-export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null; vaga?: boolean }
+export type TeamOption = { id: number; nome: string; corHex: string | null; logoUrl: string | null; vaga?: boolean; provisorio?: boolean; origem?: string | null }
 
 type SetScore = { numero: number; pontosA: number; pontosB: number }
 
@@ -246,7 +246,8 @@ function CartaoPartida({
 }) {
   const agenda = agendaDaPartida(partida, tag)
   const vencedorId = vencedorDaPartida(partida)
-  const rotulo = `${tag}, ${partida.equipeA.nome} contra ${partida.equipeB.nome}`
+  const provisoria = Boolean(partida.equipeA.provisorio || partida.equipeB.provisorio)
+  const rotulo = `${tag}, ${partida.equipeA.nome} contra ${partida.equipeB.nome}${provisoria ? ', provisório' : ''}`
   const parciais = [...partida.sets].sort((a, b) => a.numero - b.numero)
   const textoAgenda = [agenda.data, agenda.local].filter(Boolean).join(' · ')
 
@@ -262,7 +263,7 @@ function CartaoPartida({
         setsPorA={partida.setsPorA}
         setsPorB={partida.setsPorB}
         parciais={parciais}
-        vencedor={vencedorId === partida.equipeA.id && !partida.equipeA.vaga ? 'A' : vencedorId === partida.equipeB.id && !partida.equipeB.vaga ? 'B' : null}
+        vencedor={vencedorId === partida.equipeA.id && !partida.equipeA.vaga && !partida.equipeA.provisorio ? 'A' : vencedorId === partida.equipeB.id && !partida.equipeB.vaga && !partida.equipeB.provisorio ? 'B' : null}
         volta={volta ? `Volta: ${volta.setsPorA ?? 0}–${volta.setsPorB ?? 0}` : null}
       />
       <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-vs-border py-2 text-xs font-bold text-vs-text transition-colors duration-vs-tap ease-vs-out hover:border-vs-gold">
@@ -276,8 +277,17 @@ function CartaoPartida({
 }
 
 function ladoDoTime(equipe: TeamOption) {
-  const definir = equipe.vaga || equipe.id <= 0
-  return { nome: definir ? 'A definir' : equipe.nome, definir, cor: equipe.corHex, logo: equipe.logoUrl }
+  const provisorio = Boolean(equipe.provisorio) && equipe.id > 0
+  const definir = !provisorio && (Boolean(equipe.vaga) || equipe.id <= 0)
+  return {
+    id: definir ? 0 : equipe.id,
+    nome: definir ? 'A definir' : equipe.nome,
+    definir,
+    provisorio,
+    origem: provisorio ? equipe.origem ?? null : null,
+    cor: definir ? null : equipe.corHex,
+    logo: definir ? null : equipe.logoUrl,
+  }
 }
 
 function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId, options, destaque }: { slot: BracketSlot; tag: string; ligaId: number; categoriaCampeonatoId: string | null; options: TeamOption[]; destaque: boolean }) {

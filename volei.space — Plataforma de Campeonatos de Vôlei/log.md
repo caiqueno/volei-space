@@ -13,6 +13,16 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] feat | cartão da quadra com substituição, B maior e sacador laranja
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- Na quadra 2D, a substituição fica sob o nome e o B passa de 48px. O sacador pulsa em laranja. Sem banco, API nova ou migration.
+
+## [2026-10-11] feat | semi provisória na chave da classificação
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `09-UI-UX`, `hot`, `log`
+- O cartão de semifinal em `/classificacao` e `/rankings` mostra o time da posição atual enquanto a vaga não está gravada. Sem banco, API nova ou migration.
+
 ## [2026-10-11] fix | camisa herdada entre jogos da mesma liga
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`

@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Oficializar conta quem jogou. A validação pinta a linha e ordena o nome. A última camisa da mesma liga reaparece na leitura, sem gravar sozinha. Sem migration.
+  Na quadra, a substituição fica sob o nome, o B cresce e o sacador pulsa em laranja. A semi vazia mostra o time provisório. Sem banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,10 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 o cartão da quadra 2D coloca a substituição logo abaixo do nome, à esquerda, e aumenta o B do canto inferior direito para 48×48px. Quem saca pulsa em laranja, borda e brilho, em 1s, só na opacidade. Com menos movimento, o laranja fica fixo. Sem banco, API nova ou migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 a semifinal da classificação deixa de ficar em «A definir» enquanto a vaga não está gravada. O cartão que já existe mostra logo, nome e `1º Grupo A · provisório`, no cruzamento 1º A × 2º B e 1º B × 2º A, com as vagas do grupo. A releitura da tabela atualiza o lado. Se o time muda, o fundo dourado acende sem `transform` e sem puxar a rolagem. Time gravado aparece como está. Sem banco, API nova ou migration. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[09-UI-UX]].
 
 Em 11 de outubro de 2026 a camisa da súmula reaproveita a última `SumulaPresenca.numero` preenchida do atleta na mesma liga. Se o jogo atual já tem número, ele permanece. Sem número neste jogo, vale essa camisa anterior e, se não houver, `Jogador.numero`. Editar grava só nesta partida. A leitura não altera linhas antigas e não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

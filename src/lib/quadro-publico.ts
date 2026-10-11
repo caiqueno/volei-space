@@ -1,5 +1,6 @@
 export type LinhaGrupo = {
   posicao: number
+  equipeId?: number
   equipe: string
   logoUrl?: string | null
   corHex?: string | null

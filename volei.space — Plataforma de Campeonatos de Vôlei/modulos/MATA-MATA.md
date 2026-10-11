@@ -5,12 +5,14 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A chave pública vai para o story, com as semis lado a lado e a final em cartão dourado. A tela do organizador não ganha o botão.
+  Na classificação, a semi sem time gravado mostra na tela quem está na vaga pela tabela. O story segue o retorno da API.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Mata-mata
+
+**Semi provisória — implementado, só na tela:** o cartão de semifinal da classificação pública preenche o lado vazio com o time da posição atual do grupo. A regra é o cruzamento já usado na chave: 1º A × 2º B e 1º B × 2º A, limitado pelas vagas do grupo. Origem gravada no jogo, como `1º Grupo A`, manda naquele lado. Time já gravado não é trocado. Não há escrita, API nova nem migration. Ver [[modulos/CLASSIFICACAO]].
 
 **Story da chave — implementado, sem migration:** `VistaChavePublica`, a chave do campeonato público e `/fase-mata-mata` sem sessão de organizador mostram o botão ao lado do título Chave. A imagem é só dessa chave, na vertical: semis lado a lado e a final num cartão dourado, com o 3º lugar quando cabe. O placar em sets entra quando a partida já tem. Com sessão de organizador, `/fase-mata-mata` não mostra o botão. Ver [[09-UI-UX]].
 

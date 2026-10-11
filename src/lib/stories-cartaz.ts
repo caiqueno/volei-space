@@ -36,6 +36,9 @@ export type LadoCartaz = {
   definir: boolean
   cor: string | null
   logo: string | null
+  id?: number
+  provisorio?: boolean
+  origem?: string | null
 }
 
 export type ConfrontoCartaz = {

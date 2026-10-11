@@ -60,6 +60,15 @@
   animation: mi-chave 240ms ease-out backwards;
 }
 
+.lado {
+  background-color: transparent;
+  transition: background-color 900ms ease;
+}
+
+.troca {
+  background-color: color-mix(in srgb, var(--vs-gold) 22%, transparent);
+}
+
 .campeao {
   position: relative;
   isolation: isolate;
@@ -169,6 +178,8 @@
   .toque,
   .linha,
   .chave,
+  .lado,
+  .troca,
   .pop,
   .lider::before,
   .campeao::after,
