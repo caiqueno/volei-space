@@ -5,12 +5,16 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Quem troca no set fica vinculado e os dois podem trocar entre si de novo. Cada troca conta no limite. Sem migration.
+  Ajustes só de tela: toque de 44px, confirmações, código morto e iniciais do avatar. A gravação de pontos não muda.
 status: misto
 created: 2026-09-20
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 # Súmula digital
+
+**Tela de lançamento — implementado, sem API nem banco:** saíram `ScoreSide`, `CompactScoreDock` e `FloatingScoreBar`, que não eram usados. A tela não lê mais `exigirLiberoInicial`; o líbero inicial continua opcional e o `PUT` segue o mesmo corpo. Cartão, bloqueio, substituição, ACE e tempo têm área de toque de 44px por `::after`, sem alargar a barra de duas metades. O ↺ fica afastado do `+1`. Se a correção também apaga ponto do adversário, a tela pede confirmação e só então chama a função que já existia. Tempo técnico, de equipe e médico pedem uma confirmação leve antes da mesma função. O alerta de falha ao salvar tem «Tentar salvar agora», que dispara o salvamento que já existia. O botão do menu no celular informa se está aberto. No trilho recolhido, o ícone mostra o nome da aba. O `+1` escreve o nome do time e continua na cor do lado. Não há migration nem payload novo.
+
+**Iniciais do avatar — implementado:** o avatar sem foto usa `iniciais` em `src/lib/iniciais.ts`. As duas primeiras palavras viram maiúsculas e, sem letra, o avatar continua «AT». A gravação de pontos não muda.
 
 **Camisa repetida — implementado no código, sem merge:** ao atribuir um número de 0 a 99 que outro atleta da mesma equipe já usa nesta partida, o editado fica com a camisa e quem tinha o número fica sem camisa. Os dois entram no mesmo salvamento: na súmula, no `PUT` de andamento; no credenciamento, no mesmo `POST /api/arbitro/partidas/{token}/numero`. O aviso é «Camisa 10 passou para Fulano; Beltrano ficou sem número». `SumulaPresenca.numero` nulo continua valendo `Jogador.numero`. A camisa vazia desta partida grava `-1`, sem coluna nova e sem função SQL. A outra equipe pode usar o mesmo número. Não há migration.
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { abasDaChave, colunasSimetricas, caminhoConector, trechosConectores } from '../src/lib/chave-visual'
+import { abasDaChave, colunasSimetricas, caminhoConector, trechosConectores, vencedorDaPartida } from '../src/lib/chave-visual'
 import { liderDaTabela, ordenarScouts, pontosDoAtleta, saldoComSinal, topCinco, type AtletaQuadro, type LinhaGrupo } from '../src/lib/quadro-publico'
 
 const semis = [
@@ -33,6 +33,14 @@ assert.equal(trechos.length, 6)
 assert.ok(trechos.every((trecho) => trecho.x1 !== trecho.x2))
 assert.equal(trechos.some((trecho) => trecho.ouro), true)
 assert.match(caminhoConector(trechos[0]), /^M/)
+
+const jogoEncerrado = { status: 'ENCERRADA', setsPorA: 2, setsPorB: 0, equipeA: { id: 10 }, equipeB: { id: 21 } }
+assert.equal(vencedorDaPartida(jogoEncerrado), 10)
+assert.equal(vencedorDaPartida({ ...jogoEncerrado, setsPorA: 0, setsPorB: 2 }), 21)
+assert.equal(vencedorDaPartida({ ...jogoEncerrado, setsPorA: 1, setsPorB: 1 }), null)
+assert.equal(vencedorDaPartida({ ...jogoEncerrado, status: 'EM_ANDAMENTO' }), null)
+assert.equal(vencedorDaPartida({ ...jogoEncerrado, status: 'WO', setsPorA: 0, setsPorB: 2 }), 21)
+assert.equal(vencedorDaPartida(null), null)
 
 const atletas: AtletaQuadro[] = [
   { jogadorId: 1, nome: 'Ana', equipe: 'Alfa', numero: 10, ataque: 2, bloqueio: 0, saque: 0 },

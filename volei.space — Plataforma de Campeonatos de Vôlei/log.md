@@ -8,10 +8,20 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # Log
+
+## [2026-10-11] lint | quadro reusa a vista da chave e as iniciais ficam num helper
+
+- pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `hot`, `log`
+- `/classificacao` e `/rankings` usam `VistaChavePublica`. Os títulos passam a ser os do portal. O cartão ao vivo não repete «Partida ao vivo». `iniciais` cobre o MVP, o escudo e o avatar da súmula, com o mesmo resultado. Sem migration e sem mudança de leitura.
+
+## [2026-10-11] fix | ajustes de tela na súmula e na chave
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `modulos/MATA-MATA`, `09-UI-UX`, `hot`, `log`
+- Só apresentação e interação. Sem API, banco, migration ou payload novo. O líbero inicial segue opcional. A gravação de pontos não muda.
 
 ## [2026-10-10] fix | par da substituição pode trocar de novo no set
 

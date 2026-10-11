@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Trophy } from 'lucide-react'
 import { QuadroPublico } from '@/components/portal/QuadroPublico'
+import { iniciais } from '@/lib/iniciais'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 
 type Ranking = {
@@ -72,14 +73,14 @@ function CartaoMvp({ ligaId, concluido, categoriaId }: { ligaId: number; conclui
     )
   }
 
-  const iniciais = dados.mvp.split(' ').slice(0, 2).map((parte) => parte[0]).join('').toUpperCase()
+  const sigla = iniciais(dados.mvp, { manterEspacosRepetidos: true })
 
   return (
     <article className="overflow-hidden rounded-2xl border border-vs-border bg-vs-surface">
       <div className="h-1 bg-vs-gold" />
       <div className="p-5">
         <div className="flex items-center gap-4">
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-vs-gold text-lg font-bold text-vs-on-gold">{iniciais}</span>
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-vs-gold text-lg font-bold text-vs-on-gold">{sigla}</span>
           <div className="min-w-0">
             <p className="luva-kicker flex items-center gap-2"><Trophy size={14} aria-hidden="true" /> MVP do campeonato</p>
             <h2 className="mt-1 truncate font-display text-3xl font-bold text-vs-text">{dados.mvp}</h2>

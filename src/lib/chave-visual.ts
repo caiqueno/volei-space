@@ -36,6 +36,24 @@ export function abasDaChave(rounds: { fase: string; label: string }[]) {
   return rounds.map((round) => ({ id: round.fase, rotulo: round.label }))
 }
 
+/** Quem levou a chave no cartão. Só lê o placar já mostrado; não grava partida. */
+export function vencedorDaPartida(partida: {
+  status?: string | null
+  setsPorA?: number | null
+  setsPorB?: number | null
+  equipeA?: { id: number } | null
+  equipeB?: { id: number } | null
+} | null | undefined): number | null {
+  if (!partida?.equipeA || !partida.equipeB) return null
+  const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
+  if (!encerrada) return null
+  const setsA = Number(partida.setsPorA ?? 0)
+  const setsB = Number(partida.setsPorB ?? 0)
+  if (setsA > setsB) return partida.equipeA.id
+  if (setsB > setsA) return partida.equipeB.id
+  return null
+}
+
 /** Grade com vão entre as colunas, na mesma proporção dos traços. */
 export function gradeDaChave(quantidade: number) {
   const partes: string[] = []

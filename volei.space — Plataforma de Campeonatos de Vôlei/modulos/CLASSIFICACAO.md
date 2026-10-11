@@ -8,11 +8,11 @@ summary: >-
   A tabela sai por categoria. Média de sets e média de pontos só desempata quando escolhida. O padrão não muda.
 status: misto
 created: 2026-09-20
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 # Classificação
 
-**Quadro público — implementado, sem migration:** em `/classificacao` e em `/rankings`, a categoria aberta mostra o líder (mais pontos, depois vitórias e jogos), o pódio quando a final tem vencedor, a chave eliminatória, os cinco primeiros em ataque, bloqueio e saque, os scouts de todos os atletas e a tabela de cada grupo com P, J, V, D, SP, SC, DS, DP e PE. A zona dourada marca as vagas automáticas do grupo. A chave no desktop coloca as fases externas nas laterais e a final no centro, com o 3º lugar abaixo. Abaixo de 1024px as fases viram abas. Os scouts relêem a cada 12 segundos com a aba visível. A rota pública de classificação só passou a devolver colunas que o cálculo já gravava. A súmula não muda.
+**Quadro público — implementado, sem migration:** em `/classificacao` e em `/rankings`, a categoria aberta mostra o líder (mais pontos, depois vitórias e jogos), o pódio quando a final tem vencedor, a chave eliminatória, os cinco primeiros em ataque, bloqueio e saque, os scouts de todos os atletas e a tabela de cada grupo com P, J, V, D, SP, SC, DS, DP e PE. O pódio e a chave saem de `VistaChavePublica`, o mesmo bloco do portal: o título do pódio é «Campeão, vice e 3º lugar» e o da chave é «Chave». Sem chave, os dois somem. A leitura da classificação e do mata-mata não muda. A zona dourada marca as vagas automáticas do grupo. A chave no desktop coloca as fases externas nas laterais e a final no centro, com o 3º lugar abaixo. Abaixo de 1024px as fases viram abas. Os scouts relêem a cada 12 segundos com a aba visível. A rota pública de classificação só passou a devolver colunas que o cálculo já gravava. A súmula não muda.
 
 **Pódio no portal — implementado:** a tabela de `ClassificacaoEntrada` não recebe jogo de mata-mata. Em `/portal?ligaId=` e em `/classificacao`, quando a categoria tem chave, a tela mostra o pódio (campeão, vice e 3º), o placar da final, o placar do 3º lugar e a chave. O 1º e o 2º saem da final com vencedor; o 3º sai da disputa de 3º lugar. Isso não espera o status `FINALIZADO`. Sem chave, esse bloco não aparece. `GET /api/portal/mata-mata` recusa campeonato de teste. Fonte: [[modulos/MATA-MATA]].
 

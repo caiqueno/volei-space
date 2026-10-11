@@ -6,7 +6,8 @@ import { Check, Radio, Trophy } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
-import { abasDaChave, caminhoConector, colunasSimetricas, gradeDaChave, trechosConectores, type ColunaVisual } from '@/lib/chave-visual'
+import { abasDaChave, caminhoConector, colunasSimetricas, gradeDaChave, trechosConectores, vencedorDaPartida, type ColunaVisual } from '@/lib/chave-visual'
+import { iniciais } from '@/lib/iniciais'
 import { agendaDaPartida, formatFaseMataMata } from '@/lib/format-partida'
 import mi from '@/styles/microinteracoes.module.css'
 
@@ -79,9 +80,11 @@ export function ChaveamentoMataMata({
           {abas.map((item) => (
             <button
               key={item.id}
+              id={`aba-chave-${item.id}`}
               type="button"
               role="tab"
               aria-selected={abaAtiva === item.id}
+              aria-controls={`painel-chave-${item.id}`}
               onClick={() => setAba(item.id)}
               className={`snap-start rounded-full px-4 py-2 font-display text-sm font-bold uppercase tracking-[0.12em] ${abaAtiva === item.id ? 'bg-vs-gold text-vs-on-gold' : 'border border-vs-border bg-vs-elevated text-vs-text'}`}
             >
@@ -90,7 +93,7 @@ export function ChaveamentoMataMata({
           ))}
         </div>
         {rounds.filter((round) => round.fase === abaAtiva).map((round) => (
-          <div key={round.fase} role="tabpanel" className="grid gap-4">
+          <div key={round.fase} id={`painel-chave-${round.fase}`} role="tabpanel" aria-labelledby={`aba-chave-${round.fase}`} className="grid gap-4">
             {round.fase === 'FINAL' && <Trofeu champion={champion} />}
             <ul className="grid gap-4">
               {round.slots.map((slot) => (
@@ -184,11 +187,7 @@ function Trofeu({ champion }: { champion: TeamOption | null }) {
 }
 
 function avancou(slot: BracketSlot) {
-  const partida = slot.partida
-  if (!partida) return false
-  const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
-  if (!encerrada) return false
-  return Number(partida.setsPorA ?? 0) !== Number(partida.setsPorB ?? 0)
+  return vencedorDaPartida(slot.partida) != null
 }
 
 function CartaoJogo({
@@ -242,10 +241,7 @@ function CartaoPartida({
 }) {
   const agenda = agendaDaPartida(partida, tag)
   const encerrada = partida.status === 'ENCERRADA' || partida.status === 'WO'
-  const aoVivo = partida.status === 'EM_ANDAMENTO'
-  const vencedorId = encerrada
-    ? (Number(partida.setsPorA ?? 0) > Number(partida.setsPorB ?? 0) ? partida.equipeA.id : Number(partida.setsPorB ?? 0) > Number(partida.setsPorA ?? 0) ? partida.equipeB.id : null)
-    : null
+  const vencedorId = vencedorDaPartida(partida)
   const rotulo = `${tag}, ${partida.equipeA.nome} contra ${partida.equipeB.nome}`
   const parciais = [...partida.sets].sort((a, b) => a.numero - b.numero)
 
@@ -276,7 +272,6 @@ function CartaoPartida({
       {volta && (
         <p className="mt-2 text-xs font-semibold text-vs-muted">Volta: {volta.setsPorA ?? 0}–{volta.setsPorB ?? 0}</p>
       )}
-      {aoVivo && <span className="sr-only">Partida ao vivo</span>}
       <a href={`/partidas/${partida.id}/ao-vivo`} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-vs-border py-2 text-xs font-bold text-vs-text transition-colors duration-vs-tap ease-vs-out hover:border-vs-gold">
         <Radio size={12} aria-hidden="true" /> Resumo da partida
       </a>
@@ -314,13 +309,13 @@ function LinhaTime({ equipe, sets, venceu, encerrada }: { equipe: TeamOption; se
 }
 
 function Escudo({ nome, cor, logoUrl }: { nome: string; cor: string | null; logoUrl: string | null }) {
-  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((parte) => parte[0]).join('').toUpperCase()
+  const sigla = iniciais(nome)
   if (logoUrl) {
     return <img src={logoUrl} alt="" className="h-6 w-6 shrink-0 object-contain" />
   }
   return (
     <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-vs-text" style={{ background: cor ?? '#16243D' }}>
-      {iniciais || '–'}
+      {sigla || '–'}
     </span>
   )
 }
@@ -347,7 +342,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId, options,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fase: slot.fase, rodada: slot.rodada, equipeAId: Number(equipeAId), equipeBId: Number(equipeBId), categoriaCampeonatoId }),
       })
-      const payload = await response.json()
+      const payload = await response.json().catch(() => ({} as { error?: string }))
       if (!response.ok) {
         if (response.status === 401) {
           setSessionExpired(true)
@@ -358,6 +353,7 @@ function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId, options,
       router.refresh()
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Não foi possível criar o confronto.')
+    } finally {
       setSubmitting(false)
     }
   }
@@ -375,11 +371,13 @@ function CriarConfrontoCard({ slot, tag, ligaId, categoriaCampeonatoId, options,
     <article aria-label={`${tag}, criar confronto`} className={`min-h-20 rounded-xl border bg-vs-surface px-3 py-2 ${destaque ? 'border-vs-gold' : 'border-vs-border'}`}>
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-vs-muted">{tag}</p>
       <div className="mt-2 grid gap-2">
-        <select value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-lg border border-vs-border bg-vs-elevated px-3 py-2 text-sm font-semibold text-vs-text">
+        <label htmlFor={`time-a-${slot.fase}-${slot.rodada}`} className="text-xs font-bold text-vs-muted">Time A</label>
+        <select id={`time-a-${slot.fase}-${slot.rodada}`} aria-label="Time A" value={equipeAId} onChange={(event) => setEquipeAId(event.target.value)} className="w-full rounded-lg border border-vs-border bg-vs-elevated px-3 py-2 text-sm font-semibold text-vs-text">
           <option value="">Time A</option>
           {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeBId}>{normalizarNomeEquipe(team.nome)}</option>)}
         </select>
-        <select value={equipeBId} onChange={(event) => setEquipeBId(event.target.value)} className="w-full rounded-lg border border-vs-border bg-vs-elevated px-3 py-2 text-sm font-semibold text-vs-text">
+        <label htmlFor={`time-b-${slot.fase}-${slot.rodada}`} className="text-xs font-bold text-vs-muted">Time B</label>
+        <select id={`time-b-${slot.fase}-${slot.rodada}`} aria-label="Time B" value={equipeBId} onChange={(event) => setEquipeBId(event.target.value)} className="w-full rounded-lg border border-vs-border bg-vs-elevated px-3 py-2 text-sm font-semibold text-vs-text">
           <option value="">Time B</option>
           {options.map((team) => <option key={team.id} value={team.id} disabled={String(team.id) === equipeAId}>{normalizarNomeEquipe(team.nome)}</option>)}
         </select>

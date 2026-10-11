@@ -8953,6 +8953,19 @@ button.referee-number.is-saved {
   font-weight: 700;
 }
 
+.official-save-alert button {
+  margin-top: 8px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #7f1d1d;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
 .official-toasts div {
   display: flex;
   align-items: center;
@@ -16993,10 +17006,33 @@ html body .official-score-bar .official-point-actions {
 }
 
 html body .official-score-bar .official-compact-point-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   width: 100%;
   min-height: 72px;
   font-size: 2rem;
+  line-height: 0.9;
   border-radius: 14px;
+}
+
+html body .official-score-bar .official-plus-one {
+  font-size: inherit;
+  line-height: 0.9;
+}
+
+html body .official-score-bar .official-plus-team {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-transform: none;
 }
 
 html body .official-score-bar .official-compact-point-action.is-teamA,
@@ -17020,6 +17056,7 @@ html body .official-score-bar .official-score-undo {
   height: 52px;
   min-height: 52px;
   flex: 0 0 auto;
+  margin-inline-start: 16px;
   font-size: 1.5rem;
   line-height: 1;
 }
@@ -17069,4 +17106,19 @@ html body .official-point-history {
     min-height: 64px;
     font-size: 1.7rem;
   }
+}
+
+/* Área de toque de 44px sem aumentar o desenho do botão nem a barra do set. */
+html body .official-toque-44 {
+  position: relative;
+}
+
+html body .official-toque-44::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }

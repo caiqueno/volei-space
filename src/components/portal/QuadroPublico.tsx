@@ -5,9 +5,8 @@ import { CartaoLider } from '@/components/classificacao/CartaoLider'
 import { TabelaGrupos } from '@/components/classificacao/TabelaGrupos'
 import { TabelaScouts } from '@/components/classificacao/TabelaScouts'
 import { TopCinco } from '@/components/classificacao/TopCinco'
-import { PodioFinal } from '@/components/classificacao/PodioFinal'
-import { ChaveamentoMataMata } from '@/components/mata-mata/ChaveamentoMataMata'
 import { queryCategoria } from '@/components/portal/SeletorCategoria'
+import { VistaChavePublica } from '@/components/portal/VistaChavePublica'
 import { INTERVALO_RANKING_JOGADORES_MS, type LinhaJogadorRanking } from '@/lib/classificacao-jogadores'
 import { liderDaTabela, type AtletaQuadro, type LinhaGrupo } from '@/lib/quadro-publico'
 import type { ChavePublica } from '@/lib/portal-chave'
@@ -134,24 +133,7 @@ export function QuadroPublico({ ligaId, categoriaId }: { ligaId: number; categor
   return (
     <div className="grid gap-6">
       {lider && <CartaoLider lider={lider} />}
-      {chave.podium.length > 0 && (
-        <section aria-labelledby="podio-campeonato" className="rounded-2xl border border-vs-border bg-vs-surface p-4">
-          <p className="luva-kicker">Resultado final</p>
-          <h2 id="podio-campeonato" className="mt-2 font-display text-2xl font-bold text-vs-text">Pódio do campeonato</h2>
-          <div className="mt-5">
-            <PodioFinal podium={chave.podium} />
-          </div>
-        </section>
-      )}
-      {chave.temMataMata && (
-        <section aria-labelledby="chaveamento" className="rounded-2xl border border-vs-border bg-vs-bg p-4">
-          <p className="luva-kicker">Mata-mata</p>
-          <h2 id="chaveamento" className="mt-2 font-display text-2xl font-bold text-vs-text">Chaveamento eliminatório</h2>
-          <div className="mt-5">
-            <ChaveamentoMataMata ligaId={ligaId} rounds={chave.rounds} champion={chave.champion} thirdPlace={chave.thirdPlace} organizerMode={false} />
-          </div>
-        </section>
-      )}
+      <VistaChavePublica ligaId={ligaId} chave={chave} />
       <TopCinco atletas={atletas} />
       {aviso && <p className="text-sm font-bold text-vs-gold">{aviso}</p>}
       <TabelaScouts atletas={atletas} />

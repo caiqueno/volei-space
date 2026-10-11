@@ -64,7 +64,7 @@ assert.equal(tela.includes('Defina antes de confirmar'), false)
 assert.ok(tela.includes('<option value="">Nenhum</option>'))
 assert.ok(tela.includes('disabled={!papeletaCompleta(lineup) || !servidorExibido || selectedTeamConfirmed}'))
 assert.ok(tela.includes('textoLiberoInicial(startingLiberos[currentSet]?.teamA)'))
-assert.ok(tela.includes('exigirLiberoInicial: source?.exigirLiberoInicial !== false'))
+assert.equal(tela.includes('exigirLiberoInicial'), false)
 
 const rota = fs.readFileSync(path.join(process.cwd(), 'src/app/api/sumula/[token]/route.ts'), 'utf8')
 assert.ok(rota.includes('validarLiberoDaSumula()'))

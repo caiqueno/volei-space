@@ -5,16 +5,20 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A chave pública liga a vaga pela fase e pela rodada. A tela do juiz mostra o nome da vaga. Quartas e oitavas herdam os sets do campeonato. Migration 20261010139900 sem aplicar.
+  A chave pinta o vencedor na tela, os selects e as abas ganham nome acessível, e o cartão ao vivo mostra AO VIVO uma vez. Sem API nem banco.
 status: misto
 created: 2026-09-20
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 # Mata-mata
+
+**Chave na tela — implementado, sem API nem banco:** `vencedorDaPartida` em `src/lib/chave-visual.ts` só compara os sets já mostrados no cartão. A linha dourada e o nome em destaque usam esse resultado. As abas do celular têm `id`, `aria-controls` e `aria-labelledby`. Time A e Time B têm rótulo. Criar o confronto solta o botão no `finally` e ignora resposta que não é JSON. Nada disso grava partida por um caminho novo.
 
 **Vaga a definir — implementado no código; migration aplicada em produção:** o organizador agenda semifinal, 3º lugar e final com data, horário e quadra antes dos times. Cada lado guarda a origem, por exemplo `1º Grupo A`, `2º Grupo B`, `Vencedor Semi 1` ou `Perdedor Semi 2`. O jogo e o link do juiz permanecem os mesmos. A tela do juiz mostra esse texto enquanto o time não entrou. `/api/portal/mata-mata?ligaId=` liga a semifinal, a final e o 3º lugar pela fase e pela rodada, mesmo sem `categoria` na URL, quando os jogos da liga são de uma categoria só. Quando a última súmula da fase de grupos é oficializada, ou quando uma semi termina, `sincronizarVagas` preenche `equipeAId` e `equipeBId` nessa mesma linha. Isso também roda ao abrir a chave pública, na aprovação e no resultado manual. O `POST .../mata-mata/vagas` continua exigindo pagamento para gravar a agenda; antes do 403 ele sincroniza as vagas já existentes. Sem as colunas, a leitura não as pede. `20261010142000_vaga_a_definir.sql` foi aplicada em produção em 10 de outubro de 2026. A geração automática da primeira rodada espera o fim dos grupos, para não ocupar a vaga com um ranque ainda aberto.
 
 **Sets por fase — implementado no código, migrations pendentes:** `setsPorPartida` continua valendo para grupos e dezesseis avos. Final, semifinal, quartas, oitavas e disputa de 3º lugar aceitam um inteiro de 1 a 5 em `setsPorPartidaFinal`, `setsPorPartidaSemifinal`, `setsPorPartidaQuartas`, `setsPorPartidaOitavas` e `setsPorPartidaTerceiroLugar`. Null herda o campeonato. Sem o número da fase, a súmula abre a mesma quantidade de antes. O tie-break, quando ligado, é o último set dessa quantidade. A súmula, a validação, o resultado manual e a aprovação usam essa quantidade. O campo fica em Eliminatórias e continua editável depois que os grupos começam; trava só se o jogo daquela fase já começou, encerrou ou tem súmula. A migration `20261010136000_sets_por_fase_mata_mata.sql` ainda não foi aplicada. Sem ela, a leitura de final, semifinal e 3º lugar cai no padrão do campeonato. `20261010139900_sets_quartas_oitavas.sql` também não foi aplicada. Sem essas duas colunas, a leitura pede primeiro as colunas novas e, se elas faltarem, relê final, semifinal e 3º lugar. Gravar quartas ou oitavas sem a coluna não impede o restante da seção.
+
+**Cartão da chave — implementado:** o jogo ao vivo mostra «AO VIVO» no canto do cartão. Não há uma segunda frase só para leitor de tela. Quem venceu continua pelo placar de sets da partida encerrada ou de W.O.
 
 **Pódio público — implementado:** `/portal?ligaId=` e `/classificacao` mostram pódio, resultado da final, resultado do 3º lugar e a chave quando a categoria tem mata-mata. O pódio aparece assim que a final tem vencedor, mesmo com o campeonato ainda ativo. A tabela de pontos continua só com `GERAL` e `GRUPOS`. Campeonato de teste ou simulação não entra nessa API.
 

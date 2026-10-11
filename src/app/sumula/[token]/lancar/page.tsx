@@ -11,6 +11,7 @@ import { MARCA_SEM_NUMERO, NUMERO_SEM_CAMISA, numeroMvpDaLista, numeroSemCamisa,
 import { ladosInvertidosNoPonto, placarNaOrientacao } from '@/lib/placar-orientacao'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+import { iniciais } from '@/lib/iniciais'
 import { indiceDoUltimoPonto, reconstruirHistoricoPontos } from '@/lib/desfazer-ponto-sumula'
 import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTULO_PONTO, textoPonto, textoPontoSemJogador, textoResumoScout, type OrigemPonto } from '@/lib/ponto-sumula'
 import { regrasVisiveis } from '@/lib/category-match-rules'
@@ -116,7 +117,6 @@ type MatchRules = {
   temposSeparados: boolean
   tempoMedico: boolean
   substituicaoPorLesao: boolean
-  exigirLiberoInicial: boolean
   quantidadeLiberos: 1 | 2 | null
 }
 
@@ -226,6 +226,8 @@ export default function SumulaPage() {
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const [confirmarOficial, setConfirmarOficial] = useState(false)
+  const [confirmarDesfazer, setConfirmarDesfazer] = useState<{ teamId: TeamId; collateral: number; nome: string; outro: string } | null>(null)
+  const [confirmarTempo, setConfirmarTempo] = useState<{ tipo: 'tecnico' | 'equipe' | 'medico'; teamId: TeamId; nome: string } | null>(null)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const filaSalvamento = useRef(criarSalvamentoCoalescido())
   const versaoRef = useRef(0)
@@ -683,6 +685,37 @@ export default function SumulaPage() {
     } else {
       addToast('Último ponto corrigido.')
     }
+  }
+
+  function pedirDesfazerDoTime(teamId: TeamId) {
+    const targetIndex = indiceDoUltimoPonto({
+      historico: scoreHistory,
+      placarAtual: currentScore,
+      setAtual: currentSet,
+      equipe: teamId,
+    })
+    const collateral = targetIndex === -1 ? 0 : scoreHistory.length - 1 - targetIndex
+    if (collateral > 0) {
+      const nome = teamId === 'teamA' ? teamA?.name : teamB?.name
+      const outro = teamId === 'teamA' ? teamB?.name : teamA?.name
+      setConfirmarDesfazer({ teamId, collateral, nome: nome ?? 'time', outro: outro ?? 'adversário' })
+      return
+    }
+    undoLastPointForTeam(teamId)
+  }
+
+  function pedirTempo(tipo: 'tecnico' | 'equipe' | 'medico', teamId: TeamId) {
+    const nome = (teamId === 'teamA' ? teamA?.name : teamB?.name) ?? 'a equipe'
+    setConfirmarTempo({ tipo, teamId, nome })
+  }
+
+  function confirmarPedidoTempo() {
+    if (!confirmarTempo) return
+    const pedido = confirmarTempo
+    setConfirmarTempo(null)
+    if (pedido.tipo === 'tecnico') requestTimeout(pedido.teamId)
+    else if (pedido.tipo === 'equipe') requestTempoEquipe(pedido.teamId)
+    else requestTempoMedico(pedido.teamId)
   }
 
   function requestCloseCurrentSet() {
@@ -1438,7 +1471,7 @@ export default function SumulaPage() {
           <strong>volei.space</strong>
           <span>Súmula digital</span>
         </div>
-        <button type="button" onClick={() => setSidebarOpen((current) => !current)}><Menu size={18} /></button>
+        <button type="button" aria-label={sidebarOpen ? 'Fechar menu da súmula' : 'Abrir menu da súmula'} aria-expanded={sidebarOpen} aria-controls="sumula-sidebar" onClick={() => setSidebarOpen((current) => !current)}><Menu size={18} /></button>
       </div>
 
       {sidebarOpen && <button type="button" className="official-mobile-menu-backdrop" aria-label="Fechar menu da súmula" onClick={() => setSidebarOpen(false)} />}
@@ -1495,7 +1528,7 @@ export default function SumulaPage() {
             {tabs.filter((tab) => tab.id !== 'pre').map((tab) => {
               const locked = matchStatus !== 'finished' && !lineupConfirmed
               return (
-              <button key={tab.id} type="button" disabled={locked} aria-current={activeTab === tab.id ? 'page' : undefined} aria-label={tab.label} onClick={() => { if (!locked) { setActiveTab(tab.id); setSidebarOpen(false) } }} className={activeTab === tab.id ? 'is-active' : ''}>
+              <button key={tab.id} type="button" disabled={locked} aria-current={activeTab === tab.id ? 'page' : undefined} aria-label={tab.label} title={sidebarFixa ? undefined : tab.label} onClick={() => { if (!locked) { setActiveTab(tab.id); setSidebarOpen(false) } }} className={activeTab === tab.id ? 'is-active' : ''}>
                 <span className="official-nav-main">
                   <span className="official-nav-icon" aria-hidden="true">{tab.icon}</span>
                   <span className="official-nav-label">{tab.label}</span>
@@ -1646,15 +1679,15 @@ export default function SumulaPage() {
             onSelectSubstitution={executeSubstitution}
             onCloseSubstitution={() => setSubModal(null)}
             onUndo={undoLastPoint}
-            onUndoTeamPoint={undoLastPointForTeam}
+            onUndoTeamPoint={pedirDesfazerDoTime}
             onCloseSet={requestCloseCurrentSet}
             timeoutsUsedA={timeoutsUsedA}
             timeoutsUsedB={timeoutsUsedB}
             temposEquipeA={temposEquipeA}
             temposEquipeB={temposEquipeB}
-            onTimeout={requestTimeout}
-            onTempoEquipe={requestTempoEquipe}
-            onTempoMedico={requestTempoMedico}
+            onTimeout={(teamId) => pedirTempo('tecnico', teamId)}
+            onTempoEquipe={(teamId) => pedirTempo('equipe', teamId)}
+            onTempoMedico={(teamId) => pedirTempo('medico', teamId)}
             saveNote={saveNote}
             vistaQuadra={vistaQuadra}
             encerrada={matchStatus === 'finished'}
@@ -1700,7 +1733,7 @@ export default function SumulaPage() {
         )}
 
         {activeTab === 'tempos' && (
-          <TemposTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} timeoutsUsedA={timeoutsUsedA} timeoutsUsedB={timeoutsUsedB} temposEquipeA={temposEquipeA} temposEquipeB={temposEquipeB} limite={matchRules.timeoutLimit} temposSeparados={matchRules.temposSeparados} events={events} requestTimeout={requestTimeout} requestTempoEquipe={requestTempoEquipe} sidesInverted={sidesInverted} />
+          <TemposTab teamA={teamA} teamB={teamB} currentSet={currentSet} currentScore={currentScore} timeoutsUsedA={timeoutsUsedA} timeoutsUsedB={timeoutsUsedB} temposEquipeA={temposEquipeA} temposEquipeB={temposEquipeB} limite={matchRules.timeoutLimit} temposSeparados={matchRules.temposSeparados} events={events} requestTimeout={(teamId) => pedirTempo('tecnico', teamId)} requestTempoEquipe={(teamId) => pedirTempo('equipe', teamId)} sidesInverted={sidesInverted} />
         )}
 
         {activeTab === 'anotacoes' && (
@@ -1747,10 +1780,39 @@ export default function SumulaPage() {
         </div>
       )}
 
+      {confirmarDesfazer && (
+        <div className="official-set-confirm" role="dialog" aria-modal="true" aria-labelledby="confirmar-desfazer-titulo">
+          <div className="official-set-confirm-card">
+            <span>Corrigir ponto</span>
+            <h2 id="confirmar-desfazer-titulo">Apagar pontos de {confirmarDesfazer.outro}?</h2>
+            <p>Corrigir o último ponto de {confirmarDesfazer.nome} também remove {confirmarDesfazer.collateral} ponto(s) de {confirmarDesfazer.outro}.</p>
+            <div>
+              <button type="button" onClick={() => setConfirmarDesfazer(null)}>Voltar</button>
+              <button type="button" onClick={() => { const pedido = confirmarDesfazer; setConfirmarDesfazer(null); undoLastPointForTeam(pedido.teamId) }}>Corrigir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarTempo && (
+        <div className="official-set-confirm" role="dialog" aria-modal="true" aria-labelledby="confirmar-tempo-titulo">
+          <div className="official-set-confirm-card">
+            <span>Tempo</span>
+            <h2 id="confirmar-tempo-titulo">{confirmarTempo.tipo === 'medico' ? `Pedir tempo médico para ${confirmarTempo.nome}?` : confirmarTempo.tipo === 'equipe' ? `Pedir tempo de equipe para ${confirmarTempo.nome}?` : `Pedir tempo para ${confirmarTempo.nome}?`}</h2>
+            <p>O pedido entra na súmula deste set.</p>
+            <div>
+              <button type="button" onClick={() => setConfirmarTempo(null)}>Agora não</button>
+              <button type="button" onClick={confirmarPedidoTempo}>Pedir tempo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {falhaSalvamento && (
         <div className="official-save-alert" role="alert">
           <strong>Os lances não estão sendo gravados.</strong>
           <span>{falhaSalvamento}</span>
+          <button type="button" onClick={() => { void enfileirarSalvamento(matchStatus === 'finished').catch(() => undefined) }}>Tentar salvar agora</button>
         </div>
       )}
 
@@ -3160,7 +3222,7 @@ function PlayerValidationList({ team, validated, onToggle }: { team: Team; valid
 
 function PlayerAvatar({ player }: { player: Player }) {
   if (player.photoUrl) return <img className="official-player-avatar" src={player.photoUrl} alt={`Foto de ${player.name}`} />
-  return <span className="official-player-avatar">{initials(player.name)}</span>
+  return <span className="official-player-avatar">{iniciais(player.name) || 'AT'}</span>
 }
 
 function SorteioTieBreak({
@@ -3200,50 +3262,6 @@ function SorteioTieBreak({
 
 function ServeChoice({ team, active, onClick, setNumber = 1 }: { team: Team; active: boolean; onClick: () => void; setNumber?: number }) {
   return <button className={`official-serve ${active ? 'is-active' : ''}`} onClick={onClick}><strong>{team.name}</strong><span>Inicia sacando no set {setNumber}</span></button>
-}
-
-function ScoreSide({ team, score, serving, server }: { team: Team; score: number; serving: boolean; server?: string }) {
-  return <div className="official-score-side"><span>{team.name}</span><div>{serving && <i />}<strong>{score.toString().padStart(2, '0')}</strong></div><p>Sacador: #{server || '--'}</p></div>
-}
-
-function CompactScoreDock({
-  teamA,
-  teamB,
-  currentScore,
-  setsWon,
-  currentSet,
-  servingTeamId,
-  serverA,
-  serverB,
-}: {
-  teamA: Team
-  teamB: Team
-  currentScore: { teamA: number; teamB: number }
-  setsWon: { teamA: number; teamB: number }
-  currentSet: number
-  servingTeamId: TeamId
-  serverA?: string
-  serverB?: string
-}) {
-  return (
-    <div className="official-score-dock" aria-label="Placar atual da partida">
-      <div className={`official-score-dock-team ${servingTeamId === 'teamA' ? 'is-serving' : ''}`}>
-        <span>{teamA.name}</span>
-        <strong>{currentScore.teamA}</strong>
-        <em>Sacador #{serverA || '--'}</em>
-      </div>
-      <div key={currentSet} className="official-score-dock-center sumula-micro-set">
-        <small>Set {currentSet}</small>
-        <b>{setsWon.teamA} x {setsWon.teamB}</b>
-        <span>sets</span>
-      </div>
-      <div className={`official-score-dock-team ${servingTeamId === 'teamB' ? 'is-serving' : ''}`}>
-        <span>{teamB.name}</span>
-        <strong>{currentScore.teamB}</strong>
-        <em>Sacador #{serverB || '--'}</em>
-      </div>
-    </div>
-  )
 }
 
 function dispararPulso(setPulso: (valor: string | null) => void, id: string) {
@@ -3390,12 +3408,15 @@ function CompactTeamControl({
           <strong>{score.toString().padStart(2, '0')}</strong>
         </div>
         {serving && !encerrada ? (
-          <button className={`official-compact-icon-action is-ace${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
+          <button className={`official-compact-icon-action is-ace official-toque-44${pulsoAce ? ' sumula-micro-ace' : ''}`} type="button" onClick={() => { onAce(); setPulsoAce(false); queueMicrotask(() => setPulsoAce(true)) }} onAnimationEnd={(event) => { if (event.target === event.currentTarget && event.animationName === 'sumula-micro-ace') setPulsoAce(false) }} aria-label={`ACE para ${team.name}`}>ACE</button>
         ) : null}
         {!encerrada && (
           <div className="official-point-actions">
             <VolleyballBurst>
-              <button className={`official-compact-point-action is-${teamId} vs-press vs-focus`} type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>+1</button>
+              <button className={`official-compact-point-action is-${teamId} vs-press vs-focus`} type="button" onClick={onPoint} aria-label={`Registrar +1 para ${team.name} sem atribuir jogador`}>
+                <span className="official-plus-one">+1</span>
+                <small className="official-plus-team">{team.name}</small>
+              </button>
             </VolleyballBurst>
           </div>
         )}
@@ -3403,19 +3424,19 @@ function CompactTeamControl({
       </div>
       <div className="official-score-bar-bottom">
         <div className="official-card-actions" aria-label={`Cartões para ${team.name}`}>
-          <button className="official-card-icon is-yellow" type="button" onClick={() => onCard('Cartão amarelo')} aria-label={`Cartão amarelo para ${team.name}`}><img src="/images/cartao-amarelo.png" alt="" /></button>
-          <button className="official-card-icon is-red" type="button" onClick={() => onCard('Cartão vermelho')} aria-label={`Cartão vermelho para ${team.name}`}><img src="/images/vermelho.png" alt="" /></button>
+          <button className="official-card-icon is-yellow official-toque-44" type="button" onClick={() => onCard('Cartão amarelo')} aria-label={`Cartão amarelo para ${team.name}`}><img src="/images/cartao-amarelo.png" alt="" /></button>
+          <button className="official-card-icon is-red official-toque-44" type="button" onClick={() => onCard('Cartão vermelho')} aria-label={`Cartão vermelho para ${team.name}`}><img src="/images/vermelho.png" alt="" /></button>
         </div>
-        <button className="official-compact-timeout-action" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= limite} aria-label={`Registrar tempo para ${team.name}`}>
+        <button className="official-compact-timeout-action official-toque-44" type="button" onClick={onTimeout} disabled={encerrada || timeoutsUsed >= limite} aria-label={`Registrar tempo para ${team.name}`}>
           Tempo {timeoutsUsed}/{limite}
         </button>
         {temposSeparados ? (
-          <button className="official-compact-timeout-action" type="button" onClick={onTempoEquipe} disabled={encerrada || temposEquipeUsados >= limite} aria-label={`Registrar tempo de equipe para ${team.name}`}>
+          <button className="official-compact-timeout-action official-toque-44" type="button" onClick={onTempoEquipe} disabled={encerrada || temposEquipeUsados >= limite} aria-label={`Registrar tempo de equipe para ${team.name}`}>
             Equipe {temposEquipeUsados}/{limite}
           </button>
         ) : null}
         {tempoMedico ? (
-          <button className="official-compact-timeout-action" type="button" onClick={onTempoMedico} disabled={encerrada} aria-label={`Registrar tempo médico para ${team.name}`}>
+          <button className="official-compact-timeout-action official-toque-44" type="button" onClick={onTempoMedico} disabled={encerrada} aria-label={`Registrar tempo médico para ${team.name}`}>
             Médico
           </button>
         ) : null}
@@ -3483,45 +3504,6 @@ function PenaltyModal({
         <div className="official-penalty-actions">
           <button type="button" className={tipo === 'Cartão amarelo' ? 'is-yellow' : 'is-red'} onClick={registerCard}>Registrar {tipo === 'Cartão amarelo' ? 'amarelo' : 'vermelho'}</button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function FloatingScoreBar({
-  teamA,
-  teamB,
-  currentScore,
-  setsWon,
-  currentSet,
-  servingTeamId,
-  serverA,
-  serverB,
-}: {
-  teamA: Team
-  teamB: Team
-  currentScore: { teamA: number; teamB: number }
-  setsWon: { teamA: number; teamB: number }
-  currentSet: number
-  servingTeamId: TeamId
-  serverA?: string
-  serverB?: string
-}) {
-  return (
-    <div className="official-floating-score" aria-label="Placar fixo da aba de pontuação">
-      <div className={`official-floating-score-team ${servingTeamId === 'teamA' ? 'is-serving' : ''}`}>
-        <span>{teamA.name}</span>
-        <strong>{currentScore.teamA}</strong>
-        <em>#{serverA || '--'}</em>
-      </div>
-      <div key={currentSet} className="official-floating-score-set sumula-micro-set">
-        <span>Set {currentSet}</span>
-        <strong>{setsWon.teamA} x {setsWon.teamB}</strong>
-      </div>
-      <div className={`official-floating-score-team ${servingTeamId === 'teamB' ? 'is-serving' : ''}`}>
-        <span>{teamB.name}</span>
-        <strong>{currentScore.teamB}</strong>
-        <em>#{serverB || '--'}</em>
       </div>
     </div>
   )
@@ -3717,8 +3699,8 @@ function RosterClickers({
               </div>
               {!encerrada && (
               <div className="official-player-actions">
-                {frontRow && number && <button className={`official-point-action is-block${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
-                {number && <button className="official-sub-action is-icon" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
+                {frontRow && number && <button className={`official-point-action is-block official-toque-44${pulso === `${index}:block` ? ' sumula-micro-block' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); onBlock(number); dispararPulso(setPulso, `${index}:block`) }} onAnimationEnd={(event) => limparPulso(event, setPulso)} aria-label={`Bloqueio do atleta ${number}`}>B</button>}
+                {number && <button className="official-sub-action is-icon official-toque-44" type="button" onClick={(event) => { event.stopPropagation(); onSubstitution(teamId, index) }} aria-label={`Substituir atleta ${number}`}><Repeat2 size={15} /></button>}
               </div>
               )}
               {scored && <b>+1</b>}
@@ -4303,15 +4285,6 @@ function rotateVolleyballLineup(lineup: string[]) {
   return [lineup[3], lineup[0], lineup[1], lineup[4], lineup[5], lineup[2]]
 }
 
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'AT'
-}
-
 function extractQrToken(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return ''
@@ -4368,7 +4341,6 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     temposSeparados: source?.separarTempos === true,
     tempoMedico: source?.tempoMedico === true,
     substituicaoPorLesao: source?.substituicaoPorLesao === true,
-    exigirLiberoInicial: source?.exigirLiberoInicial !== false,
     quantidadeLiberos: quantidadeDeLiberos(source?.quantidadeLiberos),
   }
 }

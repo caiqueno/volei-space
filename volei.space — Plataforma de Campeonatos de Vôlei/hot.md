@@ -5,15 +5,19 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O par da substituição permanece vinculado e pode trocar de novo no set. Cada troca conta no limite. Sem migration.
+  Ajustes só de tela na súmula e na chave. O quadro público reusa a vista da chave. As iniciais saem de um helper. Sem API, banco, migration ou payload novo.
 status: misto
 created: 2026-09-25
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 a súmula e a chave ganham só ajustes de tela. Saem os componentes mortos `ScoreSide`, `CompactScoreDock` e `FloatingScoreBar`. A tela deixa de ler `exigirLiberoInicial`; o líbero inicial continua opcional e o corpo do `PUT` não muda. O cartão da chave usa `vencedorDaPartida` em `chave-visual.ts`, só para pintar quem avançou. As abas da chave no celular ganham `id`, `aria-controls` e `aria-labelledby`. Os selects Time A e Time B ganham rótulo. Criar o confronto solta o botão no `finally` e não quebra se a resposta não for JSON. Cartão, bloqueio, substituição, ACE e tempo passam a ter área de toque de 44px por `::after`, sem alargar a barra de duas metades. O ↺ fica afastado do `+1`. Se a correção também apaga ponto do adversário, um diálogo pede confirmação e depois chama a mesma função. Tempo técnico, de equipe e médico pedem confirmação leve antes da função que já existia. O alerta de falha ao salvar ganha «Tentar salvar agora», que dispara o mesmo `enfileirarSalvamento`. O menu do celular informa se está aberto. No trilho recolhido, o ícone mostra o nome no tooltip. O `+1` escreve o nome do time e continua na cor do lado. Não há mudança de API, banco, migration nem do payload. Fonte: [[modulos/SUMULA-DIGITAL]], [[modulos/MATA-MATA]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 `/classificacao` e `/rankings` passam a usar o mesmo bloco de pódio e chave do portal. Os títulos ficam «Campeão, vice e 3º lugar» e «Chave». Sem chave, os dois somem. A leitura não muda. O cartão da chave mostra «AO VIVO» uma vez. As iniciais do MVP, do escudo e do avatar da súmula saem de `iniciais`. O espaço repetido do MVP continua ocupando vaga. Sem migration. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/SUMULA-DIGITAL]].
 
 Em 10 de outubro de 2026 a substituição da súmula deixa de fechar o par depois da volta. #2 e #13, uma vez que trocam no set, ficam vinculados e só trocam entre si, sem limite de vezes nessa dupla. No modal de um deles só aparece o outro. Cada troca continua contando no limite geral do set. A tela e o `PUT` não recusam o par por já ter voltado. A gravação de pontos não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

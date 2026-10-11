@@ -178,6 +178,7 @@ function Metade({
                       <button
                         key={acao}
                         type="button"
+                        className={acao === 'P' ? undefined : 'official-toque-44'}
                         onClick={() => {
                           executarAcao(acao, dados.id, numero, zona.indice, { onAtaque, onBloqueio, onAce, onSubstituicao })
                           if (acao === 'A') dispararPulso(`${zona.posicao}:ace`)
