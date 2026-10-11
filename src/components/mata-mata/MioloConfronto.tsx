@@ -136,7 +136,7 @@ function Escudo({ nome, cor, logoUrl, grande = false }: { nome: string; cor: str
   }
   if (grande) {
     return (
-      <span className={estilos.escudo} style={{ background: cor ?? '#16243D' }}>{sigla || '–'}</span>
+      <span className={estilos.escudo} style={{ background: cor ?? 'var(--story-elevada)' }}>{sigla || '–'}</span>
     )
   }
   return (

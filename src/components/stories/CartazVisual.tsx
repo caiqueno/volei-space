@@ -8,7 +8,14 @@ import { PlacarJogo } from '@/components/partidas/PlacarJogo'
 import { iniciais } from '@/lib/iniciais'
 import { saldoComSinal } from '@/lib/quadro-publico'
 import type { CartazStories, FundamentoCartaz, SumulaCartaz } from '@/lib/stories-cartaz'
-import { contraste, luminancia, type PaletaStories } from '@/lib/stories-paleta'
+import { contraste, type PaletaStories } from '@/lib/stories-paleta'
+
+const TEXTO_CLARO = '#F5F7FB'
+const TEXTO_ESCURO = '#12141A'
+
+function textoSobre(fundo: string) {
+  return contraste(fundo, TEXTO_CLARO) >= 4.5 ? TEXTO_CLARO : TEXTO_ESCURO
+}
 import estilos from '@/components/stories/cartaz.module.css'
 
 const ICONE: Record<FundamentoCartaz, typeof Swords> = {
@@ -18,7 +25,6 @@ const ICONE: Record<FundamentoCartaz, typeof Swords> = {
 }
 
 export function CartazVisual({ cartaz, paleta }: { cartaz: CartazStories; paleta: PaletaStories }) {
-  const claro = luminancia(paleta.texto) > 0.5
   return (
     <article
       className={estilos.cartaz}
@@ -32,11 +38,18 @@ export function CartazVisual({ cartaz, paleta }: { cartaz: CartazStories; paleta
         '--story-suave': paleta.textoSuave,
         '--story-ouro': paleta.ouro,
         '--story-sobre-ouro': paleta.sobreOuro,
+        '--story-primaria': paleta.primaria,
+        '--story-sobre-primaria': textoSobre(paleta.primaria),
       } as CSSProperties}
       data-tipo={cartaz.tipo}
     >
       <header className={estilos.cabecalho}>
-        {cartaz.campeonato ? <p className={estilos.titulo}>{cartaz.campeonato}</p> : null}
+        {cartaz.campeonato ? (
+          <p className={`${estilos.titulo} ${estilos.faixa}`}>
+            {cartaz.logoCampeonato ? <img className={estilos.simboloCampeonato} src={cartaz.logoCampeonato} alt="" /> : null}
+            <span>{cartaz.campeonato}</span>
+          </p>
+        ) : null}
       </header>
       <div className={estilos.miolo}>
         {cartaz.tipo === 'ranking' && <Ranking cartaz={cartaz} paleta={paleta} />}
@@ -51,11 +64,9 @@ export function CartazVisual({ cartaz, paleta }: { cartaz: CartazStories; paleta
             className={estilos.simbolo}
             src="/brand/volei-space_simbolo-orbital_transparente.png"
             alt=""
-            style={{ filter: claro ? 'brightness(0) invert(1)' : undefined }}
           />
           volei.space
         </span>
-        <span className={estilos.link}>{cartaz.link}</span>
       </footer>
     </article>
   )
@@ -243,7 +254,7 @@ function Time({ nome, cor, logo }: { nome: string; cor: string | null; logo: str
       {logo ? (
         <img className={estilos.escudo} src={logo} alt="" />
       ) : (
-        <span className="team-mark" style={{ width: 84, height: 84, fontSize: 28, ['--team-color' as string]: cor ?? '#3B82F6' }}>{iniciais(nome) || '–'}</span>
+        <span className="team-mark" style={{ width: 84, height: 84, fontSize: 28, ['--team-color' as string]: cor ?? 'var(--story-primaria)' }}>{iniciais(nome) || '–'}</span>
       )}
       <span className={estilos.nome}><NomeEquipe nome={nome} /></span>
     </div>

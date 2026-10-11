@@ -56,7 +56,7 @@ export async function JogosPublicos({ filtro, pagina, ligaId }: { filtro?: strin
 
   const { data: campeonato, error: erroCampeonato } = await supabaseAdmin
     .from('Liga')
-    .select('id,nome,slug,descricao,simulacao')
+    .select('id,nome,slug,descricao,simulacao,logoUrl')
     .eq('id', ligaId)
     .maybeSingle()
   if (erroCampeonato || !campeonato || campeonatoDeTeste(campeonato)) {
@@ -68,7 +68,7 @@ export async function JogosPublicos({ filtro, pagina, ligaId }: { filtro?: strin
   }
 
   const status = ativo === 'todos' ? null : STATUS[ativo]
-  const colunas = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,slug,descricao,simulacao)`
+  const colunas = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,slug,descricao,simulacao,logoUrl)`
   let contagem = supabaseAdmin.from('Partida').select('id', { count: 'exact', head: true }).eq('ligaId', ligaId)
   if (status) contagem = contagem.in('status', status)
 

@@ -15,14 +15,16 @@
 .cabecalho {
   position: absolute;
   top: 250px;
-  left: 72px;
-  right: 72px;
+  left: 0;
+  right: 0;
   height: 200px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: 12px;
+  justify-content: center;
+  padding: 0 72px;
   overflow: hidden;
+  background: var(--story-primaria);
+  color: var(--story-sobre-primaria);
 }
 
 .campeonato,
@@ -51,11 +53,30 @@
 
 .titulo {
   font-family: var(--font-display), "Arial Narrow", sans-serif;
-  font-size: 64px;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1;
   max-height: 128px;
   overflow: hidden;
+}
+
+.faixa {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--story-sobre-primaria);
+}
+
+.simboloCampeonato {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 
 .miolo {
@@ -78,7 +99,7 @@
   height: 120px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 24px;
   overflow: hidden;
 }
@@ -90,6 +111,7 @@
   font-family: var(--font-display), "Arial Narrow", sans-serif;
   font-size: 36px;
   font-weight: 700;
+  color: #f5f7fb;
   white-space: nowrap;
 }
 
@@ -127,7 +149,19 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 28px 32px 8px;
+  padding: 28px 32px;
+  background: var(--story-primaria);
+  color: var(--story-sobre-primaria);
+}
+
+.topoRanking .tituloCartao,
+.topoRanking .icone {
+  color: var(--story-sobre-primaria);
+}
+
+.topoRanking .icone {
+  background: transparent;
+  border: 3px solid var(--story-sobre-primaria);
 }
 
 .icone {
@@ -290,7 +324,15 @@
 
 .topoChave {
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin: -20px -24px 16px;
+  padding: 18px 24px;
+  background: var(--story-primaria);
+  color: var(--story-sobre-primaria);
+}
+
+.topoChave .rotulo,
+.topoChave .aoVivo {
+  color: var(--story-sobre-primaria);
 }
 
 .rotulo {
@@ -436,9 +478,17 @@
 
 .topoJogo {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin: -36px -36px 0;
+  padding: 22px 36px;
+  background: var(--story-primaria);
+  color: var(--story-sobre-primaria);
+}
+
+.topoJogo .rotulo {
+  color: var(--story-sobre-primaria);
 }
 
 .tabuleiro {

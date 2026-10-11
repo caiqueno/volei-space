@@ -92,7 +92,7 @@ export default async function FaseMataMataPage({ searchParams }: PageProps) {
             {!organizerMode && (
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="font-display text-3xl font-black text-white">Chave</h2>
-                <BotaoChaveStories chave={{ rounds, thirdPlace }} campeonato={scope.selectedLiga.nome} />
+                <BotaoChaveStories chave={{ rounds, thirdPlace }} campeonato={scope.selectedLiga.nome} logoCampeonato={scope.selectedLiga.logoUrl} />
               </div>
             )}
             <ChaveamentoMataMata ligaId={scope.selectedLiga.id} rounds={rounds} champion={champion} thirdPlace={thirdPlace} organizerMode={organizerMode} categoriaCampeonatoId={categoriaId} />

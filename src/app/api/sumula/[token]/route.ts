@@ -262,6 +262,8 @@ function equipeConsulta(equipe: any) {
   return {
     id: item.id,
     nome: item.nome,
+    logoUrl: item.logoUrl ?? null,
+    corHex: item.corHex ?? null,
     jogadores: (item.jogadores ?? []).map(jogadorConsulta).filter(Boolean),
   }
 }

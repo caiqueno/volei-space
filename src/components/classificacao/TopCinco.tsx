@@ -14,7 +14,7 @@ const QUADROS = [
 
 const MEDALHA = ['text-vs-gold', 'text-vs-silver', 'text-vs-bronze', 'text-vs-muted', 'text-vs-muted']
 
-export function TopCinco({ atletas, campeonato }: { atletas: AtletaQuadro[]; campeonato?: string }) {
+export function TopCinco({ atletas, campeonato, logoCampeonato }: { atletas: AtletaQuadro[]; campeonato?: string; logoCampeonato?: string | null }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       {QUADROS.map((quadro) => {
@@ -32,7 +32,7 @@ export function TopCinco({ atletas, campeonato }: { atletas: AtletaQuadro[]; cam
               <BotaoStoriesInstagram
                 titulo={quadro.titulo}
                 versao={lista.map((atleta) => atleta.jogadorId).join('-')}
-                montar={({ link }) => cartazRanking(atletas, quadro.chave, link, campeonato)}
+                montar={({ link }) => cartazRanking(atletas, quadro.chave, link, campeonato, logoCampeonato)}
               />
             </header>
             {lista.length === 0 ? (

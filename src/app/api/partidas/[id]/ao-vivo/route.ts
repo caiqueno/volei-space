@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!Number.isFinite(partidaId)) return error('Partida inválida', 400)
 
   try {
-    const selectPartida = 'id,ligaId,rodada,fase,dataHora,localNome,status,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaAprovadaEm,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl))'
+    const selectPartida = 'id,ligaId,rodada,fase,dataHora,localNome,status,setsPorA,setsPorB,pontosPorA,pontosPorB,sumulaAprovadaEm,equipeA:Equipe!Partida_equipeAId_fkey(id,nome,corHex,logoUrl,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)),equipeB:Equipe!Partida_equipeBId_fkey(id,nome,corHex,logoUrl,jogadores:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl))'
     const { data, error: partidaErr } = await consultarComVaga(selectPartida, (colunas) => (
       supabase.from('Partida').select(colunas).eq('id', partidaId).single()
     ))
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     if (partidaErr) return error('Não foi possível abrir o acompanhamento ao vivo.', 500)
     if (!data) return error('Partida não encontrada', 404)
-    const { data: liga } = await supabase.from('Liga').select('nome,slug,descricao,simulacao').eq('id', data.ligaId).maybeSingle()
+    const { data: liga } = await supabase.from('Liga').select('nome,slug,descricao,simulacao,logoUrl').eq('id', data.ligaId).maybeSingle()
     // Quem chega aqui já tem o id da partida, vindo da agenda do campeonato.
     // Só a simulação fica fora do público; o resto seguiria link quebrado.
     if (liga?.simulacao && !(await operadorDestaPartida(_req, partidaId, data.ligaId))) {
@@ -56,6 +56,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       presencas: presencasRes.data ?? [],
       ocorrencias,
       destaques: destaquesRes.data ?? [],
+      liga: liga ? { nome: liga.nome, logoUrl: liga.logoUrl ?? null } : null,
       oficial: Boolean(data.sumulaAprovadaEm),
       atualizadoEm: new Date().toISOString(),
     }))

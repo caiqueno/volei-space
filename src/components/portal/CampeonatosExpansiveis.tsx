@@ -132,8 +132,8 @@ export function CampeonatosExpansiveis({
               </button>
               {aberto && (
                 <div className="border-t border-white/10 px-4 py-4">
-                  {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} campeonato={campeonato.nome} />}
-                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} campeonato={campeonato.nome} />}
+                  {modulo === 'classificacao' && <PainelClassificacao ligaId={campeonato.id} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} campeonato={campeonato.nome} logoCampeonato={campeonato.logoUrl} />}
+                  {modulo === 'rankings' && <PainelRanking ligaId={campeonato.id} concluido={campeonatoEncerrado(campeonato.status)} categoriaInicial={campeonato.id === ligaIdInicial ? categoriaInicial : null} campeonato={campeonato.nome} logoCampeonato={campeonato.logoUrl} />}
                   {modulo === 'galeria' && <PainelGaleria ligaId={campeonato.id} />}
                 </div>
               )}

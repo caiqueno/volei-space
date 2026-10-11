@@ -18,6 +18,7 @@ import { textoDoLado } from '@/lib/vaga-a-definir'
 import { manterPaginaAberta } from '@/lib/pagina-aberta'
 import { rotuloArbitroResponsavel } from '@/lib/arbitro-responsavel'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import type { LigaCarouselItem } from './types'
@@ -229,8 +230,8 @@ type PartidaOrganizacao = {
   pontosPorA?: number | null
   pontosPorB?: number | null
   sumulaToken?: string | null
-  equipeA?: { nome?: string | null; vaga?: boolean } | null
-  equipeB?: { nome?: string | null; vaga?: boolean } | null
+  equipeA?: { nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null
+  equipeB?: { nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null
   liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
   escala?: Array<{ arbitroId?: number | null; cargo?: string | null; arbitro?: { nome?: string | null; email?: string | null } | null }>
   acesso?: { ultimoAcessoEm?: string | null } | Array<{ ultimoAcessoEm?: string | null }> | null
@@ -391,9 +392,19 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                     <tr key={partida.id} className="border-t border-white/10">
                       <td data-label="Rodada" className="px-3 py-3 font-bold">{fase ?? (partida.rodada || '—')}</td>
                       <td data-label="Jogo" className="px-3 py-3 font-black">
-                        {partida.equipeA?.vaga ? <span>{partida.equipeA.nome}</span> : <NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" />}
+                        {partida.equipeA?.vaga ? <span>{partida.equipeA.nome}</span> : (
+                          <span className="inline-flex items-center gap-2">
+                            <TeamIdentity nome={partida.equipeA?.nome || 'Equipe A'} cor={partida.equipeA?.corHex} logoUrl={partida.equipeA?.logoUrl} compact showName={false} />
+                            <NomeEquipe nome={partida.equipeA?.nome} vazio="Equipe A" />
+                          </span>
+                        )}
                         {' × '}
-                        {partida.equipeB?.vaga ? <span>{partida.equipeB.nome}</span> : <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" />}
+                        {partida.equipeB?.vaga ? <span>{partida.equipeB.nome}</span> : (
+                          <span className="inline-flex items-center gap-2">
+                            <TeamIdentity nome={partida.equipeB?.nome || 'Equipe B'} cor={partida.equipeB?.corHex} logoUrl={partida.equipeB?.logoUrl} compact showName={false} />
+                            <NomeEquipe nome={partida.equipeB?.nome} vazio="Equipe B" />
+                          </span>
+                        )}
                       </td>
                       <td data-label="Horário" className="px-3 py-3">{quando}</td>
                       <td data-label="Status" className="px-3 py-3">{STATUS_JOGO[status] ?? status}</td>

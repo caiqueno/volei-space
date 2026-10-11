@@ -58,12 +58,12 @@ async function consultar(ligaId: number, categoriaId: string | null): Promise<Re
   }
 }
 
-type EquipeLinha = { id: number; nome: string | null }
+type EquipeLinha = { id: number; nome: string | null; logoUrl?: string | null; corHex?: string | null }
 
 // OcorrenciaPartida não tem coluna de criação nem de atualização.
 const COLUNAS_LANCE = 'tipo,jogadorId,descricao,partida:Partida!inner(ligaId,categoriaCampeonatoId)'
 const COLUNAS_JOGADOR = 'id,nome,numero,equipeId,banido'
-const COLUNAS_EQUIPE = 'id,nome,categoriaCampeonatoId'
+const COLUNAS_EQUIPE = 'id,nome,logoUrl,corHex,categoriaCampeonatoId'
 
 async function listarEquipes(ligaId: number, categoriaId: string | null) {
   const linhas: EquipeLinha[] = []
@@ -82,7 +82,7 @@ async function listarEquipes(ligaId: number, categoriaId: string | null) {
 }
 
 async function listarAtletas(equipes: EquipeLinha[]): Promise<AtletaRanking[]> {
-  const nomePorEquipe = new Map(equipes.map((equipe) => [equipe.id, String(equipe.nome ?? '').trim() || 'Equipe']))
+  const porEquipe = new Map(equipes.map((equipe) => [equipe.id, equipe]))
   const ids = equipes.map((equipe) => equipe.id)
   const atletas: AtletaRanking[] = []
   for (let inicio = 0; inicio < ids.length; inicio += 80) {
@@ -99,11 +99,14 @@ async function listarAtletas(equipes: EquipeLinha[]): Promise<AtletaRanking[]> {
       const lote = data ?? []
       for (const jogador of lote) {
         const equipeId = Number(jogador.equipeId)
+        const equipe = porEquipe.get(equipeId)
         atletas.push({
           id: Number(jogador.id),
           nome: String(jogador.nome ?? ''),
-          equipe: nomePorEquipe.get(equipeId) ?? 'Equipe',
+          equipe: String(equipe?.nome ?? '').trim() || 'Equipe',
           numero: jogador.numero,
+          logoUrl: equipe?.logoUrl ?? null,
+          corHex: equipe?.corHex ?? null,
         })
       }
       if (lote.length < 500) break

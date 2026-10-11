@@ -1,0 +1,203 @@
+.quadro {
+  overflow: hidden;
+  border: 1px solid var(--vs-border);
+  border-radius: 1.25rem;
+  background: var(--vs-surface);
+  color: var(--vs-text);
+}
+
+.topo {
+  padding: 1.1rem 1rem 1rem;
+  border-bottom: 1px solid var(--vs-border);
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--vs-text);
+}
+
+.subtitulo {
+  margin: 0.45rem 0 0;
+  color: var(--vs-muted) !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.vazio {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--vs-muted) !important;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.cabeca,
+.linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+
+.cabeca {
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--vs-border);
+  color: var(--vs-muted) !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rotuloAtleta,
+.pessoa,
+.nome,
+.camisa {
+  color: inherit;
+}
+
+.rotuloAtleta {
+  color: var(--vs-muted) !important;
+}
+
+.linha {
+  min-height: 4.85rem;
+  padding: 0.8rem 0.85rem;
+  border-top: 1px solid var(--vs-border);
+}
+
+.lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista > li:first-child .linha {
+  border-top: 0;
+}
+
+.identidade {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.posicao {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--vs-elevated);
+  color: var(--vs-text) !important;
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.pessoa {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.nome {
+  display: block;
+  color: var(--vs-text) !important;
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.camisa {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--vs-muted) !important;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(4, 3.35rem);
+  width: 8.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.numeros span,
+.rotulos span {
+  color: var(--vs-text) !important;
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.rotulos span {
+  color: var(--vs-muted) !important;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.pts {
+  color: var(--vs-gold) !important;
+}
+
+.mais {
+  display: block;
+  width: calc(100% - 1.7rem);
+  margin: 0.35rem 0.85rem 0.95rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--vs-gold);
+  color: var(--vs-on-gold);
+  padding: 0.85rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mais:hover {
+  background: var(--vs-gold-hover);
+}
+
+@media (min-width: 768px) {
+  .topo {
+    padding: 1.25rem 1.35rem 1.1rem;
+  }
+
+  .cabeca,
+  .linha {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    padding-right: 1.35rem;
+    padding-left: 1.35rem;
+  }
+
+  .nome {
+    font-size: 1.12rem;
+  }
+
+  .numeros {
+    width: 16rem;
+    overflow: visible;
+  }
+
+  .mais {
+    width: auto;
+    min-width: 9rem;
+    margin-left: 1.35rem;
+  }
+}

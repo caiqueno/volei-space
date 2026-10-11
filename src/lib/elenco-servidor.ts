@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { LinhaElenco } from '@/lib/grupos-fase'
 
 type JogadorElenco = { id: number; nome: string; numero?: number | null; banido?: boolean | null }
-type EquipeElenco = { id: number; nome: string; categoriaCampeonatoId?: string | null; jogadores?: JogadorElenco[] | null }
+type EquipeElenco = { id: number; nome: string; categoriaCampeonatoId?: string | null; logoUrl?: string | null; corHex?: string | null; jogadores?: JogadorElenco[] | null }
 
 export async function listarElenco(ligaId: number, categoriaId?: string | null): Promise<LinhaElenco[]> {
   let gruposQuery = supabaseAdmin
@@ -16,7 +16,7 @@ export async function listarElenco(ligaId: number, categoriaId?: string | null):
     .eq('ligaId', ligaId)
   let inscricoesQuery = supabaseAdmin
     .from('InscricaoCampeonato')
-    .select('equipe:Equipe(id,nome,categoriaCampeonatoId,jogadores:Jogador(id,nome,numero,banido))')
+    .select('equipe:Equipe(id,nome,categoriaCampeonatoId,logoUrl,corHex,jogadores:Jogador(id,nome,numero,banido))')
     .eq('ligaId', ligaId)
     .eq('status', 'APROVADA')
   if (categoriaId) {
@@ -52,6 +52,8 @@ export async function listarElenco(ligaId: number, categoriaId?: string | null):
       linhas.push({
         equipeId: equipe.id,
         equipe: equipe.nome,
+        logoUrl: equipe.logoUrl ?? null,
+        corHex: equipe.corHex ?? null,
         grupo: grupoDaEquipe.get(equipe.id) ?? null,
         jogadorId: jogador.id,
         jogador: jogador.nome,

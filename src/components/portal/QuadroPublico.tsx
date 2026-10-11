@@ -29,7 +29,7 @@ function publicarConteudo<T>(texto: { current: string }, valor: T, aplicar: (pro
   startTransition(() => aplicar(valor))
 }
 
-export function QuadroPublico({ ligaId, categoriaId, destaque = 'quadro', campeonato }: { ligaId: number; categoriaId: string | null; destaque?: 'ranking' | 'classificacao' | 'quadro'; campeonato?: string }) {
+export function QuadroPublico({ ligaId, categoriaId, destaque = 'quadro', campeonato, logoCampeonato }: { ligaId: number; categoriaId: string | null; destaque?: 'ranking' | 'classificacao' | 'quadro'; campeonato?: string; logoCampeonato?: string | null }) {
   const [blocos, setBlocos] = useState<Bloco[] | null>(null)
   const [chave, setChave] = useState<ChavePublica | null>(null)
   const [atletas, setAtletas] = useState<AtletaQuadro[] | null>(null)
@@ -77,6 +77,8 @@ export function QuadroPublico({ ligaId, categoriaId, destaque = 'quadro', campeo
       ataque: linha.fundamentos.ataque ?? 0,
       bloqueio: linha.fundamentos.bloqueio ?? 0,
       saque: linha.fundamentos.saque ?? 0,
+      logoUrl: linha.logoUrl ?? null,
+      corHex: linha.corHex ?? null,
     }))
     publicarConteudo(textoAtletas, lista, setAtletas, rolagem)
     setAviso('')
@@ -173,17 +175,17 @@ export function QuadroPublico({ ligaId, categoriaId, destaque = 'quadro', campeo
   return (
     <div className="grid gap-6" data-destaque={destaque}>
       {lider && <CartaoLider lider={lider} />}
-      <VistaChavePublica ligaId={ligaId} chave={chave} campeonato={campeonato} />
-      <TopCinco atletas={atletas} campeonato={campeonato} />
+      <VistaChavePublica ligaId={ligaId} chave={chave} campeonato={campeonato} logoCampeonato={logoCampeonato} />
+      <TopCinco atletas={atletas} campeonato={campeonato} logoCampeonato={logoCampeonato} />
       {aviso && <p className="text-sm font-bold text-vs-gold">{aviso}</p>}
-      <TabelaScouts atletas={atletas} />
       {blocos.map((bloco) => {
         const grupos = (bloco.grupos ?? []).filter((grupo) => grupo.linhas.length > 0)
         const secoes = grupos.length > 0 ? grupos : [{ id: bloco.id ?? 'geral', nome: bloco.nome || 'Classificação', vagas: 0, linhas: bloco.linhas }]
         return secoes.map((grupo) => (
-          <TabelaGrupos key={`${bloco.id}-${grupo.id}`} nome={grupo.nome} linhas={grupo.linhas} vagas={grupo.vagas ?? 0} campeonato={campeonato} />
+          <TabelaGrupos key={`${bloco.id}-${grupo.id}`} nome={grupo.nome} linhas={grupo.linhas} vagas={grupo.vagas ?? 0} campeonato={campeonato} logoCampeonato={logoCampeonato} />
         ))
       })}
+      <TabelaScouts atletas={atletas} />
     </div>
   )
 }

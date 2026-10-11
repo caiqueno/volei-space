@@ -161,13 +161,13 @@ export function FaixaStories({ kicker, titulo, children }: { kicker?: string; ti
   )
 }
 
-export function BotaoChaveStories({ chave, campeonato }: { chave: ChaveCartaz; campeonato?: string }) {
+export function BotaoChaveStories({ chave, campeonato, logoCampeonato }: { chave: ChaveCartaz; campeonato?: string; logoCampeonato?: string | null }) {
   const jogos = chave.rounds.reduce((total, round) => total + round.slots.length, 0)
   return (
     <BotaoStoriesInstagram
       titulo="Chave do mata-mata"
       versao={jogos}
-      montar={({ link }) => cartazMataMata(chave, link, campeonato)}
+      montar={({ link }) => cartazMataMata(chave, link, campeonato, logoCampeonato)}
     />
   )
 }

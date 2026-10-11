@@ -44,7 +44,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? `Conheça a equipe ${nome} (${contexto}), seu elenco, jogos e desempenho nos campeonatos.`
       : `Conheça a equipe ${nome}, seu elenco, jogos e desempenho nos campeonatos.`,
     path: `/equipes/${encodeURIComponent(slug)}`,
-    image: equipe.logoUrl || '/brand/banner-oficial.png',
   })
 }
 

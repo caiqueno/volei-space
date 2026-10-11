@@ -24,7 +24,7 @@ type Partida = {
   sets: Set[]
   sumulaToken?: string | null
   fase?: string | null
-  liga?: { id?: number; nome?: string | null } | null
+  liga?: { id?: number; nome?: string | null; logoUrl?: string | null } | null
 }
 
 const statusBadge: Record<string, { label: string; variant: 'neutral' | 'info' | 'warning' | 'success' | 'error' }> = {
@@ -142,7 +142,7 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
                 rotulo: agenda.rotulo,
                 data: agenda.data,
                 local: agenda.local,
-              }, link)}
+              }, link, partida.liga?.nome ?? undefined, partida.liga?.logoUrl)}
             />
           )}
         </div>
@@ -163,7 +163,7 @@ function TeamBlock({ equipe, align = 'left' }: { equipe: Equipe | null; align?: 
   return (
     <div className={`match-team min-w-0 ${align === 'right' ? 'is-away text-right' : ''}`}>
       <div className={`flex ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
-        <TeamIdentity nome={nome} cor={equipe?.corHex} compact showName={false} />
+        <TeamIdentity nome={nome} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
       </div>
       <p className="mt-3 min-h-[42px] overflow-hidden text-sm font-black leading-[1.35] text-slate-950 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
         <NomeEquipe nome={nome} />

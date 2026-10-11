@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A classificação no celular mantém a rolagem durante a releitura. /jogos público abre pela escolha do campeonato. Sem banco.
+  Scouts gerais ficam depois dos grupos, de 10 em 10. A og:image é do volei.space. O escudo da equipe aparece nas telas públicas. Sem banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,14 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 «Scouts gerais» fica depois das tabelas dos grupos em `/classificacao` e `/rankings`. Abre 10 atletas e «Ver mais» soma mais 10, sem fechar na releitura e sem mexer na rolagem. A linha é alta, com posição num círculo, nome inteiro, camisa e escudo. PTS, ATQ, BLQ e ACE rolam só na faixa dos números. Sem banco nem migration. Fonte: [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 o escudo gravado em `Equipe.logoUrl` aparece no cartão de jogo, no ao vivo, na classificação, no ranking, na página do campeonato, no elenco, na súmula pública e no painel. Sem logo, ficam as iniciais. A leitura pública continua `no-store`. Sem migration. Fonte: [[modulos/PARTIDAS]], [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
+
+Em 11 de outubro de 2026 o bloco do cabeçalho do story e a linha de rodada e status usam a cor primária da paleta, nos cartões de jogo, resultado, ranking, grupo e chave. Não fica tira escura acima do nome nem na linha da rodada. Sem banco. Fonte: [[09-UI-UX]].
+
+Em 11 de outubro de 2026 a faixa do story usa a cor da paleta e o símbolo do campeonato. O rodapé tira o link e fica com o símbolo transparente e o texto volei.space. A prévia de compartilhamento usa `public/brand/og-image.png`. Sem banco. Fonte: [[09-UI-UX]].
 
 Em 11 de outubro de 2026 `/classificacao` no celular e no tablet deixa de voltar ao topo sozinha. O cartão não recebe mais o `transform` da animação de entrada. A releitura dos scouts, a cada 12 segundos, e a da tabela só redesenham quando os dados mudam, e não substituem a lista por «Carregando...». A rolagem, se cair, é recolocada. A chave estreita não monta a grade larga. Sem banco, API nova ou migration. Fonte: [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
 

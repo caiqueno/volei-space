@@ -12,6 +12,7 @@ export function CampeonatoMataMata({
   podium,
   finalizado,
   campeonato,
+  logoCampeonato,
 }: {
   ligaId: number
   rounds: BracketRoundView[]
@@ -20,6 +21,7 @@ export function CampeonatoMataMata({
   podium: PodiumTeam[]
   finalizado: boolean
   campeonato?: string
+  logoCampeonato?: string | null
 }) {
   if (rounds.length === 0 && podium.length === 0) return null
 
@@ -43,7 +45,7 @@ export function CampeonatoMataMata({
                 <p className="luva-kicker">Eliminatória</p>
                 <h2 className="mt-2 font-display text-3xl font-black text-white">Chave do mata-mata</h2>
               </div>
-              <BotaoChaveStories chave={{ rounds, thirdPlace }} campeonato={campeonato} />
+              <BotaoChaveStories chave={{ rounds, thirdPlace }} campeonato={campeonato} logoCampeonato={logoCampeonato} />
             </div>
             <Link href={`/fase-mata-mata?ligaId=${ligaId}`} className="text-sm font-black text-luva-amber">
               Abrir em tela cheia

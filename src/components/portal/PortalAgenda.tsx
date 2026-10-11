@@ -21,6 +21,7 @@ type Props = {
   categoriaId?: string | null
   compartilhar?: boolean
   campeonato?: string
+  logoCampeonato?: string | null
 }
 
 const consultaParte: Record<Parte, string> = {
@@ -29,7 +30,7 @@ const consultaParte: Record<Parte, string> = {
   encerradas: 'encerradas',
 }
 
-export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, categoriaId = null, compartilhar = false, campeonato }: Props) {
+export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, categoriaId = null, compartilhar = false, campeonato, logoCampeonato }: Props) {
   const [grupos, setGrupos] = useState(inicial)
   const [temMais, setTemMais] = useState<TemMais>(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
   const [falha, setFalha] = useState(falhaInicial)
@@ -142,22 +143,22 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, ca
         <EstadoVazio titulo={categoriaId ? 'Nenhum jogo nesta categoria' : 'Nenhum jogo neste campeonato'} descricao="As partidas aparecem aqui quando a organização montar o calendário." />
       ) : (
         <div className="grid gap-8">
-          <Faixa titulo="Ao vivo" parte="aoVivo" partidas={grupos.aoVivo} temMais={temMais.aoVivo} carregando={carregando === 'aoVivo'} onMore={() => carregarMais('aoVivo')} compartilhar={compartilhar} campeonato={campeonato} />
-          <Faixa titulo="Próximos jogos" parte="proximos" partidas={grupos.proximos} temMais={temMais.proximos} carregando={carregando === 'proximos'} onMore={() => carregarMais('proximos')} compartilhar={compartilhar} campeonato={campeonato} />
-          <Faixa titulo="Últimos jogos" parte="encerradas" partidas={grupos.encerradas} temMais={temMais.encerradas} carregando={carregando === 'encerradas'} onMore={() => carregarMais('encerradas')} compartilhar={compartilhar} campeonato={campeonato} />
+          <Faixa titulo="Ao vivo" parte="aoVivo" partidas={grupos.aoVivo} temMais={temMais.aoVivo} carregando={carregando === 'aoVivo'} onMore={() => carregarMais('aoVivo')} compartilhar={compartilhar} campeonato={campeonato} logoCampeonato={logoCampeonato} />
+          <Faixa titulo="Próximos jogos" parte="proximos" partidas={grupos.proximos} temMais={temMais.proximos} carregando={carregando === 'proximos'} onMore={() => carregarMais('proximos')} compartilhar={compartilhar} campeonato={campeonato} logoCampeonato={logoCampeonato} />
+          <Faixa titulo="Últimos jogos" parte="encerradas" partidas={grupos.encerradas} temMais={temMais.encerradas} carregando={carregando === 'encerradas'} onMore={() => carregarMais('encerradas')} compartilhar={compartilhar} campeonato={campeonato} logoCampeonato={logoCampeonato} />
         </div>
       )}
     </div>
   )
 }
 
-function Faixa({ titulo, partidas, temMais, carregando, onMore, compartilhar, campeonato }: { titulo: string; parte: Parte; partidas: PartidaPublica[]; temMais: boolean; carregando: boolean; onMore: () => void; compartilhar: boolean; campeonato?: string }) {
+function Faixa({ titulo, partidas, temMais, carregando, onMore, compartilhar, campeonato, logoCampeonato }: { titulo: string; parte: Parte; partidas: PartidaPublica[]; temMais: boolean; carregando: boolean; onMore: () => void; compartilhar: boolean; campeonato?: string; logoCampeonato?: string | null }) {
   if (partidas.length === 0 && !temMais) return null
   return (
     <section>
       <h3 className="font-display text-2xl font-black text-white">{titulo}</h3>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {partidas.map((partida) => <PartidaCard key={partida.id} partida={partidaComCampeonato(partida, campeonato)} compartilhar={compartilhar} />)}
+        {partidas.map((partida) => <PartidaCard key={partida.id} partida={partidaComCampeonato(partida, campeonato, logoCampeonato)} compartilhar={compartilhar} />)}
       </div>
       {temMais && (
         <button type="button" className="mt-4 rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60" onClick={onMore} disabled={carregando}>
@@ -168,7 +169,10 @@ function Faixa({ titulo, partidas, temMais, carregando, onMore, compartilhar, ca
   )
 }
 
-function partidaComCampeonato(partida: PartidaPublica, campeonato?: string): PartidaPublica {
-  if (partida.liga?.nome || !campeonato) return partida
-  return { ...partida, liga: { id: partida.ligaId, nome: campeonato } }
+function partidaComCampeonato(partida: PartidaPublica, campeonato?: string, logoCampeonato?: string | null): PartidaPublica {
+  const nome = partida.liga?.nome || campeonato
+  const logoUrl = partida.liga?.logoUrl || logoCampeonato || null
+  if (partida.liga?.nome && (partida.liga.logoUrl || !logoUrl)) return partida
+  if (!nome && !logoUrl) return partida
+  return { ...partida, liga: { id: partida.liga?.id ?? partida.ligaId, nome: nome || partida.liga?.nome || '', logoUrl } }
 }

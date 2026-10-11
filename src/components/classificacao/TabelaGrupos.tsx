@@ -5,7 +5,7 @@ import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagra
 import type { LinhaGrupo } from '@/lib/quadro-publico'
 import { cartazClassificacao } from '@/lib/stories-cartaz'
 
-export function TabelaGrupos({ nome, linhas, vagas, campeonato }: { nome: string; linhas: LinhaGrupo[]; vagas: number; campeonato?: string }) {
+export function TabelaGrupos({ nome, linhas, vagas, campeonato, logoCampeonato }: { nome: string; linhas: LinhaGrupo[]; vagas: number; campeonato?: string; logoCampeonato?: string | null }) {
   return (
     <section aria-labelledby={`grupo-${nome}`} className="rounded-2xl border border-vs-border bg-vs-surface">
       <header className="flex items-center justify-between gap-3 border-b border-vs-border px-4 py-4">
@@ -13,7 +13,7 @@ export function TabelaGrupos({ nome, linhas, vagas, campeonato }: { nome: string
         <BotaoStoriesInstagram
           titulo={nome}
           versao={linhas.length}
-          montar={({ link }) => cartazClassificacao([{ nome, linhas, vagas }], link, null, nome, campeonato)}
+          montar={({ link }) => cartazClassificacao([{ nome, linhas, vagas }], link, null, nome, campeonato, logoCampeonato)}
         />
       </header>
       <table data-stack className="w-full text-sm text-vs-text">

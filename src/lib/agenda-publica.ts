@@ -3,7 +3,7 @@ import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { consultarComVaga } from '@/lib/consulta-vaga'
 import { normalizarPartidaPublica, PARTIDA_PUBLICA_COLUNAS, type PartidaPublica } from '@/lib/partida-publica'
 
-const COLUNAS = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`
+const COLUNAS = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao,logoUrl)`
 
 function normalizar(linhas: unknown[] | null) {
   return (linhas ?? [])

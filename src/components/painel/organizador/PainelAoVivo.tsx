@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import LiveMatchView from '@/app/partidas/[id]/ao-vivo/LiveMatchView'
 import { consultar, ConsultaCancelada } from '@/lib/api-cliente'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { SeletorCategoria, queryCategoria, useCategoriaDoCampeonato } from '@/components/portal/SeletorCategoria'
 import type { LigaCarouselItem } from './types'
 
@@ -15,8 +16,8 @@ type JogoAoVivo = {
   setsPorB?: number | null
   pontosPorA?: number | null
   pontosPorB?: number | null
-  equipeA?: { nome?: string | null } | null
-  equipeB?: { nome?: string | null } | null
+  equipeA?: { nome?: string | null; corHex?: string | null; logoUrl?: string | null } | null
+  equipeB?: { nome?: string | null; corHex?: string | null; logoUrl?: string | null } | null
 }
 
 export function PainelAoVivo({ ligas, campeonatoId, onSelect }: { ligas: LigaCarouselItem[]; campeonatoId: number | null; onSelect: (id: number) => void }) {
@@ -94,7 +95,13 @@ export function PainelAoVivo({ ligas, campeonatoId, onSelect }: { ligas: LigaCar
           <div className="operator-live-list" role="list">
             {jogos.length === 0 ? <p>{categoriaId ? 'Nenhum jogo ao vivo nesta categoria.' : 'Nenhum jogo ao vivo neste campeonato.'}</p> : jogos.map((jogo) => (
               <button key={jogo.id} type="button" role="listitem" className={partidaId === jogo.id ? 'is-active' : ''} onClick={() => escolherJogo(jogo.id)}>
-                <strong><NomeEquipe nome={jogo.equipeA?.nome} vazio="Equipe A" /> × <NomeEquipe nome={jogo.equipeB?.nome} vazio="Equipe B" /></strong>
+                <strong className="inline-flex flex-wrap items-center gap-2">
+                  <TeamIdentity nome={jogo.equipeA?.nome || 'Equipe A'} cor={jogo.equipeA?.corHex} logoUrl={jogo.equipeA?.logoUrl} compact showName={false} />
+                  <NomeEquipe nome={jogo.equipeA?.nome} vazio="Equipe A" />
+                  <span>×</span>
+                  <TeamIdentity nome={jogo.equipeB?.nome || 'Equipe B'} cor={jogo.equipeB?.corHex} logoUrl={jogo.equipeB?.logoUrl} compact showName={false} />
+                  <NomeEquipe nome={jogo.equipeB?.nome} vazio="Equipe B" />
+                </strong>
                 <span>Rodada {jogo.rodada || '—'} · {jogo.setsPorA ?? 0} × {jogo.setsPorB ?? 0} sets · {jogo.pontosPorA ?? 0} a {jogo.pontosPorB ?? 0}</span>
               </button>
             ))}

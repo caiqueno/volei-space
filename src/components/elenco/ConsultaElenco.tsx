@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { filtrarElenco, type LinhaElenco } from '@/lib/grupos-fase'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 
 export function ConsultaElenco({ linhas }: { linhas: LinhaElenco[] }) {
   const [termo, setTermo] = useState('')
@@ -40,7 +41,10 @@ export function ConsultaElenco({ linhas }: { linhas: LinhaElenco[] }) {
             return (
               <section key={`${primeira.equipeId}-${primeira.grupo ?? 'sem'}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[#ffb331]">{primeira.grupo ?? 'Sem grupo'}</p>
-                <h3 className="mt-1 font-display text-xl font-black text-white"><NomeEquipe nome={primeira.equipe} /></h3>
+                <h3 className="mt-1 flex items-center gap-2 font-display text-xl font-black text-white">
+                  <TeamIdentity nome={primeira.equipe} cor={primeira.corHex} logoUrl={primeira.logoUrl} compact showName={false} />
+                  <NomeEquipe nome={primeira.equipe} />
+                </h3>
                 <ul className="mt-3 divide-y divide-white/10">
                   {elenco.map((linha) => (
                     <li key={linha.jogadorId} className="flex items-center justify-between gap-3 py-2 text-sm font-bold text-white">

@@ -142,6 +142,8 @@ export function cruzarSemifinais(grupos: Array<{ nome: string; classificados: nu
 export type LinhaElenco = {
   equipeId: number
   equipe: string
+  logoUrl?: string | null
+  corHex?: string | null
   grupo: string | null
   jogadorId: number
   jogador: string

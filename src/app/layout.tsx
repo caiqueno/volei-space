@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { IndicadorDemora } from '@/components/ui/IndicadorDemora'
 import { TransicaoDeTela } from '@/components/ui/TransicaoDeTela'
-import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
+import { getSiteUrl, imagemOg, SITE_DESCRIPTION, SITE_NAME } from '@/lib/seo'
 
 const sans = Manrope({
   subsets: ['latin'],
@@ -54,13 +54,13 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: 'volei.space | Gestão de campeonatos de vôlei',
     description: SITE_DESCRIPTION,
-    images: [{ url: '/brand/banner-oficial.png', alt: 'volei.space — gestão de campeonatos de vôlei' }],
+    images: [imagemOg()],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'volei.space | Gestão de campeonatos de vôlei',
     description: SITE_DESCRIPTION,
-    images: ['/brand/banner-oficial.png'],
+    images: [imagemOg().url],
   },
   manifest: '/manifest.webmanifest',
   verification: process.env.GOOGLE_SITE_VERIFICATION

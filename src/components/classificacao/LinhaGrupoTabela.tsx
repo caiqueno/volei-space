@@ -1,4 +1,5 @@
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { saldoComSinal, type LinhaGrupo } from '@/lib/quadro-publico'
 import type { LinhaTabelaCartaz } from '@/lib/stories-cartaz'
 
@@ -29,7 +30,12 @@ export function LinhaGrupoTabela({ linha, indice, classifica }: { linha: LinhaGr
   return (
     <tr className="border-t border-vs-border">
       <td data-label="#" className={`border-l-4 px-2 py-2 font-display font-bold tabular-nums ${classifica ? 'border-vs-gold text-vs-gold' : 'border-transparent'}`}>{indice + 1}</td>
-      <td data-label="Equipe" className="px-2 py-2 font-bold"><NomeEquipe nome={linha.equipe} /></td>
+      <td data-label="Equipe" className="px-2 py-2 font-bold">
+        <span className="inline-flex min-w-0 items-center gap-2">
+          <TeamIdentity nome={linha.equipe} cor={linha.corHex} logoUrl={linha.logoUrl} compact showName={false} />
+          <NomeEquipe nome={linha.equipe} />
+        </span>
+      </td>
       <td data-label="P" className="px-2 py-2 text-right font-bold tabular-nums">{numeros.pontos}</td>
       <td data-label="J" className="px-2 py-2 text-right tabular-nums">{numeros.jogos}</td>
       <td data-label="V" className="px-2 py-2 text-right tabular-nums">{numeros.vitorias}</td>

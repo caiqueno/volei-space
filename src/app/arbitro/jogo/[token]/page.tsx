@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { formatarDataPartida } from '@/lib/format-partida'
 import { useParams, useRouter } from 'next/navigation'
 
+type Lado = { nome: string; logoUrl?: string | null; corHex?: string | null }
 type Jogo = {
-  equipeA: string
-  equipeB: string
+  equipeA: Lado
+  equipeB: Lado
   dataHora: string | null
   localNome: string | null
 }
@@ -89,7 +91,13 @@ export default function AcessoArbitroPage() {
         {!carregando && !revogado && !jogo ? <p className="mt-6 text-sm font-bold text-red-200">{erro || 'Link de acesso inválido.'}</p> : null}
         {jogo && !revogado ? (
           <form className="mt-6" onSubmit={entrar}>
-            <h1 className="font-display text-3xl font-black">{jogo.equipeA} × {jogo.equipeB}</h1>
+            <h1 className="flex flex-wrap items-center gap-2 font-display text-3xl font-black">
+              <TeamIdentity nome={jogo.equipeA.nome} cor={jogo.equipeA.corHex} logoUrl={jogo.equipeA.logoUrl} compact showName={false} />
+              <span>{jogo.equipeA.nome}</span>
+              <span>×</span>
+              <TeamIdentity nome={jogo.equipeB.nome} cor={jogo.equipeB.corHex} logoUrl={jogo.equipeB.logoUrl} compact showName={false} />
+              <span>{jogo.equipeB.nome}</span>
+            </h1>
             <p className="mt-2 text-sm font-semibold text-white/70">{quando}</p>
             <p className="text-sm font-semibold text-white/70">{jogo.localNome || 'Quadra a definir'}</p>
             <label className="mt-6 block text-sm font-black" htmlFor="codigo-acesso">Digite o código de acesso</label>

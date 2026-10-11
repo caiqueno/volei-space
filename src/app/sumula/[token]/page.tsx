@@ -5,11 +5,12 @@ import { useParams } from 'next/navigation'
 import { lerLiberosIniciais } from '@/lib/libero-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 type Jogador = { id: number; nome: string; numero?: number | string | null; posicao?: string | null }
-type Equipe = { id: number; nome: string; jogadores?: Jogador[] }
+type Equipe = { id: number; nome: string; logoUrl?: string | null; corHex?: string | null; jogadores?: Jogador[] }
 type Ocorrencia = { id: number; tipo: string; descricao?: string | null; set?: number | null; jogadorId?: number | null }
 type Registro = {
   id: number
@@ -74,7 +75,13 @@ export default function SumulaRegistroPage() {
     <main className="sumula-registro">
       <header>
         <p>Súmula digital</p>
-        <h1><NomeEquipe nome={registro.equipeA.nome} /> <small>vs</small> <NomeEquipe nome={registro.equipeB.nome} /></h1>
+        <h1 className="flex flex-wrap items-center gap-3">
+          <TeamIdentity nome={registro.equipeA.nome} cor={registro.equipeA.corHex} logoUrl={registro.equipeA.logoUrl} compact showName={false} />
+          <NomeEquipe nome={registro.equipeA.nome} />
+          <small>vs</small>
+          <TeamIdentity nome={registro.equipeB.nome} cor={registro.equipeB.corHex} logoUrl={registro.equipeB.logoUrl} compact showName={false} />
+          <NomeEquipe nome={registro.equipeB.nome} />
+        </h1>
         <strong>{registro.setsPorA ?? 0} × {registro.setsPorB ?? 0}</strong>
       </header>
 
@@ -175,7 +182,10 @@ function ListaEquipe({ equipe, presencas }: { equipe: Equipe; presencas: NonNull
   const atletas = (equipe.jogadores ?? []).filter((jogador) => presentes.size === 0 || presentes.has(jogador.id))
   return (
     <article>
-      <h3><NomeEquipe nome={equipe.nome} /></h3>
+      <h3 className="flex items-center gap-2">
+        <TeamIdentity nome={equipe.nome} cor={equipe.corHex} logoUrl={equipe.logoUrl} compact showName={false} />
+        <NomeEquipe nome={equipe.nome} />
+      </h3>
       {atletas.length ? (
         <ul>
           {atletas.map((jogador) => {

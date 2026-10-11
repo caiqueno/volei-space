@@ -12,6 +12,8 @@ export type AtletaRanking = {
   nome: string
   equipe: string
   numero?: unknown
+  logoUrl?: string | null
+  corHex?: string | null
 }
 
 export type LanceRanking = {
@@ -34,6 +36,8 @@ export type LinhaJogadorRanking = {
   numero: number | null
   fundamentos: Record<string, number>
   total: number
+  logoUrl?: string | null
+  corHex?: string | null
 }
 
 /** Camisa da tabela. -1, "-1" e "sem" são a camisa vazia da súmula, não um número. */
@@ -132,13 +136,15 @@ export function compararRanking(a: LinhaJogadorRanking, b: LinhaJogadorRanking) 
 }
 
 export function classificarJogadores(atletas: AtletaRanking[], lances: LanceRanking[]): ClassificacaoJogadores {
-  const porId = new Map<number, { nome: string; equipe: string; numero: number | null; fundamentos: Record<string, number>; total: number }>()
+  const porId = new Map<number, { nome: string; equipe: string; numero: number | null; logoUrl: string | null; corHex: string | null; fundamentos: Record<string, number>; total: number }>()
   for (const atleta of atletas) {
     if (!Number.isInteger(atleta.id)) continue
     porId.set(atleta.id, {
       nome: atleta.nome.trim() || 'Atleta',
       equipe: atleta.equipe.trim() || 'Equipe',
       numero: numeroDeRanking(atleta.numero),
+      logoUrl: atleta.logoUrl ?? null,
+      corHex: atleta.corHex ?? null,
       fundamentos: {},
       total: 0,
     })
@@ -169,6 +175,8 @@ export function classificarJogadores(atletas: AtletaRanking[], lances: LanceRank
       nome: linha.nome,
       equipe: linha.equipe,
       numero: linha.numero,
+      logoUrl: linha.logoUrl,
+      corHex: linha.corHex,
       fundamentos,
       total: linha.total,
     }

@@ -5,12 +5,14 @@ category: modulo
 tags: [partidas]
 sources: [repo:athrios/volei-space]
 summary: >-
-  /jogos público abre pela escolha do campeonato. Cada cartão de jogo gera o próprio story. Sem banco.
+  O cartão de jogo, o ao vivo e a súmula pública mostram Equipe.logoUrl. Sem logo, ficam as iniciais. Sem banco.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Partidas e calendário
+
+**Escudo da equipe — implementado, sem migration:** o cartão de `/jogos`, o destaque do início, o ao vivo, a súmula pública, a página do campeonato, o elenco, o acesso do árbitro e a lista de jogos do painel leem `Equipe.logoUrl`. A imagem entra no lugar das iniciais. Sem logo, o círculo de iniciais continua. A resposta pública segue `no-store`. Sem migration.
 
 **Jogos por campeonato — implementado, sem migration:** a página pública `/jogos` começa na escolha do campeonato, com capa e nome. `/jogos?ligaId=` mostra só os jogos desse id, com os filtros Todos, Ao vivo, Não iniciado e Encerrados e o botão de story em cada cartão. O link «Escolher outro campeonato» volta para `/jogos`. O fluxo do organizador (`organizador`) e o do capitão (`candidaturaId`) continuam na agenda que já existia. Sem API nova.
 

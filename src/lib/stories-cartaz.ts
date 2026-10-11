@@ -129,8 +129,14 @@ type BaseCartaz = {
   kicker: string
   titulo: string
   campeonato: string
+  logoCampeonato: string | null
   link: string
   lider: { equipe: string; pontos: number } | null
+}
+
+function logoDoCampeonato(logo?: string | null) {
+  const texto = String(logo ?? '').trim()
+  return texto || null
 }
 
 export type CartazStories =
@@ -166,13 +172,14 @@ export function linkCurto(url: string) {
   }
 }
 
-export function cartazRanking(atletas: AtletaQuadro[], fundamento: FundamentoCartaz, link: string, campeonato?: string) {
+export function cartazRanking(atletas: AtletaQuadro[], fundamento: FundamentoCartaz, link: string, campeonato?: string, logoCampeonato?: string | null) {
   return {
     tipo: 'ranking' as const,
     kicker: 'Ranking',
     titulo: TITULO_FUNDAMENTO[fundamento],
     fundamento,
     campeonato: campeonato ?? '',
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
     link: linkCurto(link),
     lider: null,
     atletas: topCinco(atletas, fundamento).slice(0, LIMITE_RANKING).map((atleta) => ({ ...atleta, pontos: atleta[fundamento] })),
@@ -185,6 +192,7 @@ export function cartazClassificacao(
   lider?: { equipe: string; pontos: number } | null,
   grupoId?: string | null,
   campeonato?: string,
+  logoCampeonato?: string | null,
 ) {
   const comDados = grupos.filter((grupo) => grupo.linhas.length > 0)
   const opcoes = comDados.map((grupo, indice) => ({ id: grupo.id || grupo.nome || String(indice), nome: grupo.nome }))
@@ -195,6 +203,7 @@ export function cartazClassificacao(
     kicker: 'Classificação',
     titulo: escolhido?.nome || 'Tabela',
     campeonato: campeonato ?? '',
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
     link: linkCurto(link),
     lider: lider ?? null,
     grupo: escolhido ? { nome: escolhido.nome, vagas: escolhido.vagas ?? 0, linhas: escolhido.linhas.slice(0, LIMITE_GRUPO) } : null,
@@ -203,7 +212,7 @@ export function cartazClassificacao(
   } satisfies CartazStories
 }
 
-export function cartazJogo(jogo: JogoCartaz, link: string, campeonato?: string) {
+export function cartazJogo(jogo: JogoCartaz, link: string, campeonato?: string, logoCampeonato?: string | null) {
   const encerrado = jogo.status === 'ENCERRADA' || jogo.status === 'WO'
   const aoVivo = jogo.status === 'EM_ANDAMENTO'
   const nomeCampeonato = campeonato || jogo.campeonato || ''
@@ -212,6 +221,7 @@ export function cartazJogo(jogo: JogoCartaz, link: string, campeonato?: string) 
     kicker: 'Jogo',
     titulo: jogo.rotulo || `${jogo.nomeA} x ${jogo.nomeB}`,
     campeonato: nomeCampeonato,
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
     link: linkCurto(link),
     lider: null,
     jogo: {
@@ -234,7 +244,7 @@ export function cartazJogo(jogo: JogoCartaz, link: string, campeonato?: string) 
   } satisfies CartazStories
 }
 
-export function cartazMataMata(chave: ChaveCartaz, link: string, campeonato?: string) {
+export function cartazMataMata(chave: ChaveCartaz, link: string, campeonato?: string, logoCampeonato?: string | null) {
   const semis = confrontosDaFase(chave, 'semi')
   const superior = semis.jogos.length > 0 ? semis : confrontosDaFase(chave, 'outra')
   return {
@@ -242,6 +252,7 @@ export function cartazMataMata(chave: ChaveCartaz, link: string, campeonato?: st
     kicker: 'Mata-mata',
     titulo: 'Chave',
     campeonato: campeonato ?? '',
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
     link: linkCurto(link),
     lider: null,
     semis: superior.jogos,
@@ -251,13 +262,14 @@ export function cartazMataMata(chave: ChaveCartaz, link: string, campeonato?: st
   } satisfies CartazStories
 }
 
-export function cartazPartida(jogo: ResultadoCartaz, link: string, sumula?: SumulaCartaz | null, campeonato?: string) {
+export function cartazPartida(jogo: ResultadoCartaz, link: string, sumula?: SumulaCartaz | null, campeonato?: string, logoCampeonato?: string | null) {
   const fraseVencedor = !jogo.aoVivo && jogo.vencedor ? `${jogo.vencedor.toLocaleUpperCase('pt-BR')} venceu` : null
   return {
     tipo: jogo.aoVivo ? 'aovivo' as const : 'resultado' as const,
     kicker: jogo.aoVivo ? 'Ao vivo' : 'Fim de jogo',
     titulo: jogo.aoVivo ? `${jogo.nomeA} x ${jogo.nomeB}` : 'Fim de jogo',
     campeonato: campeonato ?? '',
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
     link: linkCurto(link),
     lider: null,
     resultado: jogo,

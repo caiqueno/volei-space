@@ -7,6 +7,7 @@ import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { PlacarJogo } from '@/components/partidas/PlacarJogo'
 import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import { cartazPartida, montarSumulaPublica } from '@/lib/stories-cartaz'
@@ -24,8 +25,9 @@ type LiveMatch = {
   pontosPorA?: number | null
   pontosPorB?: number | null
   atualizadoEm?: string
-  equipeA: { id: number; nome: string; vaga?: boolean; jogadores?: LivePlayer[] } | null
-  equipeB: { id: number; nome: string; vaga?: boolean; jogadores?: LivePlayer[] } | null
+  equipeA: { id: number; nome: string; vaga?: boolean; corHex?: string | null; logoUrl?: string | null; jogadores?: LivePlayer[] } | null
+  equipeB: { id: number; nome: string; vaga?: boolean; corHex?: string | null; logoUrl?: string | null; jogadores?: LivePlayer[] } | null
+  liga?: { nome?: string | null; logoUrl?: string | null } | null
   sets?: Array<{ id: number; numero: number; pontosA: number; pontosB: number }>
   presencas?: Array<{ id: number; presente: boolean; equipeId: number; jogadorId: number; numero?: number | null; jogador?: LivePlayer | null }>
   ocorrencias?: Array<{ id: number; tipo: string; descricao: string; set?: number | null; createdAt?: string | null; jogadorId?: number | null }>
@@ -41,9 +43,14 @@ type LivePlayer = {
   fotoUrl?: string | null
 }
 
-function NomeLado({ equipe }: { equipe: { nome?: string | null; vaga?: boolean } | null }) {
+function NomeLado({ equipe }: { equipe: { nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null }) {
   if (equipe?.vaga) return <span>{equipe.nome || 'A definir'}</span>
-  return <NomeEquipe nome={equipe?.nome} />
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <TeamIdentity nome={equipe?.nome || 'Equipe'} cor={equipe?.corHex} logoUrl={equipe?.logoUrl} compact showName={false} />
+      <NomeEquipe nome={equipe?.nome} />
+    </span>
+  )
 }
 
 export default function LiveMatchView({ partidaId, embutido = false }: { partidaId: string; embutido?: boolean }) {
@@ -143,7 +150,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
                   titulo={finished ? 'Fim de jogo' : 'Ao vivo'}
                   oferecerSumula={match.oficial === true}
                   versao={`${match.setsPorA ?? 0}-${match.setsPorB ?? 0}-${scoreA}-${scoreB}-${match.oficial ? 1 : 0}`}
-                  montar={({ incluirSumula, link }) => cartazPartida(resultadoDoPlacar(match, scoreA, scoreB, finished), link, incluirSumula && match.oficial ? sumulaDoPlacar(match) : null)}
+                  montar={({ incluirSumula, link }) => cartazPartida(resultadoDoPlacar(match, scoreA, scoreB, finished), link, incluirSumula && match.oficial ? sumulaDoPlacar(match) : null, match.liga?.nome ?? undefined, match.liga?.logoUrl)}
                 />
               )}
               <em>{formatStatus(match.status)}</em>
@@ -205,7 +212,10 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
           <div className="live-match-scout">
             {scout.map((team) => (
               <section key={team.teamId}>
-                <h3><NomeEquipe nome={team.teamName} /></h3>
+                <h3 className="inline-flex items-center gap-2">
+                  <TeamIdentity nome={team.teamName} cor={team.corHex} logoUrl={team.logoUrl} compact showName={false} />
+                  <NomeEquipe nome={team.teamName} />
+                </h3>
                 {team.players.length ? (
                   <div className="live-match-scout-table">
                     <div><span>Atleta</span><span>Pts</span><span>Ataque</span><span>Bloqueio</span><span>Saque</span></div>
@@ -368,8 +378,8 @@ const SCOUT_ACTION_BY_TIPO: Record<string, 'ataque' | 'bloqueio' | 'ace'> = {
 
 function buildIndividualScout(match: LiveMatch) {
   const teams = [
-    { id: 'A', name: match.equipeA?.nome ?? 'Equipe A', players: match.equipeA?.jogadores ?? [] },
-    { id: 'B', name: match.equipeB?.nome ?? 'Equipe B', players: match.equipeB?.jogadores ?? [] },
+    { id: 'A', name: match.equipeA?.nome ?? 'Equipe A', corHex: match.equipeA?.corHex, logoUrl: match.equipeA?.logoUrl, players: match.equipeA?.jogadores ?? [] },
+    { id: 'B', name: match.equipeB?.nome ?? 'Equipe B', corHex: match.equipeB?.corHex, logoUrl: match.equipeB?.logoUrl, players: match.equipeB?.jogadores ?? [] },
   ]
   const statsByTeam = new Map(teams.map((team) => [team.id, new Map<number | string, IndividualScoutPlayer>()]))
 
@@ -437,6 +447,8 @@ function buildIndividualScout(match: LiveMatch) {
   return teams.map((team) => ({
     teamId: team.id,
     teamName: team.name,
+    corHex: team.corHex,
+    logoUrl: team.logoUrl,
     players: Array.from(statsByTeam.get(team.id)?.values() ?? []).sort((a, b) =>
       b.points - a.points
       || b.aces - a.aces

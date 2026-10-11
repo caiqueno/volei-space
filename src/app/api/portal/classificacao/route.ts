@@ -38,6 +38,8 @@ function linhaPublica(linha: LinhaClassificacao) {
     posicao: linha.posicao,
     equipeId: linha.equipe.id,
     equipe: linha.equipe.nome,
+    logoUrl: linha.equipe.logoUrl,
+    corHex: linha.equipe.corHex,
     pontos: linha.pontos,
     jogos: linha.jogos,
     vitorias: linha.vitorias,

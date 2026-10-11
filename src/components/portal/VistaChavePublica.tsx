@@ -5,7 +5,7 @@ import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
 import type { ChavePublica } from '@/lib/portal-chave'
 
-export function VistaChavePublica({ ligaId, chave, campeonato }: { ligaId: number; chave: ChavePublica; campeonato?: string }) {
+export function VistaChavePublica({ ligaId, chave, campeonato, logoCampeonato }: { ligaId: number; chave: ChavePublica; campeonato?: string; logoCampeonato?: string | null }) {
   if (!chave.temMataMata) return null
 
   return (
@@ -25,7 +25,7 @@ export function VistaChavePublica({ ligaId, chave, campeonato }: { ligaId: numbe
             <p className="luva-kicker">Mata-mata</p>
             <h2 className="mt-2 font-display text-2xl font-bold text-vs-text">Chave</h2>
           </div>
-          <BotaoChaveStories chave={chave} campeonato={campeonato} />
+          <BotaoChaveStories chave={chave} campeonato={campeonato} logoCampeonato={logoCampeonato} />
         </div>
         <div className="mt-4">
           <ChaveamentoMataMata

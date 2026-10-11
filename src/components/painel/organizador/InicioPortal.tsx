@@ -233,11 +233,11 @@ function HeroSlide({ slide, organizadorId }: { slide: PortalData; organizadorId:
             <>
               <p className="luva-kicker">{emAndamento ? 'Ao vivo agora' : 'Próximo jogo'}</p>
               <Link href={`/partidas/${partidaDestaque.id}/ao-vivo`} className={`mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 hover:border-luva-amber/60 ${mi.cartao}`}>
-                <TeamIdentity nome={partidaDestaque.equipeA?.nome || 'Equipe'} cor={partidaDestaque.equipeA?.corHex} compact />
+                <TeamIdentity nome={partidaDestaque.equipeA?.nome || 'Equipe'} cor={partidaDestaque.equipeA?.corHex} logoUrl={partidaDestaque.equipeA?.logoUrl} compact />
                 <span className={`rounded-2xl bg-luva-amber px-3 py-2 text-sm font-black text-slate-950 ${mi.numero}`}>
                   {emAndamento ? `${partidaDestaque.setsPorA ?? 0}x${partidaDestaque.setsPorB ?? 0}` : 'VS'}
                 </span>
-                <TeamIdentity nome={partidaDestaque.equipeB?.nome || 'Equipe'} cor={partidaDestaque.equipeB?.corHex} align="right" compact />
+                <TeamIdentity nome={partidaDestaque.equipeB?.nome || 'Equipe'} cor={partidaDestaque.equipeB?.corHex} logoUrl={partidaDestaque.equipeB?.logoUrl} align="right" compact />
               </Link>
             </>
           ) : partidas.length === 0 && !isCampeonatoFinalizado(statusCampeonato) ? (

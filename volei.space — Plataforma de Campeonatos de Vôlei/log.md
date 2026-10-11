@@ -13,6 +13,16 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | faixas do story na cor da paleta
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- O cabeçalho do story, entre y=250 e y=450, e a linha de rodada e status dos cartões de jogo, ranking, grupo e chave usam a cor primária da paleta. Sem tira escura acima do nome. Sem banco nem migration.
+
+## [2026-10-11] fix | scouts gerais, og:image e escudos
+
+- pages_updated=`09-UI-UX`, `modulos/SCOUTS`, `modulos/CLASSIFICACAO`, `modulos/PARTIDAS`, `hot`, `log`
+- Scouts gerais ficam depois dos grupos, de 10 em 10, com o escudo e sem cortar o nome. A prévia pública usa a og:image do volei.space. O story tira o fundo preto da faixa e o link do rodapé. `Equipe.logoUrl` passa a aparecer nas telas públicas e do painel. Sem banco, API nova ou migration.
+
 ## [2026-10-11] fix | rolagem da classificação no celular
 
 - pages_updated=`modulos/CLASSIFICACAO`, `09-UI-UX`, `hot`, `log`

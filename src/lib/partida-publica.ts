@@ -33,7 +33,7 @@ export type PartidaPublica = {
   equipeA: { id: number; nome: string; corHex: string | null; logoUrl?: string | null; vaga?: boolean } | null
   equipeB: { id: number; nome: string; corHex: string | null; logoUrl?: string | null; vaga?: boolean } | null
   sets: Array<{ numero: number; pontosA: number; pontosB: number }>
-  liga?: { id: number; nome: string; simulacao?: boolean | null } | null
+  liga?: { id: number; nome: string; simulacao?: boolean | null; logoUrl?: string | null } | null
 }
 
 export type GruposPartidaPublica = {
@@ -77,7 +77,7 @@ export function normalizarPartidaPublica(partida: any): PartidaPublica | null {
     equipeA,
     equipeB,
     sets: Array.isArray(partida.sets) ? [...partida.sets].sort((a, b) => Number(a.numero) - Number(b.numero)) : [],
-    liga: liga ?? null,
+    liga: liga ? { id: Number(liga.id), nome: liga.nome, simulacao: liga.simulacao, logoUrl: liga.logoUrl ?? null } : null,
   }
 }
 

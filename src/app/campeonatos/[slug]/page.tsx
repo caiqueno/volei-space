@@ -17,6 +17,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica'
 import { ConsultaElenco } from '@/components/elenco/ConsultaElenco'
 import { listarElenco } from '@/lib/elenco-servidor'
@@ -91,7 +92,7 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
   if (categoriaId) jogosConsulta = jogosConsulta.eq('categoriaCampeonatoId', categoriaId)
   let equipesConsulta = supabase
     .from('InscricaoCampeonato')
-    .select('id,status,equipe:Equipe!inner(id,nome,slug,categoria,serie,categoriaCampeonatoId)')
+    .select('id,status,equipe:Equipe!inner(id,nome,slug,categoria,serie,categoriaCampeonatoId,corHex,logoUrl)')
     .eq('ligaId', liga.id)
     .eq('status', 'APROVADA')
     .order('criadaEm', { ascending: true })
@@ -153,6 +154,7 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
         podium={podium}
         finalizado={finalizado}
         campeonato={liga.nome}
+        logoCampeonato={liga.logoUrl}
       />
 
       <section className="mx-auto max-w-7xl px-4 pb-8">
@@ -181,11 +183,14 @@ export default async function CampeonatoPage({ params, searchParams }: PageProps
                 if (!equipe) return null
                 return (
                   <Link key={item.id} href={`/equipes/${equipe.slug}`} className={`grid gap-2 bg-white/[0.03] px-4 py-4 hover:bg-white/[0.06] sm:grid-cols-[1fr_auto] sm:items-center ${mi.linha}`}>
-                    <div>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <TeamIdentity nome={equipe.nome} cor={equipe.corHex} logoUrl={equipe.logoUrl} compact showName={false} />
+                      <div className="min-w-0">
                       <p className="font-display text-lg font-black text-white"><NomeEquipe nome={equipe.nome} /></p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-300">
                         {[equipe.categoria, equipe.serie].filter(Boolean).join(' · ') || 'Equipe inscrita'}
                       </p>
+                      </div>
                     </div>
                     <span className="inline-flex items-center gap-2 text-sm font-black text-luva-amber">
                       Ver perfil <ArrowRight size={15} />

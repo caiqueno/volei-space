@@ -1,6 +1,8 @@
 export type LinhaGrupo = {
   posicao: number
   equipe: string
+  logoUrl?: string | null
+  corHex?: string | null
   pontos: number
   jogos: number
   vitorias: number
@@ -22,6 +24,8 @@ export type AtletaQuadro = {
   ataque: number
   bloqueio: number
   saque: number
+  logoUrl?: string | null
+  corHex?: string | null
 }
 
 export function pontosDoAtleta(atleta: Pick<AtletaQuadro, 'ataque' | 'bloqueio' | 'saque'>) {

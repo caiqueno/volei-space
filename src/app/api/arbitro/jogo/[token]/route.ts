@@ -18,8 +18,13 @@ const corpoSchema = z.object({ codigo: z.string().min(1).max(32) })
 const MENSAGEM_REVOGADO = 'Este link de acesso ao jogo foi revogado pelo organizador.'
 const MENSAGEM_CODIGO = 'Código de acesso inválido. Confira o código enviado pelo organizador e tente novamente.'
 
-function nomeEquipe(valor: unknown, origem: unknown) {
-  return rotuloDoLado(valor, origem)
+function ladoEquipe(valor: unknown, origem: unknown) {
+  const item = (Array.isArray(valor) ? valor[0] : valor) as { logoUrl?: string | null; corHex?: string | null } | null
+  return {
+    nome: rotuloDoLado(valor, origem),
+    logoUrl: item?.logoUrl ?? null,
+    corHex: item?.corHex ?? null,
+  }
 }
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ token: string }> }) {
@@ -32,8 +37,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ token:
   }
   return success({
     jogo: {
-      equipeA: nomeEquipe(acesso.partida.equipeA, acesso.partida.origemVagaA),
-      equipeB: nomeEquipe(acesso.partida.equipeB, acesso.partida.origemVagaB),
+      equipeA: ladoEquipe(acesso.partida.equipeA, acesso.partida.origemVagaA),
+      equipeB: ladoEquipe(acesso.partida.equipeB, acesso.partida.origemVagaB),
       dataHora: acesso.partida.dataHora,
       localNome: acesso.partida.localNome,
     },
@@ -91,7 +96,7 @@ async function carregar(token: string) {
     .maybeSingle()
   if (falha) return 'falha' as const
   if (!data) return null
-  const base = 'id,status,sumulaToken,dataHora,localNome,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)'
+  const base = 'id,status,sumulaToken,dataHora,localNome,equipeA:Equipe!Partida_equipeAId_fkey(nome,corHex,logoUrl),equipeB:Equipe!Partida_equipeBId_fkey(nome,corHex,logoUrl)'
   const { data: partida } = await consultarComVaga(base, (colunas) => (
     supabase.from('Partida').select(colunas).eq('id', data.partidaId).maybeSingle()
   ))

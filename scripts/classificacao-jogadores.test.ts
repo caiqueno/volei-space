@@ -134,6 +134,13 @@ assert.deepEqual(porNome.map((linha) => linha.nome), ['Duda', 'Eva', 'Fábio', '
 assert.deepEqual(ordenarJogadores(empate.jogadores, 'posicao', 'asc').map((linha) => linha.posicao), [1, 2, 3, 4, 5, 6, 7])
 
 const vazia = classificarJogadores([{ id: 8, nome: '  ', equipe: '  ' }], [])
+const comEscudo = classificarJogadores(
+  [{ id: 11, nome: 'Lia', equipe: 'Angels', numero: 8, logoUrl: '/images/equipes/angels.webp', corHex: '#111111' }],
+  [],
+)
+assert.equal(comEscudo.jogadores[0].logoUrl, '/images/equipes/angels.webp')
+assert.equal(comEscudo.jogadores[0].corHex, '#111111')
+
 assert.equal(vazia.jogadores[0].nome, 'Atleta')
 assert.equal(vazia.jogadores[0].equipe, 'Equipe')
 assert.equal(vazia.jogadores[0].total, 0)
