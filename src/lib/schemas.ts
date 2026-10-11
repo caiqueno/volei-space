@@ -426,7 +426,7 @@ export const sumulaSchema = z.object({
   presencas: z.array(z.object({
     jogadorId: z.number().int(),
     equipeId: z.number().int(),
-    presente: z.boolean(),
+    presente: z.boolean().nullable(),
     numero: z.number().int().optional().nullable(),
   })),
   sets: z.array(z.object({

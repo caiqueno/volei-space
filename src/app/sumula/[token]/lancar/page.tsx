@@ -53,6 +53,7 @@ import {
 import { ActionBar } from '@/components/ui/action-bar'
 import { AvisosSumula, useAvisosSumula } from '@/components/sumula/AvisosSumula'
 import { AVISO_INICIO_SEM_SINCRONISMO, tokenDeDemonstracao } from '@/lib/sumula-toasts'
+import { ausenteExplicito, MENSAGEM_MINIMO_ATLETAS, motivoMinimoAtletas, presenteNoPayload } from '@/lib/presenca-oficial'
 import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaSessao } from '@/lib/sumula-sessao'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
@@ -70,6 +71,8 @@ type Player = {
   position?: string | null
   isLibero?: boolean
   photoUrl?: string | null
+  numeroHerdado?: number | null
+  numeroGravado?: number | null
 }
 
 type Team = {
@@ -94,6 +97,7 @@ type MatchEvent = {
 type PendingQrValidation = {
   teamId: TeamId
   teamName: string
+  jogadorId: number
   number: string
   name: string
   photoUrl?: string | null
@@ -145,8 +149,10 @@ type RascunhoAndamento = {
   setScores: SetScore[]
   currentSet: number
   currentScore: { teamA: number; teamB: number }
-  validatedA: string[]
-  validatedB: string[]
+  validatedA: number[]
+  validatedB: number[]
+  ausentesA: number[]
+  ausentesB: number[]
   matchNumberOverrides: Record<TeamId, Record<number, string>>
   events: MatchEvent[]
   anotacoes: Anotacao[]
@@ -197,8 +203,10 @@ export default function SumulaPage() {
   const [lineupB, setLineupB] = useState<string[]>([])
   const [benchA, setBenchA] = useState<string[]>([])
   const [benchB, setBenchB] = useState<string[]>([])
-  const [validatedA, setValidatedA] = useState<string[]>([])
-  const [validatedB, setValidatedB] = useState<string[]>([])
+  const [validatedA, setValidatedA] = useState<number[]>([])
+  const [validatedB, setValidatedB] = useState<number[]>([])
+  const [ausentesA, setAusentesA] = useState<number[]>([])
+  const [ausentesB, setAusentesB] = useState<number[]>([])
   const [captA, setCaptA] = useState('')
   const [captB, setCaptB] = useState('')
   const [tossWinnerTeamId, setTossWinnerTeamId] = useState<TeamId | null>(null)
@@ -259,8 +267,8 @@ export default function SumulaPage() {
           const vagaB = String(data?.origemVagaB ?? data?.equipeB?.nome ?? 'A definir')
           throw new Error(`A súmula não pode iniciar enquanto os times não estiverem definidos. ${vagaA} × ${vagaB}.`)
         }
-        const teamA = makeTeam('teamA', data.equipeA)
-        const teamB = makeTeam('teamB', data.equipeB)
+        const teamA = makeTeam('teamA', data.equipeA, data.presencas)
+        const teamB = makeTeam('teamB', data.equipeB, data.presencas)
         const loadedRules = getMatchRules(data.liga, data.fase)
         const savedSets = [...(data.sets ?? [])].sort((a: any, b: any) => a.numero - b.numero)
         const savedOccurrences = data.ocorrencias ?? []
@@ -322,8 +330,10 @@ export default function SumulaPage() {
         if (mvpSalvo) setMvpId(mvpSalvo)
         setSidesInverted(countSavedSideInversions(savedOccurrences) % 2 === 1)
 
-        setValidatedA(teamA.players.concat(teamA.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
-        setValidatedB(teamB.players.concat(teamB.reserves).filter((player) => savedPresence.some((p: any) => p.jogadorId === player.id && p.presente)).map((p) => p.number))
+        setValidatedA(idsComPresenca(teamA, savedPresence, true))
+        setValidatedB(idsComPresenca(teamB, savedPresence, true))
+        setAusentesA(idsComPresenca(teamA, savedPresence, false).filter((id) => ausenteExplicito(id, savedOccurrences)))
+        setAusentesB(idsComPresenca(teamB, savedPresence, false).filter((id) => ausenteExplicito(id, savedOccurrences)))
         setMatchNumberOverrides(numerosDaPartida)
         const gravada = maiorVersaoRegistro(savedOccurrences.map((item: { descricao?: string | null }) => item.descricao))
         if (gravada > versaoRef.current) versaoRef.current = gravada
@@ -364,8 +374,8 @@ export default function SumulaPage() {
     return () => { ativo = false }
   }, [token, tentativa])
 
-  const teamA = useMemo(() => partida ? makeTeam('teamA', partida.equipeA) : null, [partida])
-  const teamB = useMemo(() => partida ? makeTeam('teamB', partida.equipeB) : null, [partida])
+  const teamA = useMemo(() => partida ? makeTeam('teamA', partida.equipeA, partida.presencas) : null, [partida])
+  const teamB = useMemo(() => partida ? makeTeam('teamB', partida.equipeB, partida.presencas) : null, [partida])
   const jogadoresVencedores = useMemo(() => {
     if (!teamA || !teamB || setsWon.teamA === setsWon.teamB) return []
     const vencedora = setsWon.teamA > setsWon.teamB ? teamA : teamB
@@ -384,6 +394,8 @@ export default function SumulaPage() {
     anotacoes.length,
     validatedA.length,
     validatedB.length,
+    ausentesA.length,
+    ausentesB.length,
     formacaoVersao,
     partida?.sumulaAprovadaEm ?? '',
     setScores.map((set) => `${set.teamA}:${set.teamB}:${set.confirmed ? 1 : 0}`).join(','),
@@ -403,6 +415,8 @@ export default function SumulaPage() {
     currentScore,
     validatedA,
     validatedB,
+    ausentesA,
+    ausentesB,
     matchNumberOverrides,
     events,
     anotacoes,
@@ -411,13 +425,30 @@ export default function SumulaPage() {
     sumulaAprovadaEm: partida?.sumulaAprovadaEm ?? null,
   }
 
+  function camisaResolvida(teamId: TeamId, player: Player): number | null {
+    const override = matchNumberOverrides[teamId]?.[player.id]
+    if (override != null && override !== '') return presencaDaCamisa(override)
+    const salva = (partida?.presencas ?? []).find((item: { jogadorId?: number }) => Number(item.jogadorId) === Number(player.id))
+    if (salva && numeroSemCamisa(salva.numero)) return NUMERO_SEM_CAMISA
+    if (salva && salva.numero != null && salva.numero !== '') {
+      const gravado = Number(salva.numero)
+      if (Number.isInteger(gravado)) return gravado
+    }
+    if (player.numeroHerdado != null) {
+      if (numeroSemCamisa(player.numeroHerdado)) return NUMERO_SEM_CAMISA
+      return player.numeroHerdado
+    }
+    return null
+  }
+
   function getMatchNumber(teamId: TeamId, number: string) {
     const team = teamId === 'teamA' ? teamA : teamB
     const player = team ? getAnyPlayer(team, number) : null
     if (!player) return number
-    const override = matchNumberOverrides[teamId]?.[player.id]
-    if (numeroSemCamisa(override)) return ''
-    return override || player.number
+    const resolvida = camisaResolvida(teamId, player)
+    if (resolvida == null) return player.number
+    if (numeroSemCamisa(resolvida)) return ''
+    return String(resolvida)
   }
 
   function updateMatchNumber(teamId: TeamId, rosterNumber: string, value: string) {
@@ -437,7 +468,7 @@ export default function SumulaPage() {
       })),
       presencas: roster.map((item) => ({
         jogadorId: item.id,
-        numero: presencaDaCamisa(matchNumberOverrides[teamId]?.[item.id]),
+        numero: camisaResolvida(teamId, item),
       })),
     })
     if ('erro' in plano) {
@@ -450,7 +481,6 @@ export default function SumulaPage() {
         const dono = roster.find((atleta) => atleta.id === item.jogadorId)
         if (!dono) continue
         if (item.numero == null) teamOverrides[item.jogadorId] = MARCA_SEM_NUMERO
-        else if (String(item.numero) === String(dono.number)) delete teamOverrides[item.jogadorId]
         else teamOverrides[item.jogadorId] = String(item.numero)
       }
       return { ...current, [teamId]: teamOverrides }
@@ -509,8 +539,10 @@ export default function SumulaPage() {
     setCaptB(teamB.players[0]?.number ?? '')
     setTossWinnerTeamId(starter)
     setTossDecision('SAQUE')
-    setValidatedA([...teamA.players, ...teamA.reserves].map((p) => p.number))
-    setValidatedB([...teamB.players, ...teamB.reserves].map((p) => p.number))
+    setValidatedA([...teamA.players, ...teamA.reserves].map((p) => p.id))
+    setValidatedB([...teamB.players, ...teamB.reserves].map((p) => p.id))
+    setAusentesA([])
+    setAusentesB([])
     setInitialServerBySet((current) => ({ ...current, [currentSet]: starter }))
     setServingTeamId(starter)
     setLineupConfirmedA(false)
@@ -523,7 +555,7 @@ export default function SumulaPage() {
 
   async function handleConfirmSetup() {
     if (!teamA || !teamB) return
-    if (!stepChecklist.conferido || !stepChecklist.capitaes || !stepChecklist.saque) {
+    if (validatedA.length < 6 || validatedB.length < 6 || !stepChecklist.capitaes || !stepChecklist.saque) {
       addToast('Confirme os capitães, o saque inicial e pelo menos 6 atletas validados por equipe.')
       return
     }
@@ -798,6 +830,11 @@ export default function SumulaPage() {
       return
     }
 
+    const idsNaPapeleta = lineup.map((numero) => getPlayer(team, numero)?.id).filter((id): id is number => id != null)
+    const libero = getPlayer(team, selectedLibero)
+    if (libero) idsNaPapeleta.push(libero.id)
+    marcarPresentes(teamId, idsNaPapeleta)
+
     const setConfirmed = teamId === 'teamA' ? setLineupConfirmedA : setLineupConfirmedB
     setConfirmed(true)
     addMatchEvent('system', selectedLibero
@@ -1056,8 +1093,43 @@ export default function SumulaPage() {
         }
       })
     }
+    marcarPresentes(subModal.teamId, [outPlayer?.id, inPlayer?.id].filter((id): id is number => id != null))
     setSubModal(null)
     addToast(porLesaoAtiva ? 'Substituição por lesão registrada.' : isLiberoExchange ? 'Troca de líbero registrada.' : 'Substituição registrada.')
+  }
+
+  function marcarPresentes(teamId: TeamId, ids: number[]) {
+    const unicos = Array.from(new Set(ids))
+    if (!unicos.length) return
+    const incluir = (atual: number[]) => Array.from(new Set(atual.concat(unicos)))
+    const tirar = (atual: number[]) => atual.filter((id) => !unicos.includes(id))
+    if (teamId === 'teamA') {
+      setValidatedA(incluir)
+      setAusentesA(tirar)
+    } else {
+      setValidatedB(incluir)
+      setAusentesB(tirar)
+    }
+    void gravarPresencaNaRota(unicos)
+  }
+
+  async function gravarPresencaNaRota(ids: number[]) {
+    if (tokenDeDemonstracao(String(token))) return
+    const resultados = await Promise.all(ids.map(async (jogadorId) => {
+      try {
+        const resposta = await fetch(`/api/arbitro/partidas/${token}/presenca`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jogadorId, presente: true }),
+        })
+        return resposta.ok
+      } catch {
+        return false
+      }
+    }))
+    if (resultados.some((ok) => !ok)) {
+      addToast('A presença de um atleta em quadra não foi gravada agora. A súmula segue e tenta de novo no salvamento.')
+    }
   }
 
   function requestTimeout(teamId: TeamId) {
@@ -1155,7 +1227,7 @@ export default function SumulaPage() {
     if (!rascunho?.teamA || !rascunho.teamB) return { presencas: [], sets: [], ocorrencias: [], destaques: [] }
     const {
       teamA, teamB, setScores, currentSet, currentScore, validatedA, validatedB,
-      matchNumberOverrides, events, anotacoes, mvpId,
+      ausentesA, ausentesB, matchNumberOverrides, events, anotacoes, mvpId,
     } = rascunho
     const sets = setScores
       .map((set, index) => {
@@ -1164,20 +1236,18 @@ export default function SumulaPage() {
       })
       .filter((set) => set.pontosA > 0 || set.pontosB > 0 || (!finalOnly && set.numero === currentSet))
 
-    const presentNumbersA = new Set(validatedA.length ? validatedA : [...teamA.players, ...teamA.reserves].map((p) => p.number))
-    const presentNumbersB = new Set(validatedB.length ? validatedB : [...teamB.players, ...teamB.reserves].map((p) => p.number))
     const presencas = [
       ...[...teamA.players, ...teamA.reserves].map((player) => ({
         jogadorId: player.id,
         equipeId: teamA.dbId,
-        presente: presentNumbersA.has(player.number),
-        numero: parseMatchNumberOverride(matchNumberOverrides.teamA?.[player.id]),
+        presente: presenteNoPayload(player.id, validatedA, ausentesA ?? []),
+        numero: numeroNoPayload(matchNumberOverrides.teamA?.[player.id], player.numeroGravado),
       })),
       ...[...teamB.players, ...teamB.reserves].map((player) => ({
         jogadorId: player.id,
         equipeId: teamB.dbId,
-        presente: presentNumbersB.has(player.number),
-        numero: parseMatchNumberOverride(matchNumberOverrides.teamB?.[player.id]),
+        presente: presenteNoPayload(player.id, validatedB, ausentesB ?? []),
+        numero: numeroNoPayload(matchNumberOverrides.teamB?.[player.id], player.numeroGravado),
       })),
     ]
     const ocorrencias = [...events, ...anotacoes.map((note) => ({
@@ -1298,7 +1368,7 @@ export default function SumulaPage() {
     return () => {
       if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     }
-  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, matchNumberOverrides, formacaoVersao, mvpId, submitted, submitting, partida?.sumulaAprovadaEm])
+  }, [matchStatus, currentScore.teamA, currentScore.teamB, currentSet, setsWon.teamA, setsWon.teamB, events.length, anotacoes.length, validatedA.length, validatedB.length, ausentesA.length, ausentesB.length, matchNumberOverrides, formacaoVersao, mvpId, submitted, submitting, partida?.sumulaAprovadaEm])
 
   function mvpParaOficializar() {
     if (!teamA || !teamB) return ''
@@ -1315,6 +1385,25 @@ export default function SumulaPage() {
     return id
   }
 
+  function motivoDaOficializacao() {
+    if (!teamA || !teamB) return MENSAGEM_MINIMO_ATLETAS
+    const payload = buildSumulaPayload(true)
+    return motivoMinimoAtletas({
+      equipeAId: teamA.dbId,
+      equipeBId: teamB.dbId,
+      equipes: [
+        { id: teamA.dbId, nome: teamA.name },
+        { id: teamB.dbId, nome: teamB.name },
+      ],
+      atletas: [
+        ...[...teamA.players, ...teamA.reserves].map((player) => ({ id: player.id, equipeId: teamA.dbId, numero: player.number })),
+        ...[...teamB.players, ...teamB.reserves].map((player) => ({ id: player.id, equipeId: teamB.dbId, numero: player.number })),
+      ],
+      presencas: payload.presencas,
+      ocorrencias: payload.ocorrencias,
+    })
+  }
+
   function pedirOficializacao() {
     if (matchStatus !== 'finished') return
     if (!mvpParaOficializar()) {
@@ -1324,6 +1413,13 @@ export default function SumulaPage() {
       addToast('Escolha o MVP da equipe vencedora na aba Anotações.')
       return
     }
+    const motivo = motivoDaOficializacao()
+    if (motivo) {
+      setErroOficial(motivo)
+      addToast(motivo)
+      return
+    }
+    setErroOficial('')
     setConfirmarOficial(true)
   }
 
@@ -1336,6 +1432,12 @@ export default function SumulaPage() {
     if (!mvpParaOficializar()) {
       setErroOficial('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
       if (!automatic) addToast('Escolha o MVP da equipe vencedora antes de oficializar a súmula.')
+      return false
+    }
+    const motivoPresenca = motivoDaOficializacao()
+    if (motivoPresenca) {
+      setErroOficial(motivoPresenca)
+      if (!automatic) addToast(motivoPresenca)
       return false
     }
     if (submitting) return false
@@ -1416,6 +1518,8 @@ export default function SumulaPage() {
           setTossDecision={setTossDecision}
           setValidatedA={setValidatedA}
           setValidatedB={setValidatedB}
+          setAusentesA={setAusentesA}
+          setAusentesB={setAusentesB}
           preGameValidated={preGameValidated}
           set1ServingTeamId={setInitialServerForCurrentSet}
           servingChoice={initialServerBySet[currentSet] ?? null}
@@ -1442,6 +1546,12 @@ export default function SumulaPage() {
     setAtualPodeFechar: podeEncerrarSet,
     vencedorDoSetAtual,
   })
+  const motivoPresencaOficial = matchStatus === 'finished' ? motivoDaOficializacao() : null
+  const avisoOficial = [
+    mvpId ? null : 'A partida já tem vencedor. Escolha o MVP e oficialize a súmula.',
+    motivoPresencaOficial,
+    mvpId && !motivoPresencaOficial ? 'MVP definido. A súmula pode ser oficializada.' : null,
+  ].filter(Boolean).join(' ')
 
   function acaoFechamento() {
     if (matchStatus === 'finished') {
@@ -1601,7 +1711,7 @@ export default function SumulaPage() {
         )}
         {passoFechamento === 'oficializar' && !partida.sumulaAprovadaEm && (
           <div className="official-match-close" role="region" aria-label="Oficializar súmula">
-            <strong>{mvpId ? 'MVP definido. A súmula pode ser oficializada.' : 'A partida já tem vencedor. Escolha o MVP e oficialize a súmula.'}</strong>
+            <strong>{avisoOficial}</strong>
             <button type="button" onClick={acaoFechamento}>Oficializar súmula</button>
           </div>
         )}
@@ -1623,6 +1733,8 @@ export default function SumulaPage() {
             setCaptB={setCaptB}
             setValidatedA={setValidatedA}
             setValidatedB={setValidatedB}
+            setAusentesA={setAusentesA}
+            setAusentesB={setAusentesB}
             preGameValidated={preGameValidated}
             set1ServingTeamId={setInitialServerForCurrentSet}
             servingChoice={initialServerBySet[currentSet] ?? null}
@@ -1829,8 +1941,8 @@ function PreMatchFlow(props: {
   teamB: Team
   partida: any
   stepChecklist: Record<string, boolean>
-  validatedA: string[]
-  validatedB: string[]
+  validatedA: number[]
+  validatedB: number[]
   captA: string
   captB: string
   setCaptA: (value: string) => void
@@ -1839,8 +1951,10 @@ function PreMatchFlow(props: {
   setTossWinnerTeamId: (value: TeamId) => void
   tossDecision: 'SAQUE' | 'RECEPCAO' | ''
   setTossDecision: (value: 'SAQUE' | 'RECEPCAO' | '') => void
-  setValidatedA: React.Dispatch<React.SetStateAction<string[]>>
-  setValidatedB: React.Dispatch<React.SetStateAction<string[]>>
+  setValidatedA: React.Dispatch<React.SetStateAction<number[]>>
+  setValidatedB: React.Dispatch<React.SetStateAction<number[]>>
+  setAusentesA: React.Dispatch<React.SetStateAction<number[]>>
+  setAusentesB: React.Dispatch<React.SetStateAction<number[]>>
   preGameValidated: boolean
   set1ServingTeamId: (value: TeamId) => void
   servingChoice: TeamId | null
@@ -1873,8 +1987,10 @@ function PreMatchFlow(props: {
   }, [pendingQrPlayer])
 
   function validateAll() {
-    props.setValidatedA([...props.teamA.players, ...props.teamA.reserves].map((p) => p.number))
-    props.setValidatedB([...props.teamB.players, ...props.teamB.reserves].map((p) => p.number))
+    props.setValidatedA([...props.teamA.players, ...props.teamA.reserves].map((p) => p.id))
+    props.setValidatedB([...props.teamB.players, ...props.teamB.reserves].map((p) => p.id))
+    props.setAusentesA([])
+    props.setAusentesB([])
     props.addMatchEvent('system', 'Todos os atletas foram validados em lote.')
   }
 
@@ -1934,6 +2050,7 @@ function PreMatchFlow(props: {
       setPendingQrPlayer({
         teamId: team.id,
         teamName: team.name,
+        jogadorId: Number(jogador.id),
         number,
         name: playerName,
         photoUrl: player?.photoUrl ?? jogador.fotoRostoUrl ?? jogador.fotoUrl ?? null,
@@ -1957,9 +2074,11 @@ function PreMatchFlow(props: {
   function confirmPendingQr() {
     if (!pendingQrPlayer) return
     if (pendingQrPlayer.teamId === 'teamA') {
-      props.setValidatedA((current) => current.includes(pendingQrPlayer.number) ? current : [...current, pendingQrPlayer.number])
+      props.setValidatedA((current) => current.includes(pendingQrPlayer.jogadorId) ? current : [...current, pendingQrPlayer.jogadorId])
+      props.setAusentesA((current) => current.filter((id) => id !== pendingQrPlayer.jogadorId))
     } else {
-      props.setValidatedB((current) => current.includes(pendingQrPlayer.number) ? current : [...current, pendingQrPlayer.number])
+      props.setValidatedB((current) => current.includes(pendingQrPlayer.jogadorId) ? current : [...current, pendingQrPlayer.jogadorId])
+      props.setAusentesB((current) => current.filter((id) => id !== pendingQrPlayer.jogadorId))
     }
     props.addMatchEvent('system', `QR Code validado: #${pendingQrPlayer.number} ${pendingQrPlayer.name}.`, pendingQrPlayer.teamId)
     setScannerMessage(`#${pendingQrPlayer.number} ${pendingQrPlayer.name} validado. Pode apresentar o próximo QR Code.`)
@@ -2088,8 +2207,8 @@ function PreMatchFlow(props: {
               </div>
             </div>
             <div className="official-validation-board">
-              <PlayerValidationList team={props.teamA} validated={props.validatedA} onToggle={(number) => props.setValidatedA((current) => current.includes(number) ? current.filter((item) => item !== number) : [...current, number])} />
-              <PlayerValidationList team={props.teamB} validated={props.validatedB} onToggle={(number) => props.setValidatedB((current) => current.includes(number) ? current.filter((item) => item !== number) : [...current, number])} />
+              <PlayerValidationList team={props.teamA} validated={props.validatedA} onToggle={(jogadorId) => alternarValidado(props.setValidatedA, props.setAusentesA, jogadorId)} />
+              <PlayerValidationList team={props.teamB} validated={props.validatedB} onToggle={(jogadorId) => alternarValidado(props.setValidatedB, props.setAusentesB, jogadorId)} />
             </div>
           </>
         )}
@@ -2171,14 +2290,16 @@ function PrePartidaTab(props: {
   setsWon: { teamA: number; teamB: number }
   events: MatchEvent[]
   stepChecklist: Record<string, boolean>
-  validatedA: string[]
-  validatedB: string[]
+  validatedA: number[]
+  validatedB: number[]
   captA: string
   captB: string
   setCaptA: (value: string) => void
   setCaptB: (value: string) => void
-  setValidatedA: React.Dispatch<React.SetStateAction<string[]>>
-  setValidatedB: React.Dispatch<React.SetStateAction<string[]>>
+  setValidatedA: React.Dispatch<React.SetStateAction<number[]>>
+  setValidatedB: React.Dispatch<React.SetStateAction<number[]>>
+  setAusentesA: React.Dispatch<React.SetStateAction<number[]>>
+  setAusentesB: React.Dispatch<React.SetStateAction<number[]>>
   preGameValidated: boolean
   set1ServingTeamId: (value: TeamId) => void
   servingChoice: TeamId | null
@@ -2190,8 +2311,10 @@ function PrePartidaTab(props: {
   const validatedTotal = props.validatedA.length + props.validatedB.length
 
   function validateAll() {
-    props.setValidatedA([...props.teamA.players, ...props.teamA.reserves].map((p) => p.number))
-    props.setValidatedB([...props.teamB.players, ...props.teamB.reserves].map((p) => p.number))
+    props.setValidatedA([...props.teamA.players, ...props.teamA.reserves].map((p) => p.id))
+    props.setValidatedB([...props.teamB.players, ...props.teamB.reserves].map((p) => p.id))
+    props.setAusentesA([])
+    props.setAusentesB([])
     props.addMatchEvent('system', 'Todos os atletas foram validados em lote.')
   }
 
@@ -2231,8 +2354,8 @@ function PrePartidaTab(props: {
             </div>
           </div>
           <div className="official-validation-board">
-            <PlayerValidationList team={props.teamA} validated={props.validatedA} onToggle={(number) => props.setValidatedA((current) => current.includes(number) ? current.filter((item) => item !== number) : [...current, number])} />
-            <PlayerValidationList team={props.teamB} validated={props.validatedB} onToggle={(number) => props.setValidatedB((current) => current.includes(number) ? current.filter((item) => item !== number) : [...current, number])} />
+            <PlayerValidationList team={props.teamA} validated={props.validatedA} onToggle={(jogadorId) => alternarValidado(props.setValidatedA, props.setAusentesA, jogadorId)} />
+            <PlayerValidationList team={props.teamB} validated={props.validatedB} onToggle={(jogadorId) => alternarValidado(props.setValidatedB, props.setAusentesB, jogadorId)} />
           </div>
           </>
         )}
@@ -3303,7 +3426,7 @@ function TossSetup({
   )
 }
 
-function PlayerValidationList({ team, validated, onToggle }: { team: Team; validated: string[]; onToggle: (number: string) => void }) {
+function PlayerValidationList({ team, validated, onToggle }: { team: Team; validated: number[]; onToggle: (jogadorId: number) => void }) {
   const players = [...team.players, ...team.reserves]
   return (
     <section className="official-validation-team">
@@ -3314,9 +3437,9 @@ function PlayerValidationList({ team, validated, onToggle }: { team: Team; valid
       <div className="official-validation-progress"><i style={{ width: `${Math.min(100, (validated.length / Math.max(6, players.length)) * 100)}%` }} /></div>
       <div className="official-validation-list">
         {players.map((player) => {
-          const checked = validated.includes(player.number)
+          const checked = validated.includes(player.id)
           return (
-            <button key={player.number} type="button" className={checked ? 'is-validated' : ''} onClick={() => onToggle(player.number)}>
+            <button key={player.id} type="button" className={checked ? 'is-validated' : ''} onClick={() => onToggle(player.id)}>
               <PlayerAvatar player={player} />
               <span><strong>#{player.number} {player.name}</strong><small>{checked ? 'Validado para jogo' : 'Pendente de QR Code'}</small></span>
               <em>{checked ? <><Check size={13} /> Validado</> : 'QR'}</em>
@@ -3326,6 +3449,21 @@ function PlayerValidationList({ team, validated, onToggle }: { team: Team; valid
       </div>
     </section>
   )
+}
+
+function alternarValidado(
+  setValidados: React.Dispatch<React.SetStateAction<number[]>>,
+  setAusentes: React.Dispatch<React.SetStateAction<number[]>>,
+  jogadorId: number,
+) {
+  setValidados((current) => current.includes(jogadorId) ? current.filter((item) => item !== jogadorId) : [...current, jogadorId])
+  setAusentes((current) => current.filter((item) => item !== jogadorId))
+}
+
+function idsComPresenca(team: Team, presencas: Array<{ jogadorId?: number; presente?: boolean | null }>, valor: boolean) {
+  return [...team.players, ...team.reserves]
+    .filter((player) => presencas.some((item) => Number(item.jogadorId) === player.id && item.presente === valor))
+    .map((player) => player.id)
 }
 
 function PlayerAvatar({ player }: { player: Player }) {
@@ -3958,6 +4096,11 @@ function parseMatchNumberOverride(value: string | undefined): number | null {
   return Number(value)
 }
 
+function numeroNoPayload(override: string | undefined, gravado?: number | null): number | null {
+  if (override != null && override !== '') return parseMatchNumberOverride(override)
+  return gravado ?? null
+}
+
 function presencaDaCamisa(override: string | undefined): number | null {
   if (numeroSemCamisa(override)) return NUMERO_SEM_CAMISA
   if (override && /^\d+$/.test(override)) return Number(override)
@@ -4345,10 +4488,12 @@ function AgendaPartidaLinha({ partida }: { partida: { status?: string | null; da
   return <p>{texto}</p>
 }
 
-function makeTeam(id: TeamId, data: any): Team {
+function makeTeam(id: TeamId, data: any, presencas: any[] = []): Team {
   const players = (data?.jogadores ?? []).map((jogador: any, index: number) => ({
     id: jogador.id,
     number: String(jogador.numero || index + 1),
+    numeroHerdado: typeof jogador.numeroHerdado === 'number' && Number.isInteger(jogador.numeroHerdado) ? jogador.numeroHerdado : null,
+    numeroGravado: numeroGravadoNaLista(jogador.id, presencas),
     name: jogador.nome,
     status: 'Inscrição ativa',
     position: jogador.posicao ?? null,
@@ -4362,6 +4507,14 @@ function makeTeam(id: TeamId, data: any): Team {
     players: players.slice(0, 6),
     reserves: players.slice(6),
   }
+}
+
+function numeroGravadoNaLista(jogadorId: number, presencas: any[]): number | null {
+  const salva = presencas.find((item) => Number(item?.jogadorId) === Number(jogadorId))
+  if (!salva || salva.numero == null || salva.numero === '') return null
+  if (numeroSemCamisa(salva.numero)) return NUMERO_SEM_CAMISA
+  const gravado = Number(salva.numero)
+  return Number.isInteger(gravado) ? gravado : null
 }
 
 function getAnyPlayer(team: Team, number: string) {

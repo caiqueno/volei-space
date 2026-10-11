@@ -3,6 +3,7 @@ import {
   MARCA_SEM_NUMERO,
   NUMERO_SEM_CAMISA,
   interpretarNumeroCamisa,
+  numeroHerdado,
   numeroMvpDaLista,
   numeroNaPartida,
   passagemDeNumeroCamisa,
@@ -87,5 +88,62 @@ assert.equal(numeroMvpDaLista('1', '21'), '21')
 assert.equal(numeroMvpDaLista('1', null), '1')
 assert.equal(numeroMvpDaLista('21', '21'), '21')
 assert.equal(numeroMvpDaLista('7', '  '), '7')
+
+const anteriores = [
+  { jogadorId: 1, partidaId: 10, ligaId: 3, numero: 8, dataHora: '2026-09-01T12:00:00.000Z', presencaId: 1 },
+  { jogadorId: 1, partidaId: 11, ligaId: 3, numero: 13, dataHora: '2026-10-01T12:00:00.000Z', presencaId: 2 },
+  { jogadorId: 1, partidaId: 12, ligaId: 3, numero: null, dataHora: '2026-10-05T12:00:00.000Z', presencaId: 3 },
+  { jogadorId: 1, partidaId: 20, ligaId: 9, numero: 99, dataHora: '2026-10-08T12:00:00.000Z', presencaId: 4 },
+  { jogadorId: 2, partidaId: 11, ligaId: 3, numero: 4, dataHora: '2026-10-01T12:00:00.000Z', presencaId: 5 },
+  { jogadorId: 1, partidaId: 30, ligaId: 3, numero: 21, dataHora: null, presencaId: 9 },
+]
+const base = { jogadorId: 1, ligaId: 3, partidaAtualId: 40, numeroCadastro: 7, anteriores }
+assert.equal(numeroHerdado({ ...base, numeroDesteJogo: null }), 13)
+assert.equal(numeroHerdado({ ...base, numeroDesteJogo: 0 }), 0)
+assert.equal(numeroHerdado({ ...base, numeroDesteJogo: NUMERO_SEM_CAMISA }), NUMERO_SEM_CAMISA)
+assert.equal(numeroHerdado({ ...base, numeroDesteJogo: 13 }), 13)
+assert.equal(numeroHerdado({
+  ...base,
+  numeroDesteJogo: null,
+  anteriores: [...anteriores, { jogadorId: 1, partidaId: 40, ligaId: 3, numero: 5, dataHora: '2026-10-10T12:00:00.000Z', presencaId: 8 }],
+}), 13)
+assert.equal(numeroHerdado({
+  jogadorId: 1,
+  ligaId: 3,
+  partidaAtualId: 40,
+  numeroCadastro: 7,
+  numeroDesteJogo: null,
+  anteriores: [{ jogadorId: 1, partidaId: 15, ligaId: 3, numero: NUMERO_SEM_CAMISA, dataHora: '2026-10-02T12:00:00.000Z', presencaId: 6 }],
+}), NUMERO_SEM_CAMISA)
+assert.equal(numeroHerdado({ jogadorId: 8, ligaId: 3, partidaAtualId: 40, numeroCadastro: null, numeroDesteJogo: null, anteriores }), null)
+assert.equal(numeroHerdado({ jogadorId: 8, ligaId: 3, partidaAtualId: 40, numeroCadastro: 4, numeroDesteJogo: null, anteriores }), 4)
+assert.equal(numeroHerdado({
+  jogadorId: 1,
+  ligaId: 3,
+  partidaAtualId: 40,
+  numeroCadastro: 7,
+  numeroDesteJogo: null,
+  anteriores: [
+    { jogadorId: 1, partidaId: 2, ligaId: 3, numero: 1, dataHora: '2026-08-01T12:00:00.000Z', presencaId: 1 },
+    { jogadorId: 1, partidaId: 9, ligaId: 3, numero: 2, dataHora: '2026-08-01T12:00:00.000Z', presencaId: 2 },
+  ],
+}), 2)
+assert.equal(numeroHerdado({
+  jogadorId: 1,
+  ligaId: 3,
+  partidaAtualId: 40,
+  numeroCadastro: 7,
+  numeroDesteJogo: null,
+  anteriores: [
+    { jogadorId: 1, partidaId: 9, ligaId: 3, numero: 2, dataHora: '2026-08-01T12:00:00.000Z', presencaId: 2 },
+    { jogadorId: 1, partidaId: 9, ligaId: 3, numero: 6, dataHora: '2026-08-01T12:00:00.000Z', presencaId: 7 },
+  ],
+}), 6)
+
+assert.equal(numeroNaPartida({ id: 1, numero: 7, numeroHerdado: 13 }, [{ jogadorId: 1, numero: null }]), 13)
+assert.equal(numeroNaPartida({ id: 1, numero: 7, numeroHerdado: 13 }, [{ jogadorId: 1, numero: 0 }]), 0)
+assert.equal(numeroNaPartida({ id: 1, numero: 7, numeroHerdado: 13 }, [{ jogadorId: 1, numero: NUMERO_SEM_CAMISA }]), null)
+assert.equal(numeroNaPartida({ id: 1, numero: 7, numeroHerdado: NUMERO_SEM_CAMISA }, []), null)
+assert.equal(numeroNaPartida({ id: 1, numero: 7 }, []), 7)
 
 console.log('numero-camisa-partida ok')

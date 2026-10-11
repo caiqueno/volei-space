@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Scouts gerais ficam depois dos grupos, de 10 em 10. A og:image é do volei.space. O escudo da equipe aparece nas telas públicas. Sem banco.
+  Oficializar conta quem jogou. A validação pinta a linha e ordena o nome. A última camisa da mesma liga reaparece na leitura, sem gravar sozinha. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,10 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 a camisa da súmula reaproveita a última `SumulaPresenca.numero` preenchida do atleta na mesma liga. Se o jogo atual já tem número, ele permanece. Sem número neste jogo, vale essa camisa anterior e, se não houver, `Jogador.numero`. Editar grava só nesta partida. A leitura não altera linhas antigas e não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
+
+Em 11 de outubro de 2026 a súmula oficial deixa de exigir só `presente` true. Quem está numa escalação gravada ou entrou por substituição também conta. A tela valida pelo id do atleta, não grava false para pendente e marca presença ao confirmar a papeleta e na substituição. O aviso antes de oficializar mostra o mesmo motivo do servidor. Na validação do árbitro, confirmado fica com a linha verde, ausente com a linha vermelha, e a lista segue o nome. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Em 11 de outubro de 2026 «Scouts gerais» fica depois das tabelas dos grupos em `/classificacao` e `/rankings`. Abre 10 atletas e «Ver mais» soma mais 10, sem fechar na releitura e sem mexer na rolagem. A linha é alta, com posição num círculo, nome inteiro, camisa e escudo. PTS, ATQ, BLQ e ACE rolam só na faixa dos números. Sem banco nem migration. Fonte: [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
 

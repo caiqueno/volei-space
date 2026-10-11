@@ -12,6 +12,8 @@ import { validarLiberoDaSumula } from '@/lib/libero-sumula'
 import { validarSaquesIniciais } from '@/lib/saque-inicial'
 import { mensagemSancaoInvalida } from '@/lib/sancoes'
 import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
+import { motivoMinimoAtletas } from '@/lib/presenca-oficial'
+import { anexarNumerosHerdados } from '@/lib/numero-herdado-leitura'
 import { correcaoPeloLinkPermitida, limiteDeSubstituicoes, validarSubstituicoes } from '@/lib/sumula-regras'
 import { AndamentoSuperado, gravarSumulaComRestauracao, liberarAndamento, reservarAndamento } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
@@ -35,6 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
+  await anexarNumerosHerdados(access.partida)
   const fonte = await carregarFonteDeSets(access.partida)
   const liga = Array.isArray(access.partida.liga) ? access.partida.liga[0] ?? {} : access.partida.liga ?? {}
   access.partida.liga = { ...liga, ...fonte }
@@ -253,7 +256,13 @@ function valorUnico<T>(valor: T | T[] | null | undefined) {
 function jogadorConsulta(jogador: any) {
   const item = valorUnico(jogador)
   if (!item) return null
-  return { id: item.id, nome: item.nome, numero: item.numero ?? null, posicao: item.posicao ?? null }
+  return {
+    id: item.id,
+    nome: item.nome,
+    numero: item.numero ?? null,
+    posicao: item.posicao ?? null,
+    numeroHerdado: item.numeroHerdado ?? null,
+  }
 }
 
 function equipeConsulta(equipe: any) {
@@ -324,10 +333,6 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
   jogadoresB.forEach((jogador: any) => jogadoresPorId.set(Number(jogador.id), equipeBId))
 
   const presencas = Array.isArray(payload.presencas) ? payload.presencas : []
-  const presentesPorEquipe = new Map<number, Set<number>>([
-    [equipeAId, new Set<number>()],
-    [equipeBId, new Set<number>()],
-  ])
 
   for (const presenca of presencas) {
     const jogadorId = Number(presenca.jogadorId)
@@ -336,13 +341,26 @@ function validateSumulaPayload(partida: any, payload: any, options: { requireMin
     if (!equipeDoJogador || ![equipeAId, equipeBId].includes(equipeId) || equipeDoJogador !== equipeId) {
       return 'A súmula possui atleta fora das equipes da partida.'
     }
-    if (presenca.presente) presentesPorEquipe.get(equipeId)?.add(jogadorId)
   }
 
   if (options.requireMinimumPresencas) {
-    if ((presentesPorEquipe.get(equipeAId)?.size ?? 0) < 6 || (presentesPorEquipe.get(equipeBId)?.size ?? 0) < 6) {
-      return 'A súmula oficial exige pelo menos 6 atletas validados por equipe.'
-    }
+    const equipeA = valorUnico(partida.equipeA)
+    const equipeB = valorUnico(partida.equipeB)
+    const motivo = motivoMinimoAtletas({
+      equipeAId,
+      equipeBId,
+      equipes: [
+        { id: equipeAId, nome: equipeA?.nome },
+        { id: equipeBId, nome: equipeB?.nome },
+      ],
+      atletas: [
+        ...jogadoresA.map((jogador: { id: number; numero?: unknown }) => ({ id: Number(jogador.id), equipeId: equipeAId, numero: jogador.numero })),
+        ...jogadoresB.map((jogador: { id: number; numero?: unknown }) => ({ id: Number(jogador.id), equipeId: equipeBId, numero: jogador.numero })),
+      ],
+      presencas,
+      ocorrencias: payload.ocorrencias,
+    })
+    if (motivo) return motivo
   }
 
   const numerosSet = new Set<number>()

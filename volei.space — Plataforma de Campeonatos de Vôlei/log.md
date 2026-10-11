@@ -13,6 +13,16 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | camisa herdada entre jogos da mesma liga
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
+- Abrir a súmula mostra a última camisa preenchida do atleta na mesma liga. O número já gravado neste jogo não muda. Sem migration e sem script.
+
+## [2026-10-11] fix | presença da súmula e validação do árbitro
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- Oficializar conta escalação e substituição além de `presente` true. A tela não grava ausência para quem ficou pendente. A linha do atleta na validação fica verde ou vermelha, e o elenco segue o nome. Sem migration.
+
 ## [2026-10-11] fix | faixas do story na cor da paleta
 
 - pages_updated=`09-UI-UX`, `hot`, `log`

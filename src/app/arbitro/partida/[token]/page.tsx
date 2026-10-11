@@ -69,8 +69,8 @@ export default function OperacaoArbitroPage() {
   }, [])
 
   const presencas = useMemo(() => partida?.presencas ?? [], [partida])
-  const jogadoresA = partida?.equipeA?.jogadores ?? []
-  const jogadoresB = partida?.equipeB?.jogadores ?? []
+  const jogadoresA = useMemo(() => ordenarAtletasPorNome(partida?.equipeA?.jogadores ?? []), [partida])
+  const jogadoresB = useMemo(() => ordenarAtletasPorNome(partida?.equipeB?.jogadores ?? []), [partida])
   const totalAtletas = jogadoresA.length + jogadoresB.length
   const presencasDecididas = presencas.filter((item: { presente?: boolean | null }) => presencaFoiDecidida(item))
   const totalValidados = presencasDecididas.length
@@ -297,9 +297,7 @@ export default function OperacaoArbitroPage() {
       if (json.data?.aviso) setMsg(json.data.aviso)
       setNumeroSalvoId(jogadorId)
       window.setTimeout(() => setNumeroSalvoId((atual) => (atual === jogadorId ? null : atual)), 2500)
-      const elenco = (partida.equipeA?.jogadores ?? []).some((item: { id: number }) => item.id === jogadorId)
-        ? partida.equipeA?.jogadores ?? []
-        : partida.equipeB?.jogadores ?? []
+      const elenco = jogadoresA.some((item: { id: number }) => item.id === jogadorId) ? jogadoresA : jogadoresB
       const seguinte = numero == null ? null : proximoAtletaNoElenco(elenco, jogadorId)
       if (seguinte) {
         const atual = numeroNaPartida(seguinte, presencas)
@@ -491,6 +489,13 @@ function TeamBox({ team, align = 'left' }: { team: any; align?: 'left' | 'right'
   )
 }
 
+function ordenarAtletasPorNome<T extends { id: number; nome?: string | null }>(jogadores: T[]) {
+  return [...jogadores].sort((a, b) => (
+    String(a.nome ?? '').localeCompare(String(b.nome ?? ''), 'pt-BR', { sensitivity: 'base' })
+    || Number(a.id) - Number(b.id)
+  ))
+}
+
 function rotuloPresenca(presencas: any[], jogadorId: number) {
   const registro = presencas.find((item) => item.jogadorId === jogadorId)
   if (!presencaFoiDecidida(registro)) return 'Pendente'
@@ -555,7 +560,7 @@ function TeamRoster({
             const erroId = `erro-numero-${jogador.id}`
             const campoId = `numero-camisa-${jogador.id}`
             return (
-              <div key={jogador.id} className={`referee-player rounded-2xl border p-4 ${status === 'Confirmado' ? 'is-validated' : ''}`}>
+              <div key={jogador.id} className={`referee-player rounded-2xl border p-4 ${status === 'Confirmado' ? 'is-validated' : status === 'Ausente' ? 'is-absent' : ''}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     {podeEditarNumero ? (

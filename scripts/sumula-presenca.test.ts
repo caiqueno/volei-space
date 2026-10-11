@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { erroDeChaveDuplicada } from '../src/lib/sumula-gravacao'
+import { ausenteExplicito, idsPresentesNaSumula, MENSAGEM_MINIMO_ATLETAS, motivoMinimoAtletas, presenteNoPayload } from '../src/lib/presenca-oficial'
 import { gravarPresenca, inserirSumulaPresenca, registrarOcorrencia } from '../src/lib/sumula-presenca'
 
 type Linha = {
@@ -164,6 +165,111 @@ async function main() {
 
   assert.equal(erroDeChaveDuplicada({ code: '23505', message: 'duplicate key value violates unique constraint "OcorrenciaPartida_pkey"' }), true)
   assert.equal(erroDeChaveDuplicada({ message: 'column CategoriaConfiguracao.setsPorPartidaQuartas does not exist' }), false)
+
+  assert.equal(presenteNoPayload(1, [1], []), true)
+  assert.equal(presenteNoPayload(2, [1], []), null)
+  assert.equal(presenteNoPayload(3, [], []), null)
+  assert.equal(presenteNoPayload(4, [], [4]), false)
+  assert.equal(presenteNoPayload(5, [5], [5]), true)
+
+  const atletasA = [
+    { id: 1, equipeId: 10, numero: 10 },
+    { id: 2, equipeId: 10, numero: 2 },
+    { id: 3, equipeId: 10, numero: 3 },
+    { id: 4, equipeId: 10, numero: 4 },
+    { id: 5, equipeId: 10, numero: 5 },
+    { id: 6, equipeId: 10, numero: 6 },
+    { id: 7, equipeId: 10, numero: 13 },
+  ]
+  const atletasB = [
+    { id: 11, equipeId: 20, numero: 11 },
+    { id: 12, equipeId: 20, numero: 12 },
+    { id: 13, equipeId: 20, numero: 13 },
+    { id: 14, equipeId: 20, numero: 14 },
+    { id: 15, equipeId: 20, numero: 15 },
+    { id: 16, equipeId: 20, numero: 9 },
+    { id: 17, equipeId: 20, numero: 17 },
+  ]
+  const atletas = [...atletasA, ...atletasB]
+  const equipes = [{ id: 10, nome: 'WINNERS - SP' }, { id: 20, nome: 'RS' }]
+  const presencasTrocadas = [
+    { jogadorId: 1, equipeId: 10, presente: null, numero: 13 },
+    { jogadorId: 7, equipeId: 10, presente: null, numero: null },
+    ...[2, 3, 4, 5, 6].map((id) => ({ jogadorId: id, equipeId: 10, presente: null, numero: null })),
+    ...[11, 12, 13, 14, 15].map((id) => ({ jogadorId: id, equipeId: 20, presente: false, numero: null })),
+    { jogadorId: 16, equipeId: 20, presente: null, numero: 20 },
+    { jogadorId: 17, equipeId: 20, presente: null, numero: null },
+  ]
+  const papeleta = 'Papeleta do set 1 confirmada. [[ROT:1:teamA:10,2,3,4,5,6:11,12,13,14,15,]]'
+  const soPapeleta = idsPresentesNaSumula({
+    equipeAId: 10,
+    equipeBId: 20,
+    equipes,
+    atletas,
+    presencas: presencasTrocadas,
+    ocorrencias: [{ tipo: 'set_start', descricao: papeleta, set: 1 }],
+  })
+  assert.deepEqual(Array.from(soPapeleta.get(10) ?? []).sort((a, b) => a - b), [1, 2, 3, 4, 5, 6])
+  assert.equal(soPapeleta.get(10)?.has(7), false)
+  assert.deepEqual(Array.from(soPapeleta.get(20) ?? []).sort((a, b) => a - b), [11, 12, 13, 14, 15])
+
+  const comSubstituicao = idsPresentesNaSumula({
+    equipeAId: 10,
+    equipeBId: 20,
+    equipes,
+    atletas,
+    presencas: presencasTrocadas,
+    ocorrencias: [
+      { tipo: 'set_start', descricao: papeleta, set: 1 },
+      { tipo: 'substitution', descricao: 'Substituição RS: sai #11 Ana, entra #20 Bia. [[ROT:2:teamB:10,2,3,4,5,6:16,12,13,14,15,]]', set: 1 },
+    ],
+  })
+  assert.equal(comSubstituicao.get(20)?.has(16), true)
+  assert.equal(comSubstituicao.get(20)?.has(17), false)
+  assert.equal(motivoMinimoAtletas({
+    equipeAId: 10,
+    equipeBId: 20,
+    equipes,
+    atletas,
+    presencas: presencasTrocadas,
+    ocorrencias: [
+      { tipo: 'set_start', descricao: papeleta, set: 1 },
+      { tipo: 'substitution', descricao: 'Substituição RS: sai #11 Ana, entra #20 Bia.', set: 1 },
+    ],
+  }), null)
+
+  const umValidado = motivoMinimoAtletas({
+    equipeAId: 10,
+    equipeBId: 20,
+    equipes,
+    atletas,
+    presencas: [
+      { jogadorId: 1, equipeId: 10, presente: true, numero: 13 },
+      ...[2, 3, 4, 5, 6, 7].map((id) => ({ jogadorId: id, equipeId: 10, presente: null, numero: null })),
+      ...atletasB.map((atleta) => ({ jogadorId: atleta.id, equipeId: 20, presente: null, numero: null })),
+    ],
+    ocorrencias: [],
+  })
+  assert.equal(umValidado, MENSAGEM_MINIMO_ATLETAS)
+
+  const semJogar = idsPresentesNaSumula({
+    equipeAId: 10,
+    equipeBId: 20,
+    equipes,
+    atletas,
+    presencas: [{ jogadorId: 1, equipeId: 10, presente: null, numero: 13 }],
+    ocorrencias: [],
+  })
+  assert.equal(semJogar.get(10)?.size ?? 0, 0)
+
+  assert.equal(ausenteExplicito(4, [
+    { id: 1, descricao: 'Registro de presença pelo árbitro 2 em 2026-10-11T12:00:00.000Z: atleta 4 ausente' },
+  ]), true)
+  assert.equal(ausenteExplicito(4, [
+    { id: 1, descricao: 'Registro de presença pelo árbitro 2 em 2026-10-11T12:00:00.000Z: atleta 4 ausente' },
+    { id: 2, descricao: 'Registro de presença pelo árbitro 2 em 2026-10-11T12:05:00.000Z: atleta 4 confirmado' },
+  ]), false)
+  assert.equal(ausenteExplicito(4, [{ id: 3, descricao: 'Registro de número de camisa: atleta 4 passou de 4 para 8' }]), false)
 
   console.log('sumula-presenca ok')
 }

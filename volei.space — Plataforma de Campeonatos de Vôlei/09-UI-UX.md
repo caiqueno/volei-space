@@ -5,12 +5,14 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A prévia pública usa a og:image do volei.space. O story leva a faixa da paleta e o símbolo do campeonato, sem o link no rodapé. Scouts gerais ficam depois dos grupos, de 10 em 10.
+  Na validação do árbitro, a linha do atleta fica verde ou vermelha e o elenco segue o nome. Sem banco.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Interface e experiência
+
+Em 11 de outubro de 2026 a validação dos atletas antes do jogo, em `/arbitro/partida/{token}`, pinta a linha inteira: verde quando o árbitro confirma e vermelha quando marca ausente. Pendente continua na cor neutra do cartão. Cada equipe lista os atletas pelo nome, em ordem alfabética. A ordem não muda a gravação da presença nem o número da camisa. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 ## Princípios do produto
 

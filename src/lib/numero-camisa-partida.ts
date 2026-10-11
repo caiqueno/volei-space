@@ -41,23 +41,106 @@ function inteiroOuNulo(valor: unknown): number | null {
   return null
 }
 
+function numeroPreenchido(valor: unknown) {
+  if (valor == null || valor === '') return false
+  if (numeroSemCamisa(valor)) return true
+  return inteiroOuNulo(valor) != null
+}
+
+function numeroPreenchidoNormalizado(valor: unknown): number | null {
+  if (numeroSemCamisa(valor)) return NUMERO_SEM_CAMISA
+  return inteiroOuNulo(valor)
+}
+
+function ultimaCamisaPreenchida(input: {
+  jogadorId: number
+  ligaId?: number | null
+  partidaAtualId?: number | null
+  anteriores?: CamisaAnterior[] | null
+}): number | null {
+  const candidatas = (input.anteriores ?? []).filter((item) => {
+    if (Number(item.jogadorId) !== Number(input.jogadorId)) return false
+    if (input.partidaAtualId != null && Number(item.partidaId) === Number(input.partidaAtualId)) return false
+    if (input.ligaId != null && Number(item.ligaId) !== Number(input.ligaId)) return false
+    return numeroPreenchido(item.numero)
+  })
+  if (!candidatas.length) return null
+  let escolhida = candidatas[0]
+  for (let indice = 1; indice < candidatas.length; indice += 1) {
+    if (maisRecente(candidatas[indice], escolhida)) escolhida = candidatas[indice]
+  }
+  return numeroPreenchidoNormalizado(escolhida.numero)
+}
+
+function maisRecente(candidata: CamisaAnterior, atual: CamisaAnterior) {
+  const dataCandidata = instante(candidata.dataHora)
+  const dataAtual = instante(atual.dataHora)
+  if ((dataCandidata != null) !== (dataAtual != null)) return dataCandidata != null
+  if (dataCandidata != null && dataAtual != null && dataCandidata !== dataAtual) return dataCandidata > dataAtual
+  if (Number(candidata.partidaId) !== Number(atual.partidaId)) return Number(candidata.partidaId) > Number(atual.partidaId)
+  return Number(candidata.presencaId ?? 0) > Number(atual.presencaId ?? 0)
+}
+
+function instante(valor?: string | null) {
+  if (valor == null || String(valor).trim() === '') return null
+  const tempo = Date.parse(String(valor))
+  return Number.isFinite(tempo) ? tempo : null
+}
+
 // SumulaPresenca.numero é o número desta partida. Sem ele, vale o cadastro.
 export function numeroMvpDaLista(numeroCadastro: string, numeroDaPartida?: string | null) {
   const partida = numeroDaPartida == null ? '' : String(numeroDaPartida).trim()
   return partida || numeroCadastro
 }
 
+export type CamisaAnterior = {
+  jogadorId: number
+  partidaId: number
+  ligaId?: number | null
+  numero: unknown
+  dataHora?: string | null
+  presencaId?: number | null
+}
+
+/**
+ * Número deste jogo, se já estiver gravado (inclusive 0 e -1).
+ * Senão, a última camisa preenchida do atleta na mesma liga.
+ * Senão, o cadastro. Não grava nada.
+ */
+export function numeroHerdado(input: {
+  jogadorId: number
+  ligaId?: number | null
+  partidaAtualId?: number | null
+  numeroCadastro?: unknown
+  numeroDesteJogo?: unknown
+  anteriores?: CamisaAnterior[] | null
+}): number | null {
+  if (numeroPreenchido(input.numeroDesteJogo)) return numeroPreenchidoNormalizado(input.numeroDesteJogo)
+  const anterior = ultimaCamisaPreenchida(input)
+  if (anterior != null) return anterior
+  return inteiroOuNulo(input.numeroCadastro)
+}
+
 export function numeroSemCamisa(valor: unknown) {
   return valor === NUMERO_SEM_CAMISA || valor === MARCA_SEM_NUMERO || valor === '-1'
 }
 
-export function numeroNaPartida(atleta: { id: number; numero?: unknown }, presencas: PresencaNumeroPartida[]): number | null {
+export function numeroNaPartida(
+  atleta: { id: number; numero?: unknown; numeroHerdado?: unknown },
+  presencas: PresencaNumeroPartida[],
+): number | null {
   const registro = presencas.find((item) => Number(item.jogadorId) === Number(atleta.id))
   if (registro && numeroSemCamisa(registro.numero)) return null
   if (registro && registro.numero != null && registro.numero !== '') {
     const daPartida = inteiroOuNulo(registro.numero)
     if (daPartida === NUMERO_SEM_CAMISA) return null
     if (daPartida != null) return daPartida
+  }
+  if (atleta.numeroHerdado != null && atleta.numeroHerdado !== '') {
+    if (numeroSemCamisa(atleta.numeroHerdado)) return null
+    const herdado = inteiroOuNulo(atleta.numeroHerdado)
+    if (herdado === NUMERO_SEM_CAMISA) return null
+    if (herdado != null) return herdado
   }
   return inteiroOuNulo(atleta.numero)
 }

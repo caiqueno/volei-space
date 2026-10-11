@@ -5,7 +5,7 @@ import { deveRecusarAndamento, lerVersaoRegistro, marcarVersaoRegistro } from '@
 type Linha = Record<string, unknown>
 
 type SetEntrada = { numero: number; pontosA: number; pontosB: number }
-type PresencaEntrada = { jogadorId: number; equipeId: number; presente: boolean; numero?: number | null }
+type PresencaEntrada = { jogadorId: number; equipeId: number; presente: boolean | null; numero?: number | null }
 type OcorrenciaEntrada = { tipo: string; descricao?: string | null; set?: number | null; jogadorId?: number | null }
 type DestaqueEntrada = { tipo: string; jogadorId: number }
 

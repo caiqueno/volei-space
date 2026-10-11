@@ -9,7 +9,7 @@ import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
-type Jogador = { id: number; nome: string; numero?: number | string | null; posicao?: string | null }
+type Jogador = { id: number; nome: string; numero?: number | string | null; numeroHerdado?: number | null; posicao?: string | null }
 type Equipe = { id: number; nome: string; logoUrl?: string | null; corHex?: string | null; jogadores?: Jogador[] }
 type Ocorrencia = { id: number; tipo: string; descricao?: string | null; set?: number | null; jogadorId?: number | null }
 type Registro = {

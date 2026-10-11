@@ -4,6 +4,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { NUMERO_SEM_CAMISA, numeroNaPartida, passagemDeNumeroCamisa } from '@/lib/numero-camisa-partida'
+import { anexarNumerosHerdados } from '@/lib/numero-herdado-leitura'
 import { inserirSumulaPresenca, registrarOcorrencia } from '@/lib/sumula-presenca'
 
 const bodySchema = z.object({
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   if (leituraErr) return error('Não foi possível conferir os números desta equipe.', 500)
 
   const presencas = presencasEquipe ?? []
+  await anexarNumerosHerdados(access.partida)
   const daEquipe = atletas.filter((jogador: { equipeId: number }) => Number(jogador.equipeId) === Number(atleta.equipeId))
   const atual = presencas.find((item: { jogadorId: number }) => Number(item.jogadorId) === Number(atleta.id))
   const efetivo = numeroNaPartida(atleta, presencas)

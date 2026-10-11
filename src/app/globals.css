@@ -6236,10 +6236,13 @@ button.referee-number.is-saved {
 }
 
 .referee-player.is-validated {
-  border-color: rgba(52, 211, 153, 0.32);
-  background:
-    radial-gradient(circle at 100% 0%, rgba(52, 211, 153, 0.10), transparent 34%),
-    linear-gradient(145deg, rgba(20, 62, 58, 0.92), rgba(9, 22, 38, 0.98));
+  border-color: rgba(52, 211, 153, 0.85);
+  background: #14573a;
+}
+
+.referee-player.is-absent {
+  border-color: rgba(248, 113, 113, 0.9);
+  background: #7f1d1d;
 }
 
 .referee-scanner-modal {

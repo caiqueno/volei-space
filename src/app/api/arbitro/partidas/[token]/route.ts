@@ -2,11 +2,13 @@ import { NextRequest } from 'next/server'
 import { success } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { dataHoraUtc } from '@/lib/data-hora'
+import { anexarNumerosHerdados } from '@/lib/numero-herdado-leitura'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const access = await requireArbitroPartidaAccess(req, token)
   if (access instanceof Response) return access
+  await anexarNumerosHerdados(access.partida)
 
   return success({
     ...access.partida,
