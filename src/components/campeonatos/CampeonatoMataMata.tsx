@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ChaveamentoMataMata, type BracketRoundView, type BracketSlot, type TeamOption } from '@/components/mata-mata/ChaveamentoMataMata'
+import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
 import type { PodiumTeam } from '@/lib/championship-podium'
 
@@ -35,9 +36,12 @@ export function CampeonatoMataMata({
       {rounds.length > 0 && (
         <article className="championship-card rounded-[1.75rem] border p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="luva-kicker">Eliminatória</p>
-              <h2 className="mt-2 font-display text-3xl font-black text-white">Chave do mata-mata</h2>
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="luva-kicker">Eliminatória</p>
+                <h2 className="mt-2 font-display text-3xl font-black text-white">Chave do mata-mata</h2>
+              </div>
+              <BotaoChaveStories chave={{ rounds, thirdPlace }} />
             </div>
             <Link href={`/fase-mata-mata?ligaId=${ligaId}`} className="text-sm font-black text-luva-amber">
               Abrir em tela cheia

@@ -24,7 +24,7 @@ export function PainelRanking({ ligaId, concluido, categoriaInicial = null }: { 
     <div className="grid gap-4">
       <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
       <CartaoMvp ligaId={ligaId} concluido={concluido} categoriaId={categoriaId} />
-      <QuadroPublico ligaId={ligaId} categoriaId={categoriaId} />
+      <QuadroPublico ligaId={ligaId} categoriaId={categoriaId} destaque="ranking" />
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
+import { BotaoJogosStories } from '@/components/stories/BotaoStoriesInstagram'
+import type { JogoCartaz } from '@/lib/stories-cartaz'
 import { idsForaDaVitrine } from '@/lib/campeonatos-publicos'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
@@ -49,7 +51,7 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
 
   if (!isSupabaseConfigured) {
     return (
-      <Moldura filtro={ativo} pagina={numeroPagina} total={0}>
+      <Moldura filtro={ativo} pagina={numeroPagina} total={0} jogos={[]}>
         <p className="text-sm font-semibold text-slate-300">Nenhum jogo encontrado</p>
       </Moldura>
     )
@@ -76,7 +78,7 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
 
   if (totalResposta.error || listaResposta.error) {
     return (
-      <Moldura filtro={ativo} pagina={numeroPagina} total={0}>
+      <Moldura filtro={ativo} pagina={numeroPagina} total={0} jogos={[]}>
         <p className="text-sm font-bold text-red-200">Erro ao carregar dados</p>
       </Moldura>
     )
@@ -99,7 +101,14 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
   const total = totalResposta.count ?? partidas.length
 
   return (
-    <Moldura filtro={ativo} pagina={numeroPagina} total={total}>
+    <Moldura filtro={ativo} pagina={numeroPagina} total={total} jogos={partidas.map((partida) => ({
+      nomeA: partida.equipeA?.nome || 'A definir',
+      nomeB: partida.equipeB?.nome || 'A definir',
+      status: partida.status,
+      setsPorA: partida.setsPorA,
+      setsPorB: partida.setsPorB,
+      campeonato: partida.liga?.nome ?? null,
+    }))}>
       {partidas.length === 0 ? (
         <p className="text-sm font-semibold text-slate-300">{vazio(ativo)}</p>
       ) : (
@@ -118,11 +127,14 @@ export async function JogosPublicos({ filtro, pagina }: { filtro?: string; pagin
   )
 }
 
-function Moldura({ filtro, pagina, total, children }: { filtro: Filtro; pagina: number; total: number; children: React.ReactNode }) {
+function Moldura({ filtro, pagina, total, jogos, children }: { filtro: Filtro; pagina: number; total: number; jogos: JogoCartaz[]; children: React.ReactNode }) {
   return (
     <main className="luva-shell min-h-screen pb-28 lg:pb-0">
       <section className="mx-auto max-w-7xl px-4 py-10">
-        <h1 className={`font-display text-4xl font-black text-white ${mi.entrar}`}>Jogos</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className={`font-display text-4xl font-black text-white ${mi.entrar}`}>Jogos</h1>
+          <BotaoJogosStories jogos={jogos} />
+        </div>
         <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">{textoDoTotal(filtro, total)}</p>
         <nav className="mt-6 flex flex-wrap gap-2" aria-label="Filtros dos jogos">
           {FILTROS.map((item) => {

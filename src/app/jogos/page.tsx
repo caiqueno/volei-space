@@ -168,7 +168,7 @@ export default async function JogosPage({ searchParams }: PageProps) {
                 return `/jogos?${consulta.toString()}`
               }}
             />
-            <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} categoriaId={categoriaId} />
+            <PortalAgenda ligaId={scope.selectedLiga.id} inicial={agenda} temMaisInicial={temMais} falhaInicial={false} categoriaId={categoriaId} compartilhar={!scope.organizadorId && !equipeCapitao} />
           </div>
         ) : partidas.length === 0 ? (
           <EstadoVazio titulo={equipeCapitao ? 'Nenhum jogo para sua equipe' : 'Nenhum jogo cadastrado'} descricao={equipeCapitao ? 'As partidas do seu time aparecerão aqui quando o campeonato montar o calendário.' : 'As partidas aparecerão aqui quando a organização montar o calendário.'} />

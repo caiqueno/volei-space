@@ -18,6 +18,11 @@ updated: 2026-10-11
 - pages_updated=`modulos/SUMULA-DIGITAL`, `hot`, `log`
 - A posição vazia busca a camisa da súmula do time daquele lado. `01` e `1` são a mesma. Sem API, banco, migration ou payload novo.
 
+## [2026-10-11] ingest | story do Instagram nas páginas públicas
+
+- pages_updated=`09-UI-UX`, `modulos/SCOUTS`, `modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/PARTIDAS`, `hot`, `log`
+- Botão só no público. A imagem 1080×1920 nasce no navegador. A cor não é gravada. Sem migration e sem escrita.
+
 ## [2026-10-11] lint | quadro reusa a vista da chave e as iniciais ficam num helper
 
 - pages_updated=`modulos/CLASSIFICACAO`, `modulos/MATA-MATA`, `modulos/SUMULA-DIGITAL`, `hot`, `log`

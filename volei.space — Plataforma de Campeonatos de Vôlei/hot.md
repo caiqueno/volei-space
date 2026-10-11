@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Na papeleta vazia, a posição aceita a camisa da súmula. 01 e 1 são a mesma. Sem API, banco, migration ou payload novo.
+  As páginas públicas compartilham story. A papeleta vazia busca a camisa da súmula. Sem banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,8 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 ranking, classificação, quadro, jogos, ao vivo, resultado e mata-mata públicos ganham o botão de story do Instagram. A prévia nasce na paleta preta e azul e a cor não é salva. A súmula pública só entra se a pessoa marcar «Incluir súmula». Painel, árbitro, súmula, capitão e admin ficam sem o botão. Sem migration. Fonte: [[09-UI-UX]], [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[modulos/MATA-MATA]], [[modulos/PARTIDAS]].
 
 Em 11 de outubro de 2026 a papeleta vazia aceita a camisa digitada em cada posição. O campo só recebe dígitos, no máximo dois, e o toque abre o teclado numérico no mesmo gesto. `01` e `1` acham o mesmo atleta, pela camisa da súmula do time daquela posição. Número inexistente, atleta já escalado ou líbero fora da lista não preenchem e mostram um aviso curto. O foco segue para a próxima posição vazia. A lista continua e o `PUT` não muda. Não há migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 

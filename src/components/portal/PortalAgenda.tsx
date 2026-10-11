@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { PartidaCard } from '@/components/partidas/PartidaCard'
+import { BotaoJogosStories } from '@/components/stories/BotaoStoriesInstagram'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { useBancoAoVivo } from '@/lib/use-banco-ao-vivo'
 import type { GruposPartidaPublica, PartidaPublica } from '@/lib/partida-publica'
@@ -19,6 +20,7 @@ type Props = {
   temMaisInicial?: TemMais
   falhaInicial: boolean
   categoriaId?: string | null
+  compartilhar?: boolean
 }
 
 const consultaParte: Record<Parte, string> = {
@@ -27,7 +29,7 @@ const consultaParte: Record<Parte, string> = {
   encerradas: 'encerradas',
 }
 
-export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, categoriaId = null }: Props) {
+export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, categoriaId = null, compartilhar = false }: Props) {
   const [grupos, setGrupos] = useState(inicial)
   const [temMais, setTemMais] = useState<TemMais>(temMaisInicial ?? { aoVivo: false, proximos: false, encerradas: false })
   const [falha, setFalha] = useState(falhaInicial)
@@ -122,6 +124,21 @@ export function PortalAgenda({ ligaId, inicial, temMaisInicial, falhaInicial, ca
 
   return (
     <div>
+      {compartilhar && (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-display text-2xl font-black text-white">Jogos</h2>
+          <BotaoJogosStories
+            titulo="Jogos"
+            jogos={[...grupos.aoVivo, ...grupos.proximos, ...grupos.encerradas].map((partida) => ({
+              nomeA: partida.equipeA?.nome || 'A definir',
+              nomeB: partida.equipeB?.nome || 'A definir',
+              status: partida.status,
+              setsPorA: partida.setsPorA,
+              setsPorB: partida.setsPorB,
+            }))}
+          />
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-xs font-bold text-slate-400" aria-live="polite">
           {falha && vazio ? 'Não foi possível atualizar os jogos.' : falha ? 'A atualização falhou. Os jogos já exibidos continuam na tela.' : atualizando ? 'Atualizando o ao vivo…' : categoriaId ? 'Jogos desta categoria' : 'Jogos deste campeonato'}

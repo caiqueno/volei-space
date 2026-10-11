@@ -5,12 +5,14 @@ category: modulo
 tags: [classificacao]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  A tabela sai por categoria. Média de sets e média de pontos só desempata quando escolhida. O padrão não muda.
+  A tabela pública e o quadro podem ser compartilhados em story. Média de sets e média de pontos só desempata quando escolhida.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Classificação
+
+**Story da tabela e do quadro — implementado, sem migration:** em `/classificacao` o botão fica ao lado de Tabela e mostra a posição, os pontos e o saldo de sets do grupo. Em `/rankings` o quadro do campeonato tem o botão ao lado de Quadro do campeonato, com líder, top 5 e a tabela. A imagem é só no navegador. Ver [[09-UI-UX]].
 
 **Quadro público — implementado, sem migration:** em `/classificacao` e em `/rankings`, a categoria aberta mostra o líder (mais pontos, depois vitórias e jogos), o pódio quando a final tem vencedor, a chave eliminatória, os cinco primeiros em ataque, bloqueio e saque, os scouts de todos os atletas e a tabela de cada grupo com P, J, V, D, SP, SC, DS, DP e PE. O pódio e a chave saem de `VistaChavePublica`, o mesmo bloco do portal: o título do pódio é «Campeão, vice e 3º lugar» e o da chave é «Chave». Sem chave, os dois somem. A leitura da classificação e do mata-mata não muda. A zona dourada marca as vagas automáticas do grupo. A chave no desktop coloca as fases externas nas laterais e a final no centro, com o 3º lugar abaixo. Abaixo de 1024px as fases viram abas. Os scouts relêem a cada 12 segundos com a aba visível. A rota pública de classificação só passou a devolver colunas que o cálculo já gravava. A súmula não muda.
 

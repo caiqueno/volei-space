@@ -63,7 +63,7 @@ export default async function PortalPage({ searchParams }: PageProps) {
             href={(id) => `/portal?ligaId=${ligaId}&categoria=${encodeURIComponent(id)}`}
           />
           <VistaChavePublica ligaId={ligaId} chave={chave} />
-          <PortalAgenda ligaId={ligaId} inicial={grupos} temMaisInicial={temMais} falhaInicial={partidasFalha} categoriaId={categoriaCampeonatoId ?? null} />
+          <PortalAgenda ligaId={ligaId} inicial={grupos} temMaisInicial={temMais} falhaInicial={partidasFalha} categoriaId={categoriaCampeonatoId ?? null} compartilhar />
         </div>
         <p className="mt-6">
           <Link href="/portal" className="text-sm font-black text-[#ffb331]">Escolher outro campeonato</Link>

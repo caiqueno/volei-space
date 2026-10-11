@@ -7,6 +7,8 @@ import { TabelaScouts } from '@/components/classificacao/TabelaScouts'
 import { TopCinco } from '@/components/classificacao/TopCinco'
 import { queryCategoria } from '@/components/portal/SeletorCategoria'
 import { VistaChavePublica } from '@/components/portal/VistaChavePublica'
+import { BotaoStoriesInstagram, FaixaStories } from '@/components/stories/BotaoStoriesInstagram'
+import { cartazClassificacao, cartazQuadro, cartazRanking, type GrupoCartaz } from '@/lib/stories-cartaz'
 import { INTERVALO_RANKING_JOGADORES_MS, type LinhaJogadorRanking } from '@/lib/classificacao-jogadores'
 import { liderDaTabela, type AtletaQuadro, type LinhaGrupo } from '@/lib/quadro-publico'
 import type { ChavePublica } from '@/lib/portal-chave'
@@ -21,7 +23,7 @@ type Bloco = {
 
 const CHAVE_VAZIA: ChavePublica = { temMataMata: false, rounds: [], champion: null, thirdPlace: null, podium: [] }
 
-export function QuadroPublico({ ligaId, categoriaId }: { ligaId: number; categoriaId: string | null }) {
+export function QuadroPublico({ ligaId, categoriaId, destaque = 'quadro' }: { ligaId: number; categoriaId: string | null; destaque?: 'ranking' | 'classificacao' | 'quadro' }) {
   const [blocos, setBlocos] = useState<Bloco[] | null>(null)
   const [chave, setChave] = useState<ChavePublica | null>(null)
   const [atletas, setAtletas] = useState<AtletaQuadro[] | null>(null)
@@ -129,14 +131,39 @@ export function QuadroPublico({ ligaId, categoriaId }: { ligaId: number; categor
 
   const linhas = blocos.flatMap((bloco) => bloco.linhas)
   const lider = liderDaTabela(linhas)
+  const grupos = gruposDoQuadro(blocos)
+  const liderCartaz = lider ? { equipe: lider.equipe, pontos: lider.pontos } : null
+  const versao = `${atletas.length}-${linhas.length}-${chave.rounds.length}`
 
   return (
     <div className="grid gap-6">
+      {destaque === 'ranking' && (
+        <FaixaStories kicker="Ranking" titulo="Top 5">
+          <BotaoStoriesInstagram titulo="Ranking" versao={versao} montar={({ link }) => cartazRanking(atletas, link)} />
+        </FaixaStories>
+      )}
+      <FaixaStories kicker={destaque === 'classificacao' ? 'Classificação' : 'Quadro'} titulo={destaque === 'classificacao' ? 'Tabela' : 'Quadro do campeonato'}>
+        <BotaoStoriesInstagram
+          titulo={destaque === 'classificacao' ? 'Classificação' : 'Quadro do campeonato'}
+          versao={versao}
+          montar={({ link }) => destaque === 'classificacao' ? cartazClassificacao(grupos, link, liderCartaz) : cartazQuadro({ lider: liderCartaz, atletas, grupos }, link)}
+        />
+      </FaixaStories>
       {lider && <CartaoLider lider={lider} />}
       <VistaChavePublica ligaId={ligaId} chave={chave} />
+      {destaque !== 'ranking' && (
+        <FaixaStories kicker="Ranking" titulo="Top 5">
+          <BotaoStoriesInstagram titulo="Ranking" versao={versao} montar={({ link }) => cartazRanking(atletas, link)} />
+        </FaixaStories>
+      )}
       <TopCinco atletas={atletas} />
       {aviso && <p className="text-sm font-bold text-vs-gold">{aviso}</p>}
       <TabelaScouts atletas={atletas} />
+      {destaque !== 'classificacao' && (
+        <FaixaStories kicker="Classificação" titulo="Tabela">
+          <BotaoStoriesInstagram titulo="Classificação" versao={versao} montar={({ link }) => cartazClassificacao(grupos, link, liderCartaz)} />
+        </FaixaStories>
+      )}
       {blocos.map((bloco) => {
         const grupos = (bloco.grupos ?? []).filter((grupo) => grupo.linhas.length > 0)
         const secoes = grupos.length > 0 ? grupos : [{ id: bloco.id ?? 'geral', nome: bloco.nome || 'Classificação', vagas: 0, linhas: bloco.linhas }]
@@ -146,4 +173,12 @@ export function QuadroPublico({ ligaId, categoriaId }: { ligaId: number; categor
       })}
     </div>
   )
+}
+
+function gruposDoQuadro(blocos: Bloco[]): GrupoCartaz[] {
+  return blocos.flatMap((bloco) => {
+    const grupos = (bloco.grupos ?? []).filter((grupo) => grupo.linhas.length > 0)
+    const secoes = grupos.length > 0 ? grupos : [{ nome: bloco.nome || 'Classificação', linhas: bloco.linhas }]
+    return secoes.filter((grupo) => grupo.linhas.length > 0).map((grupo) => ({ nome: grupo.nome, linhas: grupo.linhas }))
+  })
 }

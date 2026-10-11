@@ -5,12 +5,14 @@ category: modulo
 tags: [mata-mata]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A chave pinta o vencedor na tela, os selects e as abas ganham nome acessível, e o cartão ao vivo mostra AO VIVO uma vez. Sem API nem banco.
+  A chave pública vai para o story com semifinal, 3º lugar e final. A tela do organizador não ganha o botão.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Mata-mata
+
+**Story da chave — implementado, sem migration:** `VistaChavePublica`, a chave do campeonato público e `/fase-mata-mata` sem sessão de organizador mostram o botão ao lado do título Chave. A imagem traz semifinais, 3º lugar e final, com o placar em sets quando a partida já tem. Com sessão de organizador, `/fase-mata-mata` não mostra o botão. Ver [[09-UI-UX]].
 
 **Chave na tela — implementado, sem API nem banco:** `vencedorDaPartida` em `src/lib/chave-visual.ts` só compara os sets já mostrados no cartão. A linha dourada e o nome em destaque usam esse resultado. As abas do celular têm `id`, `aria-controls` e `aria-labelledby`. Time A e Time B têm rótulo. Criar o confronto solta o botão no `finally` e ignora resposta que não é JSON. Nada disso grava partida por um caminho novo.
 

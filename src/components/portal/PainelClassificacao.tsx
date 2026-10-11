@@ -9,7 +9,7 @@ export function PainelClassificacao({ ligaId, categoriaInicial = null }: { ligaI
   return (
     <div className="grid gap-4">
       <SeletorCategoria categorias={categorias} valor={categoriaId} onChange={setCategoriaId} />
-      <QuadroPublico ligaId={ligaId} categoriaId={categoriaId} />
+      <QuadroPublico ligaId={ligaId} categoriaId={categoriaId} destaque="classificacao" />
     </div>
   )
 }

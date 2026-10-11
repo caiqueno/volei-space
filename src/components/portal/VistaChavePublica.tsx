@@ -2,6 +2,7 @@
 
 import { ChaveamentoMataMata } from '@/components/mata-mata/ChaveamentoMataMata'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
+import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
 import type { ChavePublica } from '@/lib/portal-chave'
 
 export function VistaChavePublica({ ligaId, chave }: { ligaId: number; chave: ChavePublica }) {
@@ -19,8 +20,13 @@ export function VistaChavePublica({ ligaId, chave }: { ligaId: number; chave: Ch
         </article>
       )}
       <article className="rounded-2xl border border-vs-border bg-vs-bg p-5">
-        <p className="luva-kicker">Mata-mata</p>
-        <h2 className="mt-2 font-display text-2xl font-bold text-vs-text">Chave</h2>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="luva-kicker">Mata-mata</p>
+            <h2 className="mt-2 font-display text-2xl font-bold text-vs-text">Chave</h2>
+          </div>
+          <BotaoChaveStories chave={chave} />
+        </div>
         <div className="mt-4">
           <ChaveamentoMataMata
             ligaId={ligaId}

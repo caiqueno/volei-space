@@ -5,12 +5,14 @@ category: modulo
 tags: [partidas]
 sources: [repo:athrios/volei-space]
 summary: >-
-  A tela do juiz e a chave pública mostram a vaga. O calendário continua recusando equipe, quadra ou dia indisponível no mesmo horário.
+  Jogos, ao vivo e resultado públicos geram story. A súmula oficial entra só se a pessoa marcar. O calendário não muda.
 status: misto
 created: 2026-09-20
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 # Partidas e calendário
+
+**Story de jogos, ao vivo e resultado — implementado, sem migration:** `/jogos` sem sessão e a agenda pública do portal mostram o botão ao lado de Jogos. A imagem lista os confrontos da tela. Em `/partidas/{id}/ao-vivo`, jogo em andamento mostra o placar do set; jogo encerrado mostra «Fim de jogo», os dois times, os sets, os parciais, «TIME venceu» e o MVP quando existe. Se `sumulaAprovadaEm` estiver preenchido, a prévia oferece «Incluir súmula»: parciais, ataque, bloqueio, saque e cartões já devolvidos pela leitura pública. O painel do organizador, que embute o mesmo acompanhamento, o fluxo do capitão e a súmula de lançamento não mostram o botão. Ver [[09-UI-UX]].
 
 **Cargos de arbitragem — implementado, sem migration:** o calendário grava 1º árbitro, 2º árbitro, mesário e juiz de linha em `EscalaArbitro.cargo`. Cada cargo é uma linha. O mesmo árbitro não entra em dois jogos com horários a menos de 90 minutos. Sem data, a escala segue. Não há arquivo novo de migration.
 

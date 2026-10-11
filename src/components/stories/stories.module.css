@@ -1,0 +1,141 @@
+.botao {
+  display: inline-flex;
+  height: 48px;
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: 0;
+  background: linear-gradient(135deg, #833ab4, #e1306c 55%, #f77737);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(225, 48, 108, 0.28);
+  cursor: pointer;
+}
+
+.botao:focus-visible {
+  outline: 3px solid #8fc8ff;
+  outline-offset: 3px;
+}
+
+.velo {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(7, 13, 26, 0.72);
+  padding: 16px;
+}
+
+.painel {
+  width: min(100%, 420px);
+  max-height: min(100dvh - 32px, 920px);
+  overflow: auto;
+  border-radius: 28px;
+  background: #0f1a2e;
+  color: #f5f7fb;
+  padding: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.previa {
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  background: #070d1a;
+}
+
+.paletas {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.amostra {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.amostra[aria-pressed='true'] {
+  border-color: #f5f7fb;
+}
+
+.livre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.livre input {
+  width: 48px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sumula {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.enviar {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffb331;
+  color: #1a1205;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.enviar:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.aviso {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+@media (min-width: 640px) {
+  .velo {
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .botao,
+  .painel,
+  .velo,
+  .enviar,
+  .amostra {
+    transition: none;
+    animation: none;
+    scroll-behavior: auto;
+  }
+}

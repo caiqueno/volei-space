@@ -7,6 +7,8 @@ import { lerJogadorPonto, lerRotuloPonto } from '@/lib/ponto-sumula'
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
+import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
+import { cartazPartida, montarSumulaPublica } from '@/lib/stories-cartaz'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 
 type LiveMatch = {
@@ -134,7 +136,17 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
         <div>
           <div className="live-match-hero-top">
             <span><Radio size={15} /> {finished && match.oficial ? 'Súmula oficial' : 'Placar em tempo real'}</span>
-            <em>{formatStatus(match.status)}</em>
+            <span className="ml-auto flex items-center gap-2">
+              {!embutido && (
+                <BotaoStoriesInstagram
+                  titulo={finished ? 'Fim de jogo' : 'Ao vivo'}
+                  oferecerSumula={match.oficial === true}
+                  versao={`${match.setsPorA ?? 0}-${match.setsPorB ?? 0}-${scoreA}-${scoreB}-${match.oficial ? 1 : 0}`}
+                  montar={({ incluirSumula, link }) => cartazPartida(resultadoDoPlacar(match, scoreA, scoreB, finished), link, incluirSumula && match.oficial ? sumulaDoPlacar(match) : null)}
+                />
+              )}
+              <em>{formatStatus(match.status)}</em>
+            </span>
           </div>
           <h1><NomeLado equipe={match.equipeA} /> <small>vs</small> <NomeLado equipe={match.equipeB} /></h1>
           <p><CalendarDays size={16} /> {agenda.rotulo}{agenda.data ? ` · ${agenda.data}` : ''}</p>
@@ -226,6 +238,37 @@ function readStoredDemoMatch(partidaId: string) {
   }
 }
 
+
+function resultadoDoPlacar(match: LiveMatch, pontosA: number, pontosB: number, encerrado: boolean) {
+  const setsA = Number(match.setsPorA ?? 0)
+  const setsB = Number(match.setsPorB ?? 0)
+  const nomeA = match.equipeA?.nome || 'Equipe A'
+  const nomeB = match.equipeB?.nome || 'Equipe B'
+  const mvp = (match.destaques ?? []).find((item) => String(item.tipo).toUpperCase() === 'MVP')?.jogador?.nome ?? null
+  return {
+    nomeA,
+    nomeB,
+    setsPorA: setsA,
+    setsPorB: setsB,
+    parciais: (match.sets ?? []).map((set) => ({ numero: set.numero, pontosA: set.pontosA, pontosB: set.pontosB })),
+    vencedor: !encerrado || setsA === setsB ? null : setsA > setsB ? nomeA : nomeB,
+    mvp,
+    aoVivo: !encerrado,
+    pontosA,
+    pontosB,
+  }
+}
+
+function sumulaDoPlacar(match: LiveMatch) {
+  return montarSumulaPublica({
+    nomeA: match.equipeA?.nome || 'Equipe A',
+    nomeB: match.equipeB?.nome || 'Equipe B',
+    parciais: (match.sets ?? []).map((set) => ({ numero: set.numero, pontosA: set.pontosA, pontosB: set.pontosB })),
+    ocorrencias: match.ocorrencias ?? [],
+    jogadoresA: (match.equipeA?.jogadores ?? []).map((jogador) => ({ id: jogador.id, nome: jogador.nome })),
+    jogadoresB: (match.equipeB?.jogadores ?? []).map((jogador) => ({ id: jogador.id, nome: jogador.nome })),
+  })
+}
 
 function latestSet(match: LiveMatch) {
   return [...(match.sets ?? [])].sort((a, b) => b.numero - a.numero)[0]
