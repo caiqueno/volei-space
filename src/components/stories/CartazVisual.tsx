@@ -57,6 +57,8 @@ export function CartazVisual({ cartaz, paleta }: { cartaz: CartazStories; paleta
         {cartaz.tipo === 'chave' && <Chave cartaz={cartaz} />}
         {(cartaz.tipo === 'resultado' || cartaz.tipo === 'aovivo') && <Resultado cartaz={cartaz} />}
         {cartaz.tipo === 'jogo' && <Jogo cartaz={cartaz} />}
+        {cartaz.tipo === 'podio' && <Podio cartaz={cartaz} />}
+        {cartaz.tipo === 'mvp' && <MvpCampeonato cartaz={cartaz} />}
       </div>
       <footer className={estilos.rodape}>
         <span className={estilos.marca}>
@@ -264,6 +266,74 @@ function Jogo({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'jogo' }> }) 
   )
 }
 
+const ROTULO_PODIO: Record<1 | 2 | 3, { tag: string; coluna: string; altura: number }> = {
+  1: { tag: 'Campeão', coluna: 'Campeão', altura: 420 },
+  2: { tag: 'Vice', coluna: 'Vice-campeão', altura: 300 },
+  3: { tag: '3º lugar', coluna: '3º lugar', altura: 220 },
+}
+
+function Podio({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'podio' }> }) {
+  const ordem = ([2, 1, 3] as const).flatMap((posicao) => {
+    const lugar = cartaz.lugares.find((item) => item.posicao === posicao)
+    return lugar ? [lugar] : []
+  })
+  if (ordem.length === 0) return <p className={estilos.vazio}>Sem pódio ainda</p>
+  return (
+    <section className={estilos.cartao} aria-label="Campeão, vice e 3º lugar">
+      <header className={estilos.topoRanking}>
+        <h2 className={estilos.tituloCartao}>Campeão, vice e 3º lugar</h2>
+      </header>
+      <div className={estilos.podio}>
+        {ordem.map((lugar) => {
+          const rotulo = ROTULO_PODIO[lugar.posicao]
+          return (
+            <div key={lugar.posicao} className={estilos.lugar}>
+              <EscudoCartaz nome={lugar.nome} cor={lugar.corHex} logo={lugar.logoUrl} podio />
+              <p className={estilos.nomePodio}><NomeEquipe nome={lugar.nome} /></p>
+              <p className={estilos.tagPodio}>{rotulo.tag}</p>
+              <div className={estilos.colunaPodio} style={{ height: rotulo.altura }}>{rotulo.coluna}</div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function MvpCampeonato({ cartaz }: { cartaz: Extract<CartazStories, { tipo: 'mvp' }> }) {
+  const atleta = cartaz.atleta
+  const sigla = iniciais(atleta.nome, { manterEspacosRepetidos: true }) || 'AT'
+  return (
+    <section className={estilos.cartao} aria-label="MVP do campeonato">
+      <header className={estilos.topoRanking}>
+        <h2 className={estilos.tituloCartao}>MVP do campeonato</h2>
+      </header>
+      <div className={estilos.mvpBloco}>
+        <span className={estilos.avatarMvp}>
+          {atleta.foto ? <img src={atleta.foto} alt="" /> : sigla}
+        </span>
+        <h3 className={estilos.nomeMvp}>{atleta.nome}</h3>
+        {atleta.equipe ? <p className={estilos.equipeMvp}><NomeEquipe nome={atleta.equipe} /></p> : null}
+        <p className={estilos.miudo}>{atleta.pontos} pontos no total</p>
+        <div className={estilos.fundamentos}>
+          <FundamentoStory nome="Saque" pontos={atleta.saque} />
+          <FundamentoStory nome="Ataque" pontos={atleta.ataque} />
+          <FundamentoStory nome="Bloqueio" pontos={atleta.bloqueio} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FundamentoStory({ nome, pontos }: { nome: string; pontos: number }) {
+  return (
+    <div className={estilos.fundamento}>
+      <b>{pontos}</b>
+      <span>{nome}</span>
+    </div>
+  )
+}
+
 function Time({ nome, cor, logo }: { nome: string; cor: string | null; logo: string | null }) {
   return (
     <div className={estilos.time}>
@@ -282,8 +352,8 @@ function LadoResultado({ nome, cor, logo }: { nome: string; cor?: string | null;
   )
 }
 
-function EscudoCartaz({ nome, cor, logo, menor = false, tabela = false, jogo = false }: { nome: string; cor?: string | null; logo?: string | null; menor?: boolean; tabela?: boolean; jogo?: boolean }) {
-  const classe = jogo ? estilos.escudoJogo : tabela ? estilos.escudoTabela : menor ? estilos.escudoMenor : estilos.escudo
+function EscudoCartaz({ nome, cor, logo, menor = false, tabela = false, jogo = false, podio = false }: { nome: string; cor?: string | null; logo?: string | null; menor?: boolean; tabela?: boolean; jogo?: boolean; podio?: boolean }) {
+  const classe = podio ? estilos.escudoPodio : jogo ? estilos.escudoJogo : tabela ? estilos.escudoTabela : menor ? estilos.escudoMenor : estilos.escudo
   if (logo) return <img className={classe} src={logo} alt="" />
   return <span className={classe} style={{ background: cor ?? 'var(--story-elevada)' }}>{iniciais(nome) || '–'}</span>
 }

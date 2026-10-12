@@ -5,12 +5,14 @@ category: modulo
 tags: [classificacao]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Na tabela e no story do grupo, o nome fica maior e com escudo. No story o nome inteiro cabe, sem reticências.
+  O cartão do pódio em /rankings e no portal ganha o botão de story, com escudos, nomes e colunas. Sem banco.
 status: misto
 created: 2026-09-20
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 # Classificação
+
+**Story do pódio — implementado, sem migration:** o cartão «Campeão, vice e 3º lugar», em `/rankings`, `/classificacao` e `/portal`, ganha o mesmo botão de story dos outros cartões. A imagem traz os escudos, os nomes e as colunas do pódio, na ordem vice, campeão e 3º lugar. A leitura da chave não muda. Nada é gravado.
 
 **Nome do time no story e na tabela — implementado, sem migration:** o story do grupo reserva a coluna da equipe, com escudo (`logoUrl` ou iniciais) e o nome inteiro. Se não couber, o nome quebra em duas linhas e não usa reticências. As colunas numéricas ficam mais estreitas. Na tabela da tela, o nome e o escudo ficam maiores e o nome também quebra, sem cortar. Nada é gravado.
 

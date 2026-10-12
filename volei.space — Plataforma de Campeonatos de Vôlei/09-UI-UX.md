@@ -5,12 +5,14 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O MVP da partida encerrada aparece em círculo laranja, com foto ou iniciais, nome e equipe. Ao oficializar, a tela espera o salvamento.
+  Em /rankings o MVP do campeonato usa o da final e o avatar fica em círculo laranja. O pódio e o MVP ganham story.
 status: misto
 created: 2026-09-20
 updated: 2026-10-12
 ---
 # Interface e experiência
+
+Em 12 de outubro de 2026 o cartão «MVP do campeonato» em `/rankings` mostra o atleta da final em círculo com anel laranja. Com foto, a imagem preenche o círculo. Sem foto, ficam as iniciais. O nome da equipe aparece quando a final já tem destaque. O mesmo cartão e o cartão «Campeão, vice e 3º lugar» ganham o botão de story. Sem banco. Fonte: [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]].
 
 Em 12 de outubro de 2026 o cartão público do MVP da partida, no resumo encerrado (final inclusive), mostra o atleta em círculo com anel laranja. Com foto, a imagem preenche o círculo. Sem foto, ficam as iniciais. Nome e equipe ficam ao lado, em destaque. Sem banco. Fonte: [[modulos/PARTIDAS]].
 

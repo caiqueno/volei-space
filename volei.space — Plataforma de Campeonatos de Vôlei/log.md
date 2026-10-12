@@ -13,6 +13,11 @@ updated: 2026-10-12
 
 # Log
 
+## [2026-10-12] feat | MVP da final no ranking e stories do pódio
+
+- pages_updated=`modulos/SCOUTS`, `modulos/CLASSIFICACAO`, `09-UI-UX`, `hot`, `log`
+- O cartão de `/rankings` usa o MVP gravado na final. O avatar fica em círculo laranja. O pódio e o MVP ganham story. Sem banco.
+
 ## [2026-10-12] feat | círculo laranja do MVP da partida
 
 - pages_updated=`modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

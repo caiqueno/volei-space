@@ -148,12 +148,31 @@ function logoDoCampeonato(logo?: string | null) {
   return texto || null
 }
 
+export type LugarPodioCartaz = {
+  posicao: 1 | 2 | 3
+  nome: string
+  logoUrl?: string | null
+  corHex?: string | null
+}
+
+export type MvpCartaz = {
+  nome: string
+  equipe: string | null
+  foto: string | null
+  pontos: number
+  saque: number
+  ataque: number
+  bloqueio: number
+}
+
 export type CartazStories =
   | (BaseCartaz & { tipo: 'ranking'; fundamento: FundamentoCartaz; atletas: AtletaCartaz[] })
   | (BaseCartaz & { tipo: 'grupo'; grupo: { nome: string; vagas: number; linhas: LinhaTabelaCartaz[] } | null; grupos: Array<{ id: string; nome: string }>; grupoId: string | null })
   | (BaseCartaz & { tipo: 'chave'; semis: ConfrontoCartaz[]; rotuloSemis: string; final: ConfrontoCartaz | null; terceiro: ConfrontoCartaz | null })
   | (BaseCartaz & { tipo: 'resultado' | 'aovivo'; resultado: ResultadoCartaz; fraseVencedor: string | null; sumula: SumulaCartaz | null })
   | (BaseCartaz & { tipo: 'jogo'; jogo: CartaoJogoCartaz })
+  | (BaseCartaz & { tipo: 'podio'; lugares: LugarPodioCartaz[] })
+  | (BaseCartaz & { tipo: 'mvp'; atleta: MvpCartaz })
 
 const ROTULO_SANCAO: Record<string, string> = {
   ADVERTENCIA: 'Advertência',
@@ -179,6 +198,36 @@ export function linkCurto(url: string) {
   } catch {
     return url.replace(/^https?:\/\//, '')
   }
+}
+
+export function cartazPodio(lugares: LugarPodioCartaz[], link: string, campeonato?: string, logoCampeonato?: string | null) {
+  const ordem = ([1, 2, 3] as const).flatMap((posicao) => {
+    const lugar = lugares.find((item) => item.posicao === posicao)
+    return lugar ? [lugar] : []
+  })
+  return {
+    tipo: 'podio' as const,
+    kicker: 'Pódio',
+    titulo: 'Campeão, vice e 3º lugar',
+    campeonato: campeonato ?? '',
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
+    link: linkCurto(link),
+    lider: null,
+    lugares: ordem,
+  } satisfies CartazStories
+}
+
+export function cartazMvpCampeonato(atleta: MvpCartaz, link: string, campeonato?: string, logoCampeonato?: string | null) {
+  return {
+    tipo: 'mvp' as const,
+    kicker: 'MVP',
+    titulo: 'MVP do campeonato',
+    campeonato: campeonato ?? '',
+    logoCampeonato: logoDoCampeonato(logoCampeonato),
+    link: linkCurto(link),
+    lider: null,
+    atleta,
+  } satisfies CartazStories
 }
 
 export function cartazRanking(atletas: AtletaQuadro[], fundamento: FundamentoCartaz, link: string, campeonato?: string, logoCampeonato?: string | null) {

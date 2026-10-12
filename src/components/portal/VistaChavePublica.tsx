@@ -2,7 +2,8 @@
 
 import { ChaveamentoMataMata } from '@/components/mata-mata/ChaveamentoMataMata'
 import { PodioFinal } from '@/components/classificacao/PodioFinal'
-import { BotaoChaveStories } from '@/components/stories/BotaoStoriesInstagram'
+import { BotaoChaveStories, BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
+import { cartazPodio } from '@/lib/stories-cartaz'
 import type { ChavePublica } from '@/lib/portal-chave'
 import { comTimesProvisorios, type GrupoProvisorio } from '@/lib/semi-provisoria'
 import { useGruposProvisorios } from '@/lib/use-grupos-provisorios'
@@ -30,8 +31,17 @@ export function VistaChavePublica({
     <section className="grid gap-4" aria-label="Mata-mata">
       {chave.podium.length > 0 && (
         <article className="rounded-2xl border border-vs-border bg-vs-surface p-5">
-          <p className="luva-kicker">Pódio</p>
-          <h2 className="mt-2 font-display text-2xl font-bold text-vs-text">Campeão, vice e 3º lugar</h2>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="luva-kicker">Pódio</p>
+              <h2 className="mt-2 font-display text-2xl font-bold text-vs-text">Campeão, vice e 3º lugar</h2>
+            </div>
+            <BotaoStoriesInstagram
+              titulo="Pódio"
+              versao={chave.podium.map((time) => `${time.posicao}-${time.equipeId}`).join('-')}
+              montar={({ link }) => cartazPodio(chave.podium, link, campeonato, logoCampeonato)}
+            />
+          </div>
           <div className="mt-6">
             <PodioFinal podium={chave.podium} />
           </div>

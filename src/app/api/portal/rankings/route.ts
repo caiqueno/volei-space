@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
+import { escolherMvpDoCampeonato, partidaFinalUnica, type MvpDaFinal, type TotaisAtleta } from '@/lib/mvp-campeonato'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     return resposta
   }
 
-  const totais = new Map<number, { nome: string; pontos: number; saque: number; ataque: number; bloqueio: number }>()
+  const totais = new Map<number, TotaisAtleta>()
   let offset = 0
   for (;;) {
     let consulta = supabaseAdmin
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
       const classe = classeDoPonto(String(item.tipo ?? ''))
       const jogador = Array.isArray(item.jogador) ? item.jogador[0] : item.jogador
       if (!classe || !jogador?.id || !jogador.nome) continue
-      const atual = totais.get(jogador.id) ?? { nome: jogador.nome, pontos: 0, saque: 0, ataque: 0, bloqueio: 0 }
+      const atual = totais.get(jogador.id) ?? { id: jogador.id, nome: jogador.nome, pontos: 0, saque: 0, ataque: 0, bloqueio: 0 }
       atual[classe] += 1
       atual.pontos += 1
       totais.set(jogador.id, atual)
@@ -63,18 +64,61 @@ export async function GET(req: NextRequest) {
     offset += 500
   }
 
-  const mvp = Array.from(totais.values()).sort((a, b) => (
-    b.pontos - a.pontos || b.ataque - a.ataque || b.bloqueio - a.bloqueio || b.saque - a.saque || a.nome.localeCompare(b.nome, 'pt')
-  ))[0] ?? null
+  let daFinal: MvpDaFinal | null = null
+  try {
+    daFinal = await lerMvpDaFinal(ligaId, categoria.id)
+  } catch {
+    return error('Não foi possível carregar o ranking.', 500)
+  }
+  const mvp = escolherMvpDoCampeonato(Array.from(totais.values()), daFinal)
 
   const resposta = success({
     concluido: true,
     mvp: mvp?.nome ?? null,
+    equipe: mvp?.equipe ?? null,
+    foto: mvp?.foto ?? null,
     pontos: mvp?.pontos ?? 0,
     saque: mvp?.saque ?? 0,
     ataque: mvp?.ataque ?? 0,
     bloqueio: mvp?.bloqueio ?? 0,
+    origem: mvp?.origem ?? null,
   })
   resposta.headers.set('Cache-Control', 'no-store')
   return resposta
+}
+
+async function lerMvpDaFinal(ligaId: number, categoriaId: string | null): Promise<MvpDaFinal | null> {
+  let consulta = supabaseAdmin
+    .from('Partida')
+    .select('id,rodada,categoriaCampeonatoId')
+    .eq('ligaId', ligaId)
+    .eq('fase', 'FINAL')
+  if (categoriaId) consulta = consulta.eq('categoriaCampeonatoId', categoriaId)
+  const { data: finais, error: falhaFinais } = await consulta
+  if (falhaFinais) throw new Error('Não foi possível ler a final.')
+  const final = partidaFinalUnica(finais ?? [], categoriaId)
+  if (!final) return null
+
+  const { data: destaques, error: falhaDestaque } = await supabaseAdmin
+    .from('DestaquesPartida')
+    .select('jogadorId,jogador:Jogador(id,nome,fotoRostoUrl,fotoUrl,equipe:Equipe(nome))')
+    .eq('partidaId', final.id)
+    .eq('tipo', 'MVP')
+    .limit(1)
+  if (falhaDestaque) throw new Error('Não foi possível ler o MVP da final.')
+  const destaque = destaques?.[0]
+  const jogador = primeiro(destaque?.jogador)
+  if (!jogador?.id || !jogador.nome) return null
+  const equipe = primeiro(jogador.equipe)
+  return {
+    jogadorId: jogador.id,
+    nome: jogador.nome,
+    equipe: equipe?.nome ?? null,
+    fotoRostoUrl: jogador.fotoRostoUrl ?? null,
+    fotoUrl: jogador.fotoUrl ?? null,
+  }
+}
+
+function primeiro<T>(valor: T | T[] | null | undefined) {
+  return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
 }

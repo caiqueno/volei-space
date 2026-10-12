@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O card do MVP mostra círculo laranja, foto ou iniciais, nome e equipe. O PUT da súmula não reabre partida ENCERRADA.
+  O MVP de /rankings passa a ser o da final, em círculo laranja. O pódio e esse cartão ganham o botão de story.
 status: misto
 created: 2026-09-25
 updated: 2026-10-12
@@ -14,6 +14,8 @@ updated: 2026-10-12
 # Hot
 
 ## Foco atual
+
+Em 12 de outubro de 2026 o cartão de MVP em `/rankings` deixa de ser só o maior total de saque, ataque e bloqueio. Se a final da categoria tem `DestaquesPartida` com `tipo` MVP, o nome é esse atleta. O avatar é um círculo com anel laranja. O pódio e o cartão do MVP ganham o botão de story. Sem banco. Fonte: [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
 
 Em 12 de outubro de 2026 o cartão Destaques da partida encerrada mostra o MVP em círculo com anel laranja. A foto entra se existir; senão, as iniciais. Nome e equipe ficam ao lado. Sem banco. Fonte: [[modulos/PARTIDAS]], [[09-UI-UX]].
 

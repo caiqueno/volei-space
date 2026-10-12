@@ -5,12 +5,14 @@ category: modulo
 tags: [scouts]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Scouts gerais ficam depois dos grupos, abrem de 10 em 10 e mostram o escudo. A releitura não fecha o Ver mais.
+  O MVP de /rankings usa o destaque da final quando existe. O avatar é um círculo laranja. Sem migration.
 status: misto
 created: 2026-09-20
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 # Scouts e rankings
+
+**MVP do campeonato — implementado, sem migration:** o cartão de `/rankings` lia só a soma de saque, ataque e bloqueio em `OcorrenciaPartida`. Por isso trocar `DestaquesPartida` não mudava o nome. Com o campeonato concluído, `GET /api/portal/rankings` passa a ler o `tipo` MVP da partida `fase` FINAL da categoria. Se esse destaque existe, o cartão mostra esse atleta, a equipe e a foto (`fotoRostoUrl`, senão `fotoUrl`). Os números continuam os da temporada dele. Sem destaque na final, segue o maior total. A resposta continua `no-store`. O avatar é um círculo com anel laranja. Sem foto, ficam as iniciais. O botão de story gera a imagem desse cartão. Nada é gravado.
 
 **Story do ranking — implementado, sem migration:** em `/rankings` e em `/classificacao`, cada caixinha (Top Atacantes, Top Bloqueadores, Top Sacadores) tem o próprio botão. A imagem traz só aquele título, o ícone e até cinco linhas, com medalha, nome, equipe e o valor daquele fundamento. Não junta as três caixas nem a classificação geral. A cor da prévia não é gravada. A leitura dos scouts não muda. Ver [[09-UI-UX]].
 

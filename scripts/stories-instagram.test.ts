@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { ALTURA_LINHA_RANKING, LIMITE_GRUPO, LIMITE_RANKING, cartazClassificacao, cartazJogo, cartazMataMata, cartazPartida, cartazRanking, linkCurto, montarSumulaPublica } from '../src/lib/stories-cartaz'
+import { ALTURA_LINHA_RANKING, LIMITE_GRUPO, LIMITE_RANKING, cartazClassificacao, cartazJogo, cartazMataMata, cartazMvpCampeonato, cartazPartida, cartazPodio, cartazRanking, linkCurto, montarSumulaPublica } from '../src/lib/stories-cartaz'
 import { AVISO_STORIES_FALLBACK, compartilharStories, deepLinkStories, type AmbienteShare } from '../src/lib/stories-compartilhar'
 import { deveAquecerSafari, STORIES_ALTURA, STORIES_LARGURA, STORIES_MARGEM, STORIES_RODAPE_FIM, STORIES_RODAPE_INICIO, STORIES_ZONA_TOPO } from '../src/lib/stories-imagem'
 import { PALETA_OFICIAL_ID, PALETAS_STORIES, contraste, paletaDaCorLivre, paletaOficial, paletaTemContraste } from '../src/lib/stories-paleta'
@@ -364,3 +364,33 @@ assert.match(top, /cartazRanking\(atletas, quadro\.chave/)
 
 const grupos = readFileSync('src/components/classificacao/TabelaGrupos.tsx', 'utf8')
 assert.match(grupos, /cartazClassificacao/)
+
+const podio = cartazPodio([
+  { posicao: 1, nome: 'TARGET', logoUrl: 'https://cdn.exemplo/target.png', corHex: '#111111' },
+  { posicao: 3, nome: 'BLACK TREFOIL' },
+  { posicao: 2, nome: 'WINNERS PRIDE' },
+], 'https://volei.space/rankings?ligaId=61', 'Winners Oficial')
+assert.equal(podio.tipo, 'podio')
+assert.equal(podio.titulo, 'Campeão, vice e 3º lugar')
+assert.deepEqual(podio.lugares.map((lugar) => lugar.posicao), [1, 2, 3])
+assert.equal(podio.lugares[0].logoUrl, 'https://cdn.exemplo/target.png')
+
+const mvp = cartazMvpCampeonato({
+  nome: 'Matheus Paschoal de Farias',
+  equipe: 'TARGET',
+  foto: null,
+  pontos: 12,
+  saque: 2,
+  ataque: 8,
+  bloqueio: 2,
+}, 'https://volei.space/rankings?ligaId=61', 'Winners Oficial')
+assert.equal(mvp.tipo, 'mvp')
+assert.equal(mvp.titulo, 'MVP do campeonato')
+assert.equal(mvp.atleta.equipe, 'TARGET')
+assert.equal(mvp.atleta.foto, null)
+
+const cartazVisual = readFileSync('src/components/stories/CartazVisual.tsx', 'utf8')
+assert.match(cartazVisual, /cartaz\.tipo === 'podio'/)
+assert.match(cartazVisual, /cartaz\.tipo === 'mvp'/)
+assert.match(cartazVisual, /avatarMvp/)
+assert.match(cartazVisual, /EscudoCartaz/)
