@@ -1,3 +1,4 @@
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rpcAusente } from '@/lib/rpc-ausente'
 import { deveRecusarAndamento, lerVersaoRegistro, marcarVersaoRegistro } from '@/lib/versao-sumula'
@@ -229,9 +230,7 @@ async function atualizarPartidaSeAberta(partidaId: number, partida: Record<strin
 }
 
 async function listar(tabela: string, partidaId: number) {
-  const { data, error } = await supabase.from(tabela).select('*').eq('partidaId', partidaId)
-  if (error) throw error
-  return (data ?? []) as Linha[]
+  return lerTodasAsLinhas<Linha>(() => supabase.from(tabela).select('*').eq('partidaId', partidaId))
 }
 
 async function substituir(tabela: string, partidaId: number, linhas: Linha[]) {
@@ -257,12 +256,11 @@ async function restaurar(partidaId: number, antes: Record<(typeof TABELAS)[numbe
 }
 
 async function substituirOcorrencias(partidaId: number, ocorrencias: OcorrenciaEntrada[] | undefined, registro: string) {
-  const { data: atuais, error: leituraErr } = await supabase
+  const atuais = await lerTodasAsLinhas<{ id: number; descricao?: string | null }>(() => supabase
     .from('OcorrenciaPartida')
     .select('id,descricao')
-    .eq('partidaId', partidaId)
-  if (leituraErr) throw leituraErr
-  const apagar = (atuais ?? [])
+    .eq('partidaId', partidaId))
+  const apagar = atuais
     .filter((item) => !String(item.descricao ?? '').startsWith('Registro de '))
     .map((item) => item.id)
   if (apagar.length > 0) {

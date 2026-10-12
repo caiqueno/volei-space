@@ -13,6 +13,11 @@ updated: 2026-10-12
 
 # Log
 
+## [2026-10-12] fix | Paginação dos lances de scout
+
+- pages_updated=`modulos/SCOUTS`, `hot`, `log`
+- Scouts gerais, rankings e MVP leem `OcorrenciaPartida` em lotes de 1000 ordenados por `id`. Sem banco.
+
 ## [2026-10-12] feat | MVP da final no ranking e stories do pódio
 
 - pages_updated=`modulos/SCOUTS`, `modulos/CLASSIFICACAO`, `09-UI-UX`, `hot`, `log`

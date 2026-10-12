@@ -1,5 +1,6 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { getApprovedTeams, isFinishedMatch } from '@/lib/championship-operations'
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 
 export type PlayerScoutRow = {
   jogadorId: number
@@ -20,40 +21,37 @@ export async function getLeaguePlayerScouts(ligaId: number): Promise<PlayerScout
   if (approvedTeams.length === 0) return []
   const teamIds = approvedTeams.map((equipe) => equipe.id)
 
-  const { data: partidas, error: partidasErr } = await supabase
+  const partidas = await lerTodasAsLinhas(() => supabase
     .from('Partida')
     .select('id,equipeAId,equipeBId,status,vencedorId,sumulaSubmetidaEm,sumulaAprovadaEm,equipeA:Equipe!Partida_equipeAId_fkey(nome),equipeB:Equipe!Partida_equipeBId_fkey(nome)')
-    .eq('ligaId', ligaId)
-  if (partidasErr) throw partidasErr
+    .eq('ligaId', ligaId))
 
-  const finished = (partidas ?? []).filter(isFinishedMatch)
+  const finished = partidas.filter(isFinishedMatch)
   if (finished.length === 0) return []
 
   const partidaById = new Map(finished.map((partida: any) => [partida.id, partida]))
   const partidaIds = finished.map((partida: any) => partida.id)
 
-  const [{ data: jogadores, error: jogadoresErr }, { data: ocorrencias, error: ocorrenciasErr }] = await Promise.all([
-    supabase
+  const [jogadores, ocorrencias] = await Promise.all([
+    lerTodasAsLinhas(() => supabase
       .from('Jogador')
       .select('id,nome,numero,equipeId')
-      .in('equipeId', teamIds),
-    supabase
+      .in('equipeId', teamIds)),
+    lerTodasAsLinhas(() => supabase
       .from('OcorrenciaPartida')
       .select('partidaId,tipo,descricao,jogadorId')
       .in('partidaId', partidaIds)
-      .in('tipo', SCOUT_TIPOS as unknown as string[]),
+      .in('tipo', SCOUT_TIPOS as unknown as string[])),
   ])
-  if (jogadoresErr) throw jogadoresErr
-  if (ocorrenciasErr) throw ocorrenciasErr
 
-  const jogadorById = new Map((jogadores ?? []).map((jogador: any) => [jogador.id, jogador]))
+  const jogadorById = new Map(jogadores.map((jogador: any) => [jogador.id, jogador]))
   const jogadorByEquipeNumero = new Map(
-    (jogadores ?? []).map((jogador: any) => [`${jogador.equipeId}:${normalizeNumero(jogador.numero)}`, jogador]),
+    jogadores.map((jogador: any) => [`${jogador.equipeId}:${normalizeNumero(jogador.numero)}`, jogador]),
   )
 
   const stats = new Map<number, PlayerScoutRow>()
 
-  for (const ocorrencia of (ocorrencias ?? []) as any[]) {
+  for (const ocorrencia of ocorrencias as any[]) {
     const partida = partidaById.get(ocorrencia.partidaId)
     if (!partida) continue
 

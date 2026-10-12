@@ -1,3 +1,4 @@
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { suspensaoAutomatica, type JogoDoAtleta } from '@/lib/sancoes'
 
@@ -9,12 +10,13 @@ export async function mensagemDeSuspensao(partida: { id?: number; categoriaCampe
   const presentes = (presencas ?? []).filter((item) => item.presente && item.jogadorId != null).map((item) => Number(item.jogadorId))
   if (!Number.isInteger(partidaId) || presentes.length === 0 || !partida.categoriaCampeonatoId) return null
 
-  const { data: jogos, error } = await supabase
-    .from('Partida')
-    .select('id,dataHora,ocorrencias:OcorrenciaPartida(jogadorId,tipo)')
-    .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId)
-    .order('dataHora', { ascending: true })
-  if (error || !jogos) {
+  let jogos: Array<{ id: number; dataHora?: string | null; ocorrencias?: Array<{ jogadorId?: number | null; tipo?: string | null }> | null }>
+  try {
+    jogos = await lerTodasAsLinhas(() => supabase
+      .from('Partida')
+      .select('id,dataHora,ocorrencias:OcorrenciaPartida(jogadorId,tipo)')
+      .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId))
+  } catch (error) {
     console.error('[sancoes] histórico não consultado', error)
     return null
   }

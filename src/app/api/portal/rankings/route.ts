@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { escolherMvpDoCampeonato, partidaFinalUnica, type MvpDaFinal, type TotaisAtleta } from '@/lib/mvp-campeonato'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -38,30 +39,28 @@ export async function GET(req: NextRequest) {
   }
 
   const totais = new Map<number, TotaisAtleta>()
-  let offset = 0
-  for (;;) {
-    let consulta = supabaseAdmin
-      .from('OcorrenciaPartida')
-      .select(COLUNAS_LANCE)
-      .eq('partida.ligaId', ligaId)
-      .in('tipo', TIPOS)
-    if (categoria.id) consulta = consulta.eq('partida.categoriaCampeonatoId', categoria.id)
-    const { data, error: falha } = await consulta
-      .not('jogadorId', 'is', null)
-      .range(offset, offset + 499)
-    if (falha) return error('Não foi possível carregar o ranking.', 500)
-    const lote = data ?? []
-    for (const item of lote) {
-      const classe = classeDoPonto(String(item.tipo ?? ''))
-      const jogador = Array.isArray(item.jogador) ? item.jogador[0] : item.jogador
-      if (!classe || !jogador?.id || !jogador.nome) continue
-      const atual = totais.get(jogador.id) ?? { id: jogador.id, nome: jogador.nome, pontos: 0, saque: 0, ataque: 0, bloqueio: 0 }
-      atual[classe] += 1
-      atual.pontos += 1
-      totais.set(jogador.id, atual)
-    }
-    if (lote.length < 500) break
-    offset += 500
+  let lote: Array<{ tipo?: string | null; jogadorId?: number | null; jogador?: { id?: number; nome?: string } | Array<{ id?: number; nome?: string }> | null }>
+  try {
+    lote = await lerTodasAsLinhas(() => {
+      let consulta = supabaseAdmin
+        .from('OcorrenciaPartida')
+        .select(COLUNAS_LANCE)
+        .eq('partida.ligaId', ligaId)
+        .in('tipo', TIPOS)
+      if (categoria.id) consulta = consulta.eq('partida.categoriaCampeonatoId', categoria.id)
+      return consulta.not('jogadorId', 'is', null)
+    })
+  } catch {
+    return error('Não foi possível carregar o ranking.', 500)
+  }
+  for (const item of lote) {
+    const classe = classeDoPonto(String(item.tipo ?? ''))
+    const jogador = Array.isArray(item.jogador) ? item.jogador[0] : item.jogador
+    if (!classe || !jogador?.id || !jogador.nome) continue
+    const atual = totais.get(jogador.id) ?? { id: jogador.id, nome: jogador.nome, pontos: 0, saque: 0, ataque: 0, bloqueio: 0 }
+    atual[classe] += 1
+    atual.pontos += 1
+    totais.set(jogador.id, atual)
   }
 
   let daFinal: MvpDaFinal | null = null

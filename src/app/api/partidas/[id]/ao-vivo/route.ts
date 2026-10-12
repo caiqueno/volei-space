@@ -4,6 +4,7 @@ import { success, error } from '@/lib/api-response'
 import { verifyPublicToken } from '@/lib/auth'
 import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
 import { consultarComVaga } from '@/lib/consulta-vaga'
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { ladoExposto } from '@/lib/vaga-a-definir'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -34,13 +35,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     data.equipeA = ladoExposto(primeiro(data.equipeA), data.origemVagaA) ?? { id: 0, nome: 'A definir', vaga: true, jogadores: [] }
     data.equipeB = ladoExposto(primeiro(data.equipeB), data.origemVagaB) ?? { id: 0, nome: 'A definir', vaga: true, jogadores: [] }
 
-    const [setsRes, presencasRes, ocorrenciasRes, destaquesRes] = await Promise.all([
+    const [setsRes, presencasRes, ocorrenciasLista, destaquesRes] = await Promise.all([
       supabase.from('SetPartida').select('id,numero,pontosA,pontosB').eq('partidaId', partidaId),
       supabase
         .from('SumulaPresenca')
         .select('id,presente,equipeId,jogadorId,numero,jogador:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)')
         .eq('partidaId', partidaId),
-      supabase.from('OcorrenciaPartida').select('id,tipo,descricao,set,jogadorId').eq('partidaId', partidaId),
+      lerTodasAsLinhas(() => supabase.from('OcorrenciaPartida').select('id,tipo,descricao,set,jogadorId').eq('partidaId', partidaId)),
       supabase
         .from('DestaquesPartida')
         .select('id,tipo,jogador:Jogador(id,nome,numero,fotoRostoUrl,fotoUrl)')
@@ -48,7 +49,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ])
 
     const sets = [...(setsRes.data ?? [])].sort((a: any, b: any) => Number(a.numero) - Number(b.numero))
-    const ocorrencias = [...(ocorrenciasRes.data ?? [])].sort((a: any, b: any) => Number(a.id) - Number(b.id))
+    const ocorrencias = [...ocorrenciasLista].sort((a: any, b: any) => Number(a.id) - Number(b.id))
 
     return noStore(success({
       ...data,

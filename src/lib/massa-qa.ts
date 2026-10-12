@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { calcularClassificacao, type PartidaClassificacao, type RegrasCategoria, type TimeClassificacao } from '@/lib/classificacao'
 import { punicoesPorOcorrencia } from '@/lib/sancoes'
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { rpcAusente } from '@/lib/rpc-ausente'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
@@ -42,14 +43,11 @@ function alvoElenco(maximo: number | null) {
   return 20
 }
 
-async function paginar<T>(tabela: string, colunas: string, pagina = 1000): Promise<T[]> {
-  const linhas: T[] = []
-  for (let offset = 0; ; offset += pagina) {
-    const { data, error } = await supabaseAdmin.from(tabela).select(colunas).range(offset, offset + pagina - 1)
-    if (error) throw new Error(error.message)
-    const lote = (data ?? []) as T[]
-    linhas.push(...lote)
-    if (lote.length < pagina) return linhas
+async function paginar<T>(tabela: string, colunas: string): Promise<T[]> {
+  try {
+    return await lerTodasAsLinhas<T>(() => supabaseAdmin.from(tabela).select(colunas))
+  } catch (falha) {
+    throw new Error(falha instanceof Error ? falha.message : 'Não foi possível ler a tabela.')
   }
 }
 
@@ -168,13 +166,11 @@ export async function gravarClassificacao(ligaId: number) {
 }
 
 async function marcaDasPartidas(ligaId: number) {
-  const { data, error } = await supabaseAdmin
+  const data = await lerTodasAsLinhas(() => supabaseAdmin
     .from('Partida')
     .select('id,status,setsPorA,setsPorB,vencedorId,fase')
-    .eq('ligaId', ligaId)
-    .order('id', { ascending: true })
-  if (error) throw new Error(error.message)
-  return JSON.stringify(data ?? [])
+    .eq('ligaId', ligaId))
+  return JSON.stringify(data)
 }
 
 async function punicoesDasPartidas(partidas: Array<{ id?: number; fase?: string | null; equipeAId?: number; equipeBId?: number }>) {
@@ -185,16 +181,19 @@ async function punicoesDasPartidas(partidas: Array<{ id?: number; fase?: string 
   const ids = deGrupo.map((partida) => Number(partida.id)).filter((id) => Number.isInteger(id))
   const equipes = Array.from(new Set(deGrupo.flatMap((partida) => [Number(partida.equipeAId), Number(partida.equipeBId)]).filter((id) => Number.isInteger(id))))
   if (ids.length === 0 || equipes.length === 0) return {}
-  const [{ data: ocorrencias, error: falhaOcorrencias }, { data: jogadores, error: falhaJogadores }] = await Promise.all([
-    supabaseAdmin.from('OcorrenciaPartida').select('tipo,jogadorId,partidaId').in('partidaId', ids),
-    supabaseAdmin.from('Jogador').select('id,equipeId').in('equipeId', equipes),
-  ])
-  if (falhaOcorrencias || falhaJogadores) {
-    console.error('[classificacao] punições não lidas', falhaOcorrencias ?? falhaJogadores)
+  let ocorrencias: Array<{ tipo?: string | null; jogadorId?: number | null; partidaId?: number | null }>
+  let jogadores: Array<{ id: number; equipeId: number }>
+  try {
+    ;[ocorrencias, jogadores] = await Promise.all([
+      lerTodasAsLinhas(() => supabaseAdmin.from('OcorrenciaPartida').select('tipo,jogadorId,partidaId').in('partidaId', ids)),
+      lerTodasAsLinhas(() => supabaseAdmin.from('Jogador').select('id,equipeId').in('equipeId', equipes)),
+    ])
+  } catch (falha) {
+    console.error('[classificacao] punições não lidas', falha)
     return {}
   }
-  const mapa = new Map((jogadores ?? []).map((jogador) => [Number(jogador.id), Number(jogador.equipeId)]))
-  const pesos = punicoesPorOcorrencia(ocorrencias ?? [], mapa)
+  const mapa = new Map(jogadores.map((jogador) => [Number(jogador.id), Number(jogador.equipeId)]))
+  const pesos = punicoesPorOcorrencia(ocorrencias, mapa)
   return Object.fromEntries(pesos)
 }
 
@@ -206,11 +205,10 @@ async function gravarClassificacaoUmaVez(ligaId: number) {
     .eq('status', 'APROVADA')
   if (falhaInscricoes) throw new Error(falhaInscricoes.message)
 
-  const { data: partidas, error: falhaPartidas } = await supabaseAdmin
+  const partidas = await lerTodasAsLinhas(() => supabaseAdmin
     .from('Partida')
     .select('id,equipeAId,equipeBId,setsPorA,setsPorB,pontosPorA,pontosPorB,status,vencedorId,fase,categoriaCampeonatoId,sumulaAprovadaEm,sumulaSubmetidaEm,sets:SetPartida(numero,pontosA,pontosB)')
-    .eq('ligaId', ligaId)
-  if (falhaPartidas) throw new Error(falhaPartidas.message)
+    .eq('ligaId', ligaId))
 
   const regrasCategoria = await listarRegrasDeCategoria(ligaId)
   const liga = await lerRegrasDeLiga(ligaId)

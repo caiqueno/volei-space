@@ -5,12 +5,14 @@ category: modulo
 tags: [scouts]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O MVP de /rankings usa o destaque da final quando existe. O avatar é um círculo laranja. Sem migration.
+  Scouts, rankings e MVP leem OcorrenciaPartida em lotes de 1000, ordenados por id. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-12
 ---
 # Scouts e rankings
+
+**Leitura paginada — implementado, sem migration:** `OcorrenciaPartida` da liga 61 passa de 1000 lances e o PostgREST cortava o resto. Scouts gerais, top atacantes, stories, o MVP por pontos e os votos usam `lerTodasAsLinhas`: cada lote pede `id` crescente, de 1000 em 1000, até voltar menos que 1000. A soma deixa de mudar entre uma carga e outra. Nada é gravado.
 
 **MVP do campeonato — implementado, sem migration:** o cartão de `/rankings` lia só a soma de saque, ataque e bloqueio em `OcorrenciaPartida`. Por isso trocar `DestaquesPartida` não mudava o nome. Com o campeonato concluído, `GET /api/portal/rankings` passa a ler o `tipo` MVP da partida `fase` FINAL da categoria. Se esse destaque existe, o cartão mostra esse atleta, a equipe e a foto (`fotoRostoUrl`, senão `fotoUrl`). Os números continuam os da temporada dele. Sem destaque na final, segue o maior total. A resposta continua `no-store`. O avatar é um círculo com anel laranja. Sem foto, ficam as iniciais. O botão de story gera a imagem desse cartão. Nada é gravado.
 

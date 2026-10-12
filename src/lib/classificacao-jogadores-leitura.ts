@@ -1,3 +1,4 @@
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import {
   CACHE_RANKING_JOGADORES_MS,
@@ -66,18 +67,11 @@ const COLUNAS_JOGADOR = 'id,nome,numero,equipeId,banido'
 const COLUNAS_EQUIPE = 'id,nome,logoUrl,corHex,categoriaCampeonatoId'
 
 async function listarEquipes(ligaId: number, categoriaId: string | null) {
-  const linhas: EquipeLinha[] = []
-  let offset = 0
-  for (;;) {
+  const linhas = await lerTodasAsLinhas<EquipeLinha>(() => {
     let consulta = supabaseAdmin.from('Equipe').select(COLUNAS_EQUIPE).eq('ligaId', ligaId)
     if (categoriaId) consulta = consulta.eq('categoriaCampeonatoId', categoriaId)
-    const { data, error } = await consulta.range(offset, offset + 499)
-    if (error) throw error
-    const lote = (data ?? []) as EquipeLinha[]
-    linhas.push(...lote)
-    if (lote.length < 500) break
-    offset += 500
-  }
+    return consulta
+  })
   return linhas
 }
 
@@ -87,17 +81,12 @@ async function listarAtletas(equipes: EquipeLinha[]): Promise<AtletaRanking[]> {
   const atletas: AtletaRanking[] = []
   for (let inicio = 0; inicio < ids.length; inicio += 80) {
     const fatia = ids.slice(inicio, inicio + 80)
-    let offset = 0
-    for (;;) {
-      const { data, error } = await supabaseAdmin
-        .from('Jogador')
-        .select(COLUNAS_JOGADOR)
-        .in('equipeId', fatia)
-        .eq('banido', false)
-        .range(offset, offset + 499)
-      if (error) throw error
-      const lote = data ?? []
-      for (const jogador of lote) {
+    const lote = await lerTodasAsLinhas(() => supabaseAdmin
+      .from('Jogador')
+      .select(COLUNAS_JOGADOR)
+      .in('equipeId', fatia)
+      .eq('banido', false))
+    for (const jogador of lote) {
         const equipeId = Number(jogador.equipeId)
         const equipe = porEquipe.get(equipeId)
         atletas.push({
@@ -109,17 +98,12 @@ async function listarAtletas(equipes: EquipeLinha[]): Promise<AtletaRanking[]> {
           corHex: equipe?.corHex ?? null,
         })
       }
-      if (lote.length < 500) break
-      offset += 500
-    }
   }
   return atletas
 }
 
 async function listarLances(ligaId: number, categoriaId: string | null): Promise<LanceRanking[]> {
-  const lances: LanceRanking[] = []
-  let offset = 0
-  for (;;) {
+  const lote = await lerTodasAsLinhas<{ tipo?: string | null; jogadorId?: number | null; descricao?: string | null }>(() => {
     let consulta = supabaseAdmin
       .from('OcorrenciaPartida')
       .select(COLUNAS_LANCE)
@@ -127,19 +111,12 @@ async function listarLances(ligaId: number, categoriaId: string | null): Promise
       .in('tipo', TIPOS_FUNDAMENTO_CONSULTA)
       .not('jogadorId', 'is', null)
     if (categoriaId) consulta = consulta.eq('partida.categoriaCampeonatoId', categoriaId)
-    const { data, error } = await consulta.range(offset, offset + 499)
-    if (error) throw error
-    const lote = data ?? []
-    for (const item of lote) {
-      lances.push({
-        tipo: String(item.tipo ?? ''),
-        jogadorId: item.jogadorId == null ? null : Number(item.jogadorId),
-        descricao: item.descricao == null ? null : String(item.descricao),
-        campeonatoExiste: true,
-      })
-    }
-    if (lote.length < 500) break
-    offset += 500
-  }
-  return lances
+    return consulta
+  })
+  return lote.map((item) => ({
+    tipo: String(item.tipo ?? ''),
+    jogadorId: item.jogadorId == null ? null : Number(item.jogadorId),
+    descricao: item.descricao == null ? null : String(item.descricao),
+    campeonatoExiste: true,
+  }))
 }

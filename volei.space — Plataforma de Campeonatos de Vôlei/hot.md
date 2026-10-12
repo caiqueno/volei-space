@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O MVP de /rankings passa a ser o da final, em círculo laranja. O pódio e esse cartão ganham o botão de story.
+  Scouts gerais e rankings leem os lances em lotes de 1000 ordenados por id. O corte de 1000 do Supabase sai. Sem banco.
 status: misto
 created: 2026-09-25
 updated: 2026-10-12
@@ -14,6 +14,8 @@ updated: 2026-10-12
 # Hot
 
 ## Foco atual
+
+Em 12 de outubro de 2026 Scouts gerais, o top de fundamentos, os stories e o cartão de MVP leem `OcorrenciaPartida` em lotes de 1000 linhas, com `id` crescente. A liga que passa de 1000 lances deixa de perder pontos a cada carga. Sem banco. Fonte: [[modulos/SCOUTS]].
 
 Em 12 de outubro de 2026 o cartão de MVP em `/rankings` deixa de ser só o maior total de saque, ataque e bloqueio. Se a final da categoria tem `DestaquesPartida` com `tipo` MVP, o nome é esse atleta. O avatar é um círculo com anel laranja. O pódio e o cartão do MVP ganham o botão de story. Sem banco. Fonte: [[modulos/SCOUTS]], [[modulos/CLASSIFICACAO]], [[09-UI-UX]].
 

@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { numeroDeRanking } from '@/lib/classificacao-jogadores'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
+import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 
 const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
 const VOTO_COLUNAS = 'jogadorId,categoria,categoriaCampeonatoId'
@@ -16,29 +17,27 @@ export async function GET(req: NextRequest) {
     if ('erro' in categoria) return error(categoria.erro, 422)
     const categoriaCampeonatoId = categoria.id
 
-    let votosQuery = supabase.from('VotoMVP').select(VOTO_COLUNAS)
-    if (categoriaCampeonatoId) votosQuery = votosQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+    const votos = await lerTodasAsLinhas<{ jogadorId: number; categoria: string; categoriaCampeonatoId: string }>(() => {
+      let votosQuery = supabase.from('VotoMVP').select(VOTO_COLUNAS)
+      if (categoriaCampeonatoId) votosQuery = votosQuery.eq('categoriaCampeonatoId', categoriaCampeonatoId)
+      return votosQuery
+    })
 
-    const { data: votos, error: votosErr } = await votosQuery
-    if (votosErr) throw votosErr
-
-    const jogadorIds = Array.from(new Set((votos ?? []).map((voto) => Number(voto.jogadorId)).filter((id) => Number.isInteger(id))))
+    const jogadorIds = Array.from(new Set(votos.map((voto) => Number(voto.jogadorId)).filter((id) => Number.isInteger(id))))
     if (jogadorIds.length === 0) return success([])
 
-    const { data: jogadores, error: jogadoresErr } = await supabase
+    const jogadores = await lerTodasAsLinhas(() => supabase
       .from('Jogador')
       .select(JOGADOR_COLUNAS)
-      .in('id', jogadorIds)
-    if (jogadoresErr) throw jogadoresErr
+      .in('id', jogadorIds))
 
-    const equipeIds = Array.from(new Set((jogadores ?? []).map((jogador) => Number(jogador.equipeId)).filter((id) => Number.isInteger(id))))
-    const { data: equipes, error: equipesErr } = equipeIds.length
-      ? await supabase.from('Equipe').select(EQUIPE_COLUNAS).in('id', equipeIds)
-      : { data: [], error: null }
-    if (equipesErr) throw equipesErr
+    const equipeIds = Array.from(new Set(jogadores.map((jogador) => Number(jogador.equipeId)).filter((id) => Number.isInteger(id))))
+    const equipes = equipeIds.length
+      ? await lerTodasAsLinhas(() => supabase.from('Equipe').select(EQUIPE_COLUNAS).in('id', equipeIds))
+      : []
 
-    const equipePorId = new Map((equipes ?? []).map((equipe) => [equipe.id, equipe]))
-    const jogadorPorId = new Map((jogadores ?? []).map((jogador) => {
+    const equipePorId = new Map(equipes.map((equipe) => [equipe.id, equipe]))
+    const jogadorPorId = new Map(jogadores.map((jogador) => {
       const equipe = equipePorId.get(jogador.equipeId) ?? null
       return [jogador.id, {
         id: jogador.id,
@@ -54,7 +53,7 @@ export async function GET(req: NextRequest) {
     }))
 
     const voteCounts = new Map<number, { jogador: NonNullable<ReturnType<typeof jogadorPorId.get>>; votos: number }>()
-    for (const voto of votos ?? []) {
+    for (const voto of votos) {
       const jogador = jogadorPorId.get(Number(voto.jogadorId))
       if (!jogador) continue
       if (categoriaCampeonatoId && jogador.equipe?.categoriaCampeonatoId !== categoriaCampeonatoId) continue
