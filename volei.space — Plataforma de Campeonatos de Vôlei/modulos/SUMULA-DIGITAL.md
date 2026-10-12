@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  O PUT da súmula não reabre partida ENCERRADA. A tela espera o salvamento antes de oficializar. Sem migration.
+  O PUT não reabre partida ENCERRADA. O MVP aparece no resumo público em círculo laranja, com foto ou iniciais, nome e equipe.
 status: misto
 created: 2026-09-20
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 # Súmula digital
+
+**MVP no resumo público — implementado, sem migration:** o atleta gravado em `DestaquesPartida` com `tipo` MVP aparece no cartão Destaques de `/partidas/{id}/ao-vivo` quando a partida está encerrada. O círculo tem anel laranja, a foto se houver e as iniciais se não houver, mais o nome e a equipe. A escolha continua na súmula. Nada é gravado nesta tela. Ver [[modulos/PARTIDAS]].
 
 **Encerramento que não reabre — implementado, sem migration:** na partida 1098 o `PUT` de andamento (versão 176) chegou 0,1s depois do `POST` de oficialização, leu o status antigo e gravou `EM_ANDAMENTO` por último. `sincronizarVagasDaPartida` não avançou o mata-mata. O `PUT` agora responde 409 se a partida está `ENCERRADA` ou tem `sumulaAprovadaEm`. Na gravação sem transação, o update da `Partida` só pega a linha com `.neq('status','ENCERRADA').is('sumulaAprovadaEm', null)` e, se nenhuma linha mudar, não deixa o andamento por cima. A função SQL `gravar_sumula_partida` não foi alterada. A mudança opcional, quando essa migration for aplicada, é o mesmo filtro no `UPDATE` e uma exceção se o pedido for andamento e nenhuma linha mudar. Até lá o andamento não passa por essa função. A tela cancela o timer, espera o salvamento automático que já saiu e para de salvar antes do `POST`. Se a oficialização falha, o andamento volta. No fim do `POST`, a rota lê o status de novo: se não for `ENCERRADA`, grava outra vez e chama `sincronizarVagasDaPartida` de novo. Não há migration.
 

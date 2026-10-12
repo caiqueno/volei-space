@@ -8,6 +8,8 @@ import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
+import { iniciais } from '@/lib/iniciais'
+import { ehMvp, equipeDoAtleta, fotoDoAtleta } from '@/lib/mvp-publico'
 import { PlacarJogo } from '@/components/partidas/PlacarJogo'
 import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import { cartazPartida, montarSumulaPublica } from '@/lib/stories-cartaz'
@@ -197,13 +199,22 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
         {finished && <article className="live-match-card live-match-highlights-card">
           <header><h2>Destaques</h2><span><Trophy size={14} /> Oficial</span></header>
           <div className="live-match-highlights">
-            {match.destaques?.length ? match.destaques.map((item) => (
-              <div key={item.id}>
-                {playerPhoto(item.jogador) ? <img src={playerPhoto(item.jogador)!} alt="" /> : <i>{initials(item.jogador?.nome ?? 'Atleta')}</i>}
-                <span>{item.tipo}</span>
-                <strong>{item.jogador?.nome ?? 'Atleta'}</strong>
-              </div>
-            )) : <p className="live-match-empty">Destaques ainda não definidos na súmula oficial.</p>}
+            {match.destaques?.length ? match.destaques.map((item) => {
+              const nome = item.jogador?.nome?.trim() || 'Atleta'
+              const mvp = ehMvp(item.tipo)
+              const lados = [match.equipeA, match.equipeB].flatMap((lado) => (lado ? [lado] : []))
+              const foto = fotoDoAtleta(item.jogador, lados)
+              const equipe = mvp ? equipeDoAtleta(item.jogador?.id, lados, match.presencas) : null
+              const avatar = foto ? <img src={foto} alt="" /> : <i>{iniciais(nome) || 'AT'}</i>
+              return (
+                <div key={item.id} className={mvp ? 'live-match-mvp' : undefined}>
+                  {mvp ? <span className="live-match-mvp-avatar">{avatar}</span> : avatar}
+                  <span>{item.tipo}</span>
+                  <strong>{nome}</strong>
+                  {equipe ? <NomeEquipe nome={equipe} className="live-match-mvp-equipe" /> : null}
+                </div>
+              )
+            }) : <p className="live-match-empty">Destaques ainda não definidos na súmula oficial.</p>}
           </div>
         </article>}
 
@@ -303,14 +314,6 @@ function shouldShowLiveEvent(event: NonNullable<LiveMatch['ocorrencias']>[number
   if (ocorrenciaOperacional(event)) return false
   const parsed = parseEventDescription(event.descricao)
   return !parsed.text.toLowerCase().includes('troca de saque')
-}
-
-function playerPhoto(player?: LivePlayer | null) {
-  return player?.fotoRostoUrl || player?.fotoUrl || null
-}
-
-function initials(name: string) {
-  return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'AT'
 }
 
 function normalizeStatus(status: string) {

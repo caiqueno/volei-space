@@ -5,12 +5,14 @@ category: modulo
 tags: [partidas]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O cartão de jogo, o ao vivo e a súmula pública mostram Equipe.logoUrl. Sem logo, ficam as iniciais. Sem banco.
+  No resumo público da partida encerrada, o MVP fica em círculo com anel laranja, foto ou iniciais, nome e equipe. Sem banco.
 status: misto
 created: 2026-09-20
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 # Partidas e calendário
+
+**MVP da partida — implementado, sem migration:** em `/partidas/{id}/ao-vivo`, com a partida encerrada, o cartão Destaques mostra o atleta de `tipo` MVP em círculo com anel laranja. A foto usa `fotoRostoUrl` e, se faltar, `fotoUrl`, inclusive a do elenco já carregado. Sem foto, ficam as iniciais. Ao lado entram o nome e a equipe, achada no elenco ou na presença. O mesmo cartão aparece no painel, que embute essa tela. Nada é gravado.
 
 **Escudo da equipe — implementado, sem migration:** o cartão de `/jogos`, o destaque do início, o ao vivo, a súmula pública, a página do campeonato, o elenco, o acesso do árbitro e a lista de jogos do painel leem `Equipe.logoUrl`. A imagem entra no lugar das iniciais. Sem logo, o círculo de iniciais continua. A resposta pública segue `no-store`. Sem migration.
 

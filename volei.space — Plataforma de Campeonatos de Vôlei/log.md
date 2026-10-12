@@ -8,10 +8,15 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Log
+
+## [2026-10-12] feat | círculo laranja do MVP da partida
+
+- pages_updated=`modulos/PARTIDAS`, `modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- O cartão público da partida encerrada mostra o MVP em círculo com anel laranja, foto ou iniciais, nome e equipe. Sem banco.
 
 ## [2026-10-11] fix | oficialização da súmula não volta para EM_ANDAMENTO
 

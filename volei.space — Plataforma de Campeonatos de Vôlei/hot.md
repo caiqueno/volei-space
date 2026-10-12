@@ -5,15 +5,17 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  O PUT da súmula não reabre partida ENCERRADA. A oficialização espera o salvamento e reconfere o status. Sem migration.
+  O card do MVP mostra círculo laranja, foto ou iniciais, nome e equipe. O PUT da súmula não reabre partida ENCERRADA.
 status: misto
 created: 2026-09-25
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Hot
 
 ## Foco atual
+
+Em 12 de outubro de 2026 o cartão Destaques da partida encerrada mostra o MVP em círculo com anel laranja. A foto entra se existir; senão, as iniciais. Nome e equipe ficam ao lado. Sem banco. Fonte: [[modulos/PARTIDAS]], [[09-UI-UX]].
 
 Em 11 de outubro de 2026 o `PUT` de andamento da súmula responde 409 e não grava status, sets nem placar se a partida está `ENCERRADA` ou tem `sumulaAprovadaEm`. A tela espera o salvamento automático antes de oficializar e para de salvar depois. No fim do `POST`, se o status não ficou `ENCERRADA`, a rota grava de novo e chama `sincronizarVagasDaPartida` outra vez. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 

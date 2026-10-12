@@ -13912,6 +13912,71 @@ html body .official-sumula .live-match-page.is-dock .live-match-hero h1 small {
   font-weight: 700;
 }
 
+.live-match-highlights .live-match-mvp {
+  grid-template-columns: 84px minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 2px;
+  border-color: rgba(255, 179, 49, 0.72);
+  background:
+    radial-gradient(140px 90px at 8% 50%, rgba(255, 179, 49, 0.28), transparent 72%),
+    rgba(4, 11, 24, 0.88);
+  box-shadow: 0 0 0 1px rgba(255, 179, 49, 0.38);
+}
+
+.live-match-highlights .live-match-mvp-avatar {
+  grid-row: span 3;
+  display: grid;
+  width: 84px;
+  height: 84px;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid #ffb331;
+  border-radius: 50%;
+  background: #1a1205;
+  box-shadow: 0 0 0 4px rgba(255, 179, 49, 0.45);
+  color: #ffb331;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.live-match-highlights .live-match-mvp-avatar img,
+.live-match-highlights .live-match-mvp-avatar i {
+  grid-row: auto;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.live-match-highlights .live-match-mvp-avatar i {
+  display: grid;
+  place-items: center;
+  background: #1a1205;
+  color: #ffb331;
+  font-size: 22px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.live-match-highlights .live-match-mvp strong {
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.live-match-highlights .live-match-mvp .live-match-mvp-equipe {
+  min-width: 0;
+  color: #ffb331;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
 .live-match-scout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

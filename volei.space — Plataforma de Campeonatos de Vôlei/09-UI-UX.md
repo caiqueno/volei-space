@@ -5,12 +5,14 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Ao oficializar a súmula, a tela espera o salvamento automático e para de gravar andamento depois.
+  O MVP da partida encerrada aparece em círculo laranja, com foto ou iniciais, nome e equipe. Ao oficializar, a tela espera o salvamento.
 status: misto
 created: 2026-09-20
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 # Interface e experiência
+
+Em 12 de outubro de 2026 o cartão público do MVP da partida, no resumo encerrado (final inclusive), mostra o atleta em círculo com anel laranja. Com foto, a imagem preenche o círculo. Sem foto, ficam as iniciais. Nome e equipe ficam ao lado, em destaque. Sem banco. Fonte: [[modulos/PARTIDAS]].
 
 Em 11 de outubro de 2026, ao oficializar a súmula, a tela cancela o salvamento automático que ainda não saiu, espera o que já está a caminho e não grava andamento depois. Se o envio falha, o andamento volta. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
