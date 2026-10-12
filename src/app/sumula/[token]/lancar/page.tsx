@@ -1343,8 +1343,8 @@ export default function SumulaPage() {
   async function saveLiveSnapshot(force = false) {
     const rascunho = rascunhoRef.current
     if (!rascunho?.teamA || !rascunho.teamB) return null
+    if (finalSubmitRef.current || rascunho.sumulaAprovadaEm) return null
     if (!force && rascunho.matchStatus !== 'live' && rascunho.matchStatus !== 'finished') return null
-    if (rascunho.sumulaAprovadaEm) return null
     const versaoEnviada = rascunho.versao
     const payload = { ...buildSumulaPayload(false), versao: versaoEnviada }
     if (String(token).includes('demo')) {
@@ -1430,7 +1430,7 @@ export default function SumulaPage() {
   useEffect(() => {
     if (!teamA || !teamB) return
     if (matchStatus !== 'live' && matchStatus !== 'finished') return
-    if (submitted || submitting || partida?.sumulaAprovadaEm) return
+    if (submitted || submitting || partida?.sumulaAprovadaEm || finalSubmitRef.current) return
     if (liveSaveRef.current) clearTimeout(liveSaveRef.current)
     const espera = matchStatus === 'finished' ? 0 : 700
     liveSaveRef.current = setTimeout(() => {
@@ -1515,6 +1515,7 @@ export default function SumulaPage() {
       return false
     }
     if (submitting) return false
+    finalSubmitRef.current = true
     if (liveSaveRef.current) {
       clearTimeout(liveSaveRef.current)
       liveSaveRef.current = null
@@ -1522,6 +1523,7 @@ export default function SumulaPage() {
     setSubmitting(true)
     setErroOficial('')
     if (automatic) addToast('Partida encerrada. Enviando súmula final...')
+    await filaSalvamento.current.aguardar().catch(() => undefined)
     const payload = buildSumulaPayload(true)
     let res: Response
     try {
@@ -1531,6 +1533,7 @@ export default function SumulaPage() {
         body: JSON.stringify(payload),
       })
     } catch {
+      finalSubmitRef.current = false
       setSubmitting(false)
       setErroOficial('Não foi possível enviar a súmula. Verifique sua conexão.')
       if (!automatic) addToast('Não foi possível enviar a súmula. Verifique sua conexão.')
@@ -1550,6 +1553,7 @@ export default function SumulaPage() {
       return true
     }
 
+    finalSubmitRef.current = false
     const message = json.error || 'Não foi possível enviar a súmula.'
     setErroOficial(message)
     if (!automatic) addToast(message)

@@ -20,6 +20,13 @@ export class AndamentoSuperado extends Error {
   }
 }
 
+export class SumulaJaOficializada extends Error {
+  constructor() {
+    super('Partida já encerrada')
+    this.name = 'SumulaJaOficializada'
+  }
+}
+
 /** Marca a ordem de chegada antes da validação lenta. O id maior é o pedido mais novo. */
 export async function reservarAndamento(partidaId: number) {
   let ultimo: unknown
@@ -63,6 +70,7 @@ export async function gravarSumulaComRestauracao(entrada: {
   partida: Record<string, unknown>
   versao?: number
   reservaId?: number
+  protegerEncerrada?: boolean
 }) {
   const resumo = entrada.sets.map((set) => `${set.numero}:${set.pontosA}-${set.pontosB}`).join(', ') || 'sem sets'
   const registroBase = `Registro de placar pelo árbitro ${entrada.arbitroId ?? 'sem identificação'} em ${new Date().toISOString()}: ${resumo}`
@@ -135,7 +143,17 @@ async function gravarUmaVez(entrada: {
   ocorrencias?: OcorrenciaEntrada[]
   destaques?: DestaqueEntrada[]
   partida: Record<string, unknown>
+  protegerEncerrada?: boolean
 }, registro: string) {
+  // O andamento não passa pela função SQL: o UPDATE dela não olha status nem
+  // sumulaAprovadaEm e reabriria a partida. A mudança opcional, sem migration
+  // nesta entrega, seria acrescentar ao WHERE de gravar_sumula_partida:
+  //   and status <> 'ENCERRADA' and "sumulaAprovadaEm" is null
+  // e levantar exceção se o pedido for andamento e nenhuma linha mudar.
+  if (entrada.protegerEncerrada) {
+    await gravarSemTransacao(entrada, registro)
+    return
+  }
   const { error } = await supabase.rpc('gravar_sumula_partida', {
     p_partida_id: entrada.partidaId,
     p_sets: entrada.sets,
@@ -159,8 +177,13 @@ async function gravarSemTransacao(entrada: {
   ocorrencias?: OcorrenciaEntrada[]
   destaques?: DestaqueEntrada[]
   partida: Record<string, unknown>
+  protegerEncerrada?: boolean
 }, registro: string) {
   const { partidaId } = entrada
+  if (entrada.protegerEncerrada) {
+    const aberta = await atualizarPartidaSeAberta(partidaId, entrada.partida)
+    if (!aberta) throw new SumulaJaOficializada()
+  }
   const antes = {
     SetPartida: await listar('SetPartida', partidaId),
     SumulaPresenca: await listar('SumulaPresenca', partidaId),
@@ -177,13 +200,32 @@ async function gravarSemTransacao(entrada: {
       partidaId,
       (entrada.destaques ?? []).map((destaque) => ({ ...destaque, partidaId })),
     )
-    const { error: updateErr } = await supabase.from('Partida').update(entrada.partida).eq('id', partidaId)
-    if (updateErr) throw updateErr
+    if (entrada.protegerEncerrada) {
+      const aindaAberta = await atualizarPartidaSeAberta(partidaId, entrada.partida)
+      if (!aindaAberta) throw new SumulaJaOficializada()
+    } else {
+      const { error: updateErr } = await supabase.from('Partida').update(entrada.partida).eq('id', partidaId)
+      if (updateErr) throw updateErr
+    }
   } catch (err) {
-    console.error('[sumula] gravação falhou; tentando restaurar o conteúdo anterior', err)
+    if (!(err instanceof SumulaJaOficializada)) {
+      console.error('[sumula] gravação falhou; tentando restaurar o conteúdo anterior', err)
+    }
     await restaurar(partidaId, antes)
     throw err
   }
+}
+
+async function atualizarPartidaSeAberta(partidaId: number, partida: Record<string, unknown>) {
+  const { data, error } = await supabase
+    .from('Partida')
+    .update(partida)
+    .eq('id', partidaId)
+    .neq('status', 'ENCERRADA')
+    .is('sumulaAprovadaEm', null)
+    .select('id')
+  if (error) throw error
+  return Array.isArray(data) && data.length > 0
 }
 
 async function listar(tabela: string, partidaId: number) {

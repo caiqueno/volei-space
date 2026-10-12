@@ -13,7 +13,11 @@ export function criarFilaSalvamento() {
  * Uma gravação por vez. Se outras chegarem no meio, só a última roda depois.
  * A tarefa precisa ler o estado na hora de enviar.
  */
-export function criarSalvamentoCoalescido() {
+export type SalvamentoCoalescido = ((tarefa: () => Promise<void>) => Promise<void>) & {
+  aguardar: () => Promise<void>
+}
+
+export function criarSalvamentoCoalescido(): SalvamentoCoalescido {
   let emVoo: Promise<void> | null = null
   let pendente: (() => Promise<void>) | null = null
 
@@ -37,8 +41,11 @@ export function criarSalvamentoCoalescido() {
     return emVoo
   }
 
-  return function agendar(tarefa: () => Promise<void>): Promise<void> {
+  function agendar(tarefa: () => Promise<void>): Promise<void> {
     pendente = tarefa
     return bombear()
   }
+
+  agendar.aguardar = () => emVoo ?? Promise.resolve()
+  return agendar
 }

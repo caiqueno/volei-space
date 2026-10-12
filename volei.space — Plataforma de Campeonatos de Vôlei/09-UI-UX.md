@@ -5,12 +5,14 @@ category: area
 tags: [ui]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Nome do time maior e sempre com o escudo. O modal do MVP mostra só a vencedora, com Sugestão no maior pontuador dela.
+  Ao oficializar a súmula, a tela espera o salvamento automático e para de gravar andamento depois.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Interface e experiência
+
+Em 11 de outubro de 2026, ao oficializar a súmula, a tela cancela o salvamento automático que ainda não saiu, espera o que já está a caminho e não grava andamento depois. Se o envio falha, o andamento volta. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]].
 
 Em 11 de outubro de 2026 o nome do time fica maior e sempre com o escudo nas tabelas de grupo, nos jogos, na chave, no ao vivo, nos rankings e na súmula. No story do grupo a coluna da equipe é a mais larga: escudo e nome inteiro, com quebra de linha e sem reticências. As colunas de números ficam mais compactas. Sem banco. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/SUMULA-DIGITAL]].
 

@@ -72,6 +72,25 @@ async function main() {
   await seguinte
   assert.deepEqual(depoisDaFalha, ['falha', 'seguinte'])
 
+  const esperaFila = criarSalvamentoCoalescido()
+  let liberarEspera: () => void = () => undefined
+  const trava = new Promise<void>((resolve) => {
+    liberarEspera = resolve
+  })
+  let filaTerminou = false
+  void esperaFila(async () => {
+    await trava
+  })
+  const aguardou = esperaFila.aguardar().then(() => {
+    filaTerminou = true
+  })
+  await Promise.resolve()
+  assert.equal(filaTerminou, false)
+  liberarEspera()
+  await aguardou
+  assert.equal(filaTerminou, true)
+  await esperaFila.aguardar()
+
   console.log('fila-salvamento ok')
 }
 

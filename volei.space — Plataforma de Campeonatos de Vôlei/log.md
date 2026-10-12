@@ -13,6 +13,11 @@ updated: 2026-10-11
 
 # Log
 
+## [2026-10-11] fix | oficialização da súmula não volta para EM_ANDAMENTO
+
+- pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`
+- O PUT tardio não reabre a partida. A tela espera o salvamento antes do POST. O POST reconfere o status e, se preciso, sincroniza as vagas de novo. Sem migration.
+
 ## [2026-10-11] fix | modal do MVP só com a vencedora
 
 - pages_updated=`modulos/SUMULA-DIGITAL`, `09-UI-UX`, `hot`, `log`

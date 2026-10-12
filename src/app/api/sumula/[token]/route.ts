@@ -15,7 +15,8 @@ import { mensagemDeSuspensao } from '@/lib/sancoes-partida'
 import { motivoMinimoAtletas } from '@/lib/presenca-oficial'
 import { anexarNumerosHerdados } from '@/lib/numero-herdado-leitura'
 import { correcaoPeloLinkPermitida, limiteDeSubstituicoes, validarSubstituicoes } from '@/lib/sumula-regras'
-import { AndamentoSuperado, gravarSumulaComRestauracao, liberarAndamento, reservarAndamento } from '@/lib/sumula-gravacao'
+import { andamentoPodeGravar } from '@/lib/encerramento-sumula'
+import { AndamentoSuperado, gravarSumulaComRestauracao, liberarAndamento, reservarAndamento, SumulaJaOficializada } from '@/lib/sumula-gravacao'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
 import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     const instante = agora.toISOString()
     const correcao = Boolean(partida.sumulaAprovadaEm)
-    await gravarSumulaComRestauracao({
+    const entradaOficial = {
       partidaId: partida.id,
       sets,
       presencas,
@@ -135,9 +136,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         sumulaSubmetidaEm: partida.sumulaSubmetidaEm ?? instante,
         ...(correcao ? {} : { sumulaAprovadaEm: instante }),
       },
-    })
+    }
+    await gravarSumulaComRestauracao(entradaOficial)
     await concluirPublicacao(partida.ligaId)
     await preencherVagasDaPartida(partida)
+    await garantirEncerramento(partida, entradaOficial)
 
     return success({ submetida: true, oficial: true, status: 'ENCERRADA', publico })
   } catch (err) {
@@ -160,7 +163,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
 
     const partida = access.partida
     if (!timesDefinidos(partida)) return error(MENSAGEM_SUMULA_SEM_TIMES, 422)
-    if (partida.status === 'ENCERRADA') return error('Partida já encerrada', 400)
+    if (!andamentoPodeGravar(partida)) return error('Partida já encerrada', 409)
     const bloqueio = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
     if (bloqueio) return bloqueio
 
@@ -194,6 +197,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
       arbitroId: access.candidatura.arbitroId,
       versao,
       reservaId,
+      protegerEncerrada: true,
       partida: {
         status: 'EM_ANDAMENTO',
         setsPorA: liveSummary.setsPorA,
@@ -216,7 +220,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     }
     return success({ salva: true, oficial: false, status: 'EM_ANDAMENTO' })
   } catch (err) {
-    if (err instanceof AndamentoSuperado) return error(err.message, 409)
+    if (err instanceof AndamentoSuperado || err instanceof SumulaJaOficializada) return error(err.message, 409)
     console.error('[sumula] erro ao salvar andamento', err)
     return error('Erro ao salvar andamento da súmula', 500)
   } finally {
@@ -226,6 +230,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
       })
     }
   }
+}
+
+async function garantirEncerramento(
+  partida: { id?: number | null; ligaId?: number | null; categoriaCampeonatoId?: string | null },
+  entrada: Parameters<typeof gravarSumulaComRestauracao>[0],
+) {
+  const { data, error: leituraErr } = await supabase.from('Partida').select('status').eq('id', partida.id).maybeSingle()
+  if (leituraErr) console.error('[sumula] não foi possível reconferir o encerramento', leituraErr)
+  if (!leituraErr && String(data?.status ?? '').toUpperCase() === 'ENCERRADA') return
+  await gravarSumulaComRestauracao(entrada)
+  await preencherVagasDaPartida(partida)
 }
 
 async function preencherVagasDaPartida(partida: { id?: number | null; ligaId?: number | null; categoriaCampeonatoId?: string | null }) {

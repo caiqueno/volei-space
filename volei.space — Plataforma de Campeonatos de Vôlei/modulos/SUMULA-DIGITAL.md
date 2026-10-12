@@ -5,12 +5,14 @@ category: modulo
 tags: [sumula]
 sources: [repo:athrios/volei-space/docs/requisitos/SUMULA-DIGITAL-E-CLASSIFICACAO.md]
 summary: >-
-  Nome e escudo maiores na súmula. O modal do MVP lista só a vencedora, com Sugestão no maior pontuador dela. Sem banco.
+  O PUT da súmula não reabre partida ENCERRADA. A tela espera o salvamento antes de oficializar. Sem migration.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
 ---
 # Súmula digital
+
+**Encerramento que não reabre — implementado, sem migration:** na partida 1098 o `PUT` de andamento (versão 176) chegou 0,1s depois do `POST` de oficialização, leu o status antigo e gravou `EM_ANDAMENTO` por último. `sincronizarVagasDaPartida` não avançou o mata-mata. O `PUT` agora responde 409 se a partida está `ENCERRADA` ou tem `sumulaAprovadaEm`. Na gravação sem transação, o update da `Partida` só pega a linha com `.neq('status','ENCERRADA').is('sumulaAprovadaEm', null)` e, se nenhuma linha mudar, não deixa o andamento por cima. A função SQL `gravar_sumula_partida` não foi alterada. A mudança opcional, quando essa migration for aplicada, é o mesmo filtro no `UPDATE` e uma exceção se o pedido for andamento e nenhuma linha mudar. Até lá o andamento não passa por essa função. A tela cancela o timer, espera o salvamento automático que já saiu e para de salvar antes do `POST`. Se a oficialização falha, o andamento volta. No fim do `POST`, a rota lê o status de novo: se não for `ENCERRADA`, grava outra vez e chama `sincronizarVagasDaPartida` de novo. Não há migration.
 
 **Nome e escudo maiores — implementado, sem migration:** na súmula de lançamento, o cabeçalho da quadra 2D, os nomes da quadra 3D e a faixa do placar mostram o escudo junto do nome, maior do que antes. Sem logo, ficam as iniciais. A súmula pública e o ao vivo usam o mesmo par. Nada é gravado.
 

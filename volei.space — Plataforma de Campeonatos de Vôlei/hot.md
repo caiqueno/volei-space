@@ -5,7 +5,7 @@ category: area
 tags: [hot, llm-wiki]
 sources: [repo:athrios/volei-space]
 summary: >-
-  Nome do time maior, com escudo. O modal do MVP mostra só a vencedora e o selo Sugestão no maior pontuador dela. Sem banco.
+  O PUT da súmula não reabre partida ENCERRADA. A oficialização espera o salvamento e reconfere o status. Sem migration.
 status: misto
 created: 2026-09-25
 updated: 2026-10-11
@@ -14,6 +14,8 @@ updated: 2026-10-11
 # Hot
 
 ## Foco atual
+
+Em 11 de outubro de 2026 o `PUT` de andamento da súmula responde 409 e não grava status, sets nem placar se a partida está `ENCERRADA` ou tem `sumulaAprovadaEm`. A tela espera o salvamento automático antes de oficializar e para de salvar depois. No fim do `POST`, se o status não ficou `ENCERRADA`, a rota grava de novo e chama `sincronizarVagasDaPartida` outra vez. Sem migration. Fonte: [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
 Em 11 de outubro de 2026 o nome do time fica maior e sempre com o escudo nas tabelas, nos jogos, na chave, no ao vivo, nos rankings, na súmula e nos stories. No story do grupo a coluna da equipe é larga, o escudo aparece e o nome inteiro quebra a linha, sem reticências. Sem banco. Fonte: [[modulos/CLASSIFICACAO]], [[modulos/SUMULA-DIGITAL]], [[09-UI-UX]].
 
