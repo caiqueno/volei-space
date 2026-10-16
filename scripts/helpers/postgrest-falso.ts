@@ -17,7 +17,7 @@ export function configurarAmbienteSupabase() {
 }
 
 export type Tabelas = Record<string, Array<Record<string, any>>>
-export type ChamadaFalsa = { tabela: string; select: string; search: string; metodo: string }
+export type ChamadaFalsa = { tabela: string; select: string; search: string; metodo: string; corpo: string | null }
 
 function colunasDoTopo(select: string) {
   const colunas: string[] = []
@@ -68,7 +68,7 @@ export function instalarPostgrestFalso(tabelas: Tabelas, opcoes: OpcoesPostgrest
     }
     const tabela = decodeURIComponent(parsed.pathname.replace('/rest/v1/', ''))
     const select = parsed.searchParams.get('select') ?? '*'
-    chamadas.push({ tabela, select, search: parsed.search, metodo: (init?.method ?? 'GET').toUpperCase() })
+    chamadas.push({ tabela, select, search: parsed.search, metodo: (init?.method ?? 'GET').toUpperCase(), corpo: typeof init?.body === 'string' ? init.body : null })
 
     let linhas = [...(tabelas[tabela] ?? [])]
     for (const [chave, filtro] of Array.from(parsed.searchParams.entries())) {
