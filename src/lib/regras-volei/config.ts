@@ -19,6 +19,24 @@ export interface PerfilRegras {
   /** Permite repetir o par A-B / segundo ciclo do titular (com aviso). Oficial: false. */
   permitirParRepetido: boolean
   temposPorSet: number
+  /**
+   * RG-ELE-001: máximo de jogadores na relação nominal (12; 14 em FIVB/World/Oficiais Adulto).
+   * Ausente = o servidor NÃO limita o tamanho do elenco ao iniciar o set (opt-in do perfil).
+   */
+  maxJogadoresElenco?: number
+  /** RG-LIB-001: em competição FIVB, 2 líberos são obrigatórios com mais de 12 jogadores. Padrão: false. */
+  exigeDoisLiberosAcimaDe12?: boolean
+}
+
+/** Competição FIVB/World/Oficiais Adulto: 14 jogadores e 2 líberos obrigatórios acima de 12 (RG-ELE-001, RG-LIB-001). */
+export const PERFIL_FIVB_COMPETICAO: PerfilRegras = {
+  id: 'FIVB_COMPETICAO',
+  limiteSubstituicoesPorSet: LIMITE_OFICIAL_SUBSTITUICOES,
+  alertarAcimaDoOficial: false,
+  permitirParRepetido: false,
+  temposPorSet: LIMITE_OFICIAL_TEMPOS,
+  maxJogadoresElenco: 14,
+  exigeDoisLiberosAcimaDe12: true,
 }
 
 /** Padrão: FIVB/CBV (D1). */
@@ -53,6 +71,18 @@ export interface ConfigPartida {
   terceiroSetObrigatorio: boolean
   /** RG-SET-006: a líder atinge N pontos no set decisivo e as equipes trocam de quadra. */
   trocaLadoNoDecisivoEm: number
+  /**
+   * RG-WO-002: tolerância (minutos) para declarar WO por não comparecimento. É do REGULAMENTO
+   * (o Guia cita 30 como exemplo): sem valor aqui o motor não declara WO por atraso.
+   */
+  toleranciaWOMinutos?: number
+  /** RG-WO-002: tolerância do WO duplo (o Guia cita 15 como exemplo). Ausente = usa `toleranciaWOMinutos`. */
+  toleranciaWODuploMinutos?: number
+  /**
+   * RG-PRO-002 [M quanto ao não aceite]: exigir que o protesto tenha sido ANUNCIADO na hora para ser
+   * registrado ao fim. Ausente = exige (a regra pede aviso "em tempo devido"); false = só registra.
+   */
+  protestoExigeAnuncio?: boolean
 }
 
 export const CONFIG_FIVB_MELHOR_DE_5: ConfigPartida = {

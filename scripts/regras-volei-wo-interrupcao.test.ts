@@ -1,4 +1,5 @@
 import {
+  avaliarToleranciaWO,
   CONFIG_FIVB_MELHOR_DE_5,
   configMelhorDe3,
   criarEstadoEquipe,
@@ -136,6 +137,49 @@ caso('RG-INT-004 / CJ-06(b): outra quadra anula o set e rejoga do 0x0', () => {
 caso('RG-INT-005 / CJ-06(c): paralisações acima de 4 horas repetem a partida inteira', () => {
   assert.equal(decidirInterrupcao({ minutosTotaisDeParalisacao: 241, voltaNaMesmaQuadra: true }).acao, 'REPETIR_PARTIDA')
   assert.equal(decidirInterrupcao({ minutosTotaisDeParalisacao: 240, voltaNaMesmaQuadra: true }).acao, 'CONTINUAR_SET')
+})
+
+/* ---------------- RG-WO-002: tolerância com horários (parâmetro do regulamento) ---------------- */
+
+const previsto = '2026-10-16T19:00:00.000Z'
+const aos = (min: number) => new Date(Date.parse(previsto) + min * 60000).toISOString()
+
+caso('RG-WO-002: dentro da tolerância configurada o WO por atraso é recusado', () => {
+  const cfg = configMelhorDe3({ toleranciaWOMinutos: 20 })
+  const r = avaliarToleranciaWO(cfg, { horarioPrevisto: previsto, agora: aos(10) })
+  assert.equal(r.resultado.ok, false)
+  assert.equal(r.minutosDeAtraso, 10)
+  assert.equal(r.toleranciaMinutos, 20)
+  if (!r.resultado.ok) assert.equal(r.resultado.codigo, 'RG-WO-002')
+})
+
+caso('RG-WO-002: passada a tolerância configurada o WO pode ser declarado (valor vem da config, não do código)', () => {
+  const cfg = configMelhorDe3({ toleranciaWOMinutos: 20 })
+  assert.equal(avaliarToleranciaWO(cfg, { horarioPrevisto: previsto, agora: aos(20) }).resultado.ok, true)
+  assert.equal(avaliarToleranciaWO(cfg, { horarioPrevisto: previsto, agora: aos(45) }).resultado.ok, true)
+  const outra = configMelhorDe3({ toleranciaWOMinutos: 30 })
+  assert.equal(avaliarToleranciaWO(outra, { horarioPrevisto: previsto, agora: aos(25) }).resultado.ok, false)
+})
+
+caso('RG-WO-002: o WO duplo usa a própria tolerância quando configurada', () => {
+  const cfg = configMelhorDe3({ toleranciaWOMinutos: 30, toleranciaWODuploMinutos: 15 })
+  assert.equal(avaliarToleranciaWO(cfg, { horarioPrevisto: previsto, agora: aos(16), duplo: true }).resultado.ok, true)
+  assert.equal(avaliarToleranciaWO(cfg, { horarioPrevisto: previsto, agora: aos(16) }).resultado.ok, false)
+  const semDuplo = configMelhorDe3({ toleranciaWOMinutos: 30 })
+  assert.equal(avaliarToleranciaWO(semDuplo, { horarioPrevisto: previsto, agora: aos(16), duplo: true }).resultado.ok, false)
+})
+
+caso('RG-WO-002: sem tolerância configurada ou com horário inválido o WO por atraso não é declarado', () => {
+  const sem = avaliarToleranciaWO(configMelhorDe3(), { horarioPrevisto: previsto, agora: aos(120) })
+  assert.equal(sem.resultado.ok, false)
+  assert.equal(sem.toleranciaMinutos, null)
+  const invalido = avaliarToleranciaWO(configMelhorDe3({ toleranciaWOMinutos: 15 }), { horarioPrevisto: 'x', agora: aos(120) })
+  assert.equal(invalido.resultado.ok, false)
+})
+
+caso('RG-WO-002: antes da hora prevista o atraso é zero', () => {
+  const r = avaliarToleranciaWO(configMelhorDe3({ toleranciaWOMinutos: 0 }), { horarioPrevisto: previsto, agora: aos(-5) })
+  assert.equal(r.minutosDeAtraso, 0)
 })
 
 encerrar('regras-volei-wo-interrupcao')

@@ -7,6 +7,7 @@ import {
   loteSchema,
   processarLote,
   sumulaEventosAtivo,
+  validarNovoEvento,
   type EntradaPartida,
   type ResultadoLote,
 } from '../src/lib/sumula-eventos'
@@ -430,6 +431,78 @@ async function main() {
     assert.ok(duplicados > 0, 'a simulação exercitou reenvios')
     assert.ok(desfeitos > 0, 'a simulação exercitou desfazer')
     assert.ok(rejeicoes > 0, 'a simulação exercitou rejeições')
+  })
+
+  await caso('RG-SUB-007: o servidor aceita trocas[] num pedido e conta uma por jogador; as duas formas juntas são recusadas', async () => {
+    const banco = novoBanco()
+    const r = processado(
+      await processarLote(
+        banco.cliente,
+        entrada(),
+        lote([inicioSet(), ev('SUBSTITUICAO', { equipe: 'A', trocas: [{ sai: 1, entra: 7 }, { sai: 2, entra: 8 }] })], 0),
+        ORIGEM,
+      ),
+    )
+    assert.equal(r.rejeitados.length, 0, JSON.stringify(r.rejeitados))
+    assert.equal(r.estado.contadores.A?.substituicoesRegulares, 2)
+    assert.deepEqual(r.estado.rotacao.A, [7, 8, 3, 4, 5, 6])
+    const duas = processado(
+      await processarLote(banco.cliente, entrada(), lote([ev('SUBSTITUICAO', { equipe: 'A', sai: 3, entra: 9, trocas: [{ sai: 4, entra: 10 }] })]), ORIGEM),
+    )
+    assert.equal(duas.rejeitados[0]?.codigo, 'RG-LOG-011', 'o payload é conferido evento a evento')
+    const r2 = processado(await processarLote(banco.cliente, entrada(), lote([ev('SUBSTITUICAO', { equipe: 'A' })]), ORIGEM))
+    assert.equal(r2.rejeitados[0]?.codigo, 'RG-LOG-011')
+  })
+
+  await caso('RG-SUB-007: lote com uma troca inválida é recusado inteiro e nada é gravado', async () => {
+    const banco = novoBanco()
+    processado(await processarLote(banco.cliente, entrada(), lote([inicioSet()], 0), ORIGEM))
+    const r = processado(
+      await processarLote(banco.cliente, entrada(), lote([ev('SUBSTITUICAO', { equipe: 'A', trocas: [{ sai: 1, entra: 7 }, { sai: 2, entra: 99 }] })]), ORIGEM),
+    )
+    assert.equal(r.aceitos.length, 0)
+    assert.equal(r.rejeitados[0]?.codigo, 'RG-FOR-009')
+    assert.equal(banco.linhas.length, 1)
+  })
+
+  await caso('RG-FOR-008: o servidor aplica a discrepância de papeleta e devolve a rotação refeita', async () => {
+    const banco = novoBanco()
+    const r = processado(
+      await processarLote(
+        banco.cliente,
+        entrada(),
+        lote([inicioSet(), ponto('B'), ponto('A'), ev('DISCREPANCIA_PAPELETA', { equipe: 'A', fase: 'DEPOIS_DO_INICIO', causa: 'POSICAO', momentoSeq: 3 })], 0),
+        ORIGEM,
+      ),
+    )
+    assert.equal(r.rejeitados.length, 0, JSON.stringify(r.rejeitados))
+    assert.deepEqual(r.estado.rotacao.A, [1, 2, 3, 4, 5, 6])
+    assert.equal(r.estado.saca, 'B')
+  })
+
+  await caso('RG-PRO-002: depois do WO o servidor ainda aceita o registro do protesto, mas não pontos', async () => {
+    const banco = novoBanco()
+    const r = processado(
+      await processarLote(
+        banco.cliente,
+        entrada(),
+        lote([inicioSet(), ev('PROTESTO_ANUNCIADO', { equipe: 'B' }), ev('WO', { ausente: 'B' }), ev('PROTESTO_REGISTRADO', { equipe: 'B', relato: 'Discordo.' }), ponto('A')], 0),
+        ORIGEM,
+      ),
+    )
+    assert.deepEqual(r.aceitos.map((a) => a.seq), [1, 2, 3, 4])
+    assert.equal(r.rejeitados[0]?.codigo, 'RG-WO-001')
+  })
+
+  await caso('RG-WO-002: com horário previsto e horário atual o servidor confere a tolerância do regulamento', () => {
+    const config = { ...configDaPartida({ setsPorPartida: 3 }), toleranciaWOMinutos: 20 }
+    const contexto = { elenco: entrada().contexto.elenco, horarioPrevisto: '2026-10-16T19:00:00.000Z' }
+    const wo = { clientEventId: randomUUID(), tipo: 'WO' as const, payload: { ausente: 'B' } }
+    const cedo = validarNovoEvento([], config, contexto, wo, '2026-10-16T19:10:00.000Z')
+    assert.equal(cedo.ok, false)
+    if (!cedo.ok) assert.equal(cedo.codigo, 'RG-WO-002')
+    assert.equal(validarNovoEvento([], config, contexto, wo, '2026-10-16T19:25:00.000Z').ok, true)
+    assert.equal(validarNovoEvento([], config, contexto, wo).ok, true, 'sem horário atual a conferência não é feita')
   })
 
   if (falhas.length > 0) {

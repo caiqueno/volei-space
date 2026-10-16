@@ -64,10 +64,52 @@ Códigos novos do servidor: `RG-LOG-007` desfazer deixaria o log inconsistente, 
 
 WO: `placarPartida` (presente vence, ausente 0 [M]) separado de `parciaisRegistrados` (sets jogados + sets de WO com o alvo de cada set), `setInterrompido` guardado, WO recusado depois do último set. `declararLiberoIncapaz` sem exigir redesignação. `OBSERVACAO` continua válida depois de WO/repetição.
 
-## Fora desta rodada (próxima)
+## Fora da rodada 2 (histórico; replay, lote, tolerância de WO, fechamento e protesto foram fechados na rodada 3, abaixo)
 
 - Aplicar a migration (pede `banco-de-dados` e aprovação), ampliar o CHECK de `tipo`, `recalcular_placar_partida` e materialização em `SetPartida`/`Partida`.
 - Tela/cliente falando com a rota; migração das súmulas em andamento (SNAPSHOT) e decisão de quando a rota nova substitui o PUT atual.
 - Motor ainda pendente: formação recalculada por replay após falta de rotação (hoje só `formacaoCorrigida`); substituições em lote por pedido (`trocas[]`, contando uma por jogador); primeira troca de líbero com papeleta conferida; tolerância de WO (RG-WO-002) exige o horário, que não está no evento; RG-LIB-004 só é conferido quando o evento traz o sacador ou o líbero está na posição I.
 - Itens [M] seguem configuráveis e sem teste que os fixe como oficiais: WO em melhor de 3, WO duplo, sanções mistas, saque em 0x0 após penalidade entre sets, placar exato do CJ-03.
 - Praia (RG-PRA), assinatura e fechamento (RG-FEC), protestos (RG-PRO), PDF e súmula anexa.
+
+
+## Rodada 3: pendências do motor fechadas (branch `feat/r3-motor-regras`)
+
+Estado: **implementado em código e testado; rota ainda desligada (`SUMULA_EVENTOS_ATIVO`)**. Nenhuma tela, rota (`src/app`), migration ou banco foi tocado. Os tipos de evento novos precisam, quando a migration for ampliada, entrar no CHECK de `tipo` da tabela (hoje todos vão como `SAQUE` com o tipo real em `payload._motor`, ver `mapeamento.ts`).
+
+### O que mudou
+
+- **Lote por pedido (RG-SUB-007)**: `SUBSTITUICAO` aceita `trocas: [{ sai, entra }]` (1 a 6) OU `sai`/`entra`, nunca as duas formas. Cada jogador que entra conta 1 no limite do set (nos dois perfis); tudo ou nada; o "um pedido por interrupção" vale entre pedidos, não dentro do pedido. Excepcional segue 1 jogador por pedido.
+- **Replay do rodízio (RG-ROT-001/002)**: a reversão (falta de rotação, discrepância de papeleta) refaz quem saca e as duas formações a partir da formação inicial do set, reaplicando só os pontos vivos e as trocas (substituição, líbero, redesignação) em ordem (`reconstruirRodizio`). `formacaoCorrigida` informada pelo árbitro continua prevalecendo para a equipe faltosa. O placar exato após o cancelamento continua [M] (CJ-03) e **nenhum teste o fixa**.
+- **Papeleta (RG-FOR-006..009)**: `papeleta.ts` + evento `DISCREPANCIA_PAPELETA { equipe, fase, causa, jogador?, momentoSeq?, pontoDoRallyDaFaltaSeq?, formacaoCorrigida? }`. ANTES_DO_SET: sem sanção, sem ponto, rotação intacta. DEPOIS_DO_INICIO: reversão seletiva + ponto e saque ao adversário (RG-FOR-008; RG-FOR-009 para jogador fora da relação nominal). Segundo `SET_INICIADO` do mesmo set e `formacaoCorrigida` que muda jogador antes do set voltam `RG-FOR-006`. Fica de fora: perda de sets anteriores (0x25) quando o não registrado entrou em set anterior.
+- **Elenco e líberos (RG-ELE-001/004/005, RG-LIB-001)**: `elenco.ts` (`validarElenco`, `capitaoEmJogo`, `validarDesignacaoDeCapitao`). Evento `CAPITAO_EM_JOGO`; `ContextoDerivacao.capitao` opcional; `PlacarDerivado.capitaesEmJogo`. No perfil, `maxJogadoresElenco` e `exigeDoisLiberosAcimaDe12` são **opt-in** (campos opcionais; `PERFIL_FIVB_COMPETICAO` os liga: 14 e 2 líberos acima de 12). Sem o campo o servidor não limita o elenco no `SET_INICIADO`.
+- **Protesto (RG-PRO-001..003)**: eventos `PROTESTO_ANUNCIADO`, `PROTESTO_REGISTRADO` (com relato) e `PROTESTO_DESISTIDO`; `PlacarDerivado.protestos`. Registro e desistência valem depois do fim (inclusive WO). O motor **não decide o mérito** (RG-PRO-004): status, vencedor e sets não mudam. Exigir o anúncio prévio é o item [M] "não aceite": `ConfigPartida.protestoExigeAnuncio` (ausente = exige); o teste cobre as duas posições da flag, sem fixar a padrão como oficial.
+- **Fechamento (RG-FEC-004, RG-SET-007/008)**: `calcularFechamento(log, config, contexto?)` devolve por set (placar, tempos, substituições, sanções por equipe, início, fim, duração) e totais da partida (tempos, substituições, sanções incluindo sets anulados, pontos, sets, início, fim, duração total com intervalos `"2h00"`, soma dos sets). Horários só existem quando o evento traz `criadoEm`; sem ele ficam `null`. `validarFechamento` recusa partida não terminada, log inconsistente e fim antes do início. Contadores novos: `contadores.{A,B}.sancoes` (sanção entre sets conta no set seguinte) e `SetDerivado.rallysRepetidos`.
+- **RALLY_REPETIDO (RG-INT-001/002)**: payload `{ motivo? }` (`ACIDENTE_COM_BOLA_EM_JOGO`, `INTERFERENCIA_EXTERNA`, `OUTRO`). Sem ponto, mesmo sacador, formações intactas, e **não conta como rally concluído** (não libera novo pedido de substituição nem nova troca de líbero).
+- **Tolerância de WO (RG-WO-002)**: `ConfigPartida.toleranciaWOMinutos` e `toleranciaWODuploMinutos` (do regulamento; os 30 e 15 minutos do Guia são só exemplos e **não são padrão**). `avaliarToleranciaWO(config, { horarioPrevisto, agora, duplo })` é pura. `validarNovoEvento(log, config, contexto, evento, agora?)` aplica a regra ao `WO` antes de qualquer set quando recebe `agora` e `contexto.horarioPrevisto`; a rota atual não passa `agora`, então a conferência fica inativa até a rota ser ligada ao relógio do servidor.
+
+### Itens [M] / NÃO CONFIRMADOS: continuam configuráveis e sem teste que os fixe
+
+WO em melhor de 3, WO duplo, sanções de categorias diferentes no mesmo membro, saque em 0x0 após penalidade entre sets, placar exato do CJ-03, líbero redesignado na linha, contagem de substituição por jogador (aqui aplicada por ordem da rodada, via `CONFIG_ITENS_M.substituicaoContaPorJogador`, que segue decorativa), tolerância de WO e exigência de anúncio de protesto.
+
+### Tabela final: regra -> arquivo -> teste
+
+| Regra | Arquivo (`src/lib/…`) | Teste (`scripts/…`) |
+| --- | --- | --- |
+| RG-SUB-007 (lote por pedido) | `regras-volei/substituicoes.ts` (`aplicarSubstituicaoLote`), `regras-volei/eventos.ts` (`trocasDoPayload`), `sumula-eventos/esquema.ts`, `servico.ts` | `regras-volei-substituicoes.test.ts`, `regras-volei-eventos.test.ts`, `sumula-eventos.test.ts` |
+| RG-ROT-001/002 (replay) | `regras-volei/rotacao.ts` (`reconstruirRodizio`), `eventos.ts` (`reverterEPontuar`) | `regras-volei-eventos.test.ts` |
+| RG-FOR-006 | `regras-volei/papeleta.ts`, `eventos.ts` | `regras-volei-papeleta.test.ts` |
+| RG-FOR-007/008/009 | `regras-volei/papeleta.ts`, `eventos.ts`, `sumula-eventos/servico.ts` | `regras-volei-papeleta.test.ts`, `sumula-eventos.test.ts` |
+| RG-ELE-001/004 | `regras-volei/elenco.ts`, `config.ts`, `sumula-eventos/servico.ts` | `regras-volei-elenco.test.ts` |
+| RG-ELE-005 | `regras-volei/elenco.ts`, `eventos.ts` (`CAPITAO_EM_JOGO`) | `regras-volei-elenco.test.ts`, `regras-volei-papeleta.test.ts` |
+| RG-LIB-001 | `regras-volei/libero.ts`, `config.ts` (`PERFIL_FIVB_COMPETICAO`), `servico.ts` | `regras-volei-elenco.test.ts`, `regras-volei-libero.test.ts` |
+| RG-PRO-001..003 | `regras-volei/eventos.ts`, `sumula-eventos/esquema.ts`, `servico.ts` | `regras-volei-protesto.test.ts`, `sumula-eventos.test.ts` |
+| RG-INT-001/002 (rally repetido) | `regras-volei/eventos.ts` | `regras-volei-protesto.test.ts`, `regras-volei-eventos.test.ts` |
+| RG-FEC-004, RG-SET-007/008 | `regras-volei/fechamento.ts` | `regras-volei-fechamento.test.ts` |
+| RG-WO-002 (tolerância) | `regras-volei/wo-interrupcao.ts`, `config.ts`, `sumula-eventos/servico.ts` | `regras-volei-wo-interrupcao.test.ts`, `sumula-eventos.test.ts` |
+
+Agregador: `npm run test:regras-volei-r3`.
+
+### Fora desta rodada
+
+Ordem de assinatura (RG-FEC-002) e capitão ausente (RG-FEC-003); perda de sets anteriores no RG-FOR-009; passar `agora` e `horarioPrevisto` da partida a partir da rota; ampliar o CHECK de `tipo` na tabela; praia (RG-PRA); PDF e súmula anexa; RG-TMP-003/005/006; RG-LIB-014; os itens [M] acima.

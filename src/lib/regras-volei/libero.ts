@@ -26,7 +26,14 @@ export interface ContextoTrocaLibero {
 }
 
 /** RG-LIB-001: até 2 líberos, da relação nominal (FIVB obriga 2 com mais de 12 jogadores). */
-export function validarRegistroDeLiberos(liberos: number[], elenco: number[]): ResultadoRegra {
+export function validarRegistroDeLiberos(
+  liberos: number[],
+  elenco: number[],
+  opcoes: { exigeDoisAcimaDe12?: boolean } = {},
+): ResultadoRegra {
+  if (opcoes.exigeDoisAcimaDe12 && elenco.length > 12 && new Set(liberos).size < 2) {
+    return bloqueio('RG-LIB-001', `Com ${elenco.length} jogadores (mais de 12), esta competição exige 2 líberos registrados.`)
+  }
   if (liberos.length > 2) return bloqueio('RG-LIB-001', 'Cada equipe pode ter no máximo 2 líberos.')
   if (new Set(liberos).size !== liberos.length) return bloqueio('RG-LIB-001', 'Líbero repetido.')
   const fora = liberos.find((l) => !elenco.includes(l))
