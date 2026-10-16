@@ -109,6 +109,11 @@ Marcar cada linha só quando o ensaio local passar. "Gate" é a condição extra
 | 0024 | `meu_time_organizador_clube` | [ ] 5 tabelas com RLS e sem grant | Aprovação; fora de rodada | Drop (dados novos se perdem) |
 | 0025 | `meu_time_atleta` | [ ] PII só em `AtletaDocumento`; índices únicos de hash | Idem; LGPD de menores revisada | Drop |
 | 0026 | `meu_time_inscricao` | [ ] status só os 5 novos; unique ignora `REMOVIDA`; remover inscrição libera atleta (trigger); 2 capitães / número repetido falham | Idem | Drop das 5 tabelas e 2 funções |
+| 0027 | `meu_time_comissao_time` (Rodada 3) | [ ] `ComissaoTime` com RLS e sem grant para anon/authenticated; função restrita aos 5 valores; `InscricaoComissao.comissaoTimeId` nullable com FK `set null` | Depois de 0024 e 0026 | Drop da coluna e da tabela (dados novos se perdem) |
+| 0028 | `meu_time_atleta_lote_posicao` (Rodada 3) | [ ] `Atleta.posicao`, `numeroPreferido` (0..99); origem `LOTE` aceita; nascimento nulo só com `LOTE`/`MIGRACAO`; conferir o nome real do CHECK de origem (`Atleta_origem_check`) | Depois de 0025 | Recusa se houver atleta `LOTE`; apaga as 2 colunas |
+| 0029 | `sumula_evento_tipos_motor` (Rodada 3) | [ ] CHECK `SumulaEvento_tipo_check` aceita os tipos de `src/lib/regras-volei/eventos.ts` e os da 0023; `payload` documentado | Depois de 0023; conferir o nome real do CHECK | Recusa se houver tipo novo gravado (tabela append-only) |
+
+Rascunho EXPERIMENTAL, fora da sequência e do teste de numeração: `supabase/pendentes/experimental/registrar_inscricao_meu_time.sql` (função `registrar_inscricao_meu_time(p_payload jsonb)`, cria `Inscricao`, `InscricaoAtleta` e `InscricaoComissao` numa transação; não revalida regras de negócio; execute só para `service_role`). Nunca executada: ensaiar em preview antes de o backend trocar a compensação por ela. As regras de elenco continuam no servidor.
 
 ## 7. Isolamento entre organizadores e exposição de dados pessoais (pontos a decidir)
 

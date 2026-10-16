@@ -27,6 +27,9 @@ Convenção: `20261017NNNN_nome.sql` em `supabase/migrations/`, reversão de mes
 | 0024 | `202610170024_meu_time_organizador_clube.sql` | M3: `Organizador`, `MembroOrganizador`, `Clube`, `TimeClube`, `MembroEquipe`, `Liga.organizadorUuid` | Aditiva | Baixo | Não |
 | 0025 | `202610170025_meu_time_atleta.sql` | M4a: `Atleta`, `AtletaDocumento`, `VinculoAtletaClube` | Aditiva | Baixo | Não |
 | 0026 | `202610170026_meu_time_inscricao.sql` | M4b: `RegraElenco`, `Inscricao`, `InscricaoAtleta`, `InscricaoComissao`, `PedidoTroca` | Aditiva | Baixo | Não |
+| 0027 | `202610170027_meu_time_comissao_time.sql` | R3: `ComissaoTime` e `InscricaoComissao.comissaoTimeId` | Aditiva | Baixo | Não |
+| 0028 | `202610170028_meu_time_atleta_lote_posicao.sql` | R3: `Atleta.posicao`, `numeroPreferido`, origem `LOTE` | Afrouxa CHECK | Baixo | Não |
+| 0029 | `202610170029_sumula_evento_tipos_motor.sql` | R3: CHECK de tipo de `SumulaEvento` com os tipos do motor | Afrouxa CHECK | Baixo | Não |
 
 Observação sobre a ordem pedida pelo plano (5.2: M1, M2, M6, M7) e a numeração: M5 (0023) e M3/M4 (0024 a 0026) vêm depois de M7 por serem aditivas e sem urgência de segurança. M5 e M3/M4 não dependem de M6/M7 e podem ser aplicadas antes delas em preview.
 
@@ -202,6 +205,7 @@ Ordem em produção (cada linha só com aprovação explícita, fora de rodada):
 | 9 | 0022 (DESTRUTIVO) | Backup de `Pagamento`/`Partida` com contagem e checksum; P7 sem pagamento em andamento; Q8; decisão sobre arredondamento; código tolerante a `numeric`. Janela própria. |
 | 10 | 0023 (M5) | Ensaio dos testes de imutabilidade e da RPC em preview. O backend só adota a RPC depois. |
 | 11 | 0024, 0025, 0026 (M3, M4) | Ensaio em preview; decisões pendentes da seção 1 respondidas. |
+| 12 | 0027, 0028, 0029 (Rodada 3) | Depois de 0026, 0025 e 0023 respectivamente; conferir os nomes reais dos CHECKs em preview. |
 
 Regras de segurança do runner:
 - 0005 a 0017 são **um comando sem transação** (`create index concurrently`). Se a CLI embrulhar o arquivo em transação (a verificar em preview), aplicar cada comando pelo SQL Editor ou `psql` e registrar com `supabase migration repair --status applied <versão>`. Índice que falhou no meio fica `INVALID`: `select indexrelid::regclass from pg_index where not indisvalid;` e `drop index concurrently` antes de refazer.
