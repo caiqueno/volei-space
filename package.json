@@ -125,7 +125,8 @@
     "test:projecoes-publicas": "node scripts/with-ts-node.mjs scripts/projecoes-publicas.test.ts",
     "test:anon-guard": "node scripts/with-ts-node.mjs scripts/anon-client-guard.test.ts",
     "test:uploads": "node scripts/with-ts-node.mjs scripts/uploads-assinados.test.ts",
-    "test:inscricao-mascara": "node scripts/with-ts-node.mjs scripts/inscricao-mascara.test.ts"
+    "test:inscricao-mascara": "node scripts/with-ts-node.mjs scripts/inscricao-mascara.test.ts",
+    "test:uploads-tipos-novos": "node scripts/with-ts-node.mjs scripts/uploads-tipos-novos.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

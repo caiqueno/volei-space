@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { TIPOS_UPLOAD, tipoDeUploadValido, type TipoUpload } from '@/lib/uploads/config'
+import { TIPOS_UPLOAD, tipoDeEquipe, type TipoUpload } from '@/lib/uploads/config'
 
 // Caminho do objeto no bucket: <tipo>/liga-<ligaId>/equipe-<equipeId>/<uuid>.<ext>
 // O dono (campeonato e equipe) está no próprio caminho, então a leitura autoriza pelo
@@ -19,13 +19,41 @@ export function montarCaminhoUpload(entrada: { tipo: TipoUpload; ligaId: number;
   return `${TIPOS_UPLOAD[entrada.tipo].pasta}/liga-${entrada.ligaId}/equipe-${entrada.equipeId}/${id}.${entrada.extensao}`
 }
 
+const ID_DONO = /^[A-Za-z0-9_-]{1,64}$/
+
+/**
+ * Caminhos dos tipos que não são de equipe existente, sempre amarrados ao dono:
+ * - candidatura: <pasta>/anonimo/<uuid>.<ext> (cadastro sem sessão) ou <pasta>/usuario-<id>/<uuid>.<ext>;
+ * - liga: ligas/<ligaId>/<uuid>.<ext> (formato que as rotas de galeria já reconhecem);
+ * - organizador: <pasta>/organizador-<id>/<uuid>.<ext>.
+ * O nome original do arquivo nunca entra; o dono vem da sessão/banco, nunca do corpo.
+ */
+export function montarCaminhoDono(entrada: { tipo: TipoUpload; extensao: string; id?: string; ligaId?: number; usuarioId?: string | null; organizadorId?: string }) {
+  const config = TIPOS_UPLOAD[entrada.tipo]
+  const id = entrada.id ?? randomUUID()
+  let dono: string
+  if (config.escopo === 'liga') {
+    if (!Number.isInteger(entrada.ligaId) || (entrada.ligaId as number) <= 0) throw new Error('Campeonato inválido para o caminho.')
+    dono = String(entrada.ligaId)
+  } else if (config.escopo === 'organizador') {
+    if (!entrada.organizadorId || !ID_DONO.test(entrada.organizadorId)) throw new Error('Organizador inválido para o caminho.')
+    dono = `organizador-${entrada.organizadorId}`
+  } else if (config.escopo === 'candidatura') {
+    if (entrada.usuarioId && !ID_DONO.test(entrada.usuarioId)) throw new Error('Usuário inválido para o caminho.')
+    dono = entrada.usuarioId ? `usuario-${entrada.usuarioId}` : 'anonimo'
+  } else {
+    throw new Error('Tipo de equipe usa montarCaminhoUpload.')
+  }
+  return `${config.pasta}/${dono}/${id}.${entrada.extensao}`
+}
+
 /** Lê um caminho no formato novo. Devolve null para qualquer outra coisa (inclui `..`, barras extras e legado). */
 export function lerCaminhoUpload(caminho: unknown): CaminhoUpload | null {
   if (typeof caminho !== 'string' || caminho.length > 200) return null
   const achado = PADRAO.exec(caminho)
   if (!achado) return null
   const [, tipo, ligaId, equipeId, arquivo] = achado
-  if (!tipoDeUploadValido(tipo)) return null
+  if (!tipoDeEquipe(tipo)) return null
   return { tipo, ligaId: Number(ligaId), equipeId: Number(equipeId), arquivo }
 }
 

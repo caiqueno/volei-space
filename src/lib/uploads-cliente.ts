@@ -2,7 +2,14 @@
 // Fluxo: POST /api/uploads/assinar -> PUT do arquivo na URL assinada -> usar o caminho devolvido.
 // Não importa o client anon do Supabase. As mensagens de erro são feitas para o usuário final.
 
-export type TipoUploadCliente = 'atleta-documento' | 'atleta-foto-rosto' | 'equipe-emblema'
+export type TipoUploadCliente =
+  | 'atleta-documento'
+  | 'atleta-foto-rosto'
+  | 'equipe-emblema'
+  | 'candidatura-emblema'
+  | 'quadra-foto'
+  | 'galeria-campeonato'
+  | 'organizador-logo'
 
 export type ResultadoEnvio = {
   bucket: string
@@ -45,11 +52,11 @@ async function lerJson(resposta: Response): Promise<{ data?: Record<string, unkn
 /** Mensagem amigável para uma falha da rota de assinatura. Só repassa o texto do servidor quando ele é seguro. */
 export function mensagemDeFalha(status: number, textoServidor?: string): string {
   if (status === 401) return 'Sua sessão expirou. Entre de novo para enviar arquivos.'
-  if (status === 403) return 'Você não tem permissão para enviar arquivos desta equipe.'
+  if (status === 403) return 'Você não tem permissão para enviar este arquivo.'
   if (status === 413) return textoServidor || 'O arquivo é maior que o permitido.'
   if (status === 415) return 'Tipo de arquivo não permitido. Use imagem (JPG, PNG ou WebP) ou PDF quando for documento.'
   if (status === 429) return 'Muitos envios em pouco tempo. Aguarde um pouco e tente de novo.'
-  if (status === 404) return 'Equipe não encontrada para este envio.'
+  if (status === 404) return 'Equipe ou campeonato não encontrado para este envio.'
   return MSG_GENERICA
 }
 
@@ -64,18 +71,18 @@ export function referenciaPrivada(urlAssinada: string, bucket: string, caminho: 
 }
 
 export async function enviarArquivoAssinado(
-  entrada: { tipo: TipoUploadCliente; equipeId: number; arquivo: Blob & { type: string; size: number } },
+  entrada: { tipo: TipoUploadCliente; equipeId?: number; ligaId?: number; arquivo: Blob & { type: string; size: number } },
   opcoes: Opcoes = {},
 ): Promise<ResultadoEnvio> {
   const chamar: FetchLike = opcoes.fetchImpl ?? ((url, init) => fetch(url, init))
-  const { tipo, equipeId, arquivo } = entrada
+  const { tipo, equipeId, ligaId, arquivo } = entrada
 
   let resposta: Response
   try {
     resposta = await chamar('/api/uploads/assinar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, equipeId, mime: arquivo.type, tamanho: arquivo.size }),
+      body: JSON.stringify({ tipo, equipeId, ligaId, mime: arquivo.type, tamanho: arquivo.size }),
     })
   } catch {
     throw new ErroUpload(MSG_REDE)
