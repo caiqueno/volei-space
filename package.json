@@ -81,6 +81,7 @@
     "test:auth-security": "node scripts/with-ts-node.mjs scripts/auth-security.test.ts",
     "test:rate-limit": "node scripts/with-ts-node.mjs scripts/rate-limit.test.ts",
     "test:organizador-liberado": "node scripts/with-ts-node.mjs scripts/organizador-liberado.test.ts",
+    "test:pagamento-simulado": "node scripts/with-ts-node.mjs scripts/pagamento-simulado.test.ts",
     "test:sessao-gestao": "node scripts/with-ts-node.mjs scripts/sessao-gestao.test.ts",
     "test:import-winners": "node scripts/import-winners.test.mjs",
     "seed:simulacao": "node scripts/with-ts-node.mjs scripts/recriar-simulacao.ts",

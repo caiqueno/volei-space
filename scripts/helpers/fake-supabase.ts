@@ -18,7 +18,8 @@ export function criarBanco(tabelas: Record<string, Linha[]>, opcoes: OpcoesBanco
     const executar = () => {
       const tabela = tabelas[nome]
       if (!tabela) return { data: null, error: { code: '42P01', message: `relation "${nome}" does not exist` } }
-      const ausente = (opcoes.colunasAusentes?.[nome] ?? []).find((c) => colunasPedidas.split(',').includes(c))
+      const citadas = operacao === 'select' ? colunasPedidas.split(',') : Object.keys(valores)
+      const ausente = (opcoes.colunasAusentes?.[nome] ?? []).find((c) => citadas.includes(c))
       if (ausente) return { data: null, error: { code: '42703', message: `column ${nome}.${ausente} does not exist` } }
       const alvo = tabela.filter((l) => filtros.every((f) => f(l)))
       if (operacao === 'select') return { data: alvo, error: null }

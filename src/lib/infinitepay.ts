@@ -79,8 +79,12 @@ export function validateWebhookSignature(
   const expected = createHmac('sha256', webhookSecret)
     .update(payload)
     .digest('hex')
-  const received = Buffer.from(signature)
-  const expectedBuffer = Buffer.from(expected)
+  // O HMAC-SHA256 em hexadecimal tem sempre 64 caracteres. Qualquer outro
+  // formato ou tamanho é recusado antes do timingSafeEqual, que lança erro
+  // quando os buffers têm tamanhos diferentes.
+  if (typeof signature !== 'string' || !/^[0-9a-f]{64}$/i.test(signature)) return false
+  const received = Buffer.from(signature.toLowerCase(), 'hex')
+  const expectedBuffer = Buffer.from(expected, 'hex')
   if (received.length !== expectedBuffer.length) return false
 
   try {

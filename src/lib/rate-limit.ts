@@ -97,7 +97,6 @@ export class MemoryRateLimitStore implements RateLimitStore {
 }
 
 type ClienteRateLimit = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from(tabela: string): any
 }
 
