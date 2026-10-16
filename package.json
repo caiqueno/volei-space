@@ -111,7 +111,8 @@
     "test:regras-volei-eventos": "node scripts/with-ts-node.mjs scripts/regras-volei-eventos.test.ts",
     "test:regras-volei": "npm run test:regras-volei-set && npm run test:regras-volei-rotacao && npm run test:regras-volei-substituicoes && npm run test:regras-volei-libero && npm run test:regras-volei-sancoes && npm run test:regras-volei-wo && npm run test:regras-volei-eventos",
     "test:sumula-acesso": "node scripts/with-ts-node.mjs scripts/sumula-acesso.test.ts",
-    "test:projecoes-publicas": "node scripts/with-ts-node.mjs scripts/projecoes-publicas.test.ts"
+    "test:projecoes-publicas": "node scripts/with-ts-node.mjs scripts/projecoes-publicas.test.ts",
+    "test:anon-guard": "node scripts/with-ts-node.mjs scripts/anon-client-guard.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

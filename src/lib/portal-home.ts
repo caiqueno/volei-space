@@ -2,7 +2,7 @@
 import { getCreatorLeagueScope } from '@/lib/league-scope'
 import { buscarAgendaCampeonato } from '@/lib/agenda-publica'
 import { agruparPartidasPublicas, type GruposPartidaPublica } from '@/lib/partida-publica'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin, supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sync'
