@@ -20,21 +20,12 @@ const EXCECOES: Record<string, string> = {
   'src/lib/use-banco-ao-vivo.ts': 'hook de cliente (realtime)',
   // Uploads diretos do navegador. Saem quando migrarem para /api/uploads/assinar (docs/analise/21).
   'src/app/cadastro/page.tsx': 'cliente: upload direto',
-  'src/app/capitao/page.tsx': 'cliente: upload direto',
   'src/components/candidate/CandidateEditForm.tsx': 'cliente: upload direto',
   'src/components/galeria/GaleriaOrganizador.tsx': 'cliente: upload direto',
   'src/components/inscricao-rapida/FormularioInscricaoRapida.tsx': 'cliente: upload direto',
   'src/components/painel/organizador/OrganizacaoForm.tsx': 'cliente: upload direto',
   'src/components/parametrizacao/sections/informacoes/InformacoesWizard.tsx': 'cliente: upload direto',
-  // Páginas e componentes que só leem isSupabaseConfigured. Trocar o import para
-  // '@/lib/supabase-config' (tarefa do frontend); não consultam dados pelo client anon.
-  'src/app/admin/page.tsx': 'pendente: trocar import por supabase-config',
-  'src/app/campeonatos/page.tsx': 'pendente: trocar import por supabase-config',
-  'src/app/campeonatos/[slug]/page.tsx': 'pendente: trocar import por supabase-config',
-  'src/app/equipes/[slug]/page.tsx': 'pendente: trocar import por supabase-config',
-  'src/app/fase-mata-mata/page.tsx': 'pendente: trocar import por supabase-config',
-  'src/app/jogos/page.tsx': 'pendente: trocar import por supabase-config',
-  'src/components/portal/JogosPublicos.tsx': 'pendente: trocar import por supabase-config',
+  // (Páginas que só liam isSupabaseConfigured já usam supabase-config e saíram da lista.)
 }
 
 /** Área de servidor: rotas de API, libs, utilitários, middleware, route.ts e sitemap. */
