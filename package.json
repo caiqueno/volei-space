@@ -93,7 +93,8 @@
     "test:semi-provisoria": "node scripts/with-ts-node.mjs scripts/semi-provisoria.test.ts",
     "test:ida-volta": "node scripts/with-ts-node.mjs scripts/ida-volta.test.ts",
     "test:conflito-agenda": "node scripts/with-ts-node.mjs scripts/conflito-agenda.test.ts",
-    "test:ao-vivo-conexao": "node scripts/with-ts-node.mjs scripts/ao-vivo-conexao.test.ts",
+    "test:atribuicao-ponto": "node scripts/with-ts-node.mjs scripts/atribuicao-ponto.test.ts",
+    "test:ao-vivo-conexao":"node scripts/with-ts-node.mjs scripts/ao-vivo-conexao.test.ts",
     "test:elenco-inscricao":"node scripts/with-ts-node.mjs scripts/elenco-inscricao.test.ts",
     "test:stories-instagram":"node scripts/with-ts-node.mjs scripts/stories-instagram.test.ts"
   },
