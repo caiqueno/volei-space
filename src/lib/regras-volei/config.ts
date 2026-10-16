@@ -73,10 +73,15 @@ export function configMelhorDe3(parcial: Partial<ConfigPartida> = {}): ConfigPar
 /* Itens [M]: constantes configuráveis, SEM teste automatizado.       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * ATENÇÃO: só `sancaoCombinacaoCategorias` (lida como `void`, sem efeito) e `faltaRotacaoPontoAdversario`
+ * têm leitor. Os demais campos são CONSTANTES DECORATIVAS: documentam a decisão pendente, mas nenhum
+ * código os lê ainda. Mudar o valor aqui NÃO muda o comportamento do motor.
+ */
 export const CONFIG_ITENS_M = {
   /**
    * TODO [M] RG-WO-001/D9: pontuação do WO em melhor de 3 e no regulamento estadual.
-   * Hoje o resultado oficial do WO é "maioria de sets para o presente, 25x0 por set".
+   * Hoje o resultado de súmula do WO é "maioria de sets para o presente (ausente com 0), alvo x 0 por set não jogado".
    */
   woResultadoOficial: 'MAIORIA_25x0' as 'MAIORIA_25x0',
   /**

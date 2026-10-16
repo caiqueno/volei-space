@@ -17,12 +17,12 @@ import {
   registrarRallyConcluido,
   type EstadoEquipe,
 } from './estado-equipe'
-import { aplicarTrocaLibero, aplicarRedesignacaoLibero, type MomentoDaTroca } from './libero'
-import { aplicarRally, calcularReversaoFaltaRotacao, type PontoLog } from './rotacao'
-import type { CategoriaSancao, SancaoRegistrada, TipoSancao } from './sancoes'
-import { alvoDoSet, deveTrocarDeLado, ehSetDecisivo, partidaEncerrada, setEncerrado } from './set-partida'
+import { aplicarTrocaLibero, aplicarRedesignacaoLibero, validarSaqueDoLibero, type MomentoDaTroca } from './libero'
+import { aplicarRally, calcularReversaoFaltaRotacao, validarSacador, type PontoLog } from './rotacao'
+import { avaliarSancao, registrarSancao, type CategoriaSancao, type SancaoRegistrada } from './sancoes'
+import { alvoDoSet, deveTrocarDeLado, ehSetDecisivo, partidaEncerrada, setEncerrado, validarPedidoDeTempo } from './set-partida'
 import { aplicarSubstituicaoExcepcional, aplicarSubstituicaoRegular, type MotivoExcepcional } from './substituicoes'
-import { resolverEquipeIncompleta, resolverWO, type ResultadoWO } from './wo-interrupcao'
+import { decidirInterrupcao, resolverEquipeIncompleta, resolverWO, type ResultadoWO } from './wo-interrupcao'
 import {
   bloqueio,
   outraEquipe,
@@ -311,6 +311,8 @@ export function derivarPlacar(
 
   // Estado completo das equipes (só com o contexto da relação nominal).
   let eq: EstadosDerivados | null = null
+  const historicoSancoes: SancaoRegistrada[] = []
+  let minutosInterrompidos = 0
   const sincronizarQuadra = () => {
     if (!eq || !st.saque) return
     eq.A = { ...eq.A, emQuadra: [...st.saque.formacaoA] }
@@ -377,20 +379,19 @@ export function derivarPlacar(
         sets.push(set)
         st.saque = { formacaoA: [...p.formacaoA], formacaoB: [...p.formacaoB], saca: p.saqueInicial }
         if (contexto) {
-          const sancoes: SancaoRegistrada[] = eq?.sancoes ?? []
-          const novo = (equipe: Equipe, formacao: number[], liberos: number[] | undefined): EstadoEquipe => {
+                    const novo = (equipe: Equipe, formacao: number[], liberos: number[] | undefined): EstadoEquipe => {
             const elenco = [...contexto.elenco[equipe]]
             const base = eq
               ? iniciarNovoSet(eq[equipe], formacao)
               : criarEstadoEquipe({ elenco, liberos: (liberos ?? []).filter((l) => elenco.includes(l)), formacaoInicial: formacao })
             // Expulsão aplicada entre sets vale no set que começa agora (RG-SAN-010).
-            const expulsos = sancoes
+            const expulsos = historicoSancoes
               .filter((s) => s.equipe === equipe && s.sancao === 'EXPULSAO' && s.set === p.numeroSet)
               .map((s) => idDoMembro(s.membro))
               .filter((j): j is number => j !== null)
             return { ...base, expulsosNoSet: expulsos }
           }
-          eq = { A: novo('A', p.formacaoA, p.liberosA), B: novo('B', p.formacaoB, p.liberosB), sancoes }
+          eq = { A: novo('A', p.formacaoA, p.liberosA), B: novo('B', p.formacaoB, p.liberosB), sancoes: historicoSancoes }
         }
         for (const equipePunida of pontosPendentes.splice(0)) {
           concedePonto(set, e.seq, outraEquipe(equipePunida), 'PENALIDADE')
@@ -402,6 +403,15 @@ export function derivarPlacar(
         if (!set || set.encerrado || !st.saque) {
           rejeitar(e.seq, 'RG-SET-001', 'Ponto lançado sem set em andamento.')
           break
+        }
+        // Ordem de saque e saque de líbero são conferidos na derivação também: o servidor não confia no cliente.
+        if (e.payload.sacador !== undefined) {
+          const ordem = validarSacador(st.saque, e.payload.sacador)
+          if (!ordem.ok) rejeitar(e.seq, ordem.codigo, ordem.mensagem)
+        }
+        if (eq) {
+          const saqueLibero = validarSaqueDoLibero(eq[st.saque.saca])
+          if (!saqueLibero.ok) rejeitar(e.seq, saqueLibero.codigo, saqueLibero.mensagem)
         }
         concedePonto(set, e.seq, e.payload.equipe, 'RALLY')
         break
@@ -418,24 +428,37 @@ export function derivarPlacar(
       case 'SANCAO': {
         const set = atual()
         const p = e.payload
+        // O servidor é a autoridade: a sanção e o ponto são recalculados a partir do histórico da partida.
+        const pedido = {
+          equipe: p.equipe,
+          membro: p.membro,
+          categoria: p.categoria as CategoriaSancao,
+          set: set?.numero ?? 1,
+          entreSets: p.entreSets === true,
+        }
+        const avaliada = avaliarSancao(historicoSancoes, pedido)
+        if (!avaliada.ok) {
+          rejeitar(e.seq, avaliada.codigo, avaliada.mensagem)
+          break
+        }
+        if (avaliada.sancao !== p.sancao || avaliada.pontoParaAdversario !== p.pontoParaAdversario) {
+          rejeitar(
+            e.seq,
+            avaliada.codigo,
+            `A sanção gravada (${p.sancao}) não confere com a calculada (${avaliada.sancao}); vale a calculada.`,
+          )
+        }
+        historicoSancoes.push(registrarSancao(pedido, avaliada))
         if (eq) {
           const jogador = idDoMembro(p.membro)
-          const sancao = p.sancao as TipoSancao
-          eq.sancoes.push({
-            equipe: p.equipe,
-            membro: p.membro,
-            categoria: p.categoria as CategoriaSancao,
-            sancao,
-            set: (set?.numero ?? 0) + (p.entreSets ? 1 : 0) || 1,
-          })
-          if (jogador !== null && sancao === 'EXPULSAO' && !p.entreSets && !eq[p.equipe].expulsosNoSet.includes(jogador)) {
+          if (jogador !== null && avaliada.sancao === 'EXPULSAO' && !p.entreSets && !eq[p.equipe].expulsosNoSet.includes(jogador)) {
             eq[p.equipe] = { ...eq[p.equipe], expulsosNoSet: [...eq[p.equipe].expulsosNoSet, jogador] }
           }
-          if (jogador !== null && sancao === 'DESQUALIFICACAO' && !eq[p.equipe].desqualificados.includes(jogador)) {
+          if (jogador !== null && avaliada.sancao === 'DESQUALIFICACAO' && !eq[p.equipe].desqualificados.includes(jogador)) {
             eq[p.equipe] = { ...eq[p.equipe], desqualificados: [...eq[p.equipe].desqualificados, jogador] }
           }
         }
-        if (p.pontoParaAdversario) {
+        if (avaliada.pontoParaAdversario) {
           if (p.entreSets || !set || set.encerrado || !st.saque) pontosPendentes.push(p.equipe)
           else concedePonto(set, e.seq, outraEquipe(p.equipe), 'PENALIDADE')
         }
@@ -536,6 +559,13 @@ export function derivarPlacar(
           rejeitar(e.seq, 'RG-TMP-001', 'Tempo pedido sem set em andamento.')
           break
         }
+        const limiteTempo = validarPedidoDeTempo({
+          temposUsados: set.contadores[e.payload.equipe].tempos,
+          limite: config.perfil.temposPorSet,
+          bolaForaDeJogo: true,
+          antesDoApito: true,
+        })
+        if (!limiteTempo.ok) rejeitar(e.seq, limiteTempo.codigo, limiteTempo.mensagem)
         set.contadores[e.payload.equipe].tempos += 1
         break
       }
@@ -563,13 +593,33 @@ export function derivarPlacar(
           seq: e.seq,
           texto: `INTERRUPÇÃO DE ${e.payload.minutos} MINUTOS: ${e.payload.motivo.toUpperCase()}`,
         })
-        if (e.payload.acao === 'REPETIR_PARTIDA') aRepetir = true
+        minutosInterrompidos += e.payload.minutos
+        // O servidor decide pela soma das paralisações (RG-INT-005); a ação do cliente só confirma.
+        const decisao = decidirInterrupcao({
+          minutosTotaisDeParalisacao: minutosInterrompidos,
+          voltaNaMesmaQuadra: e.payload.acao === 'CONTINUAR_SET',
+        })
+        if (decisao.acao === 'REPETIR_PARTIDA') aRepetir = true
+        if ((e.payload.acao === 'REPETIR_PARTIDA') !== (decisao.acao === 'REPETIR_PARTIDA')) {
+          if (e.payload.acao === 'REPETIR_PARTIDA') {
+            rejeitar(e.seq, 'RG-INT-005', `Repetir a partida só vale quando as paralisações passam de 4 horas (somam ${minutosInterrompidos} minutos).`)
+          } else {
+            rejeitar(e.seq, decisao.codigo, decisao.mensagem)
+          }
+        }
         break
       }
       case 'WO': {
+        const ganhosAteAqui = contarGanhos(sets)
+        if (sets.length > 0 && partidaEncerrada(ganhosAteAqui.a, ganhosAteAqui.b, config)) {
+          rejeitar(e.seq, 'RG-WO-001', 'A partida já terminou: não cabe WO depois do último set.')
+          break
+        }
+        const emAndamento = atual()
         wo = resolverWO(config, {
           ausente: e.payload.ausente,
           setsJogados: sets.filter((s) => s.encerrado).map((s) => s.placar),
+          setInterrompido: emAndamento && !emAndamento.encerrado ? { numero: emAndamento.numero, placar: { ...emAndamento.placar } } : null,
         })
         break
       }

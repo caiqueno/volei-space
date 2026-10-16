@@ -191,6 +191,38 @@ export function validarRedesignacaoLibero(estado: EstadoEquipe, r: RedesignacaoL
   return ok()
 }
 
+/**
+ * RG-LIB-010/011: marca o líbero como incapaz (lesão, doença, expulsão, desqualificação) SEM exigir
+ * redesignação. Havendo outro líbero capaz, a equipe segue com ele; sem nenhum, segue sem líbero
+ * (a redesignação é opcional e vem depois). Libera a troca fora da regra do rally (RG-LIB-005,
+ * exceção do líbero incapaz) para tirá-lo de quadra, se estiver nela.
+ */
+export function declararLiberoIncapaz(
+  estado: EstadoEquipe,
+  liberoId: number,
+  motivo: MotivoLiberoIncapaz,
+): ResultadoAplicacaoLibero & { motivo: MotivoLiberoIncapaz; aindaEmQuadra: boolean } {
+  if (!estado.liberos.includes(liberoId)) {
+    return {
+      resultado: bloqueio('RG-LIB-010', `O jogador ${liberoId} não é líbero ativo da equipe.`),
+      estado,
+      motivo,
+      aindaEmQuadra: false,
+    }
+  }
+  return {
+    resultado: ok(),
+    motivo,
+    aindaEmQuadra: estado.emQuadra.includes(liberoId),
+    estado: {
+      ...estado,
+      liberos: estado.liberos.filter((l) => l !== liberoId),
+      liberosIncapazes: [...estado.liberosIncapazes, liberoId],
+      rallyConcluidoDesdeTrocaLibero: true,
+    },
+  }
+}
+
 /** Texto padronizado da observação (modelo RG-LIB-013, Guia p.77/120). */
 export function observacaoRedesignacao(r: RedesignacaoLibero, ctx: ContextoRedesignacao): string {
   return `REDESIGNAÇÃO DE LÍBERO, EQUIPE ${ctx.equipe}, LÍBERO Nº ${r.liberoIncapaz} ${r.motivo}, NOVO LÍBERO JOGADOR Nº ${r.novoLibero}, ${ctx.numeroSet}º SET, PLACAR ${ctx.pontosEquipe}X${ctx.pontosAdversario}`

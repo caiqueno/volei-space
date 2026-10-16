@@ -5,7 +5,7 @@
  * TODO [M] (CONFIG_ITENS_M.woResultadoOficial): pontuação do WO em melhor de 3 e efeito do
  * WO duplo na classificação são do regulamento; aqui só o resultado de súmula.
  */
-import { MINUTOS_MAX_INTERRUPCAO, PLACAR_WO_POR_SET, type ConfigPartida } from './config'
+import { MINUTOS_MAX_INTERRUPCAO, type ConfigPartida } from './config'
 import { jogadoresAptos, type EstadoEquipe } from './estado-equipe'
 import { alvoDoSet, setsParaVencer } from './set-partida'
 import { bloqueio, ok, outraEquipe, type CodigoRegra, type Equipe, type PlacarSet, type ResultadoRegra } from './tipos'
@@ -14,11 +14,15 @@ export interface ResultadoWO {
   tipo: 'WO_SIMPLES' | 'WO_DUPLO'
   /** null no WO duplo (nenhuma vence; efeito na classificação é do regulamento). */
   vencedor: Equipe | null
-  setsA: number
-  setsB: number
-  /** Sets já jogados (mantidos) + sets lançados como 25x0 para o presente. */
-  parciais: PlacarSet[]
-  /** Quantos sets foram lançados como 25x0. */
+  /** Placar OFICIAL da partida por WO: o presente vence pelos sets necessários e o ausente fica com 0 [M]. */
+  placarPartida: { setsA: number; setsB: number }
+  /** Sets que cada equipe ganhou em quadra antes do WO (registro; não entram no placar da partida). */
+  setsRegistrados: { a: number; b: number }
+  /** Sets já jogados (mantidos) + sets lançados como WO, cada um com o alvo do próprio set. */
+  parciaisRegistrados: PlacarSet[]
+  /** Placar parcial do set em andamento quando o WO foi declarado (guardado para a súmula). */
+  setInterrompido: { numero: number; placar: PlacarSet } | null
+  /** Quantos sets foram lançados como WO. */
   setsLancadosComoWO: number
   assinam: 'TODOS' | 'APENAS_ARBITRAGEM'
   codigo: CodigoRegra
@@ -52,16 +56,21 @@ function contarVencidos(sets: PlacarSet[]): { a: number; b: number } {
  */
 export function resolverWO(
   config: ConfigPartida,
-  params: { ausente: Equipe | 'AMBAS'; setsJogados?: PlacarSet[] },
+  params: {
+    ausente: Equipe | 'AMBAS'
+    setsJogados?: PlacarSet[]
+    setInterrompido?: { numero: number; placar: PlacarSet } | null
+  },
 ): ResultadoWO {
   const jogados = params.setsJogados ?? []
   if (params.ausente === 'AMBAS') {
     return {
       tipo: 'WO_DUPLO',
       vencedor: null,
-      setsA: 0,
-      setsB: 0,
-      parciais: [],
+      placarPartida: { setsA: 0, setsB: 0 },
+      setsRegistrados: contarVencidos(jogados),
+      parciaisRegistrados: [...jogados],
+      setInterrompido: params.setInterrompido ?? null,
       setsLancadosComoWO: 0,
       assinam: 'APENAS_ARBITRAGEM',
       codigo: 'RG-WO-004',
@@ -72,22 +81,24 @@ export function resolverWO(
   const necessarios = setsParaVencer(config.melhorDe)
   const vencidos = contarVencidos(jogados)
   const ganhosVencedor = vencedor === 'A' ? vencidos.a : vencidos.b
-  const ganhosAusente = vencedor === 'A' ? vencidos.b : vencidos.a
   const faltam = Math.max(0, necessarios - ganhosVencedor)
   const parciais = [...jogados]
   for (let i = 0; i < faltam; i += 1) {
-    parciais.push(vencedor === 'A' ? { a: PLACAR_WO_POR_SET, b: 0 } : { a: 0, b: PLACAR_WO_POR_SET })
+    // O set lançado como WO usa o alvo do próprio set (regular ou decisivo), não um 25 fixo.
+    const alvo = alvoDoSet(config, jogados.length + i + 1)
+    parciais.push(vencedor === 'A' ? { a: alvo, b: 0 } : { a: 0, b: alvo })
   }
   return {
     tipo: 'WO_SIMPLES',
     vencedor,
-    setsA: vencedor === 'A' ? necessarios : ganhosAusente,
-    setsB: vencedor === 'B' ? necessarios : ganhosAusente,
-    parciais,
+    placarPartida: { setsA: vencedor === 'A' ? necessarios : 0, setsB: vencedor === 'B' ? necessarios : 0 },
+    setsRegistrados: vencidos,
+    parciaisRegistrados: parciais,
+    setInterrompido: params.setInterrompido ?? null,
     setsLancadosComoWO: faltam,
     assinam: 'TODOS',
     codigo: 'RG-WO-001',
-    mensagem: `Equipe ${params.ausente} declarada ausente: vitória da equipe ${vencedor} por ${necessarios} sets, com parciais ${PLACAR_WO_POR_SET}x0 nos sets não jogados; sets já jogados são mantidos.`,
+    mensagem: `Equipe ${params.ausente} declarada ausente: vitória da equipe ${vencedor} por ${necessarios} sets a 0, com o alvo do set x0 nos sets não jogados; sets já jogados ficam registrados.`,
   }
 }
 

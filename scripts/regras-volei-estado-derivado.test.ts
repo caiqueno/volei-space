@@ -2,6 +2,7 @@ import {
   anexarEvento,
   CONFIG_FIVB_MELHOR_DE_5,
   configMelhorDe3,
+  declararLiberoIncapaz,
   derivarPlacar,
   jogadoresImpedidos,
   type ContextoDerivacao,
@@ -223,6 +224,80 @@ caso('RG-SUB-001: substituição inválida no log vira inconsistência sem quebr
   const p = j.estado(c3)
   assert.equal(p.inconsistencias[0]!.codigo, 'RG-FOR-009')
   assert.equal(p.setAtual!.contadores.A.substituicoesRegulares, 1)
+})
+
+caso('RG-SAN-002: a derivação recalcula a sanção e não confia no que o cliente gravou', () => {
+  const j = new Jogo()
+  j.iniciarSet()
+  // O cliente diz "advertência verbal, sem ponto", mas a 1ª grosseira é penalidade (ponto ao adversário).
+  j.add('SANCAO', { equipe: 'A', membro: 'J:3', categoria: 'GROSSEIRA', sancao: 'ADVERTENCIA_VERBAL', pontoParaAdversario: false })
+  const p = j.estado()
+  assert.equal(p.inconsistencias[0]!.codigo, 'RG-SAN-002')
+  assert.deepEqual(p.setAtual!.placar, { a: 0, b: 1 }, 'vale a sanção calculada pelo servidor')
+  assert.equal(p.estadoEquipes!.sancoes[0]!.sancao, 'PENALIDADE')
+})
+
+caso('RG-TMP-001: o terceiro tempo do set vira inconsistência na derivação', () => {
+  const j = new Jogo()
+  j.iniciarSet()
+  j.add('TEMPO', { equipe: 'A' })
+  j.add('TEMPO', { equipe: 'A' })
+  assert.equal(j.estado().inconsistencias.length, 0)
+  j.add('TEMPO', { equipe: 'A' })
+  assert.equal(j.estado().inconsistencias[0]!.codigo, 'RG-TMP-001')
+})
+
+caso('RG-INT-005: a derivação decide a repetição pela soma das paralisações', () => {
+  const curto = new Jogo()
+  curto.iniciarSet()
+  curto.add('INTERRUPCAO', { minutos: 30, motivo: 'chuva', acao: 'REPETIR_PARTIDA' })
+  const p = curto.estado()
+  assert.equal(p.status, 'EM_ANDAMENTO', 'cliente não repete a partida com 30 minutos')
+  assert.equal(p.inconsistencias[0]!.codigo, 'RG-INT-005')
+  const longo = new Jogo()
+  longo.iniciarSet()
+  longo.add('INTERRUPCAO', { minutos: 150, motivo: 'chuva', acao: 'CONTINUAR_SET' })
+  longo.add('INTERRUPCAO', { minutos: 100, motivo: 'chuva', acao: 'CONTINUAR_SET' })
+  assert.equal(longo.estado().status, 'A_REPETIR', 'a soma passou de 4 horas')
+})
+
+caso('RG-WO-001: WO depois do último set é inconsistência e guarda o set interrompido', () => {
+  const fim = new Jogo()
+  fim.iniciarSet(1)
+  fim.pontos('A', 25)
+  fim.iniciarSet(2, 'B')
+  fim.pontos('A', 25)
+  fim.add('WO', { ausente: 'B' })
+  const p = fim.estado(c3)
+  assert.equal(p.status, 'ENCERRADA')
+  assert.equal(p.inconsistencias[0]!.codigo, 'RG-WO-001')
+  const meio = new Jogo()
+  meio.iniciarSet(1)
+  meio.pontos('B', 7)
+  meio.add('WO', { ausente: 'A' })
+  assert.deepEqual(meio.estado().wo!.setInterrompido, { numero: 1, placar: { a: 0, b: 7 } })
+})
+
+caso('RG-ROT-001: o sacador informado no ponto é conferido na derivação', () => {
+  const j = new Jogo()
+  j.iniciarSet()
+  j.add('PONTO', { equipe: 'A', sacador: 3 })
+  assert.equal(j.estado().inconsistencias[0]!.codigo, 'RG-ROT-001')
+  j.add('PONTO', { equipe: 'A', sacador: 1 })
+  assert.equal(j.estado().inconsistencias.length, 1)
+})
+
+caso('RG-LIB-010: líbero declarado incapaz sai da lista de capazes sem exigir redesignação', () => {
+  const j = new Jogo()
+  j.iniciarSet()
+  const antes = j.estado().estadoEquipes!.A
+  const r = declararLiberoIncapaz(antes, 10, 'LESIONADO')
+  assert.equal(r.resultado.ok, true)
+  assert.deepEqual(r.estado.liberos, [])
+  assert.deepEqual(r.estado.liberosIncapazes, [10])
+  assert.equal(r.aindaEmQuadra, false)
+  const invalido = declararLiberoIncapaz(antes, 3, 'LESIONADO')
+  assert.equal(invalido.resultado.ok, false)
 })
 
 encerrar('regras-volei-estado-derivado.test.ts')
