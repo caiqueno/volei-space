@@ -19,10 +19,10 @@ import { ehPontoSemJogador, lerJogadorPonto, lerRotuloPonto, resumirPontos, ROTU
 import { regrasVisiveis } from '@/lib/category-match-rules'
 import { criarSalvamentoCoalescido } from '@/lib/fila-salvamento'
 import { maiorVersaoRegistro } from '@/lib/versao-sumula'
-import { LIMITE_SUBSTITUICOES_POR_SET, aplicarSubstituicao, controleVazio, limiteDeSubstituicoes, mensagemFalhaSubstituicao, numerosDaTroca, reservasElegiveis, textoAvisoSubstituicao, type ControleSubstituicao } from '@/lib/sumula-regras'
 import { mensagemRodizioIlegal } from '@/lib/rodizio-sumula'
-import { ehTempoDeEquipe, limiteDeTempos, textoTempoEquipe, textoTempoTecnico } from '@/lib/tempos-sumula'
-import { textoSubstituicaoLesao, textoTempoMedico } from '@/lib/lesao-sumula'
+import { ehTempoDeEquipe, textoTempoEquipe } from '@/lib/tempos-sumula'
+import { limiteDeSubstituicoes } from '@/lib/sumula-regras'
+import { textoTempoMedico } from '@/lib/lesao-sumula'
 import { lerLiberosIniciais, numeroDeLibero, quantidadeDeLiberos, rotuloSeletorLibero, textoLiberoInicial } from '@/lib/libero-sumula'
 import { ordenarPorCamisaDaSumula } from '@/lib/ordem-camisa-sumula'
 import { AVISO_CAMISA, apenasDigitosCamisa, decidirCamisa, proximaPosicaoVazia } from '@/lib/busca-camisa-papeleta'
@@ -59,7 +59,15 @@ import { ausenteExplicito, MENSAGEM_MINIMO_ATLETAS, motivoMinimoAtletas, present
 import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaSessao } from '@/lib/sumula-sessao'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
-import { avisoComContador, textoContadorTroca } from '@/lib/contador-troca'
+import { CaixaRegra } from '@/components/sumula/CaixaRegra'
+import { ModalSubstituicao, type MotivoTela, type MotorModal, type OpcaoAtleta } from '@/components/sumula/ModalSubstituicao'
+import { caixaDeBloqueio, type CaixaRegra as DadosCaixaRegra } from '@/lib/sumula-ui/explicacao'
+import { perfilDaSumula } from '@/lib/sumula-ui/perfil'
+import { avaliarExcepcional, avaliarSubstituicao, avaliarTrocaLibero, candidatosDoModo, contadorDoModo, resumoDeTrocas, type ModoTroca } from '@/lib/sumula-ui/avaliacao'
+import { comFormacaoAtual, formacaoParaMotor, historicoDeSancoes, marcadorExcepcional, marcadorSancao, reconstruirEstadoEquipe, semMarcadores, type EventoDoSet } from '@/lib/sumula-ui/estado'
+import { CATEGORIAS_DE_SANCAO, avaliarCartao, categoriaPadraoDoTipo, descreverEfeito, equipeDoMotor, tipoDaNota } from '@/lib/sumula-ui/sancao'
+import { avaliarTempo, limiteDeTemposDaTela, textoTempo } from '@/lib/sumula-ui/tempos'
+import type { CategoriaSancao, EstadoEquipe } from '@/lib/regras-volei'
 import { atribuirPontoAoEvento, opcoesDeOrigem, type FaixaPonto } from '@/lib/atribuicao-ponto'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
 import './sumula-micro.css'
@@ -131,6 +139,10 @@ type MatchRules = {
   substituicaoPorLesao: boolean
   quantidadeLiberos: 1 | 2 | null
 }
+
+type NotaPayload = Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'> & { categoria?: CategoriaSancao; jogadorNumero?: string; membro?: 'TECNICO' | 'EQUIPE' }
+
+type PreviaSancao = (teamId: TeamId, categoria: CategoriaSancao, jogadorNumero: string, membro: 'TECNICO' | 'EQUIPE') => { texto: string; bloqueio: DadosCaixaRegra | null }
 
 type SetEndPrompt = {
   winner: TeamId
@@ -241,7 +253,8 @@ export default function SumulaPage() {
   const [mvpId, setMvpId] = useState('')
   const [editingSlot, setEditingSlot] = useState<{ teamId: TeamId; index: number } | null>(null)
   const [subModal, setSubModal] = useState<{ teamId: TeamId; index: number; outNumber: string } | null>(null)
-  const [controleSubstituicao, setControleSubstituicao] = useState<Record<number, Record<TeamId, ControleSubstituicao>>>({})
+  const [caixaRegra, setCaixaRegra] = useState<DadosCaixaRegra | null>(null)
+  const [sancaoPendente, setSancaoPendente] = useState<{ teamId: TeamId; motivo: 'EXPULSAO' | 'DESQUALIFICACAO' } | null>(null)
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
   const [confirmarOficial, setConfirmarOficial] = useState(false)
@@ -348,7 +361,6 @@ export default function SumulaPage() {
         setTemposEquipeA(restoredEquipe.teamA)
         setTemposEquipeB(restoredEquipe.teamB)
         const numerosDaPartida = restoreMatchNumberOverrides(teamA, teamB, savedPresence)
-        setControleSubstituicao(restoreControleSubstituicao(savedOccurrences, teamA, teamB, numerosDaPartida, loadedRules.substitutionLimit))
         const destaqueMvp = (data.destaques ?? []).find((item: { tipo?: string; jogadorId?: number | null }) => item.tipo === 'MVP' && item.jogadorId)
         const vencedoraRestaurada = restored.setsWon.teamA === restored.setsWon.teamB
           ? null
@@ -1075,88 +1087,158 @@ export default function SumulaPage() {
     setFormacaoVersao((atual) => atual + 1)
   }
 
+  const perfilRegras = perfilDaSumula(matchRules.substitutionLimit)
+
+  function fecharSubModal() {
+    setSubModal(null)
+    setSancaoPendente(null)
+  }
+
   function askSubstitution(teamId: TeamId, index: number) {
     if (matchStatus === 'finished') return
     const number = teamId === 'teamA' ? lineupA[index] : lineupB[index]
     if (!number) return
+    if (!estadoMotor(teamId)) {
+      setCaixaRegra(caixaDeBloqueio('RG-FOR-005', 'A formação em quadra precisa ter 6 atletas distintos, um em cada posição, para validar a troca.'))
+      return
+    }
+    setCaixaRegra(null)
     setSubModal({ teamId, index, outNumber: number })
   }
 
-  function listaDeSubstituicao(teamId: TeamId, outNumber: string) {
-    const currentBench = teamId === 'teamA' ? benchA : benchB
-    const controle = controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()
-    return reservasElegiveis(controle, outNumber, currentBench, matchRules.substitutionLimit)
+  /** Estado do motor da equipe no set: replay das ocorrências + formação atual da tela. */
+  function estadoMotor(teamId: TeamId): EstadoEquipe | null {
+    const team = teamId === 'teamA' ? teamA : teamB
+    if (!team) return null
+    const roster = [...team.players, ...team.reserves]
+    const idPorNumero = (numero: string) => roster.find((player) => player.number === numero)?.id ?? null
+    const idPorCamisa = (camisa: string) => roster.find((player) => getMatchNumber(teamId, player.number) === camisa)?.id ?? null
+    const lineupAtual = teamId === 'teamA' ? lineupA : lineupB
+    const formacaoAtual = formacaoParaMotor(lineupAtual, idPorNumero)
+    if (!formacaoAtual) return null
+    const cronologico = [...events].reverse()
+    const inicio = cronologico.find((event) => event.type === 'set_start' && event.set === currentSet)
+    const marcador = inicio?.text.match(/\[\[ROT:\d+:(?:teamA|teamB):([^:]*):([^\]]*)\]\]/)
+    const titularesPagina = marcador ? (teamId === 'teamA' ? marcador[1] : marcador[2]).split(',') : []
+    const titulares = formacaoParaMotor(titularesPagina, idPorNumero) ?? formacaoAtual
+    const inicial = startingLiberos[currentSet]?.[teamId]
+    const liberos = Array.from(new Set([
+      ...(inicial ? [idPorNumero(inicial)] : []),
+      ...roster.filter((player) => player.isLibero).map((player) => player.id),
+    ].filter((id): id is number => id != null))).slice(0, 2)
+    const base = reconstruirEstadoEquipe({
+      elenco: roster.map((player) => player.id),
+      liberos,
+      titulares,
+      equipe: teamId,
+      eventosDoSet: cronologico.filter((event) => event.set === currentSet) as EventoDoSet[],
+      perfil: perfilRegras,
+      idPorCamisa,
+      idPorNumero,
+      historico: historicoDeSancoes(cronologico),
+      setAtual: currentSet,
+    })
+    return comFormacaoAtual(base, formacaoAtual)
   }
 
-  function avisoDoModal() {
-    if (!subModal) return null
-    const lista = listaDeSubstituicao(subModal.teamId, subModal.outNumber)
+  function montarMotorModal(): MotorModal | null {
+    if (!subModal || !teamA || !teamB) return null
     const teamId = subModal.teamId
-    const usadas = (controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()).usadas
-    const contador = textoContadorTroca(usadas, limiteDeSubstituicoes(matchRules.substitutionLimit))
-    const aviso = lista.aviso ? textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit) : null
-    return avisoComContador(contador, aviso)
+    const team = teamId === 'teamA' ? teamA : teamB
+    const estado = estadoMotor(teamId)
+    const sai = getAnyPlayer(team, subModal.outNumber)?.id
+    if (!estado || sai == null) return null
+    const roster = [...team.players, ...team.reserves]
+    const porId = (id: number) => roster.find((player) => player.id === id)
+    const funcao = (id: number) => {
+      if (estado.liberos.includes(id)) return 'Líbero'
+      if (estado.substituidoPorLibero === id) return 'Substituído pelo líbero'
+      if (estado.desqualificados.includes(id)) return 'Desqualificado'
+      if (estado.expulsosNoSet.includes(id)) return 'Expulso no set'
+      if (estado.semRetorno.includes(id)) return 'Não volta (substituição excepcional)'
+      return 'Reserva'
+    }
+    const modos: ModoTroca[] = ['regular', 'excepcional']
+    if (estado.liberos.length > 0) modos.push('libero')
+    const modoInicial: ModoTroca = sancaoPendente?.teamId === teamId ? 'excepcional' : estado.liberos.includes(sai) ? 'libero' : 'regular'
+    const avaliar = (modo: ModoTroca, motivo: MotivoTela, numero: string) => {
+      const entra = getAnyPlayer(team, numero)?.id ?? -1
+      if (modo === 'excepcional') return avaliarExcepcional(estado, { sai, entra }, motivo, perfilRegras)
+      if (modo === 'libero') return avaliarTrocaLibero(estado, { sai, entra })
+      return avaliarSubstituicao(estado, { sai, entra }, perfilRegras)
+    }
+    return {
+      titulo: 'Trocar atleta',
+      equipe: team.name,
+      modos,
+      modoInicial,
+      motivoInicial: sancaoPendente?.teamId === teamId ? sancaoPendente.motivo : 'LESAO',
+      contador: (modo) => contadorDoModo(modo, estado, perfilRegras),
+      candidatos: (modo) => candidatosDoModo(modo, estado, sai).flatMap((id): OpcaoAtleta[] => {
+        const player = porId(id)
+        if (!player) return []
+        return [{ numero: player.number, rotulo: `${rotuloCamisa(getMatchNumber(teamId, player.number))} - ${displayPlayerName(player.name, team.name)}`, funcao: funcao(id) }]
+      }),
+      avaliar,
+      confirmar: executeSubstitution,
+      excepcionalContaNoServidor: !matchRules.substituicaoPorLesao,
+      onClose: fecharSubModal,
+    }
   }
 
-  function executeSubstitution(inNumber: string, porLesao = false) {
+  const ROTULO_MOTIVO: Record<MotivoTela, string> = { LESAO: 'lesão', EXPULSAO: 'expulsão', DESQUALIFICACAO: 'desqualificação' }
+
+  function executeSubstitution(modo: ModoTroca, motivo: MotivoTela, inNumber: string) {
     if (!subModal || !teamA || !teamB) return
-    const porLesaoAtiva = porLesao === true && matchRules.substituicaoPorLesao
-    const isA = subModal.teamId === 'teamA'
+    const teamId = subModal.teamId
+    const isA = teamId === 'teamA'
     const lineupSetter = isA ? setLineupA : setLineupB
     const benchSetter = isA ? setBenchA : setBenchB
     const team = isA ? teamA : teamB
     const outPlayer = getPlayer(team, subModal.outNumber)
     const inPlayer = getPlayer(team, inNumber)
-    const currentBench = isA ? benchA : benchB
-    const isLiberoExchange = Boolean(outPlayer?.isLibero || inPlayer?.isLibero)
-
-    if (!currentBench.includes(inNumber)) {
-      addToast('Escolha um atleta do banco de reservas.')
+    const estado = estadoMotor(teamId)
+    if (!estado || !outPlayer || !inPlayer) {
+      setCaixaRegra(caixaDeBloqueio('RG-FOR-005', 'Não foi possível validar a troca: confira a formação em quadra.'))
       return
     }
-    const controleAtual = controleSubstituicao[currentSet]?.[subModal.teamId] ?? controleVazio()
-    const proximoControle = isLiberoExchange || porLesaoAtiva ? null : aplicarSubstituicao(controleAtual, subModal.outNumber, inNumber, matchRules.substitutionLimit)
-    if (proximoControle?.falha) {
-      addToast(mensagemFalhaSubstituicao(proximoControle.falha, currentSet, matchRules.substitutionLimit))
+    // Revalida ao gravar: a rota de gravação ainda não aplica o motor, então a tela não confia no modal.
+    const troca = { sai: outPlayer.id, entra: inPlayer.id }
+    const avaliacao = modo === 'excepcional'
+      ? avaliarExcepcional(estado, troca, motivo, perfilRegras)
+      : modo === 'libero'
+        ? avaliarTrocaLibero(estado, troca)
+        : avaliarSubstituicao(estado, troca, perfilRegras)
+    if (!avaliacao.ok) {
+      setCaixaRegra(avaliacao.caixa)
       return
     }
 
     const nextLineup = (isA ? lineupA : lineupB).map((item, index) => (index === subModal.index ? inNumber : item))
     lineupSetter(nextLineup)
-    benchSetter(getBenchNumbers(team, nextLineup, startingLiberos[currentSet]?.[subModal.teamId]))
+    benchSetter(getBenchNumbers(team, nextLineup, startingLiberos[currentSet]?.[teamId]))
 
-    const outName = outPlayer ? displayPlayerName(outPlayer.name, team.name) : ''
-    const inName = inPlayer ? displayPlayerName(inPlayer.name, team.name) : ''
-    const outMatchNumber = getMatchNumber(subModal.teamId, subModal.outNumber)
-    const inMatchNumber = getMatchNumber(subModal.teamId, inNumber)
+    const outName = displayPlayerName(outPlayer.name, team.name)
+    const inName = displayPlayerName(inPlayer.name, team.name)
+    const outMatchNumber = getMatchNumber(teamId, subModal.outNumber)
+    const inMatchNumber = getMatchNumber(teamId, inNumber)
     const formacaoA = isA ? nextLineup : lineupA
     const formacaoB = isA ? lineupB : nextLineup
+    const troco = `sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`
+    const texto = modo === 'excepcional'
+      ? `Substituição excepcional (${ROTULO_MOTIVO[motivo]}) ${team.name}: ${troco}${marcadorExcepcional(motivo)}`
+      : modo === 'libero'
+        ? `Troca de líbero ${team.name}: ${troco}`
+        : `Substituição ${team.name}: ${troco}`
     addMatchEvent(
-      porLesaoAtiva ? 'injury_substitution' : isLiberoExchange ? 'libero_exchange' : 'substitution',
-      `${porLesaoAtiva
-        ? textoSubstituicaoLesao(team.name, outMatchNumber, outName, inMatchNumber, inName)
-        : isLiberoExchange
-          ? `Troca de líbero ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`
-          : `Substituição ${team.name}: sai #${outMatchNumber} ${outName}, entra #${inMatchNumber} ${inName}.`}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
-      subModal.teamId,
+      modo === 'excepcional' ? 'injury_substitution' : modo === 'libero' ? 'libero_exchange' : 'substitution',
+      `${texto}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
+      teamId,
     )
-    if (proximoControle) {
-      const gravado = proximoControle.controle
-      setControleSubstituicao((current) => {
-        const doSet = current[currentSet] ?? { teamA: controleVazio(), teamB: controleVazio() }
-        return {
-          ...current,
-          [currentSet]: {
-            teamA: doSet.teamA ?? controleVazio(),
-            teamB: doSet.teamB ?? controleVazio(),
-            [subModal.teamId]: gravado,
-          },
-        }
-      })
-    }
-    marcarPresentes(subModal.teamId, [outPlayer?.id, inPlayer?.id].filter((id): id is number => id != null))
-    setSubModal(null)
-    addToast(porLesaoAtiva ? 'Substituição por lesão registrada.' : isLiberoExchange ? 'Troca de líbero registrada.' : 'Substituição registrada.')
+    marcarPresentes(teamId, [outPlayer.id, inPlayer.id])
+    setCaixaRegra(null)
+    fecharSubModal()
+    addToast(modo === 'excepcional' ? 'Substituição excepcional registrada.' : modo === 'libero' ? 'Troca de líbero registrada.' : 'Substituição registrada.')
   }
 
   function marcarPresentes(teamId: TeamId, ids: number[]) {
@@ -1198,11 +1280,17 @@ export default function SumulaPage() {
     const isA = teamId === 'teamA'
     const used = isA ? timeoutsUsedA : timeoutsUsedB
     const limite = matchRules.timeoutLimit
-    if (used >= limite) return addToast('Limite de tempos atingido neste set.')
     const team = isA ? teamA : teamB
+    const avaliacao = avaliarTempo(used, limite, team.name)
+    if (!avaliacao.ok) {
+      setCaixaRegra(avaliacao.caixa)
+      return
+    }
+    setCaixaRegra(null)
+    if (avaliacao.aviso) addToast(avaliacao.aviso)
     if (isA) setTimeoutsUsedA(used + 1)
     else setTimeoutsUsedB(used + 1)
-    addMatchEvent('timeout', textoTempoTecnico(team.name, used + 1, currentSet, limite), teamId)
+    addMatchEvent('timeout', textoTempo(team.name, used + 1, currentSet, limite), teamId)
   }
 
   function requestTempoEquipe(teamId: TeamId) {
@@ -1210,8 +1298,13 @@ export default function SumulaPage() {
     const isA = teamId === 'teamA'
     const used = isA ? temposEquipeA : temposEquipeB
     const limite = matchRules.timeoutLimit
-    if (used >= limite) return addToast('Limite de tempos de equipe atingido neste set.')
     const team = isA ? teamA : teamB
+    const avaliacao = avaliarTempo(used, limite, team.name)
+    if (!avaliacao.ok) {
+      setCaixaRegra(avaliacao.caixa)
+      return
+    }
+    setCaixaRegra(null)
     if (isA) setTemposEquipeA(used + 1)
     else setTemposEquipeB(used + 1)
     addMatchEvent('timeout', textoTempoEquipe(team.name, used + 1, currentSet, limite), teamId)
@@ -1275,58 +1368,127 @@ export default function SumulaPage() {
     pedirOficializacao()
   }
 
-  function saveNote(payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) {
+  /** Ponto da penalidade: o adversário recebe o ponto E o saque (com rodízio se ele não sacava). */
+  function aplicarPontoDePenalidade(beneficiado: TeamId, eventosAnteriores: string[], texto: string) {
     if (!teamA || !teamB) return
-    const redCard = normalizeName(payload.tipo) === 'cartao vermelho'
+    const isA = beneficiado === 'teamA'
+    const previous = { ...currentScore }
+    const next = { teamA: currentScore.teamA + (isA ? 1 : 0), teamB: currentScore.teamB + (isA ? 0 : 1) }
+    const team = isA ? teamA : teamB
+    setCurrentScore(next)
+    const eventIds = [...eventosAnteriores, addMatchEvent('point', texto, beneficiado, next)]
+    if (servingTeamId !== beneficiado) {
+      setServingTeamId(beneficiado)
+      const rotatedLineup = rotateVolleyballLineup(isA ? lineupA : lineupB)
+      if (isA) {
+        setLineupA(rotatedLineup)
+        setServerIndexA(5)
+      } else {
+        setLineupB(rotatedLineup)
+        setServerIndexB(5)
+      }
+      const finalLineupA = isA ? rotatedLineup : lineupA
+      const finalLineupB = isA ? lineupB : rotatedLineup
+      eventIds.push(addMatchEvent('anotacao', `Troca de saque para ${team.name}.${encodeRotationMarker(beneficiado, finalLineupA, finalLineupB)}`, beneficiado, next))
+    }
+    setScoreHistory((current) => [...current, { score: previous, servingTeamId, serverIndexA, serverIndexB, lineupA, lineupB, eventIds, set: currentSet }])
+    const winner = getSetWinner(next)
+    if (winner && canCloseSetByRules(next, pointsForSet(matchRules, currentSet))) {
+      setSetEndPrompt({ winner, score: next, matchPoint: setsWon[winner] + 1 >= matchRules.setsToWin })
+      addToast(`Confirme o encerramento do set ${currentSet}.`)
+    }
+  }
+
+  function previaSancao(teamId: TeamId, categoria: CategoriaSancao, jogadorNumero: string, membroEscolhido: 'TECNICO' | 'EQUIPE'): { texto: string; bloqueio: DadosCaixaRegra | null } {
+    if (!teamA || !teamB) return { texto: '', bloqueio: null }
+    const punida = teamId === 'teamA' ? teamA : teamB
+    const adversario = teamId === 'teamA' ? teamB : teamA
+    const jogador = jogadorNumero ? getAnyPlayer(punida, jogadorNumero) : undefined
+    const membro = categoria === 'ATRASO' ? 'EQUIPE' : jogador ? `J:${jogador.id}` : membroEscolhido === 'TECNICO' ? 'TECNICO' : 'EQUIPE'
+    const avaliado = avaliarCartao(historicoDeSancoes([...events].reverse()), { equipe: equipeDoMotor(teamId), membro, categoria, set: currentSet })
+    if (!avaliado.ok) return { texto: '', bloqueio: avaliado.caixa }
+    return { texto: descreverEfeito(avaliado.avaliada, adversario.name), bloqueio: null }
+  }
+
+  function saveNote(payload: NotaPayload) {
+    if (!teamA || !teamB) return
     const penalizedTeamId = payload.equipeRelacionada === teamA.name
       ? 'teamA'
       : payload.equipeRelacionada === teamB.name
         ? 'teamB'
         : undefined
-    const benefitingTeamId = penalizedTeamId === 'teamA' ? 'teamB' : penalizedTeamId === 'teamB' ? 'teamA' : undefined
-    const nextScore = redCard && benefitingTeamId
-      ? {
-        teamA: currentScore.teamA + (benefitingTeamId === 'teamA' ? 1 : 0),
-        teamB: currentScore.teamB + (benefitingTeamId === 'teamB' ? 1 : 0),
+    const categoria: CategoriaSancao | null = payload.categoria ?? categoriaPadraoDoTipo(payload.tipo)
+    let tipoDaAnotacao = payload.tipo
+    let descricaoFinal = payload.descricao
+    let marcador = ''
+    let aplicarPonto: ((eventosAnteriores: string[]) => void) | null = null
+    let afastarDaQuadra: { numero: string; motivo: 'EXPULSAO' | 'DESQUALIFICACAO' } | null = null
+
+    if (categoria && penalizedTeamId) {
+      const penalizedTeam = penalizedTeamId === 'teamA' ? teamA : teamB
+      const adversarioId: TeamId = penalizedTeamId === 'teamA' ? 'teamB' : 'teamA'
+      const adversario = adversarioId === 'teamA' ? teamA : teamB
+      const jogador = payload.jogadorNumero ? getAnyPlayer(penalizedTeam, payload.jogadorNumero) : undefined
+      const membro = categoria === 'ATRASO' ? 'EQUIPE' : jogador ? `J:${jogador.id}` : payload.membro === 'TECNICO' ? 'TECNICO' : 'EQUIPE'
+      const avaliado = avaliarCartao(historicoDeSancoes([...events].reverse()), { equipe: equipeDoMotor(penalizedTeamId), membro, categoria, set: currentSet })
+      if (!avaliado.ok) {
+        setCaixaRegra(avaliado.caixa)
+        return
       }
-      : currentScore
+      const { avaliada, registro } = avaliado
+      tipoDaAnotacao = tipoDaNota(avaliada.sancao)
+      descricaoFinal = `${payload.descricao} ${descreverEfeito(avaliada, adversario.name)}`.trim()
+      marcador = marcadorSancao(equipeDoMotor(penalizedTeamId), registro)
+      if (avaliada.pontoParaAdversario) {
+        aplicarPonto = (anteriores) => aplicarPontoDePenalidade(
+          adversarioId,
+          anteriores,
+          `Ponto e saque para ${adversario.name} por ${descreverEfeito(avaliada, adversario.name).split(' (')[0].toLowerCase()} aplicada a ${payload.pessoaRelacionada || penalizedTeam.name}.`,
+        )
+      }
+      if (jogador && (avaliada.sancao === 'EXPULSAO' || avaliada.sancao === 'DESQUALIFICACAO') && (penalizedTeamId === 'teamA' ? lineupA : lineupB).includes(jogador.number)) {
+        afastarDaQuadra = { numero: jogador.number, motivo: avaliada.sancao }
+      }
+      if (avaliado.avisos.length > 0) setCaixaRegra(avaliado.avisos[0])
+      else setCaixaRegra(null)
+    }
+
     const item: Anotacao = {
       ...payload,
+      tipo: tipoDaAnotacao,
+      descricao: descricaoFinal,
       id: `note-${Date.now()}`,
       set: currentSet,
-      placar: scoreString(nextScore),
+      placar: scoreString(),
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
     }
     setAnotacoes((current) => [item, ...current])
-    const textoDaNota = `[${item.tipo}] ${item.equipeRelacionada} - ${item.pessoaRelacionada}: ${item.descricao}`
+    const textoDaNota = `[${item.tipo}] ${item.equipeRelacionada} - ${item.pessoaRelacionada}: ${item.descricao}${marcador}`
     const mvpDaNota = idMvpSalvo([{ descricao: textoDaNota }], teamA, teamB, matchNumberOverrides)
     if (mvpDaNota && jogadoresVencedores.some((player) => String(player.id) === mvpDaNota)) {
       setMvpId(mvpDaNota)
       addToast('MVP da equipe vencedora gravado na súmula.')
     }
-    const noteEventId = addMatchEvent('anotacao', textoDaNota, penalizedTeamId, nextScore)
-    if (redCard && benefitingTeamId && penalizedTeamId) {
-      const benefitingTeam = benefitingTeamId === 'teamA' ? teamA : teamB
-      setCurrentScore(nextScore)
-      const pointEventId = addMatchEvent(
-        'point',
-        `Ponto automático para ${benefitingTeam.name} por cartão vermelho aplicado a ${item.pessoaRelacionada || item.equipeRelacionada}.`,
-        benefitingTeamId,
-        nextScore,
-      )
-      setScoreHistory((current) => [...current, {
-        score: currentScore,
-        servingTeamId,
-        serverIndexA,
-        serverIndexB,
-        lineupA,
-        lineupB,
-        eventIds: [noteEventId, pointEventId],
-        set: currentSet,
-      }])
-      addToast(`Cartão vermelho registrado. Ponto automático para ${benefitingTeam.name}.`)
-    } else if (redCard) {
-      addToast('Selecione uma equipe ou atleta para aplicar o cartão vermelho com ponto automático.')
+    const noteEventId = addMatchEvent('anotacao', textoDaNota, penalizedTeamId)
+    if (aplicarPonto) {
+      aplicarPonto([noteEventId])
+      addToast('Penalidade registrada: ponto e saque para o adversário.')
+    } else if (categoria && penalizedTeamId) {
+      addToast(`${item.tipo} registrado.`)
+    } else if (categoria) {
+      addToast('Selecione a equipe punida para aplicar a sanção.')
+    }
+    if (afastarDaQuadra && penalizedTeamId) {
+      const indice = (penalizedTeamId === 'teamA' ? lineupA : lineupB).indexOf(afastarDaQuadra.numero)
+      setCaixaRegra({
+        tipo: 'aviso',
+        codigo: 'RG-SUB-012',
+        mensagem: 'O atleta sancionado está em quadra e sai de imediato. Registre a substituição dele agora.',
+        acao: 'Escolha o substituto na janela aberta na aba Pontuação. Sem substituto legal, a equipe é declarada incompleta.',
+      })
+      setSancaoPendente({ teamId: penalizedTeamId, motivo: afastarDaQuadra.motivo })
+      setActiveTab('pontuacao')
+      setSubModal({ teamId: penalizedTeamId, index: indice, outNumber: afastarDaQuadra.numero })
     }
   }
 
@@ -1831,6 +1993,12 @@ export default function SumulaPage() {
           </div>
         )}
 
+        {caixaRegra && (
+          <div className="sticky top-2 z-40 mx-auto my-2 w-full max-w-3xl px-2">
+            <CaixaRegra caixa={caixaRegra} onFechar={() => setCaixaRegra(null)} />
+          </div>
+        )}
+
         {activeTab === 'pre' && (
           <PrePartidaTab
             teamA={teamA}
@@ -1895,8 +2063,7 @@ export default function SumulaPage() {
             pointFlash={pointFlash}
             rules={matchRules}
             subModal={subModal}
-            allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
-            substitutionNotice={avisoDoModal()}
+            motorModal={montarMotorModal()}
             getMatchNumber={getMatchNumber}
             onAttack={(teamId, number) => logPoint(teamId, number, { kind: 'attack' })}
             onBlock={(teamId, number) => logPoint(teamId, number, { kind: 'block' })}
@@ -1904,8 +2071,6 @@ export default function SumulaPage() {
             events={events}
             onPoint={(teamId) => logPoint(teamId, '', { kind: 'team' })}
             onSubstitution={askSubstitution}
-            onSelectSubstitution={executeSubstitution}
-            onCloseSubstitution={() => setSubModal(null)}
             onUndo={undoLastPoint}
             onUndoTeamPoint={pedirDesfazerDoTime}
             onCloseSet={requestCloseCurrentSet}
@@ -1917,6 +2082,7 @@ export default function SumulaPage() {
             onTempoEquipe={(teamId) => pedirTempo('equipe', teamId)}
             onTempoMedico={(teamId) => pedirTempo('medico', teamId)}
             saveNote={saveNote}
+            previaSancao={previaSancao}
             vistaQuadra={vistaQuadra}
             encerrada={matchStatus === 'finished'}
           />
@@ -1944,12 +2110,8 @@ export default function SumulaPage() {
             changeSlot={changeSlot}
             confirmLineup={confirmLineup}
             setStartingLibero={setStartingLibero}
-            executeSubstitution={executeSubstitution}
-            permiteLesao={matchRules.substituicaoPorLesao}
+            motorModal={montarMotorModal()}
             quantidadeLiberos={matchRules.quantidadeLiberos}
-            allowedSubstitutions={subModal ? listaDeSubstituicao(subModal.teamId, subModal.outNumber).numeros : []}
-            substitutionNotice={avisoDoModal()}
-            closeSubModal={() => setSubModal(null)}
             getMatchNumber={getMatchNumber}
             onMatchNumberChange={updateMatchNumber}
             onAviso={addToast}
@@ -2558,7 +2720,7 @@ function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, an
   sidesInverted: boolean
 }) {
   const pointEvents = events.filter((event) => ['point', 'attack', 'block', 'ace'].includes(event.type))
-  const substitutionEvents = events.filter((event) => ['substitution', 'libero_exchange'].includes(event.type))
+  const trocas = resumoDeTrocas(events.map((event) => event.type))
   const systemEvents = events.filter((event) => event.type === 'system' || event.type === 'set_end')
   const latest = [...events].slice(0, 8)
   const scout = buildOfficialScout(teamA, teamB, events, getMatchNumber)
@@ -2594,8 +2756,10 @@ function ResumoTab({ teamA, teamB, currentSet, currentScore, setsWon, events, an
         </div>
         <div className="official-summary-metrics">
           <div><span>Pontos registrados</span><strong>{pointEvents.length}</strong></div>
-          <div><span>Substituições</span><strong>{substitutionEvents.length}</strong></div>
-          <div><span>Tempos técnicos</span><strong>{timeoutsUsedA + timeoutsUsedB}</strong></div>
+          <div><span>Substituições</span><strong>{trocas.substituicoes}</strong></div>
+          <div><span>Substituições excepcionais</span><strong>{trocas.excepcionais}</strong></div>
+          <div><span>Trocas de líbero</span><strong>{trocas.trocasDeLibero}</strong></div>
+          <div><span>Tempos</span><strong>{timeoutsUsedA + timeoutsUsedB}</strong></div>
           {temposSeparados ? <div><span>Tempos de equipe</span><strong>{temposEquipeA + temposEquipeB}</strong></div> : null}
           <div><span>Anotações oficiais</span><strong>{anotacoes.length}</strong></div>
         </div>
@@ -2659,8 +2823,7 @@ function PontuacaoTab(props: {
   pointFlash: { teamId: TeamId; number: string; id: number } | null
   rules: MatchRules
   subModal: { teamId: TeamId; index: number; outNumber: string } | null
-  allowedSubstitutions: string[]
-  substitutionNotice: string | null
+  motorModal: MotorModal | null
   getMatchNumber: (teamId: TeamId, number: string) => string
   events: MatchEvent[]
   onAttack: (teamId: TeamId, number: string) => void
@@ -2668,8 +2831,6 @@ function PontuacaoTab(props: {
   onAce: () => void
   onPoint: (teamId: TeamId) => void
   onSubstitution: (teamId: TeamId, index: number) => void
-  onSelectSubstitution: (number: string, porLesao?: boolean) => void
-  onCloseSubstitution: () => void
   onUndo: () => void
   onUndoTeamPoint: (teamId: TeamId) => void
   onCloseSet: () => void
@@ -2680,14 +2841,12 @@ function PontuacaoTab(props: {
   onTimeout: (teamId: TeamId) => void
   onTempoEquipe: (teamId: TeamId) => void
   onTempoMedico: (teamId: TeamId) => void
-  saveNote: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
+  saveNote: (payload: NotaPayload) => void
+  previaSancao: PreviaSancao
   vistaQuadra: '2d' | '3d'
   encerrada?: boolean
 }) {
   const [cardModal, setCardModal] = useState<{ teamId: TeamId; tipo: 'Cartão amarelo' | 'Cartão vermelho' } | null>(null)
-  const substitutionTeam = props.subModal?.teamId === 'teamA' ? props.teamA : props.teamB
-  const substitutionLineup = props.subModal?.teamId === 'teamA' ? props.lineupA : props.lineupB
-  const substitutionBench = props.subModal?.teamId === 'teamA' ? props.benchA : props.benchB
   const penaltyTeam = cardModal?.teamId === 'teamA' ? props.teamA : props.teamB
 
   const leftTeamId: TeamId = props.sidesInverted ? 'teamB' : 'teamA'
@@ -2780,20 +2939,8 @@ function PontuacaoTab(props: {
       </div>
       )}
       <SumulaSubShell aberto={Boolean(props.subModal)}>
-        {props.subModal ? (
-          <PlayerModal
-            title="Substituir atleta"
-            team={substitutionTeam}
-            lineup={substitutionLineup}
-            bench={substitutionBench}
-            onlyBench={props.allowedSubstitutions}
-            notice={props.substitutionNotice}
-            teamId={props.subModal.teamId}
-            permiteLesao={props.rules.substituicaoPorLesao}
-            getMatchNumber={props.getMatchNumber}
-            onSelect={props.onSelectSubstitution}
-            onClose={props.onCloseSubstitution}
-          />
+        {props.subModal && props.motorModal ? (
+          <ModalSubstituicao key={`${props.subModal.teamId}-${props.subModal.index}-${props.subModal.outNumber}`} motor={props.motorModal} />
         ) : null}
       </SumulaSubShell>
       <section className="official-point-history" aria-label="Últimos pontos">
@@ -2817,6 +2964,8 @@ function PontuacaoTab(props: {
       {cardModal && (
         <PenaltyModal
           team={penaltyTeam}
+          teamId={cardModal.teamId}
+          previa={props.previaSancao}
           tipo={cardModal.tipo}
           onClose={() => setCardModal(null)}
           onSave={(payload) => {
@@ -2850,11 +2999,7 @@ function EscalacaoTab(props: {
   changeSlot: (teamId: TeamId, index: number, number: string) => void
   confirmLineup: (teamId: TeamId) => void
   setStartingLibero: (teamId: TeamId, number: string) => void
-  executeSubstitution: (number: string, porLesao?: boolean) => void
-  permiteLesao?: boolean
-  allowedSubstitutions: string[]
-  substitutionNotice: string | null
-  closeSubModal: () => void
+  motorModal: MotorModal | null
   getMatchNumber: (teamId: TeamId, number: string) => string
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
   onAviso: (mensagem: string) => void
@@ -3357,20 +3502,8 @@ function EscalacaoTab(props: {
         />
       )}
       <SumulaSubShell aberto={Boolean(props.subModal)}>
-        {props.subModal ? (
-          <PlayerModal
-            title="Anotar substituição"
-            team={props.subModal.teamId === 'teamA' ? props.teamA : props.teamB}
-            lineup={props.subModal.teamId === 'teamA' ? props.lineupA : props.lineupB}
-            bench={props.subModal.teamId === 'teamA' ? props.benchA : props.benchB}
-            onlyBench={props.allowedSubstitutions}
-            notice={props.substitutionNotice}
-            permiteLesao={props.permiteLesao}
-            teamId={props.subModal.teamId}
-            getMatchNumber={props.getMatchNumber}
-            onSelect={props.executeSubstitution}
-            onClose={props.closeSubModal}
-          />
+        {props.subModal && props.motorModal ? (
+          <ModalSubstituicao key={`${props.subModal.teamId}-${props.subModal.index}-${props.subModal.outNumber}`} motor={props.motorModal} />
         ) : null}
       </SumulaSubShell>
     </div>
@@ -3430,7 +3563,7 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
   currentSet: number
   currentScore: { teamA: number; teamB: number }
   anotacoes: Anotacao[]
-  saveNote: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
+  saveNote: (payload: NotaPayload) => void
   mvpId: string
   setMvpId: (value: string) => void
   allPlayers: Player[]
@@ -3487,7 +3620,7 @@ function AnotacoesTab({ teamA, teamB, currentSet, currentScore, anotacoes, saveN
             </select>
           </label>
           <textarea value={descricao} onChange={(event) => setDescricao(event.target.value)} placeholder="Digite o registro oficial..." />
-          <button className="official-primary" onClick={() => { if (descricao.trim()) { saveNote({ tipo, equipeRelacionada: resolvedEquipe, pessoaRelacionada: resolvedPessoa, descricao }); setDescricao('') } }}>Salvar anotação na súmula</button>
+          <button className="official-primary" onClick={() => { if (descricao.trim()) { saveNote({ tipo, equipeRelacionada: resolvedEquipe, pessoaRelacionada: resolvedPessoa, descricao, jogadorNumero: selectedPlayerTarget ? selectedPlayerTarget.value.split(':')[2] : undefined, membro: pessoaRelacionada === 'Técnico' ? 'TECNICO' : undefined }); setDescricao('') } }}>Salvar anotação na súmula</button>
         </div>
       </section>
       <section className="official-panel official-span-7">
@@ -3869,26 +4002,44 @@ function CompactTeamControl({
 
 function PenaltyModal({
   team,
+  teamId,
   tipo,
+  previa,
   onSave,
   onClose,
 }: {
   team: Team
+  teamId: TeamId
   tipo: 'Cartão amarelo' | 'Cartão vermelho'
-  onSave: (payload: Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'>) => void
+  previa: PreviaSancao
+  onSave: (payload: NotaPayload) => void
   onClose: () => void
 }) {
   const [person, setPerson] = useState('')
+  const [jogadorNumero, setJogadorNumero] = useState('')
+  const [membro, setMembro] = useState<'TECNICO' | 'EQUIPE'>('EQUIPE')
+  const [categoria, setCategoria] = useState<CategoriaSancao>(categoriaPadraoDoTipo(tipo) ?? 'MENOR')
   const [note, setNote] = useState('')
   const roster = [...team.players, ...team.reserves]
+  const resultado = previa(teamId, categoria, jogadorNumero, membro)
 
   function registerCard() {
+    if (resultado.bloqueio) return
     onSave({
       tipo,
       equipeRelacionada: team.name,
       pessoaRelacionada: person || 'Equipe',
-      descricao: note.trim() || `${tipo} registrado durante a partida.`,
+      descricao: note.trim(),
+      categoria,
+      jogadorNumero: jogadorNumero || undefined,
+      membro,
     })
+  }
+
+  function escolher(valor: string, numero: string, tipoMembro: 'TECNICO' | 'EQUIPE') {
+    setPerson(valor)
+    setJogadorNumero(numero)
+    setMembro(tipoMembro)
   }
 
   return (
@@ -3901,15 +4052,25 @@ function PenaltyModal({
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar">Fechar</button>
         </header>
+        <label className="official-modal-note">
+          Motivo da sanção{' '}
+          <select value={categoria} onChange={(event) => setCategoria(event.target.value as CategoriaSancao)} className="min-h-[44px] rounded border px-2" aria-label="Motivo da sanção">
+            {CATEGORIAS_DE_SANCAO.map((item) => <option key={item.id} value={item.id}>{item.rotulo}</option>)}
+          </select>
+        </label>
         <div className="official-card-targets" role="listbox" aria-label="Pessoa relacionada">
-          <button type="button" className={person === '' ? 'is-selected' : ''} onClick={() => setPerson('')}>
+          <button type="button" className={person === '' ? 'is-selected' : ''} onClick={() => escolher('', '', 'EQUIPE')}>
             <span>Equipe / comissão</span>
             <em>Geral</em>
+          </button>
+          <button type="button" className={person === 'Técnico' ? 'is-selected' : ''} onClick={() => escolher('Técnico', '', 'TECNICO')}>
+            <span>Técnico</span>
+            <em>Comissão</em>
           </button>
           {roster.map((player) => {
             const value = `#${player.number} ${displayPlayerName(player.name, team.name)}`
             return (
-              <button key={player.number} type="button" className={person === value ? 'is-selected' : ''} onClick={() => setPerson(value)}>
+              <button key={player.number} type="button" className={person === value ? 'is-selected' : ''} onClick={() => escolher(value, player.number, 'EQUIPE')}>
                 <span>#{player.number} - {displayPlayerName(player.name, team.name)}</span>
                 <em>Atleta</em>
                 </button>
@@ -3917,8 +4078,13 @@ function PenaltyModal({
           })}
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Observação opcional" />
+        {resultado.bloqueio ? (
+          <CaixaRegra caixa={resultado.bloqueio} className="my-2" />
+        ) : (
+          <p className="official-modal-note" aria-live="polite">{resultado.texto}</p>
+        )}
         <div className="official-penalty-actions">
-          <button type="button" className={tipo === 'Cartão amarelo' ? 'is-yellow' : 'is-red'} onClick={registerCard}>Registrar {tipo === 'Cartão amarelo' ? 'amarelo' : 'vermelho'}</button>
+          <button type="button" className={tipo === 'Cartão amarelo' ? 'is-yellow' : 'is-red'} onClick={registerCard} disabled={Boolean(resultado.bloqueio)}>Registrar sanção</button>
         </div>
       </div>
     </div>
@@ -4515,7 +4681,7 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
 }
 
 function LogItem({ event }: { event: MatchEvent }) {
-  const displayText = event.text.replace(/\s*\[\[ROT:[^\]]*\]\]/, '')
+  const displayText = semMarcadores(event.text)
   return <div className="official-log"><span>{event.time}</span><strong>Set {event.set}</strong><p>{displayText}</p><em>{event.score}</em></div>
 }
 
@@ -4745,49 +4911,6 @@ function countSavedTemposEquipe(savedOccurrences: any[], teamA: Team, teamB: Tea
   return result
 }
 
-function restoreControleSubstituicao(
-  savedOccurrences: any[],
-  teamA: Team,
-  teamB: Team,
-  overrides: Record<TeamId, Record<number, string>>,
-  limite: number = LIMITE_SUBSTITUICOES_POR_SET,
-) {
-  const controle: Record<number, Record<TeamId, ControleSubstituicao>> = {}
-  for (const occurrence of savedOccurrences) {
-    if (normalizeSavedEventType(occurrence.tipo) !== 'substitution') continue
-    const text = String(occurrence.descricao ?? '')
-    const setNumber = Number(occurrence.set ?? 1)
-    const normalized = normalizeName(text)
-    const teamId: TeamId | null = normalized.includes(normalizeName(teamA.name))
-      ? 'teamA'
-      : normalized.includes(normalizeName(teamB.name))
-        ? 'teamB'
-        : null
-    if (!teamId) continue
-    const team = teamId === 'teamA' ? teamA : teamB
-    const troca = numerosDaTroca(text)
-    const atual = controle[setNumber]?.[teamId] ?? controleVazio()
-    const proximo = troca
-      ? aplicarSubstituicao(atual, numeroDoElenco(team, troca[0], overrides[teamId]), numeroDoElenco(team, troca[1], overrides[teamId]), limite)
-      : atual.usadas >= limiteDeSubstituicoes(limite)
-        ? null
-        : { controle: { usadas: atual.usadas + 1, pares: atual.pares }, falha: null }
-    if (!proximo || proximo.falha) continue
-    controle[setNumber] = {
-      teamA: controle[setNumber]?.teamA ?? controleVazio(),
-      teamB: controle[setNumber]?.teamB ?? controleVazio(),
-      [teamId]: proximo.controle,
-    }
-  }
-  return controle
-}
-
-function numeroDoElenco(team: Team, exibido: string, overrides: Record<number, string> | undefined) {
-  const players = [...team.players, ...team.reserves]
-  const encontrado = players.find((player) => (overrides?.[player.id] || player.number) === exibido)
-  return encontrado?.number ?? exibido
-}
-
 function countSavedSideInversions(savedOccurrences: any[]) {
   let count = 0
   for (const occurrence of savedOccurrences) {
@@ -4942,7 +5065,7 @@ function getMatchRules(liga: any, fase?: string | null): MatchRules {
     ...regras,
     substitutionLimit: limiteDeSubstituicoes(source?.limiteSubstituicoesPorSet),
     alertaRodizio: source?.alertaRodizioIlegal === true,
-    timeoutLimit: limiteDeTempos(source?.limiteTemposPorSet),
+    timeoutLimit: limiteDeTemposDaTela(source?.limiteTemposPorSet),
     temposSeparados: source?.separarTempos === true,
     tempoMedico: source?.tempoMedico === true,
     substituicaoPorLesao: source?.substituicaoPorLesao === true,
