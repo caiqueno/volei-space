@@ -18,6 +18,10 @@ export function LoginScreen() {
   const [erro, setErro] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [recuperando, setRecuperando] = useState(false)
+  const [emailRecuperacao, setEmailRecuperacao] = useState('')
+  const [enviandoRecuperacao, setEnviandoRecuperacao] = useState(false)
+  const [avisoRecuperacao, setAvisoRecuperacao] = useState('')
 
   useEffect(() => {
     const sessao = lerSessaoPublica()
@@ -43,6 +47,30 @@ export function LoginScreen() {
       })
     return () => { ativo = false }
   }, [])
+
+  async function solicitarRecuperacao(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (enviandoRecuperacao) return
+    setEnviandoRecuperacao(true)
+    setAvisoRecuperacao('')
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailRecuperacao }),
+      })
+      const json = await res.json().catch(() => ({}))
+      setAvisoRecuperacao(
+        res.ok
+          ? (json.data?.mensagem ?? 'Se o e-mail existir na plataforma, enviaremos um link de recuperação.')
+          : (json.error ?? 'Não foi possível solicitar a recuperação agora. Tente de novo em instantes.'),
+      )
+    } catch {
+      setAvisoRecuperacao('Falha na conexão. Tente novamente em instantes.')
+    } finally {
+      setEnviandoRecuperacao(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -184,6 +212,51 @@ export function LoginScreen() {
                 Entrar
               </ActionBar>
             </form>}
+
+            {etapa === 'membro' && (
+              <div className="mt-5 text-center">
+                <button
+                  type="button"
+                  onClick={() => { setRecuperando((atual) => !atual); setAvisoRecuperacao('') }}
+                  aria-expanded={recuperando}
+                  aria-controls="recuperar-senha"
+                  className="min-h-[44px] text-sm font-semibold text-slate-200 underline decoration-white/30 underline-offset-4 transition hover:text-white"
+                >
+                  Esqueci minha senha
+                </button>
+                {recuperando && (
+                  <div id="recuperar-senha" className="mt-2 grid gap-3 text-left">
+                    <p className="text-xs font-semibold leading-5 text-slate-300">
+                      A recuperação por e-mail vale para a conta de administrador. Se você é organizador, peça ao administrador da plataforma para redefinir sua senha.
+                    </p>
+                    <form onSubmit={solicitarRecuperacao} className="grid gap-2">
+                      <label className="grid gap-1">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">E-mail do administrador</span>
+                        <input
+                          type="email"
+                          required
+                          autoComplete="email"
+                          inputMode="email"
+                          value={emailRecuperacao}
+                          onChange={(event) => setEmailRecuperacao(event.target.value)}
+                          disabled={enviandoRecuperacao}
+                          className="admin-login-input rounded-2xl px-4 py-3 text-base font-semibold outline-none transition"
+                        />
+                      </label>
+                      <ActionBar
+                        type="submit"
+                        loading={enviandoRecuperacao}
+                        loadingLabel="Enviando"
+                        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-white/20 px-5 py-3 text-sm font-black uppercase tracking-wide text-white"
+                      >
+                        Enviar link de recuperação
+                      </ActionBar>
+                    </form>
+                    {avisoRecuperacao && <p role="status" className="text-sm font-semibold leading-6 text-slate-100">{avisoRecuperacao}</p>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       </div>
