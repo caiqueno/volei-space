@@ -40,9 +40,23 @@ export const loteAtletasSchema = z.object({
     nome: z.string().max(200),
     numero: z.union([z.number().int(), z.string().max(3)]).optional().nullable(),
     dataNascimento: dataNascimento.optional().nullable(),
+    posicao: z.enum(POSICOES).optional().nullable(),
   })).max(MAXIMO_LINHAS_LOTE).optional(),
   texto: z.string().max(20000).optional(),
 }).refine((valor) => valor.atletas != null || valor.texto != null, 'Envie "atletas" ou "texto".')
+
+export const editarEquipeSchema = z.object({
+  nome: texto(200).optional(),
+  cidade: z.string().trim().max(120).optional().nullable(),
+  escudoUrl: z.string().trim().url().max(500).optional().nullable(),
+}).refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
+
+export const FUNCOES_COMISSAO_SCHEMA = ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO'] as const
+
+export const novaComissaoSchema = z.object({
+  nome: texto(200),
+  funcao: z.enum(FUNCOES_COMISSAO_SCHEMA),
+})
 
 export const novoMembroSchema = z.object({
   email: z.string().trim().email().max(200),
