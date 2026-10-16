@@ -1,4 +1,6 @@
 -- 202610170010_idx_sumulapresenca_jogadorid.sql   (M6 do plano da Fase 0)
+-- REVISAO RODADA 2: indice DUPLICADO de supabase/migrations/202610090002_indices_chaves_estrangeiras.sql (mesmo nome e colunas).
+-- Esta migration e um no-op (if not exists) e pode ser descartada; a reversao e vazia de proposito.
 --
 -- OBJETIVO
 --   Indice para consultas quentes: SumulaPresenca ("jogadorId").  FK sem indice (delete+insert da sumula varre a tabela). Mesmo nome do indice da main.
@@ -24,7 +26,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170010_idx_sumulapresenca_jogadorid.sql
+--   supabase/pendentes/rollback/202610170010_idx_sumulapresenca_jogadorid.sql
 
 create index concurrently if not exists "SumulaPresenca_jogadorId_idx"
   on public."SumulaPresenca" ("jogadorId");

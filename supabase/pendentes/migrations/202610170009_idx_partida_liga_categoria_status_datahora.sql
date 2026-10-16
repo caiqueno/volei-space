@@ -24,7 +24,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170009_idx_partida_liga_categoria_status_datahora.sql
+--   supabase/pendentes/rollback/202610170009_idx_partida_liga_categoria_status_datahora.sql
 
 create index concurrently if not exists "Partida_ligaId_categoriaCampeonatoId_status_dataHora_idx"
   on public."Partida" ("ligaId", "categoriaCampeonatoId", status, "dataHora");

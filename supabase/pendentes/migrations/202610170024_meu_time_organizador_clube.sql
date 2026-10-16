@@ -34,7 +34,7 @@
 --   Fora de rodada por prudência: ALTER TABLE "Liga" pega lock curto (lock_timeout 5 s).
 --
 -- REVERSÃO
---   supabase/rollback/202610170024_meu_time_organizador_clube.sql
+--   supabase/pendentes/rollback/202610170024_meu_time_organizador_clube.sql
 
 begin;
 set local lock_timeout = '5s';

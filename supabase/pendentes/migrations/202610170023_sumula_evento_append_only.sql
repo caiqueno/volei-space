@@ -38,7 +38,7 @@
 --   de SHARE ROW EXCLUSIVE ao criar (lock_timeout de 5 s). Preferir fora de rodada.
 --
 -- REVERSÃO
---   supabase/rollback/202610170023_sumula_evento_append_only.sql (drop table: perde os eventos
+--   supabase/pendentes/rollback/202610170023_sumula_evento_append_only.sql (drop table: perde os eventos
 --   gravados; só reverter antes de existir evento real ou com backup da tabela).
 
 begin;

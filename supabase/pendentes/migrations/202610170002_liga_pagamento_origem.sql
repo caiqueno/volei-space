@@ -25,7 +25,7 @@
 --   varre a tabela, que é pequena). Evitar durante rodada por prudência.
 --
 -- REVERSÃO
---   supabase/rollback/202610170002_liga_pagamento_origem.sql
+--   supabase/pendentes/rollback/202610170002_liga_pagamento_origem.sql
 
 begin;
 set local lock_timeout = '5s';

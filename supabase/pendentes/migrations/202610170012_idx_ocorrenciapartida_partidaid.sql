@@ -1,4 +1,6 @@
 -- 202610170012_idx_ocorrenciapartida_partidaid.sql   (M6 do plano da Fase 0)
+-- REVISAO RODADA 2: indice DUPLICADO de supabase/migrations/202610090002_indices_chaves_estrangeiras.sql (mesmo nome e colunas).
+-- Esta migration e um no-op (if not exists) e pode ser descartada; a reversao e vazia de proposito.
 --
 -- OBJETIVO
 --   Indice para consultas quentes: OcorrenciaPartida ("partidaId").  Hot path da sumula. Redundante se existir indice com prefixo partidaId (ex.: OcorrenciaPartida_partidaId_set_idx da main); conferir em Q6.
@@ -24,7 +26,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170012_idx_ocorrenciapartida_partidaid.sql
+--   supabase/pendentes/rollback/202610170012_idx_ocorrenciapartida_partidaid.sql
 
 create index concurrently if not exists "OcorrenciaPartida_partidaId_idx"
   on public."OcorrenciaPartida" ("partidaId");

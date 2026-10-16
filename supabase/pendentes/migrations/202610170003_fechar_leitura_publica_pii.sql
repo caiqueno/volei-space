@@ -79,7 +79,7 @@
 --   transação longa (rodada em andamento).
 --
 -- REVERSÃO
---   supabase/rollback/202610170003_fechar_leitura_publica_pii.sql (parcial e deliberadamente NÃO
+--   supabase/pendentes/rollback/202610170003_fechar_leitura_publica_pii.sql (parcial e deliberadamente NÃO
 --   reabre Jogador nem as tabelas com senhaHash). Reversão fiel exige o dump de Q2/Q3.
 
 begin;
@@ -188,7 +188,9 @@ from public."Jogador" j
 join public."Equipe" e on e.id = j."equipeId"
 join public."Liga" l on l.id = e."ligaId"
 where coalesce(j.banido, false) = false
-  and l.status in ('ATIVA', 'ENCERRADA', 'FINALIZADO');
+  and l.status in ('ATIVA', 'ENCERRADA', 'FINALIZADO')
+  -- Rodada 2: campeonato de simulacao/privado nao entra na projecao publica (202609290002).
+  and coalesce(l.simulacao, false) = false;
 
 revoke all on table public.jogador_publico from public, anon, authenticated;
 grant select on table public.jogador_publico to anon, authenticated;

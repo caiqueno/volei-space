@@ -34,7 +34,7 @@
 --   sem cobrança em andamento. lock_timeout de 5 s.
 --
 -- REVERSÃO
---   supabase/rollback/202610170022_pagamento_valor_numeric_DESTRUTIVO.sql
+--   supabase/pendentes/rollback/202610170022_pagamento_valor_numeric_DESTRUTIVO.sql
 
 begin;
 set local lock_timeout = '5s';

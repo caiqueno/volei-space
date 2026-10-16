@@ -47,7 +47,7 @@
 --   Janela própria, separada de M1, em dia sem jogos, depois do deploy do código de upload/URL assinada.
 --
 -- REVERSÃO
---   supabase/rollback/202610170004_bucket_atleta_privado.sql (volta public = true e recria as
+--   supabase/pendentes/rollback/202610170004_bucket_atleta_privado.sql (volta public = true e recria as
 --   policies de Q5; as colunas *Legado ficam, são backup).
 
 begin;

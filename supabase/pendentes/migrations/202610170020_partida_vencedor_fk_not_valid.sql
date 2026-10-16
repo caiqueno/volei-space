@@ -26,7 +26,7 @@
 --   escrita por instantes). lock_timeout de 5 s.
 --
 -- REVERSÃO
---   supabase/rollback/202610170020_partida_vencedor_fk_not_valid.sql
+--   supabase/pendentes/rollback/202610170020_partida_vencedor_fk_not_valid.sql
 
 begin;
 set local lock_timeout = '5s';

@@ -18,7 +18,7 @@
 --   Baixa carga; varre "Partida".
 --
 -- REVERSÃO
---   supabase/rollback/202610170021_partida_vencedor_fk_validate.sql
+--   supabase/pendentes/rollback/202610170021_partida_vencedor_fk_validate.sql
 
 begin;
 set local lock_timeout = '5s';
