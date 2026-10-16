@@ -15,10 +15,12 @@ Next.js 14 (App Router), TypeScript, Tailwind CSS, Supabase (Postgres, Storage),
 Requisitos: Node.js 22 (`.nvmrc`).
 
 ```bash
-npm ci
-cp .env.example .env.local   # preencha com os valores do projeto Supabase de DESENVOLVIMENTO
+npm run setup                # confere o Node, instala, cria o .env.local e gera o Prisma Client
+# preencha o .env.local com os valores do projeto Supabase de DESENVOLVIMENTO
 npm run dev                  # http://localhost:3000
 ```
+
+Roteiro de teste manual: `docs/COMO-TESTAR.md`.
 
 Nunca use as credenciais de produção em ambiente local. A trava em `src/lib/supabase-env.ts` recusa combinar o alvo errado.
 
@@ -26,6 +28,8 @@ Nunca use as credenciais de produção em ambiente local. A trava em `src/lib/su
 
 | Comando | O que faz |
 |---|---|
+| `npm run setup` | Prepara o ambiente local (Node, dependências, `.env.local`, Prisma) |
+| `npm run reset-db` | Recria o banco **local** (Docker + Supabase CLI); recusa qualquer alvo remoto |
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Conferência de tipos |
