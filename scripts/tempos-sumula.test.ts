@@ -30,10 +30,11 @@ const semTempos = leitura.indexOf('select(`${campos},${CAMPOS_FASE},${CAMPOS_FAS
 assert.ok(comTempos > 0 && semTempos > comTempos, 'sem as colunas, a leitura seguinte mantém alerta, sets e limite')
 
 const tela = fs.readFileSync(path.join(process.cwd(), 'src/app/sumula/[token]/lancar/page.tsx'), 'utf8')
-assert.ok(tela.includes('textoTempoTecnico('))
+assert.ok(tela.includes('textoTempo('), 'o evento de tempo usa o texto "Tempo" (não mais "Tempo técnico")')
 assert.ok(tela.includes('const limite = matchRules.timeoutLimit'))
-assert.ok(tela.includes('if (used >= limite)'))
-assert.ok(tela.includes('timeoutLimit: limiteDeTempos(source?.limiteTemposPorSet)'))
+// O limite agora é avaliado pelo motor (avaliarTempo), que devolve a caixa de regra quando esgotado.
+assert.ok(tela.includes('avaliarTempo(used, limite, team.name)'))
+assert.ok(tela.includes('timeoutLimit: limiteDeTemposDaTela(source?.limiteTemposPorSet)'))
 assert.ok(tela.includes('temposSeparados: source?.separarTempos === true'))
 assert.ok(tela.includes('{temposSeparados ? ('))
 assert.equal(tela.includes('Tempo de equipe solicitado'), false)

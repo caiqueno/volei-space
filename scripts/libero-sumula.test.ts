@@ -72,7 +72,10 @@ assert.equal(rota.includes('Defina o líbero'), false)
 assert.equal(rota.includes('exige líbero'), false)
 assert.ok(tela.includes('quantidadeLiberos: quantidadeDeLiberos(source?.quantidadeLiberos)'))
 assert.ok(tela.includes("if (tipo === 'troca_libero' || tipo === 'libero_exchange') continue") === false)
-assert.ok(tela.includes('isLiberoExchange || porLesaoAtiva ? null : aplicarSubstituicao'))
+// A troca de líbero tem modo próprio (validada pelo motor) e é gravada como libero_exchange,
+// sem contar como substituição.
+assert.ok(tela.includes("modo === 'libero'"))
+assert.ok(tela.includes("'libero_exchange'"))
 assert.ok(tela.includes('rotuloSeletorLibero(displayPlayerName(player.name, team.name), props.getMatchNumber(selectedTeamId, player.number))'))
 
 console.log('libero ok')

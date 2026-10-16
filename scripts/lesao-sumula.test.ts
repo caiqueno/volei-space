@@ -33,7 +33,10 @@ assert.ok(comLesao > 0 && semLesao > comLesao, 'sem as colunas, a leitura seguin
 const tela = fs.readFileSync(path.join(process.cwd(), 'src/app/sumula/[token]/lancar/page.tsx'), 'utf8')
 assert.ok(tela.includes('if (!matchRules.tempoMedico || !teamA || !teamB) return'))
 assert.ok(tela.includes('{tempoMedico ? ('))
-assert.ok(tela.includes('porLesao === true && matchRules.substituicaoPorLesao'))
+// A substituição excepcional agora passa pelo motor de regras; a flag da categoria só decide
+// se o servidor ainda soma essa troca ao limite (aviso no modal).
+assert.ok(tela.includes("modo === 'excepcional'"))
+assert.ok(tela.includes('excepcionalContaNoServidor: !matchRules.substituicaoPorLesao'))
 assert.ok(tela.includes('{permiteLesao ? ('))
 assert.ok(tela.includes('tempoMedico: source?.tempoMedico === true'))
 assert.ok(tela.includes('substituicaoPorLesao: source?.substituicaoPorLesao === true'))
