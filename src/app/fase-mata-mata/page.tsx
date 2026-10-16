@@ -15,7 +15,7 @@ import { LinksCategoriaPublica } from '@/components/portal/LinksCategoriaPublica
 import { listarCategoriasDoCampeonato } from '@/lib/categorias-do-campeonato'
 import { escolherCategoria } from '@/lib/isolamento-categoria'
 import { getCreatorLeagueScope } from '@/lib/league-scope'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { createPageMetadata } from '@/lib/seo'
 import mi from '@/styles/microinteracoes.module.css'
 

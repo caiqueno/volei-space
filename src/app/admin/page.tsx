@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, UserRound, Users } from 'lucide-react'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { formatarDataPartida } from '@/lib/format-partida'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
 export default async function AdminDashboardPage() {

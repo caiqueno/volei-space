@@ -10,6 +10,7 @@ export function jogoJaIniciado(status?: string | null) {
 }
 
 export function destinoDepoisDoCodigo(partida: { id: number; status?: string | null; sumulaToken?: string | null }, tokenDoLink: string) {
-  if (jogoJaIniciado(partida.status)) return `/sumula/${partida.sumulaToken || partida.id}/lancar`
+  // Lançamento só existe com token da súmula; partida legada sem token fica na tela do árbitro.
+  if (jogoJaIniciado(partida.status) && partida.sumulaToken) return `/sumula/${partida.sumulaToken}/lancar`
   return `/arbitro/partida/${tokenDoLink}`
 }

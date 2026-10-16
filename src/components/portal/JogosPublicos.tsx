@@ -5,7 +5,7 @@ import { dataHoraUtc, ordenarJogos } from '@/lib/data-hora'
 import { consultarComVaga } from '@/lib/consulta-vaga'
 import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { ladoExposto } from '@/lib/vaga-a-definir'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import mi from '@/styles/microinteracoes.module.css'
 

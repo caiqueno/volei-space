@@ -6,7 +6,7 @@ import { ArrowRight, CalendarDays, Camera, ChevronDown, ClipboardCheck, LogOut, 
 import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { CandidateEditForm, type CandidateEditSection } from '@/components/candidate/CandidateEditForm'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
-import { supabase } from '@/lib/supabase'
+import { enviarArquivoAssinado, ErroUpload } from '@/lib/uploads-cliente'
 import { encerrarSessaoPublica } from '@/lib/sessao-publica'
 
 type Session = {
@@ -225,22 +225,14 @@ export default function CapitaoPage() {
     setTeamUploading(true)
     try {
       const optimized = await optimizeImageFile(file, 'logo-equipe')
-      const safeName = optimized.file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.]+/g, '-')
-      const path = `${session?.candidaturaId ?? 'equipe'}/identidade/${Date.now()}-${safeName}`
-      const { error: uploadError } = await supabase.storage.from('equipe-emblemas').upload(path, optimized.file, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: optimized.file.type || 'image/webp',
-      })
-
-      if (uploadError) {
-        setTeamMsg('Nao foi possivel enviar a logo. Verifique o bucket equipe-emblemas no Supabase.')
+      if (!teamIdentity?.id) {
+        setTeamMsg('A logo s\u00f3 pode ser enviada quando a equipe est\u00e1 vinculada a um campeonato.')
         return
       }
-
-      const { data } = supabase.storage.from('equipe-emblemas').getPublicUrl(path)
-      if (data.publicUrl) {
-        setTeamForm((current) => ({ ...current, logoUrl: data.publicUrl }))
+      const envio = await enviarArquivoAssinado({ tipo: 'equipe-emblema', equipeId: teamIdentity.id, arquivo: optimized.file })
+      if (envio.urlPublica) {
+        const urlPublica = envio.urlPublica
+        setTeamForm((current) => ({ ...current, logoUrl: urlPublica }))
         setTeamMsg(`Logo enviada (${formatBytes(optimized.file.size)}). Salve para aplicar na equipe.`)
       }
     } catch (err) {
@@ -325,6 +317,11 @@ export default function CapitaoPage() {
   async function uploadAtletaFiles(files: FileList | null, kind: 'foto' | 'documento') {
     if (!files?.length) return
     setRosterMsg('')
+    const equipeId = teamIdentity?.id
+    if (!equipeId) {
+      setRosterMsg('Os arquivos do atleta só podem ser enviados quando a equipe está vinculada a um campeonato.')
+      return
+    }
     const uploaded: string[] = []
     for (const file of Array.from(files).slice(0, kind === 'foto' ? 1 : 8)) {
       const max = kind === 'foto' ? 4 : 8
@@ -332,18 +329,13 @@ export default function CapitaoPage() {
         setRosterMsg(`Arquivo acima de ${max} MB.`)
         return
       }
-      const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.]+/g, '-')
-      const path = `${session?.candidaturaId ?? 'capitao'}/${kind}/${Date.now()}-${safeName}`
-      const { error: uploadError } = await supabase.storage.from('atleta-arquivos').upload(path, file, {
-        cacheControl: '3600',
-        upsert: false,
-      })
-      if (uploadError) {
-        setRosterMsg('Não foi possível enviar o arquivo. Verifique o bucket atleta-arquivos no Supabase.')
+      try {
+        const envio = await enviarArquivoAssinado({ tipo: kind === 'foto' ? 'atleta-foto-rosto' : 'atleta-documento', equipeId, arquivo: file })
+        uploaded.push(envio.referencia)
+      } catch (err) {
+        setRosterMsg(err instanceof ErroUpload ? err.message : 'Não foi possível enviar o arquivo. Tente novamente.')
         return
       }
-      const { data } = supabase.storage.from('atleta-arquivos').getPublicUrl(path)
-      if (data.publicUrl) uploaded.push(data.publicUrl)
     }
     if (kind === 'foto' && uploaded[0]) setPlayerForm((current) => ({ ...current, fotoRostoUrl: uploaded[0] }))
     if (kind === 'documento') setPlayerForm((current) => ({ ...current, documentosUrls: [...current.documentosUrls, ...uploaded].slice(0, 8) }))

@@ -48,7 +48,8 @@ export function PartidaCard({ partida, roundLabel, showSumulaLink = false, atras
   const mostraData = Boolean(agenda.data)
   const mostraLocal = Boolean(agenda.local)
   const liveLabel = encerrada ? 'Resumo da partida' : emAndamento ? 'Acompanhar ao vivo' : 'Link público'
-  const sumulaHref = `/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`
+  // Sem token (partida legada), /sumula/<id> abre apenas a consulta pública (sumula-publica); nunca o lançamento.
+  const sumulaHref =`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`
   const publicoHref = `/partidas/${partida.id}/ao-vivo`
 
   return (
