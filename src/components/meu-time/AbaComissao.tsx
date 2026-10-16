@@ -5,9 +5,16 @@ import type { MeuTimeClient } from './cliente'
 import { Aviso, botaoPerigo, botaoPrimario, Campo, campoEstilo, cartao, descreve, falhaDe } from './ui'
 import { FUNCOES_COMISSAO, rotuloFuncao } from './rotulos'
 import { validarMembroComissao } from '@/lib/meu-time-ui/formularios'
+import { MENSAGEM_COMISSAO_INDISPONIVEL } from '@/lib/meu-time-ui/respostas'
 import type { MembroComissao } from '@/lib/meu-time-ui/tipos'
 
 type Props = { cliente: MeuTimeClient; equipeId: string; comissao: MembroComissao[]; aoAtualizar: () => Promise<void> }
+
+/** 503 aqui é só a tabela da comissão que falta: o resto do time funciona, então a explicação é própria. */
+function textoDaFalha(erro: unknown) {
+  const falha = falhaDe(erro)
+  return falha.tipo === 'nao-habilitado' ? MENSAGEM_COMISSAO_INDISPONIVEL : falha.mensagem
+}
 
 export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props) {
   const [nome, setNome] = useState('')
@@ -30,7 +37,7 @@ export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props)
       setFuncao('')
       await aoAtualizar()
     } catch (erro) {
-      setMensagem(falhaDe(erro).mensagem)
+      setMensagem(textoDaFalha(erro))
     } finally {
       setOcupado(false)
     }
@@ -44,7 +51,7 @@ export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props)
       await cliente.removerMembroComissao(equipeId, membro.id)
       await aoAtualizar()
     } catch (erro) {
-      setMensagem(falhaDe(erro).mensagem)
+      setMensagem(textoDaFalha(erro))
     } finally {
       setOcupado(false)
     }

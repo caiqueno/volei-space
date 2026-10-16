@@ -72,7 +72,7 @@ export function FalhaTela({ falha, aoTentar }: { falha: Falha; aoTentar?: () => 
     return (
       <div className="flex flex-col gap-3">
         <Aviso>
-          <strong className="block">Meu Time ainda não habilitado</strong>
+          <strong className="block">Meu Time ainda não está habilitado</strong>
           {falha.mensagem}
         </Aviso>
         <Link href="/" className={botaoSecundario}>Voltar ao início</Link>

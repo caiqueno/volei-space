@@ -199,7 +199,15 @@ async function main() {
   // --- R3: mensagens por status e código
   assert.match(classificarFalha(401, null).mensagem, /Entre na sua conta/)
   assert.match(classificarFalha(403, null).mensagem, /permissão/)
-  assert.match(classificarFalha(404, { error: 'Não encontrado.' }).mensagem, /Não encontramos/)
+  assert.match(classificarFalha(404, { error: 'Equipe não encontrada.', codigo: 'EQUIPE_NAO_ENCONTRADA' }).mensagem, /Não encontramos/)
+  assert.equal(classificarFalha(404, { error: 'Equipe não encontrada.', codigo: 'EQUIPE_NAO_ENCONTRADA' }).tipo, 'nao-encontrado')
+  // R5 M9: flag desligada (404 sem código) é "não habilitado", não "time não encontrado"
+  assert.equal(classificarFalha(404, { error: 'Não encontrado.' }).tipo, 'nao-habilitado')
+  assert.match(classificarFalha(404, { error: 'Não encontrado.' }).mensagem, /ainda não está habilitado/)
+  assert.equal(classificarFalha(404, null).tipo, 'nao-encontrado')
+  assert.equal(classificarFalha(503, { error: 'x' }).tipo, 'nao-habilitado')
+  const httpOff = criarClienteHttp(async () => resposta(404, { error: 'Não encontrado.' }))
+  await assert.rejects(httpOff.listarEquipes(), (e) => e instanceof ErroMeuTime && e.falha.tipo === 'nao-habilitado' && e.falha.status === 404)
   assert.match(classificarFalha(409, { codigo: 'EQUIPE_DUPLICADA', error: 'x' }).mensagem, /já tem um time com esse nome/)
   assert.match(classificarFalha(404, { codigo: 'CONTA_NAO_ENCONTRADA' }).mensagem, /criar a conta/)
   assert.match(classificarFalha(503, { codigo: 'EQUIPE_DUPLICADA' }).mensagem, /ainda não está habilitado/)

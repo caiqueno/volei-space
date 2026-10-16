@@ -13,7 +13,7 @@ export type Falha = {
   detalhes?: string[]
 }
 
-export const MENSAGEM_NAO_HABILITADO = 'O Meu Time ainda não está habilitado para você. Assim que estiver, esta área abre sozinha.'
+export const MENSAGEM_NAO_HABILITADO = 'O Meu Time ainda não está habilitado para você. Assim que estiver, é só voltar aqui.'
 
 const MENSAGENS_PADRAO: Record<TipoFalha, string> = {
   'nao-habilitado': MENSAGEM_NAO_HABILITADO,
@@ -26,8 +26,24 @@ const MENSAGENS_PADRAO: Record<TipoFalha, string> = {
   outro: 'Não deu certo agora. Tente de novo em instantes.',
 }
 
-function tipoPorStatus(status: number): TipoFalha {
-  if (status === 503) return 'nao-habilitado'
+export const MENSAGEM_COMISSAO_INDISPONIVEL =
+  'A comissão técnica ainda não está disponível neste ambiente. O resto do time (atletas, inscrição, dados) funciona normalmente.'
+
+export const MENSAGEM_SO_RESPONSAVEL = 'Só o responsável pelo time pode fazer isso.'
+export const MENSAGEM_SO_RESPONSAVEL_OU_TECNICO = 'Só o responsável ou o técnico do time pode fazer isso.'
+
+/**
+ * Flag desligada: o servidor responde 404 `{error:'Não encontrado.'}` sem `codigo` (contrato).
+ * Os 404 de verdade (equipe, atleta, categoria) sempre trazem `codigo`.
+ */
+function recursoDesligado(status: number, corpo: unknown) {
+  if (status !== 404 || !corpo || typeof corpo !== 'object') return false
+  const o = corpo as Record<string, unknown>
+  return o.codigo === undefined && typeof o.error === 'string' && o.error.trim().toLowerCase() === 'não encontrado.'
+}
+
+function tipoPorStatus(status: number, corpo?: unknown): TipoFalha {
+  if (status === 503 || recursoDesligado(status, corpo)) return 'nao-habilitado'
   if (status === 401) return 'sem-sessao'
   if (status === 403) return 'sem-permissao'
   if (status === 404) return 'nao-encontrado'
@@ -46,7 +62,7 @@ const MENSAGENS_POR_CODIGO: Record<string, string> = {
   CONFLITO_DE_ELENCO: 'Algum atleta já está em outro time desta categoria. Confira o elenco.',
   CONTA_NAO_ENCONTRADA: 'Não achamos uma conta com esse e-mail. A pessoa precisa criar a conta no volei.space antes.',
   CATEGORIA_NAO_ENCONTRADA: 'Não encontramos essa categoria. Peça um link de convite novo ao organizador.',
-  SEM_PERMISSAO: 'Só quem é responsável pelo time pode fazer isso.',
+  SEM_PERMISSAO: 'Você não tem permissão para isso neste time. Peça ao responsável ou ao técnico do time.',
   INSCRICOES_FECHADAS: 'As inscrições desta categoria estão fechadas.',
   CONVITE_INVALIDO: 'Este convite não vale mais. Peça um link novo ao organizador.',
 }
@@ -57,7 +73,7 @@ function pareceTecnica(texto: string) {
 
 /** Monta a falha a partir do status HTTP e do corpo `{error, codigo?}`. */
 export function classificarFalha(status: number, corpo: unknown): Falha {
-  const tipo = tipoPorStatus(status)
+  const tipo = tipoPorStatus(status, corpo)
   const objeto = corpo && typeof corpo === 'object' ? (corpo as Record<string, unknown>) : {}
   const erro = typeof objeto.error === 'string' ? objeto.error.trim() : ''
   const codigo = typeof objeto.codigo === 'string' ? objeto.codigo : undefined
