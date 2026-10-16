@@ -51,8 +51,9 @@ export type RegrasCategoria = {
   categoriaId: string
   nome: string
   naipe: Naipe | null
-  minimoAtletas: number
-  maximoAtletas: number
+  /** null = sem limite (categoria sem RegraElenco). */
+  minimoAtletas: number | null
+  maximoAtletas: number | null
   maximoLiberos: number
   maximoComissao: number | null
   anoNascimentoMinimo: number | null

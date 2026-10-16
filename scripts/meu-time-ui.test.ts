@@ -223,7 +223,8 @@ async function main() {
   assert.ok(regrasServidor)
   const regrasTela = regrasDeCategoria(regrasServidor!)
   assert.deepEqual(regrasTela, { minimo: 6, maximo: 12, maxLiberos: 1, anoMinimo: 2008, maxComissao: 3, inscricoesAbertas: false, nomeCategoria: 'Sub-17' })
-  assert.equal(normalizarRegrasCategoria({ minimoAtletas: 'x' }), null)
+  assert.equal(normalizarRegrasCategoria('x'), null)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: -3 }), null)
   assert.equal(normalizarRegrasCategoria({ minimoAtletas: 8, maximoAtletas: 6, maximoLiberos: 1 }), null)
   const comRegras = problemasDeEnvio(escolhas, atletas, regrasTela, 5)
   assert.ok(comRegras.some((p) => p.codigo === 'fechada'))
@@ -293,6 +294,34 @@ async function main() {
   assert.equal(detalheR3.meuPapel, 'TECNICO')
   const loteMem = await memR3.adicionarAtletasEmLote('q1', [{ nome: 'Lia' }])
   assert.equal(contarSemNascimento(loteMem.atletasCriados), 1)
+
+  // --- R5 A1: categoria sem RegraElenco (limites null) não bloqueia a inscrição
+  const semRegra = normalizarRegrasCategoria({
+    categoriaId: 'c9', nome: 'Aberta', naipe: 'MISTO', minimoAtletas: null, maximoAtletas: null, maximoLiberos: 2,
+    maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true,
+  })
+  assert.ok(semRegra)
+  assert.equal(semRegra!.minimoAtletas, null)
+  assert.equal(semRegra!.maximoAtletas, null)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: null, maximoAtletas: null })!.maximoLiberos, 2)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: null, maximoAtletas: 10, maximoLiberos: 1 })!.maximoAtletas, 10)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: 0, maximoAtletas: null }), null)
+  const regrasLivres = regrasDeCategoria(semRegra!)
+  assert.equal(regrasLivres.minimo, null)
+  assert.equal(regrasLivres.maximo, null)
+  const muitosAtletas = Array.from({ length: 20 }, (_, i) => ({ atletaId: `a${i}`, numero: String(i + 1), capitao: false, libero: false }))
+  const atletasLivres = muitosAtletas.map((e) => atleta(e.atletaId, e.atletaId, { dataNascimento: '2000-01-01' }))
+  assert.deepEqual(problemasDeEnvio(muitosAtletas, atletasLivres, regrasLivres), [])
+  assert.deepEqual(problemasDeEnvio(muitosAtletas.slice(0, 2), atletasLivres, regrasLivres), [])
+  assert.deepEqual(problemasDeEnvio([], atletasLivres, regrasLivres).map((p) => p.codigo), ['minimo'])
+  assert.equal(resumirSelecao(muitosAtletas, regrasLivres).situacao, 'ok')
+  assert.match(resumirSelecao(muitosAtletas, regrasLivres).texto, /sem limite de atletas definido/)
+  assert.equal(resumirSelecao([], regrasLivres).situacao, 'abaixo')
+  const soMaximo = regrasDeCategoria({ ...semRegra!, maximoAtletas: 8 })
+  assert.ok(problemasDeEnvio(muitosAtletas, atletasLivres, soMaximo).some((p) => p.codigo === 'maximo'))
+  assert.equal(problemasDeEnvio(muitosAtletas.slice(0, 2), atletasLivres, soMaximo).length, 0)
+  const httpSemRegra = criarClienteHttp(async () => resposta(200, { data: { categoriaId: 'c9', nome: 'Aberta', naipe: null, minimoAtletas: null, maximoAtletas: null, maximoLiberos: 2, maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true } }))
+  assert.equal((await httpSemRegra.obterRegrasCategoria('c9')).minimoAtletas, null)
 
   console.log('meu-time-ui: ok')
 }

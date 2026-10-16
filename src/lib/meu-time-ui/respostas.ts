@@ -87,14 +87,16 @@ function inteiroOuNulo(valor: unknown): number | null {
   return typeof valor === 'number' && Number.isFinite(valor) ? Math.trunc(valor) : null
 }
 
-/** Valida o corpo de GET /categorias/:id/regras. Devolve null se faltar algum limite essencial. */
+/** Valida o corpo de GET /categorias/:id/regras. Limite null = sem limite (categoria sem RegraElenco). */
 export function normalizarRegrasCategoria(dado: unknown): RegrasCategoria | null {
   if (!dado || typeof dado !== 'object') return null
   const o = dado as Record<string, unknown>
   const minimo = inteiroOuNulo(o.minimoAtletas)
   const maximo = inteiroOuNulo(o.maximoAtletas)
   const liberos = inteiroOuNulo(o.maximoLiberos)
-  if (minimo == null || maximo == null || liberos == null || minimo < 1 || maximo < minimo || liberos < 0) return null
+  // Contrato: sem RegraElenco valem os padrões (limites null, maximoLiberos 2). Null nunca bloqueia a inscrição.
+  const maximoLiberos = liberos ?? 2
+  if ((minimo != null && minimo < 1) || (maximo != null && maximo < 1) || (minimo != null && maximo != null && maximo < minimo) || maximoLiberos < 0) return null
   const naipe = o.naipe === 'FEMININO' || o.naipe === 'MASCULINO' || o.naipe === 'MISTO' ? o.naipe : null
   return {
     categoriaId: typeof o.categoriaId === 'string' ? o.categoriaId : '',
@@ -102,7 +104,7 @@ export function normalizarRegrasCategoria(dado: unknown): RegrasCategoria | null
     naipe,
     minimoAtletas: minimo,
     maximoAtletas: maximo,
-    maximoLiberos: liberos,
+    maximoLiberos,
     maximoComissao: inteiroOuNulo(o.maximoComissao),
     anoNascimentoMinimo: inteiroOuNulo(o.anoNascimentoMinimo),
     anoNascimentoMaximo: inteiroOuNulo(o.anoNascimentoMaximo),
