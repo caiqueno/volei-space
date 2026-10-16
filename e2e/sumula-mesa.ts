@@ -27,16 +27,16 @@ export async function abrirPontuacaoDemo(page: Page) {
 }
 
 async function escalarTime(page: Page, libero: string) {
-  const vagas = page.locator('.official-court [role="button"]')
+  const vagas = page.locator('.official-court .official-slot')
   await expect(vagas).toHaveCount(6)
   const numeros = (await vagas.locator('strong').allTextContents()).map((item) => item.trim())
   const sugerida = numeros.join(',') === '#1,#2,#3,#4,#5,#6'
-  const vazia = numeros.every((item) => item === 'Sem atleta')
-  expect(sugerida || vazia, `escalação inesperada: ${numeros.join(' | ')}`).toBe(true)
+  const listas = vagas.locator('.official-slot-open-list')
+  const vazia = await listas.count() === 6
+  expect(sugerida || vazia, `escalação inesperada: ${numeros.join(' | ') || 'sem camisa'}`).toBe(true)
   if (vazia) {
     for (const numero of ['1', '2', '3', '4', '5', '6']) {
-      const vaga = page.locator('.official-court [role="button"]', { hasText: 'Sem atleta' }).first()
-      await vaga.click()
+      await listas.first().click()
       await page.getByRole('dialog', { name: 'Escalar atleta' }).getByRole('button', { name: `#${numero} - Jogador ${numero}` }).click()
     }
   }
