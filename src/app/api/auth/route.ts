@@ -16,8 +16,15 @@ const FALHA_ENTRADA = 'Não foi possível entrar agora. Tente novamente.'
 const JANELA_LOGIN_MS = 15 * 60 * 1000
 // Só falhas contam. Por e-mail o limite é baixo; por IP é maior porque um
 // ginásio ou provedor pode concentrar várias pessoas atrás do mesmo endereço.
-const LIMITE_FALHAS_LOGIN_EMAIL = 5
+const LIMITE_FALHAS_LOGIN_EMAIL_IP = 5
 const LIMITE_FALHAS_LOGIN_IP = 30
+const LIMITE_FALHAS_LOGIN_EMAIL = 50
+
+function bloqueado(retryAfterSeconds: number) {
+  const res = error('Muitas tentativas. Tente novamente em instantes.', 429)
+  res.headers.set('Retry-After', String(Math.max(1, retryAfterSeconds)))
+  return res
+}
 let hashComparacao: Promise<string> | null = null
 
 function hashParaComparacao() {
@@ -51,17 +58,19 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.trim().toLowerCase()
     const senha = parsed.data.senha
 
-    const chaveIp = `login:ip:${ipDaRequisicao(req)}`
+    const ip = ipDaRequisicao(req)
+    // Chave composta (e-mail + IP): quem erra a senha de outra pessoa de outro IP não trava a vítima.
+    // O limite só por e-mail é alto, apenas contra ataque distribuído.
+    const chaveIp = `login:ip:${ip}`
+    const chaveEmailIp = `login:emailip:${email}|${ip}`
     const chaveEmail = `login:email:${email}`
-    const [bloqueioIp, bloqueioEmail] = await Promise.all([
+    const [bloqueioIp, bloqueioEmailIp, bloqueioEmail] = await Promise.all([
       limiteEsgotado(chaveIp, LIMITE_FALHAS_LOGIN_IP),
+      limiteEsgotado(chaveEmailIp, LIMITE_FALHAS_LOGIN_EMAIL_IP),
       limiteEsgotado(chaveEmail, LIMITE_FALHAS_LOGIN_EMAIL),
     ])
-    if (!bloqueioIp.permitido || !bloqueioEmail.permitido) {
-      const espera = Math.max(bloqueioIp.retryAfterSeconds, bloqueioEmail.retryAfterSeconds)
-      const res = error('Muitas tentativas. Tente novamente em instantes.', 429)
-      res.headers.set('Retry-After', String(espera))
-      return res
+    if (!bloqueioIp.permitido || !bloqueioEmailIp.permitido || !bloqueioEmail.permitido) {
+      return bloqueado(Math.max(bloqueioIp.retryAfterSeconds, bloqueioEmailIp.retryAfterSeconds, bloqueioEmail.retryAfterSeconds))
     }
 
     if (!isSupabaseServiceConfigured) {
@@ -69,14 +78,21 @@ export async function POST(req: NextRequest) {
       return error(FALHA_ENTRADA, 500)
     }
 
+    // Reserva a tentativa ANTES de conferir a senha: uma rajada paralela não passa do limite.
+    const [reservaEmailIp, reservaEmail] = await Promise.all([
+      checkRateLimit(chaveEmailIp, { limite: LIMITE_FALHAS_LOGIN_EMAIL_IP, janelaMs: JANELA_LOGIN_MS }),
+      checkRateLimit(chaveEmail, { limite: LIMITE_FALHAS_LOGIN_EMAIL, janelaMs: JANELA_LOGIN_MS }),
+    ])
+    if (!reservaEmailIp.permitido || !reservaEmail.permitido) {
+      return bloqueado(Math.max(reservaEmailIp.retryAfterSeconds, reservaEmail.retryAfterSeconds))
+    }
+
     const res = await autenticar(email, senha, parsed.data.perfil, adminOnly)
     if (res.status === 401) {
-      await Promise.all([
-        checkRateLimit(chaveIp, { limite: LIMITE_FALHAS_LOGIN_IP, janelaMs: JANELA_LOGIN_MS }),
-        checkRateLimit(chaveEmail, { limite: LIMITE_FALHAS_LOGIN_EMAIL, janelaMs: JANELA_LOGIN_MS }),
-      ])
-    } else if (res.status === 200) {
-      await zerarLimite(chaveEmail)
+      await checkRateLimit(chaveIp, { limite: LIMITE_FALHAS_LOGIN_IP, janelaMs: JANELA_LOGIN_MS })
+    } else if (res.status === 200 || res.status === 403) {
+      // Senha correta: devolve a tentativa reservada.
+      await Promise.all([zerarLimite(chaveEmailIp), zerarLimite(chaveEmail)])
     }
     return res
   } catch (err: unknown) {

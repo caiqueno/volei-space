@@ -27,6 +27,15 @@ caso('RG-LIB-001: até 2 líberos, da relação nominal', () => {
   assert.equal(validarRegistroDeLiberos([99], ELENCO).ok, false)
 })
 
+caso('RG-LIB-006: a troca de líbero exige que quem sai esteja em quadra e quem entra esteja fora', () => {
+  const foraDeQuadra = validarTrocaLibero(novo(), { sai: 8, entra: 20 }, ctx)
+  assert.equal(foraDeQuadra.ok, false)
+  if (!foraDeQuadra.ok) assert.equal(foraDeQuadra.codigo, 'RG-LIB-006')
+  const jaEmQuadra = validarTrocaLibero(novo(), { sai: 5, entra: 6 }, ctx)
+  assert.equal(jaEmQuadra.ok, false)
+  if (!jaEmQuadra.ok) assert.equal(jaEmQuadra.codigo, 'RG-LIB-006')
+})
+
 caso('RG-LIB-003: líbero só substitui jogador de fundo de quadra', () => {
   const frente = validarTrocaLibero(novo(), { sai: 2, entra: 20 }, ctx)
   assert.equal(frente.ok, false)

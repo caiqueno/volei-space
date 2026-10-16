@@ -138,9 +138,18 @@ async function testeLogin() {
   // Outro e-mail, mesmo IP, segue liberado (limite por IP é maior).
   assert.equal((await tentar('outro@volei.space', 'errada')).status, 401)
 
+  // Bloqueio é por e-mail + IP: o mesmo e-mail, vindo de outro IP, não fica travado por quem errou a senha.
+  assert.equal((await tentar('org@volei.space', 'senha-correta-1', '10.0.0.2')).status, 200, 'outro IP não é bloqueado')
+
   // Usuário inexistente também conta falha (sem revelar existência).
   for (let i = 0; i < 5; i += 1) await tentar('fantasma@volei.space', 'x')
   assert.equal((await tentar('fantasma@volei.space', 'x')).status, 429)
+
+  // Rajada paralela: a tentativa é reservada antes de conferir a senha, então no máximo 5 passam.
+  const rajada = await Promise.all(Array.from({ length: 20 }, () => tentar('rajada@volei.space', 'x', '10.0.0.9')))
+  const passaram = rajada.filter((resposta) => resposta.status === 401).length
+  assert.ok(passaram <= 5, `rajada paralela deixou passar ${passaram} tentativas`)
+  assert.ok(rajada.filter((resposta) => resposta.status === 429).length >= 15)
 }
 
 async function testeForgot() {

@@ -28,6 +28,7 @@ caso('RG-TMP-007 / CJ-04: o 1º atraso da equipe na partida é advertência', ()
   const h: SancaoRegistrada[] = []
   const r = avaliarOk(h, { equipe: 'A', membro: 'EQUIPE', categoria: 'ATRASO', set: 1 })
   assert.equal(r.sancao, 'ADVERTENCIA_ATRASO')
+  assert.equal(r.codigo, 'RG-TMP-007')
   assert.equal(r.pontoParaAdversario, false)
   assert.equal(r.colunaQuadro, 'A')
 })
@@ -37,6 +38,7 @@ caso('RG-TMP-008 / CJ-04: novo atraso, mesmo em outro set, é penalidade (ponto 
   avaliarOk(h, { equipe: 'A', membro: 'EQUIPE', categoria: 'ATRASO', set: 1 })
   const r = avaliarOk(h, { equipe: 'A', membro: 'EQUIPE', categoria: 'ATRASO', set: 3 })
   assert.equal(r.sancao, 'PENALIDADE_ATRASO')
+  assert.equal(r.codigo, 'RG-TMP-008')
   assert.equal(r.pontoParaAdversario, true)
   assert.equal(r.saqueParaAdversario, true)
   // atraso da outra equipe começa do zero

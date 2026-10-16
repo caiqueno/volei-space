@@ -277,6 +277,11 @@ export default function SumulaPage() {
     setModalMvpAberto(true)
   }, [loading, notFound, submitted, setEndPrompt, matchStatus, mvpId, partida?.sumulaAprovadaEm])
 
+  // O ponto que fecha o set não pode ser atribuído depois do diálogo de fim de set (a faixa seria do set anterior).
+  useEffect(() => {
+    if (setEndPrompt) setFaixaPonto(null)
+  }, [setEndPrompt])
+
   useEffect(() => {
     let ativo = true
     setLoading(true)

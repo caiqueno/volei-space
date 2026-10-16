@@ -14,9 +14,16 @@ import {
   validarSequenciaDePartida,
   vencedorDoSet,
 } from '../src/lib/regras-volei'
+import { LIMITE_OFICIAL_TEMPOS, PERFIL_AMADOR, PERFIL_FIVB_CBV } from '../src/lib/regras-volei/config'
 import { assert, caso, encerrar } from './regras-volei-helper'
 
 const c5 = CONFIG_FIVB_MELHOR_DE_5
+
+caso('RG-TMP-001: o padrão oficial é de 2 tempos por set, em todos os perfis', () => {
+  assert.equal(LIMITE_OFICIAL_TEMPOS, 2)
+  assert.equal(PERFIL_FIVB_CBV.temposPorSet, 2)
+  assert.equal(PERFIL_AMADOR.temposPorSet, 2)
+})
 
 caso('RG-SET-001: 25 pontos com 2 de vantagem encerra o set', () => {
   assert.equal(setEncerrado({ a: 25, b: 23 }, 25), true)
