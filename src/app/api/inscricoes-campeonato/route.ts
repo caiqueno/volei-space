@@ -173,13 +173,17 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
     if (existenteErr) throw existenteErr
 
-    const status = existente?.status === 'APROVADA'
-      ? 'APROVADA'
-      : statusInicialDaInscricao(liga.inscricaoAprovacaoAutomatica)
-    if (status === 'APROVADA' && existente?.status !== 'APROVADA') {
+    // Equipe removida pelo organizador não volta sozinha: a decisão é dele.
+    if (existente?.status === 'REJEITADA') {
+      return error('Esta equipe foi removida do campeonato pelo organizador.', 409)
+    }
+
+    // Inscrição automática: sempre entra direto, respeitando o limite de vagas.
+    const status = statusInicialDaInscricao()
+    if (existente?.status !== status) {
       const aprovadas = await countApprovedRegistrations(parsed.data.ligaId)
       if (liga.quantidadeEquipes && aprovadas >= liga.quantidadeEquipes) {
-        return error('O limite de equipes aprovadas deste campeonato já foi atingido.', 400)
+        return error('O limite de equipes deste campeonato já foi atingido.', 400)
       }
     }
 
@@ -190,10 +194,11 @@ export async function POST(req: NextRequest) {
         equipeId: equipe.id,
         status,
       }, { onConflict: 'ligaId,equipeId' })
-      .select()
+      .select('id,ligaId,equipeId,status,liga:Liga(id,quantidadeEquipes,formato,quantidadeGrupos),equipe:Equipe(id,categoria,serie,nome)')
       .single()
 
     if (insertErr) throw insertErr
+    if (data) await ensureClassificationAndCalendar(data as Parameters<typeof ensureClassificationAndCalendar>[0])
     return success(data, 201)
   } catch (err) {
     console.error('[inscricoes-campeonato] erro', err)
@@ -214,34 +219,8 @@ export async function PATCH(req: NextRequest) {
     const auth = await requireOrganizador(req)
     if (auth instanceof Response) return auth
 
-    const { data: inscricaoAtual, error: findErr } = await supabase
-      .from('InscricaoCampeonato')
-      .select(`*, liga:Liga(organizadorId,quantidadeEquipes), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})`)
-      .eq('id', id)
-      .single()
-
-    if (findErr || !inscricaoAtual) return error('Inscrição não encontrada.', 404)
-    const liga = Array.isArray(inscricaoAtual.liga) ? inscricaoAtual.liga[0] : inscricaoAtual.liga
-    if (liga?.organizadorId !== auth.userId) return error('Acesso negado para este campeonato.', 403)
-
-    if (status === 'APROVADA') {
-      const aprovadas = await countApprovedRegistrations(inscricaoAtual.ligaId)
-      const jaAprovada = inscricaoAtual.status === 'APROVADA'
-      if (!jaAprovada && liga?.quantidadeEquipes && aprovadas >= liga.quantidadeEquipes) {
-        return error('Não há mais vagas aprovadas para este campeonato.', 400)
-      }
-    }
-
-    const { data, error: updateErr } = await supabase
-      .from('InscricaoCampeonato')
-      .update({ status })
-      .eq('id', id)
-      .select(`*, liga:Liga(${LIGA_COLUNAS_PUBLICAS}), equipe:Equipe(${EQUIPE_WITH_ROSTER_SELECT})` as '*')
-      .single()
-
-    if (updateErr) throw updateErr
-    if (status === 'APROVADA') await ensureClassificationAndCalendar(data)
-    return success(withSynchronizedRoster(data))
+    // A inscrição é automática: não existe aprovar, rejeitar nem devolver à fila.
+    return error('A inscrição é automática: não há aprovação nem rejeição de equipes.', 410)
   } catch (err) {
     console.error('[inscricoes-campeonato] erro ao atualizar', err)
     return error('Erro ao atualizar inscrição.', 500)

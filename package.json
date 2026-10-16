@@ -101,6 +101,7 @@
     "test:ao-vivo-conexao": "node scripts/with-ts-node.mjs scripts/ao-vivo-conexao.test.ts",
     "test:elenco-inscricao": "node scripts/with-ts-node.mjs scripts/elenco-inscricao.test.ts",
     "test:stories-instagram": "node scripts/with-ts-node.mjs scripts/stories-instagram.test.ts",
+    "test:inscricao-automatica": "node scripts/with-ts-node.mjs scripts/inscricao-automatica.test.ts",
     "test:regras-volei-set": "node scripts/with-ts-node.mjs scripts/regras-volei-set.test.ts",
     "test:regras-volei-rotacao": "node scripts/with-ts-node.mjs scripts/regras-volei-rotacao.test.ts",
     "test:regras-volei-substituicoes": "node scripts/with-ts-node.mjs scripts/regras-volei-substituicoes.test.ts",

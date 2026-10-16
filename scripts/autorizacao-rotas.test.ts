@@ -19,10 +19,12 @@ function rotas(dir: string): string[] {
   })
 }
 
+// Inscrição automática: a flag antiga não muda mais o resultado.
 assert.equal(statusInicialDaInscricao(true), 'APROVADA')
-assert.equal(statusInicialDaInscricao(false), 'SOLICITADA')
-assert.equal(statusInicialDaInscricao(null), 'SOLICITADA')
-assert.equal(statusInicialDaInscricao(undefined), 'SOLICITADA')
+assert.equal(statusInicialDaInscricao(false), 'APROVADA')
+assert.equal(statusInicialDaInscricao(null), 'APROVADA')
+assert.equal(statusInicialDaInscricao(undefined), 'APROVADA')
+assert.equal(statusInicialDaInscricao(), 'APROVADA')
 
 for (const campo of LIGA_CAMPOS_OCULTOS) {
   assert.equal(LIGA_COLUNAS_PUBLICAS.split(',').includes(campo), false, campo)

@@ -195,7 +195,8 @@ async function repairCandidaturaLeagueRegistration(candidatura: any, equipe: any
     await replaceLeagueTeamReferences(Number(candidatura.ligaId), stale.equipeId, equipe.id)
 
     if (!current) {
-      const nextStatus = String(stale.status).toUpperCase() === 'APROVADA' ? 'APROVADA' : 'SOLICITADA'
+      // Inscrição automática: só a equipe removida pelo organizador continua fora.
+      const nextStatus = String(stale.status).toUpperCase() === 'REJEITADA' ? 'REJEITADA' : 'APROVADA'
       const { error: upsertError } = await supabase
         .from('InscricaoCampeonato')
         .upsert({

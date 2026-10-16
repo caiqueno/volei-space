@@ -211,12 +211,9 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
                 onChange={(iso) => updateNow({ inscricoesEncerramentoEm: iso })}
               />
             </div>
-            <ToggleCards
-              value={data.inscricaoAprovacaoAutomatica}
-              onChange={(v) => updateNow({ inscricaoAprovacaoAutomatica: v })}
-              trueOption={{ icon: QrCode, title: 'Aprovação automática', description: 'Toda solicitação já entra aprovada.' }}
-              falseOption={{ icon: ShieldOff, title: 'Aprovação manual', description: 'Você revisa e aprova cada equipe.' }}
-            />
+            <p className="rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80">
+              A inscrição é automática: a equipe que usa o link da categoria entra direto, sem fila de aprovação. O limite de vagas continua valendo.
+            </p>
             <CheckboxRow label="Permitir edição após o envio" checked={data.inscricaoPermiteEdicaoAposEnvio} onChange={(v) => updateNow({ inscricaoPermiteEdicaoAposEnvio: v })} />
             <FloatingLabelNumberInput
               id="prazo-edicao-inscricao"
@@ -330,7 +327,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
         {stepIndex === 4 && (
           <div className="grid gap-3">
             <ReviewRow label="Inscrições" value={data.inscricoesAbertas ? 'Abertas' : 'Fechadas'} />
-            <ReviewRow label="Aprovação" value={data.inscricaoAprovacaoAutomatica ? 'Automática' : 'Manual'} />
+            <ReviewRow label="Aprovação" value="Automática (sem fila)" />
             <ReviewRow label="Elenco" value={`${data.elencoQuantidadeMinima ?? '—'} a ${data.elencoQuantidadeMaxima ?? '—'} atletas`} />
             <ReviewRow label="QR Code" value={qrOn ? 'Ativado' : 'Desativado'} />
           </div>

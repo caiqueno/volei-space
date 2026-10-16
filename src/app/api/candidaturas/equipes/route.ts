@@ -10,6 +10,7 @@ import { duplicateDatabaseMessage, duplicateMessage, findCadastroDuplicate, form
 import { errorDetail } from '@/lib/error-detail'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { countApprovedRegistrations, ensureClassificationAndCalendar } from '@/lib/championship-operations'
+import { statusInicialDaInscricao } from '@/lib/inscricao-status'
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,6 +30,11 @@ export async function POST(req: NextRequest) {
     if (conviteToken && !invitation) return error('Convite inválido, expirado ou destinado a outro e-mail.', 400)
     if (invitation && requestedLigaId && invitation.ligaId !== requestedLigaId) {
       return error('O convite não pertence ao campeonato informado.', 400)
+    }
+    // A inscrição em campeonato é automática e só acontece pelo link/convite do organizador.
+    // Sem convite não há fila de aprovação: o cadastro em campeonato por ID não é aceito.
+    if (!invitation && requestedLigaId) {
+      return error('A inscrição neste campeonato é feita pelo link de convite do organizador.', 403)
     }
 
     const targetLigaId = invitation?.ligaId ?? requestedLigaId ?? null
@@ -75,7 +81,7 @@ export async function POST(req: NextRequest) {
     const equipe = await ensureEquipeForCandidatura(data.id)
     let inscricaoCriada = false
     if (targetLigaId && equipe?.id) {
-      const registrationStatus = invitation ? 'APROVADA' : 'SOLICITADA'
+      const registrationStatus = statusInicialDaInscricao()
       const { data: inscricao, error: inscricaoErr } = await supabase
         .from('InscricaoCampeonato')
         .upsert({
