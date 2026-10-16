@@ -146,6 +146,7 @@ async function main() {
   assert.equal(corpo.data.atletas.find((a: any) => a.id === atletas[0].id).temDocumento, true)
   assert.equal(corpo.data.prontidao.mensagem, 'Seu time tem 6 atletas. 5 estão sem documento.')
   assert.equal(corpo.data.equipe.id, idEquipe)
+  assert.equal(corpo.data.meuPapel, 'RESPONSAVEL', 'o detalhe informa o papel de quem está logado')
   const bruto = JSON.stringify(corpo)
   for (const proibido of ['hash-secreto', 'cifrado', 'cpf', 'telefone', 'clubeId']) assert.ok(!bruto.includes(proibido), `vazou ${proibido}`)
   assert.equal((await json(await prontidaoRota.GET(req('GET', '/x'), params))).data.semDocumento, 5)

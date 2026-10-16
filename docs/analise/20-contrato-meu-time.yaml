@@ -99,6 +99,10 @@ paths:
                     required: [equipe, atletas, comissao, membros, inscricoes, prontidao]
                     properties:
                       equipe: { $ref: '#/components/schemas/Equipe' }
+                      meuPapel:
+                        type: string
+                        enum: [RESPONSAVEL, TECNICO, ASSISTENTE, CAPITAO]
+                        description: Papel de quem está logado nesta equipe (a tela decide quais botões de gestão mostrar).
                       atletas:
                         type: array
                         items: { $ref: '#/components/schemas/Atleta' }

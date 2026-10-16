@@ -10,7 +10,7 @@ type Params = { id: string }
 
 // GET /api/meu-time/equipes/:id: detalhe da equipe (só para quem é membro dela). `comissao` = comissão técnica; `membros` = contas com acesso.
 export const GET = rotaMeuTime<Params>(async ({ usuarioId, params }) => {
-  const { equipe } = await exigirEquipe(usuarioId, params.id, 'leitura')
+  const { equipe, papel } = await exigirEquipe(usuarioId, params.id, 'leitura')
   const [linhas, comissao, membros, inscricoes] = await Promise.all([
     listarAtletasDoClube(equipe.clubeId),
     listarComissaoTolerante(equipe.id),
@@ -20,6 +20,8 @@ export const GET = rotaMeuTime<Params>(async ({ usuarioId, params }) => {
   const atletas = linhas.map(paraAtleta)
   return sucesso({
     equipe: { id: equipe.id, nome: equipe.nome, cidade: equipe.cidade, naipe: equipe.naipe, escudoUrl: equipe.escudoUrl },
+    // Papel de quem está logado nesta equipe: a tela usa para mostrar ou esconder botões de gestão.
+    meuPapel: papel,
     atletas,
     comissao,
     membros,
