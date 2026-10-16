@@ -5,9 +5,12 @@
 --   Inscrição por competição com CÓPIA própria da lista de atletas (PROMPT, "Inscrição"):
 --   * "RegraElenco": regras de elenco por categoria (modelos FIVB/CBV/AMADOR_LIVRE/PERSONALIZADO),
 --     1:1 com "CategoriaCampeonato";
---   * "Inscricao": status RASCUNHO, ENVIADA, EM_ANALISE, PENDENCIA, APROVADA, RECUSADA, LISTA_ESPERA,
---     CANCELADA; unique por (categoria, time) apenas para inscrições NÃO recusadas/canceladas;
---     pontes opcionais para o legado ("Equipe", "InscricaoCampeonato"), preenchidas só pela aprovação;
+--   * "Inscricao": inscrição AUTOMÁTICA (decisão do dono, Rodada 2: o líder cadastra a equipe direto,
+--     sem análise do organizador). Status: RASCUNHO, CONFIRMADA, CONFIRMADA_COM_PENDENCIAS,
+--     AJUSTE_PEDIDO (organizador pediu ajuste) e REMOVIDA. Unique por (categoria, time) apenas para
+--     inscrições NÃO removidas; "avisos" (jsonb) guarda as pendências calculadas pelo servidor
+--     (documento faltando, elenco fora do mínimo etc.); pontes opcionais para o legado ("Equipe",
+--     "InscricaoCampeonato"), preenchidas na confirmação;
 --   * "InscricaoAtleta": snapshot (nome, nascimento, número, capitão, líbero). Garantias de banco:
 --     número único por inscrição, no máximo 1 capitão por inscrição, atleta em UM time por categoria
 --     (índice parcial; o estado da inscrição é copiado para a linha por trigger, ver abaixo);
@@ -17,9 +20,9 @@
 --   DECISÃO PENDENTE D-1 (14, seção 3.1): exclusividade do atleta por CATEGORIA (como aqui) ou por
 --   campeonato inteiro. Para campeonato, trocar o índice "InscricaoAtleta_exclusividade_key" para
 --   ("ligaId", "atletaId").
---   DECISÃO PENDENTE (07 seção 7): inscrição com análise manual (EM_ANALISE/PENDENCIA) ou direta
---   como no CLAUDE.md ("equipe cadastrada diretamente pelo líder, sem aprovação"). Os estados existem
---   no CHECK; o uso é decisão de produto.
+--   DECIDIDO (Rodada 2): inscrição direta, como no CLAUDE.md. Não existem estados de análise nem de
+--   lista de espera. As colunas "decididaEm", "motivoDecisao" e "comentarioPendencia" mantêm o nome
+--   por compatibilidade com o backend e passam a registrar a remoção ou o pedido de ajuste.
 --
 --   "InscricaoCampeonato" continua sendo o fluxo legado, intocado.
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role.
@@ -42,7 +45,7 @@
 --   curto (lock_timeout 5 s).
 --
 -- REVERSÃO
---   supabase/rollback/202610170026_meu_time_inscricao.sql
+--   supabase/pendentes/rollback/202610170026_meu_time_inscricao.sql
 
 begin;
 set local lock_timeout = '5s';
@@ -76,8 +79,10 @@ create table if not exists public."Inscricao" (
   "equipeLegadoId"                integer references public."Equipe"(id) on delete set null,
   "inscricaoCampeonatoLegadoId"   text unique references public."InscricaoCampeonato"(id) on delete set null,
   status                          text not null default 'RASCUNHO' check (status in (
-                                    'RASCUNHO', 'ENVIADA', 'EM_ANALISE', 'PENDENCIA',
-                                    'APROVADA', 'RECUSADA', 'LISTA_ESPERA', 'CANCELADA')),
+                                    'RASCUNHO', 'CONFIRMADA', 'CONFIRMADA_COM_PENDENCIAS',
+                                    'AJUSTE_PEDIDO', 'REMOVIDA')),
+  avisos                          jsonb not null default '[]'::jsonb
+                                    check (jsonb_typeof(avisos) = 'array'),
   versao                          integer not null default 1 check (versao > 0),
   "enviadaEm"                     timestamptz,
   "decididaEm"                    timestamptz,
@@ -94,13 +99,16 @@ create table if not exists public."Inscricao" (
     references public."CategoriaCampeonato"(id, "ligaId") on delete restrict,
   unique (id, "ligaId", "categoriaCampeonatoId"),
   constraint "Inscricao_aceite_par_chk"
-    check (("aceiteRegulamentoEm" is null) = ("aceiteRegulamentoVersao" is null)),
-  constraint "Inscricao_recusa_motivo_chk"
-    check (status <> 'RECUSADA' or "motivoDecisao" is not null)
+    check (("aceiteRegulamentoEm" is null) = ("aceiteRegulamentoVersao" is null))
 );
+
+-- Idempotência: se a tabela já existir sem a coluna, acrescenta (o CHECK vai junto só em tabela nova).
+alter table public."Inscricao"
+  add column if not exists avisos jsonb not null default '[]'::jsonb;
+
 create unique index if not exists "Inscricao_categoria_time_key"
   on public."Inscricao" ("categoriaCampeonatoId", "timeId")
-  where status not in ('RECUSADA', 'CANCELADA');
+  where status <> 'REMOVIDA';
 create index if not exists "Inscricao_liga_status_idx" on public."Inscricao" ("ligaId", status);
 create index if not exists "Inscricao_timeId_idx" on public."Inscricao" ("timeId");
 create index if not exists "Inscricao_equipeLegadoId_idx"
@@ -147,7 +155,7 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  select status not in ('RECUSADA', 'CANCELADA') into new."inscricaoAtiva"
+  select status <> 'REMOVIDA' into new."inscricaoAtiva"
   from public."Inscricao" where id = new."inscricaoId";
   return new;
 end;
@@ -166,7 +174,7 @@ as $$
 begin
   if new.status is distinct from old.status then
     update public."InscricaoAtleta"
-    set "inscricaoAtiva" = (new.status not in ('RECUSADA', 'CANCELADA'))
+    set "inscricaoAtiva" = (new.status <> 'REMOVIDA')
     where "inscricaoId" = new.id;
   end if;
   return new;

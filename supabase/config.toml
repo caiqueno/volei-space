@@ -1,0 +1,44 @@
+# supabase/config.toml  (esqueleto mínimo do `supabase init`; Rodada 2)
+#
+# Só para o ambiente LOCAL (Docker). Não contém segredo nem referência a projeto remoto.
+# Chaves anon/service_role locais são geradas pela CLI em `supabase start` e NÃO devem ser copiadas
+# para o repositório. Para ajustar portas ou serviços, consulte a documentação da CLI; este arquivo
+# foi escrito à mão e nunca foi lido pela CLI (a verificar no primeiro `supabase start`).
+
+project_id = "volei-space-local"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Versão principal do Postgres do projeto remoto. A verificar no painel do Supabase antes do ensaio.
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false

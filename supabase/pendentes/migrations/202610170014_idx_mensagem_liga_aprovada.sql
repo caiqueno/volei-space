@@ -24,7 +24,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170014_idx_mensagem_liga_aprovada.sql
+--   supabase/pendentes/rollback/202610170014_idx_mensagem_liga_aprovada.sql
 
 create index concurrently if not exists "Mensagem_ligaId_aprovada_idx"
   on public."Mensagem" ("ligaId", aprovada);

@@ -21,7 +21,7 @@
 --   Baixa carga; evitar rodada (varre Partida e Equipe).
 --
 -- REVERSÃO
---   supabase/rollback/202610170019_checks_estado_validate.sql (não há "desvalidar": o rollback derruba
+--   supabase/pendentes/rollback/202610170019_checks_estado_validate.sql (não há "desvalidar": o rollback derruba
 --   e recria como NOT VALID).
 
 begin;

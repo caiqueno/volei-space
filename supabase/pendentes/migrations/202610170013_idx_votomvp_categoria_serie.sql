@@ -24,7 +24,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170013_idx_votomvp_categoria_serie.sql
+--   supabase/pendentes/rollback/202610170013_idx_votomvp_categoria_serie.sql
 
 create index concurrently if not exists "VotoMVP_categoria_serie_idx"
   on public."VotoMVP" (categoria, serie);

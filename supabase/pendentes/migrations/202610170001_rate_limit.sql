@@ -22,7 +22,7 @@
 --   em tabela existente.
 --
 -- REVERSÃO
---   supabase/rollback/202610170001_rate_limit.sql
+--   supabase/pendentes/rollback/202610170001_rate_limit.sql
 
 begin;
 

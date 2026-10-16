@@ -24,7 +24,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170017_idx_candidaturaequipe_liga_status.sql
+--   supabase/pendentes/rollback/202610170017_idx_candidaturaequipe_liga_status.sql
 
 create index concurrently if not exists "CandidaturaEquipe_ligaId_status_idx"
   on public."CandidaturaEquipe" ("ligaId", status);

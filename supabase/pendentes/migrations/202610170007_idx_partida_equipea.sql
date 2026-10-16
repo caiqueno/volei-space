@@ -1,4 +1,6 @@
 -- 202610170007_idx_partida_equipea.sql   (M6 do plano da Fase 0)
+-- REVISAO RODADA 2: indice DUPLICADO de supabase/migrations/202610090002_indices_chaves_estrangeiras.sql (mesmo nome e colunas).
+-- Esta migration e um no-op (if not exists) e pode ser descartada; a reversao e vazia de proposito.
 --
 -- OBJETIVO
 --   Indice para consultas quentes: Partida ("equipeAId").  FK sem indice: agenda por equipe e ON DELETE. Mesmo nome do indice de 202610090002 da main.
@@ -24,7 +26,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170007_idx_partida_equipea.sql
+--   supabase/pendentes/rollback/202610170007_idx_partida_equipea.sql
 
 create index concurrently if not exists "Partida_equipeAId_idx"
   on public."Partida" ("equipeAId");

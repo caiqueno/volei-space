@@ -1,4 +1,6 @@
 -- 202610170005_idx_jogador_equipeid.sql   (M6 do plano da Fase 0)
+-- REVISAO RODADA 2: indice DUPLICADO de supabase/migrations/202610090002_indices_chaves_estrangeiras.sql (mesmo nome e colunas).
+-- Esta migration e um no-op (if not exists) e pode ser descartada; a reversao e vazia de proposito.
 --
 -- OBJETIVO
 --   Indice para consultas quentes: Jogador ("equipeId").  Elenco por equipe (portal, capitao, sumula). Mesmo nome do indice de 202610090002 da main.
@@ -24,7 +26,7 @@
 --   (secao M6) para detectar e refazer.
 --
 -- REVERSAO
---   supabase/rollback/202610170005_idx_jogador_equipeid.sql
+--   supabase/pendentes/rollback/202610170005_idx_jogador_equipeid.sql
 
 create index concurrently if not exists "Jogador_equipeId_idx"
   on public."Jogador" ("equipeId");

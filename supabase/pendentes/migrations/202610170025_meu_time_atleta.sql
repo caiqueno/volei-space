@@ -30,7 +30,7 @@
 --   Qualquer horário (só objetos novos). Preferir fora de rodada.
 --
 -- REVERSÃO
---   supabase/rollback/202610170025_meu_time_atleta.sql
+--   supabase/pendentes/rollback/202610170025_meu_time_atleta.sql
 
 begin;
 set local lock_timeout = '5s';

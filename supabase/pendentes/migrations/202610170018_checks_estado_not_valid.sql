@@ -9,7 +9,7 @@
 --
 --   Listas de valores (superconjunto do que o código escreve; apertar depois da Q9):
 --     Liga.status ............. RASCUNHO, EM_BREVE, ATIVA, ENCERRADA, FINALIZADO, CANCELADA
---     Partida.status .......... AGENDADA, EM_ANDAMENTO, ENCERRADA, CANCELADA, WO, mais FINALIZADA e APROVADA
+--     Partida.status .......... AGENDADA, EM_ANDAMENTO, ENCERRADA, CANCELADA, WO, mais FINALIZADA, APROVADA, PENDENTE_APROVACAO e FINISHED (legado)
 --                               (citados na RPC de 202609220003:132; tirar se a Q9 não os encontrar)
 --     InscricaoCampeonato.status SOLICITADA, PENDENTE, PENDENTE_APROVACAO, APROVADA, REJEITADA, CANCELADA
 --     Equipe.statusEquipe ..... PENDENTE, ATIVA, INATIVA
@@ -37,7 +37,7 @@
 --   aborta sem efeito se houver transação longa. Partida tem triggers pesados, mas CHECK não os dispara.
 --
 -- REVERSÃO
---   supabase/rollback/202610170018_checks_estado_not_valid.sql
+--   supabase/pendentes/rollback/202610170018_checks_estado_not_valid.sql
 
 begin;
 set local lock_timeout = '5s';
@@ -51,7 +51,7 @@ begin
       ('Liga', 'liga_status_chk',
         $c$ status in ('RASCUNHO','EM_BREVE','ATIVA','ENCERRADA','FINALIZADO','CANCELADA') $c$),
       ('Partida', 'partida_status_chk',
-        $c$ status in ('AGENDADA','EM_ANDAMENTO','ENCERRADA','CANCELADA','WO','FINALIZADA','APROVADA') $c$),
+        $c$ status in ('AGENDADA','EM_ANDAMENTO','ENCERRADA','CANCELADA','WO','FINALIZADA','APROVADA','PENDENTE_APROVACAO','FINISHED') $c$),
       ('InscricaoCampeonato', 'inscricao_campeonato_status_chk',
         $c$ status in ('SOLICITADA','PENDENTE','PENDENTE_APROVACAO','APROVADA','REJEITADA','CANCELADA') $c$),
       ('Equipe', 'equipe_categoria_formato_chk',
