@@ -107,6 +107,12 @@ export interface FaltaRotacao {
   /**
    * seq do primeiro ponto/evento a partir do qual a falta ocorreu. `null` = momento NÃO
    * determinável (RG-ROT-003): só ponto e saque, sem cancelamento.
+   *
+   * DEFINIÇÃO: pela regra 7.7.2 só se cancelam os pontos da equipe faltosa conquistados desde o
+   * rally em que ela sacou fora da ordem de rodízio; o `momentoSeq` é o seq do ponto que encerrou
+   * esse rally (ou o primeiro posterior à falta), e quem o informa é o árbitro. O placar exato
+   * depois do cancelamento é item [M] (CJ-03) e NÃO deve ser tratado como oficial.
+   * PENDENTE: a formação ainda não é recalculada por replay dos pontos vivos; só `formacaoCorrigida`.
    */
   momentoSeq: number | null
   /**

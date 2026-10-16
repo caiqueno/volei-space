@@ -297,9 +297,9 @@ caso('RG-ROT-002 / CJ-03: falta de rotação cancela só os pontos da faltosa e 
   assert.deepEqual(derivarPlacar(j.log, c5).setAtual?.placar, { a: 3, b: 3 })
   const falta = j.add('FALTA_ROTACAO', { equipeFaltosa: 'B', momentoSeq: 4 })
   const p = derivarPlacar(j.log, c5)
-  // B: 0 (3 pontos cancelados); A: 3 mantidos + 1 da falta
-  assert.deepEqual(p.setAtual?.placar, { a: 4, b: 0 })
+  // O placar exato após o cancelamento é item [M] (CJ-03): não é afirmado aqui.
   assert.equal(p.saca, 'A')
+  assert.equal(p.setAtual?.pontos.filter((x) => !x.cancelado && x.equipe === 'B').length, 0)
   assert.equal(p.houveCancelamentoDePontos, true)
   assert.equal(p.setAtual?.pontos.filter((x) => x.cancelado).length, 3)
   assert.ok(p.setAtual?.pontos.filter((x) => x.cancelado).every((x) => x.equipe === 'B'))
@@ -366,6 +366,10 @@ caso('RG-SET-008 / RG-LIB-005: trocas de líbero não entram na soma de substitu
   assert.equal(p.setAtual!.contadores.B.tempos, 1)
   assert.deepEqual(p.formacaoA, [7, 8, 3, 4, 5, 6])
   j.iniciarSet(2) // sem fim de set: inconsistência; contadores do set 1 permanecem
+  const depois = derivarPlacar(j.log, c5)
+  assert.equal(depois.inconsistencias[0]?.codigo, 'RG-SET-001')
+  assert.equal(depois.sets.length, 1)
+  assert.equal(depois.setAtual!.contadores.A.trocasLibero, 2)
 })
 
 caso('RG-INT-004 / CJ-06(b): set anulado descarta seus pontos e é rejogado do 0x0 preservando o histórico', () => {
@@ -408,7 +412,9 @@ caso('RG-WO-001: evento WO encerra a partida com 3x0 e 25x0 mantendo sets jogado
   const p = derivarPlacar(j.log, c5)
   assert.equal(p.status, 'WO')
   assert.equal(p.vencedor, 'A')
-  assert.equal(p.wo?.parciais[0]?.a, 25)
+  assert.equal(p.wo?.parciaisRegistrados[0]?.a, 25)
+  assert.deepEqual(p.wo?.setInterrompido, { numero: 2, placar: { a: 5, b: 0 } }, 'guarda o placar parcial do set interrompido')
+  assert.deepEqual(p.wo?.placarPartida, { setsA: 3, setsB: 0 })
   assert.equal(p.wo?.setsLancadosComoWO, 2)
   j.add('PONTO', { equipe: 'B' })
   assert.equal(derivarPlacar(j.log, c5).inconsistencias.length, 1)

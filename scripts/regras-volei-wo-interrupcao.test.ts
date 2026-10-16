@@ -17,12 +17,13 @@ caso('RG-WO-001: equipe ausente antes do jogo = 3x0 com 25x0 em cada set', () =>
   const r = resolverWO(c5, { ausente: 'B' })
   assert.equal(r.tipo, 'WO_SIMPLES')
   assert.equal(r.vencedor, 'A')
-  assert.deepEqual([r.setsA, r.setsB], [3, 0])
-  assert.deepEqual(r.parciais, [{ a: 25, b: 0 }, { a: 25, b: 0 }, { a: 25, b: 0 }])
+  assert.deepEqual(r.placarPartida, { setsA: 3, setsB: 0 })
+  assert.deepEqual(r.parciaisRegistrados, [{ a: 25, b: 0 }, { a: 25, b: 0 }, { a: 25, b: 0 }])
   assert.equal(r.assinam, 'TODOS')
   const inverso = resolverWO(c5, { ausente: 'A' })
   assert.equal(inverso.vencedor, 'B')
-  assert.deepEqual(inverso.parciais[0], { a: 0, b: 25 })
+  assert.deepEqual(inverso.placarPartida, { setsA: 0, setsB: 3 })
+  assert.deepEqual(inverso.parciaisRegistrados[0], { a: 0, b: 25 })
 })
 
 caso('RG-WO-001 / CJ-06(e): recusa no meio do jogo mantém os sets jogados e lança 25x0 no restante', () => {
@@ -30,15 +31,26 @@ caso('RG-WO-001 / CJ-06(e): recusa no meio do jogo mantém os sets jogados e lan
   const r = resolverWO(c5, { ausente: 'B', setsJogados: jogados })
   assert.equal(r.vencedor, 'A')
   assert.equal(r.setsLancadosComoWO, 1)
-  assert.deepEqual(r.parciais.slice(0, 4), jogados)
-  assert.deepEqual(r.parciais[4], { a: 25, b: 0 })
-  assert.equal(r.setsA, 3)
+  assert.deepEqual(r.parciaisRegistrados.slice(0, 4), jogados)
+  assert.deepEqual(r.parciaisRegistrados[4], { a: 15, b: 0 }, 'o 5º set usa o alvo do set decisivo, não 25 fixo')
+  assert.deepEqual(r.placarPartida, { setsA: 3, setsB: 0 })
+  assert.deepEqual(r.setsRegistrados, { a: 2, b: 2 }, 'os sets jogados ficam só como registro')
 })
 
 caso('RG-WO-001: em melhor de 3 a vitória por WO é por 2 sets', () => {
   const r = resolverWO(configMelhorDe3(), { ausente: 'A' })
-  assert.deepEqual([r.setsA, r.setsB], [0, 2])
-  assert.equal(r.parciais.length, 2)
+  assert.deepEqual(r.placarPartida, { setsA: 0, setsB: 2 })
+  assert.equal(r.parciaisRegistrados.length, 2)
+})
+
+caso('RG-WO-001: o parcial dos sets lançados como WO segue o alvo configurado da categoria', () => {
+  const r = resolverWO(configMelhorDe3({ alvoSet: 21, alvoSetDecisivo: 15 }), { ausente: 'B', setsJogados: [{ a: 18, b: 21 }] })
+  assert.deepEqual(r.parciaisRegistrados, [{ a: 18, b: 21 }, { a: 21, b: 0 }, { a: 15, b: 0 }])
+})
+
+caso('RG-WO-001: o parcial dos sets lançados como WO segue o alvo configurado da categoria', () => {
+  const r = resolverWO(configMelhorDe3({ alvoSet: 21, alvoSetDecisivo: 15 }), { ausente: 'B', setsJogados: [{ a: 18, b: 21 }] })
+  assert.deepEqual(r.parciaisRegistrados, [{ a: 18, b: 21 }, { a: 21, b: 0 }, { a: 15, b: 0 }])
 })
 
 caso('RG-WO-002: WO por não comparecimento só após a tolerância do regulamento', () => {
@@ -54,7 +66,8 @@ caso('RG-WO-004: WO duplo não tem vencedor e só a arbitragem assina', () => {
   assert.equal(r.tipo, 'WO_DUPLO')
   assert.equal(r.vencedor, null)
   assert.equal(r.assinam, 'APENAS_ARBITRAGEM')
-  assert.deepEqual(r.parciais, [])
+  assert.deepEqual(r.parciaisRegistrados, [])
+  assert.deepEqual(r.placarPartida, { setsA: 0, setsB: 0 })
 })
 
 caso('RG-WO-005: equipe incompleta no set perde, mantém seus pontos e o adversário recebe o necessário', () => {

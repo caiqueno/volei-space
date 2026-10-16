@@ -10,9 +10,19 @@
  * Códigos RG-LOG-* são do motor (não constam no 03): ver docs/analise/07-arquitetura-backend.md.
  */
 import type { ConfigPartida } from './config'
-import { aplicarRally, calcularReversaoFaltaRotacao, type PontoLog } from './rotacao'
-import { alvoDoSet, deveTrocarDeLado, ehSetDecisivo, partidaEncerrada, setEncerrado } from './set-partida'
-import { resolverEquipeIncompleta, resolverWO, type ResultadoWO } from './wo-interrupcao'
+import {
+  criarEstadoEquipe,
+  iniciarNovoSet,
+  jogadorImpedido,
+  registrarRallyConcluido,
+  type EstadoEquipe,
+} from './estado-equipe'
+import { aplicarTrocaLibero, aplicarRedesignacaoLibero, validarSaqueDoLibero, type MomentoDaTroca } from './libero'
+import { aplicarRally, calcularReversaoFaltaRotacao, validarSacador, type PontoLog } from './rotacao'
+import { avaliarSancao, registrarSancao, type CategoriaSancao, type SancaoRegistrada } from './sancoes'
+import { alvoDoSet, deveTrocarDeLado, ehSetDecisivo, partidaEncerrada, setEncerrado, validarPedidoDeTempo } from './set-partida'
+import { aplicarSubstituicaoExcepcional, aplicarSubstituicaoRegular, type MotivoExcepcional } from './substituicoes'
+import { decidirInterrupcao, resolverEquipeIncompleta, resolverWO, type ResultadoWO } from './wo-interrupcao'
 import {
   bloqueio,
   outraEquipe,
@@ -26,12 +36,21 @@ import type { AcaoInterrupcao } from './wo-interrupcao'
 /* ------------------------------ tipos do log ------------------------------ */
 
 export interface PayloadPorTipo {
-  SET_INICIADO: { numeroSet: number; formacaoA: number[]; formacaoB: number[]; saqueInicial: Equipe }
-  PONTO: { equipe: Equipe }
+  SET_INICIADO: {
+    numeroSet: number
+    formacaoA: number[]
+    formacaoB: number[]
+    saqueInicial: Equipe
+    /** Líberos registrados na relação nominal (lidos no 1º set da partida). */
+    liberosA?: number[]
+    liberosB?: number[]
+  }
+  /** `sacador` (opcional): jogador que sacou o rally; o servidor confere a ordem de saque (RG-ROT-001). */
+  PONTO: { equipe: Equipe; sacador?: number }
   RALLY_REPETIDO: Record<string, never>
   SUBSTITUICAO: { equipe: Equipe; sai: number; entra: number; excepcional?: boolean; motivo?: string }
   TEMPO: { equipe: Equipe }
-  TROCA_LIBERO: { equipe: Equipe; sai: number; entra: number }
+  TROCA_LIBERO: { equipe: Equipe; sai: number; entra: number; momento?: MomentoDaTroca }
   REDESIGNACAO_LIBERO: { equipe: Equipe; liberoIncapaz: number; novoLibero: number }
   SANCAO: {
     equipe: Equipe
@@ -202,6 +221,23 @@ export interface InconsistenciaDerivacao {
   mensagem: string
 }
 
+/** Relação nominal de cada equipe (ids de jogador, líberos inclusos). Vem do servidor, nunca do cliente. */
+export interface ContextoDerivacao {
+  elenco: { A: readonly number[]; B: readonly number[] }
+}
+
+/** Estado completo das duas equipes no set corrente, mais o histórico de sanções da partida. */
+export interface EstadosDerivados {
+  A: EstadoEquipe
+  B: EstadoEquipe
+  sancoes: SancaoRegistrada[]
+}
+
+/** Jogadores que não podem atuar agora: expulsos no set, desqualificados, lesionados sem retorno e líberos incapazes. */
+export function jogadoresImpedidos(estado: EstadoEquipe): number[] {
+  return estado.elenco.filter((j) => jogadorImpedido(estado, j))
+}
+
 export interface PlacarDerivado {
   status: StatusPartida
   sets: SetDerivado[]
@@ -219,6 +255,8 @@ export interface PlacarDerivado {
   /** Pontos cancelados por falta de rotação (para a "súmula anexa"). */
   houveCancelamentoDePontos: boolean
   ultimoSeq: number
+  /** Só vem preenchido quando `derivarPlacar` recebe o contexto (relação nominal) e já houve um set. */
+  estadoEquipes: EstadosDerivados | null
 }
 
 function contadoresVazios(): ContadoresEquipe {
@@ -251,7 +289,11 @@ function trocarNaFormacao(formacao: number[], sai: number, entra: number): numbe
   return formacao.map((j) => (j === sai ? entra : j))
 }
 
-export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartida): PlacarDerivado {
+export function derivarPlacar(
+  log: readonly SumulaEvento[],
+  config: ConfigPartida,
+  contexto?: ContextoDerivacao,
+): PlacarDerivado {
   const efetivos = eventosEfetivos(log)
   const sets: SetDerivado[] = []
   const setsAnulados: SetDerivado[] = []
@@ -267,7 +309,22 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
   const atual = (): SetDerivado | null => sets[sets.length - 1] ?? null
   const rejeitar = (seq: number, codigo: CodigoRegra, mensagem: string) => inconsistencias.push({ seq, codigo, mensagem })
 
+  // Estado completo das equipes (só com o contexto da relação nominal).
+  let eq: EstadosDerivados | null = null
+  const historicoSancoes: SancaoRegistrada[] = []
+  let minutosInterrompidos = 0
+  const sincronizarQuadra = () => {
+    if (!eq || !st.saque) return
+    eq.A = { ...eq.A, emQuadra: [...st.saque.formacaoA] }
+    eq.B = { ...eq.B, emQuadra: [...st.saque.formacaoB] }
+  }
+  const idDoMembro = (membro: string): number | null => (membro.startsWith('J:') ? Number(membro.slice(2)) : null)
+
   const concedePonto = (set: SetDerivado, seq: number, equipe: Equipe, origem: PontoDerivado['origem']) => {
+    if (eq) {
+      eq.A = registrarRallyConcluido(eq.A)
+      eq.B = registrarRallyConcluido(eq.B)
+    }
     set.pontos.push({ seq, equipe, origem, cancelado: false })
     if (st.saque) {
       const prox = aplicarRally(st.saque, equipe)
@@ -278,6 +335,11 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
 
   for (const e of efetivos) {
     if (wo || aRepetir) {
+      // Observação continua valendo depois do fim (ex.: justificativa do WO).
+      if (e.tipo === 'OBSERVACAO') {
+        observacoes.push({ seq: e.seq, texto: e.payload.texto })
+        continue
+      }
       rejeitar(e.seq, 'RG-WO-001', 'Evento após o encerramento por WO/repetição da partida foi ignorado.')
       continue
     }
@@ -316,6 +378,21 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
         }
         sets.push(set)
         st.saque = { formacaoA: [...p.formacaoA], formacaoB: [...p.formacaoB], saca: p.saqueInicial }
+        if (contexto) {
+                    const novo = (equipe: Equipe, formacao: number[], liberos: number[] | undefined): EstadoEquipe => {
+            const elenco = [...contexto.elenco[equipe]]
+            const base = eq
+              ? iniciarNovoSet(eq[equipe], formacao)
+              : criarEstadoEquipe({ elenco, liberos: (liberos ?? []).filter((l) => elenco.includes(l)), formacaoInicial: formacao })
+            // Expulsão aplicada entre sets vale no set que começa agora (RG-SAN-010).
+            const expulsos = historicoSancoes
+              .filter((s) => s.equipe === equipe && s.sancao === 'EXPULSAO' && s.set === p.numeroSet)
+              .map((s) => idDoMembro(s.membro))
+              .filter((j): j is number => j !== null)
+            return { ...base, expulsosNoSet: expulsos }
+          }
+          eq = { A: novo('A', p.formacaoA, p.liberosA), B: novo('B', p.formacaoB, p.liberosB), sancoes: historicoSancoes }
+        }
         for (const equipePunida of pontosPendentes.splice(0)) {
           concedePonto(set, e.seq, outraEquipe(equipePunida), 'PENALIDADE')
         }
@@ -326,6 +403,15 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
         if (!set || set.encerrado || !st.saque) {
           rejeitar(e.seq, 'RG-SET-001', 'Ponto lançado sem set em andamento.')
           break
+        }
+        // Ordem de saque e saque de líbero são conferidos na derivação também: o servidor não confia no cliente.
+        if (e.payload.sacador !== undefined) {
+          const ordem = validarSacador(st.saque, e.payload.sacador)
+          if (!ordem.ok) rejeitar(e.seq, ordem.codigo, ordem.mensagem)
+        }
+        if (eq) {
+          const saqueLibero = validarSaqueDoLibero(eq[st.saque.saca])
+          if (!saqueLibero.ok) rejeitar(e.seq, saqueLibero.codigo, saqueLibero.mensagem)
         }
         concedePonto(set, e.seq, e.payload.equipe, 'RALLY')
         break
@@ -342,7 +428,37 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
       case 'SANCAO': {
         const set = atual()
         const p = e.payload
-        if (p.pontoParaAdversario) {
+        // O servidor é a autoridade: a sanção e o ponto são recalculados a partir do histórico da partida.
+        const pedido = {
+          equipe: p.equipe,
+          membro: p.membro,
+          categoria: p.categoria as CategoriaSancao,
+          set: set?.numero ?? 1,
+          entreSets: p.entreSets === true,
+        }
+        const avaliada = avaliarSancao(historicoSancoes, pedido)
+        if (!avaliada.ok) {
+          rejeitar(e.seq, avaliada.codigo, avaliada.mensagem)
+          break
+        }
+        if (avaliada.sancao !== p.sancao || avaliada.pontoParaAdversario !== p.pontoParaAdversario) {
+          rejeitar(
+            e.seq,
+            avaliada.codigo,
+            `A sanção gravada (${p.sancao}) não confere com a calculada (${avaliada.sancao}); vale a calculada.`,
+          )
+        }
+        historicoSancoes.push(registrarSancao(pedido, avaliada))
+        if (eq) {
+          const jogador = idDoMembro(p.membro)
+          if (jogador !== null && avaliada.sancao === 'EXPULSAO' && !p.entreSets && !eq[p.equipe].expulsosNoSet.includes(jogador)) {
+            eq[p.equipe] = { ...eq[p.equipe], expulsosNoSet: [...eq[p.equipe].expulsosNoSet, jogador] }
+          }
+          if (jogador !== null && avaliada.sancao === 'DESQUALIFICACAO' && !eq[p.equipe].desqualificados.includes(jogador)) {
+            eq[p.equipe] = { ...eq[p.equipe], desqualificados: [...eq[p.equipe].desqualificados, jogador] }
+          }
+        }
+        if (avaliada.pontoParaAdversario) {
           if (p.entreSets || !set || set.encerrado || !st.saque) pontosPendentes.push(p.equipe)
           else concedePonto(set, e.seq, outraEquipe(p.equipe), 'PENALIDADE')
         }
@@ -386,6 +502,14 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
         const c = set.contadores[p.equipe]
         if (p.excepcional) c.substituicoesExcepcionais += 1
         else c.substituicoesRegulares += 1
+        if (eq) {
+          const pedido = { sai: p.sai, entra: p.entra }
+          const r = p.excepcional
+            ? aplicarSubstituicaoExcepcional(eq[p.equipe], { ...pedido, motivo: p.motivo as MotivoExcepcional }, config.perfil)
+            : aplicarSubstituicaoRegular(eq[p.equipe], pedido, config.perfil)
+          if (r.resultado.ok) eq[p.equipe] = r.estado
+          else rejeitar(e.seq, r.resultado.codigo, r.resultado.mensagem)
+        }
         break
       }
       case 'TROCA_LIBERO': {
@@ -398,6 +522,11 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
         if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.sai, p.entra) }
         else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.sai, p.entra) }
         set.contadores[p.equipe].trocasLibero += 1
+        if (eq) {
+          const r = aplicarTrocaLibero(eq[p.equipe], { sai: p.sai, entra: p.entra }, { momento: p.momento ?? 'BOLA_FORA' })
+          if (r.resultado.ok) eq[p.equipe] = r.estado
+          else rejeitar(e.seq, r.resultado.codigo, r.resultado.mensagem)
+        }
         break
       }
       case 'REDESIGNACAO_LIBERO': {
@@ -407,6 +536,21 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
         if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.liberoIncapaz, p.novoLibero) }
         else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.liberoIncapaz, p.novoLibero) }
         set.contadores[p.equipe].redesignacoes += 1
+        if (eq) {
+          const pontosEquipe = p.equipe === 'A' ? set.placar.a : set.placar.b
+          const r = aplicarRedesignacaoLibero(
+            eq[p.equipe],
+            { liberoIncapaz: p.liberoIncapaz, novoLibero: p.novoLibero, motivo: 'INCAPAZ' },
+            {
+              equipe: p.equipe,
+              numeroSet: set.numero,
+              pontosEquipe,
+              pontosAdversario: p.equipe === 'A' ? set.placar.b : set.placar.a,
+            },
+          )
+          if (r.resultado.ok) eq[p.equipe] = r.estado
+          else rejeitar(e.seq, r.resultado.codigo, r.resultado.mensagem)
+        }
         break
       }
       case 'TEMPO': {
@@ -415,6 +559,13 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
           rejeitar(e.seq, 'RG-TMP-001', 'Tempo pedido sem set em andamento.')
           break
         }
+        const limiteTempo = validarPedidoDeTempo({
+          temposUsados: set.contadores[e.payload.equipe].tempos,
+          limite: config.perfil.temposPorSet,
+          bolaForaDeJogo: true,
+          antesDoApito: true,
+        })
+        if (!limiteTempo.ok) rejeitar(e.seq, limiteTempo.codigo, limiteTempo.mensagem)
         set.contadores[e.payload.equipe].tempos += 1
         break
       }
@@ -442,13 +593,33 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
           seq: e.seq,
           texto: `INTERRUPÇÃO DE ${e.payload.minutos} MINUTOS: ${e.payload.motivo.toUpperCase()}`,
         })
-        if (e.payload.acao === 'REPETIR_PARTIDA') aRepetir = true
+        minutosInterrompidos += e.payload.minutos
+        // O servidor decide pela soma das paralisações (RG-INT-005); a ação do cliente só confirma.
+        const decisao = decidirInterrupcao({
+          minutosTotaisDeParalisacao: minutosInterrompidos,
+          voltaNaMesmaQuadra: e.payload.acao === 'CONTINUAR_SET',
+        })
+        if (decisao.acao === 'REPETIR_PARTIDA') aRepetir = true
+        if ((e.payload.acao === 'REPETIR_PARTIDA') !== (decisao.acao === 'REPETIR_PARTIDA')) {
+          if (e.payload.acao === 'REPETIR_PARTIDA') {
+            rejeitar(e.seq, 'RG-INT-005', `Repetir a partida só vale quando as paralisações passam de 4 horas (somam ${minutosInterrompidos} minutos).`)
+          } else {
+            rejeitar(e.seq, decisao.codigo, decisao.mensagem)
+          }
+        }
         break
       }
       case 'WO': {
+        const ganhosAteAqui = contarGanhos(sets)
+        if (sets.length > 0 && partidaEncerrada(ganhosAteAqui.a, ganhosAteAqui.b, config)) {
+          rejeitar(e.seq, 'RG-WO-001', 'A partida já terminou: não cabe WO depois do último set.')
+          break
+        }
+        const emAndamento = atual()
         wo = resolverWO(config, {
           ausente: e.payload.ausente,
           setsJogados: sets.filter((s) => s.encerrado).map((s) => s.placar),
+          setInterrompido: emAndamento && !emAndamento.encerrado ? { numero: emAndamento.numero, placar: { ...emAndamento.placar } } : null,
         })
         break
       }
@@ -477,6 +648,7 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
       case 'RALLY_REPETIDO':
         break
     }
+    sincronizarQuadra()
   }
 
   const ganhos = contarGanhos(sets)
@@ -516,6 +688,7 @@ export function derivarPlacar(log: readonly SumulaEvento[], config: ConfigPartid
     inconsistencias,
     houveCancelamentoDePontos: houveCancelamento,
     ultimoSeq: log.length > 0 ? log[log.length - 1]!.seq : 0,
+    estadoEquipes: eq,
   }
 }
 
