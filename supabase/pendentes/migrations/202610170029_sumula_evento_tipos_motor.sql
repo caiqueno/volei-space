@@ -4,7 +4,8 @@
 --   Amplia o CHECK "SumulaEvento_tipo_check" para os tipos do motor (src/lib/regras-volei/eventos.ts,
 --   interface PayloadPorTipo): SET_INICIADO, PONTO, RALLY_REPETIDO, SUBSTITUICAO, TEMPO, TROCA_LIBERO,
 --   REDESIGNACAO_LIBERO, SANCAO, FALTA_POSICAO, FALTA_ROTACAO, TROCA_LADO, SET_ANULADO, INTERRUPCAO,
---   WO, EQUIPE_INCOMPLETA, OBSERVACAO, DESFAZ. Os tipos da 0023 continuam aceitos (INICIO_SET, SAQUE,
+--   WO, EQUIPE_INCOMPLETA, OBSERVACAO, DISCREPANCIA_PAPELETA, CAPITAO_EM_JOGO, PROTESTO_ANUNCIADO,
+--   PROTESTO_REGISTRADO, PROTESTO_DESISTIDO, DESFAZ. Os tipos da 0023 continuam aceitos (INICIO_SET, SAQUE,
 --   LIBERO, DESAFIO, FIM_SET, FIM_PARTIDA, SNAPSHOT), para não invalidar linhas nem o backend atual.
 --   Obs.: substituição excepcional NÃO é tipo próprio no motor: é SUBSTITUICAO com
 --   payload.excepcional = true. SAQUE e FIM_SET não existem no motor (ficam só por compatibilidade).
@@ -29,7 +30,9 @@ alter table public."SumulaEvento"
     'INICIO_SET', 'SET_INICIADO', 'PONTO', 'SAQUE', 'RALLY_REPETIDO', 'SUBSTITUICAO', 'TEMPO',
     'TROCA_LIBERO', 'REDESIGNACAO_LIBERO', 'LIBERO', 'SANCAO', 'FALTA_POSICAO', 'FALTA_ROTACAO',
     'TROCA_LADO', 'SET_ANULADO', 'INTERRUPCAO', 'WO', 'EQUIPE_INCOMPLETA', 'OBSERVACAO', 'DESAFIO',
-    'FIM_SET', 'FIM_PARTIDA', 'DESFAZ', 'SNAPSHOT'));
+    'FIM_SET', 'FIM_PARTIDA', 'DESFAZ', 'SNAPSHOT',
+    -- Rodada 3 do motor: papeleta, capitão em jogo e protesto (RG-FOR-006..009, RG-ELE-005, RG-PRO-001..003)
+    'DISCREPANCIA_PAPELETA', 'CAPITAO_EM_JOGO', 'PROTESTO_ANUNCIADO', 'PROTESTO_REGISTRADO', 'PROTESTO_DESISTIDO'));
 
 comment on column public."SumulaEvento".payload is
   'Detalhe do evento (objeto jsonb). Formato por tipo: PayloadPorTipo em src/lib/regras-volei/eventos.ts.';
