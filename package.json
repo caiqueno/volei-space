@@ -98,7 +98,8 @@
     "test:regras-volei-rotacao": "node scripts/with-ts-node.mjs scripts/regras-volei-rotacao.test.ts",
     "test:regras-volei-substituicoes": "node scripts/with-ts-node.mjs scripts/regras-volei-substituicoes.test.ts",
     "test:regras-volei-libero": "node scripts/with-ts-node.mjs scripts/regras-volei-libero.test.ts",
-    "test:regras-volei-sancoes": "node scripts/with-ts-node.mjs scripts/regras-volei-sancoes.test.ts"
+    "test:regras-volei-sancoes": "node scripts/with-ts-node.mjs scripts/regras-volei-sancoes.test.ts",
+    "test:regras-volei-wo": "node scripts/with-ts-node.mjs scripts/regras-volei-wo-interrupcao.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
