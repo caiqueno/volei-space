@@ -11,7 +11,8 @@ import {
   totalSubstituicoes,
   type EstadoEquipe,
 } from './estado-equipe'
-import { aviso, bloqueio, ok, type AvisoRegra, type CodigoRegra, type ResultadoRegra } from './tipos'
+import { calcularReversaoFaltaRotacao, type PontoLog, type ReversaoRotacao } from './rotacao'
+import { aviso, bloqueio, ok, type AvisoRegra, type CodigoRegra, type Equipe, type ResultadoRegra } from './tipos'
 
 export interface PedidoSubstituicao {
   /** Jogador que sai (em quadra). */
@@ -287,6 +288,41 @@ export function caminhoParaJogadorImpedido(
     return { via: 'EXCEPCIONAL', candidatos: excepcionais, mensagem: 'Sem substituição regular: use a substituição excepcional.' }
   }
   return { via: 'INCOMPLETA', candidatos: [], mensagem: 'Sem substituição regular nem excepcional: a equipe é declarada incompleta (RG-SUB-012).' }
+}
+
+export type ConsequenciaSubstituicaoIlegal =
+  | { tipo: 'ATRASO'; codigo: 'RG-SUB-009'; mensagem: string }
+  | { tipo: 'REVERSAO'; codigo: 'RG-SUB-009'; mensagem: string; reversao: ReversaoRotacao }
+
+/**
+ * RG-SUB-009 / CJ-07: substituição ilegal. Vista antes de reiniciar o jogo vale só atraso;
+ * depois do reinício: ponto e saque ao adversário e cancelamento dos pontos da equipe faltosa
+ * desde a substituição (mesma reversão seletiva da falta de rotação), com nova súmula do set.
+ */
+export function consequenciaSubstituicaoIlegal(params: {
+  equipeFaltosa: Equipe
+  descobertaAntesDoReinicio: boolean
+  /** seq do 1º evento após a substituição ilegal (início do cancelamento). */
+  momentoSeq: number | null
+  pontosDoSet: readonly PontoLog[]
+}): ConsequenciaSubstituicaoIlegal {
+  if (params.descobertaAntesDoReinicio) {
+    return {
+      tipo: 'ATRASO',
+      codigo: 'RG-SUB-009',
+      mensagem: 'Substituição ilegal vista antes do reinício do jogo: corrija e aplique sanção de atraso (advertência; penalidade no 2º atraso).',
+    }
+  }
+  const reversao = calcularReversaoFaltaRotacao(params.pontosDoSet, {
+    equipeFaltosa: params.equipeFaltosa,
+    momentoSeq: params.momentoSeq,
+  })
+  return {
+    tipo: 'REVERSAO',
+    codigo: 'RG-SUB-009',
+    mensagem: `Substituição ilegal vista após o reinício: ponto e saque ao adversário, substituição retificada e ${reversao.cancelados.length} ponto(s) da equipe ${params.equipeFaltosa} cancelado(s); abra nova súmula do set.`,
+    reversao,
+  }
 }
 
 export { totalSubstituicoes }

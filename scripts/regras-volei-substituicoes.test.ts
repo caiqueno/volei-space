@@ -2,6 +2,7 @@ import {
   aplicarSubstituicaoExcepcional,
   aplicarSubstituicaoRegular,
   caminhoParaJogadorImpedido,
+  consequenciaSubstituicaoIlegal,
   criarEstadoEquipe,
   iniciarNovoSet,
   PERFIL_AMADOR,
@@ -230,6 +231,28 @@ caso('RG-SUB-008: substituição antes do set conta como regular do set', () => 
   // O pedido antes do início usa o mesmo caminho e consome a cota do set (15.3.2).
   const r = aplicarSubstituicaoRegular(novo(), { sai: 1, entra: 7 }, PERFIL_FIVB_CBV)
   assert.equal(r.estado.regulares, 1)
+})
+
+caso('RG-SUB-009 / CJ-07: substituição ilegal vista após o reinício cancela só os pontos da faltosa', () => {
+  const pontos = [
+    { seq: 2, equipe: 'B' as const },
+    { seq: 3, equipe: 'A' as const },
+    { seq: 4, equipe: 'B' as const }, // depois da 7ª substituição de B (seq 4)
+    { seq: 5, equipe: 'A' as const },
+    { seq: 6, equipe: 'B' as const },
+  ]
+  const r = consequenciaSubstituicaoIlegal({ equipeFaltosa: 'B', descobertaAntesDoReinicio: false, momentoSeq: 4, pontosDoSet: pontos })
+  assert.equal(r.tipo, 'REVERSAO')
+  if (r.tipo === 'REVERSAO') {
+    assert.deepEqual(r.reversao.cancelados, [4, 6])
+    assert.equal(r.reversao.saqueParaAdversario, true)
+    assert.equal(r.reversao.precisaSumulaAnexa, true)
+  }
+})
+
+caso('RG-SUB-009 / CJ-07: vista antes do reinício é só atraso, sem cancelar pontos', () => {
+  const r = consequenciaSubstituicaoIlegal({ equipeFaltosa: 'B', descobertaAntesDoReinicio: true, momentoSeq: null, pontosDoSet: [] })
+  assert.equal(r.tipo, 'ATRASO')
 })
 
 encerrar('regras-volei-substituicoes')
