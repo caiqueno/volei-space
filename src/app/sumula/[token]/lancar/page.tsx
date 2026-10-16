@@ -59,6 +59,7 @@ import { ausenteExplicito, MENSAGEM_MINIMO_ATLETAS, motivoMinimoAtletas, present
 import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaSessao } from '@/lib/sumula-sessao'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
+import { avisoComContador, textoContadorTroca } from '@/lib/contador-troca'
 import { atribuirPontoAoEvento, opcoesDeOrigem, type FaixaPonto } from '@/lib/atribuicao-ponto'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
 import './sumula-micro.css'
@@ -1081,9 +1082,11 @@ export default function SumulaPage() {
   function avisoDoModal() {
     if (!subModal) return null
     const lista = listaDeSubstituicao(subModal.teamId, subModal.outNumber)
-    if (!lista.aviso) return null
     const teamId = subModal.teamId
-    return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit)
+    const usadas = (controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()).usadas
+    const contador = textoContadorTroca(usadas, limiteDeSubstituicoes(matchRules.substitutionLimit))
+    const aviso = lista.aviso ? textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit) : null
+    return avisoComContador(contador, aviso)
   }
 
   function executeSubstitution(inNumber: string, porLesao = false) {
