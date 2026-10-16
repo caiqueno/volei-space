@@ -5,7 +5,8 @@ import { useRef, useState, type KeyboardEvent } from 'react'
 import { obterClientePadrao, type MeuTimeClient } from './cliente'
 import { AbaAtletas } from './AbaAtletas'
 import { AbaComissao } from './AbaComissao'
-import { AbaDados, AbaInscricoes } from './AbaDadosEInscricoes'
+import { AbaDados } from './AbaDados'
+import { AbaInscricoes } from './AbaDadosEInscricoes'
 import { CartaoProntidao } from './CartaoProntidao'
 import { Aviso, Carregando, FalhaTela, Pagina, useCarregar } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
@@ -39,7 +40,7 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
   if (carga.estado === 'carregando') return <Pagina titulo="Meu time" voltar={{ href: '/meu-time', texto: 'Voltar para meus times' }}><Carregando texto="Carregando o time…" /></Pagina>
   if (carga.estado === 'falha') return <Pagina titulo="Meu time" voltar={{ href: '/meu-time', texto: 'Voltar para meus times' }}><FalhaTela falha={carga.falha} aoTentar={tentarDeNovo} /></Pagina>
 
-  const { equipe, atletas, comissao, inscricoes, prontidao } = carga.dados
+  const { equipe, atletas, comissao, inscricoes, prontidao, meuPapel } = carga.dados
   const hrefAssistente = hrefInscricao(equipeId, (chave) => params.get(chave))
   const atualizar = async () => { await recarregar() }
 
@@ -71,7 +72,7 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
           <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} aoAtualizar={atualizar} />
         )}
         {aba === 'comissao' && <AbaComissao cliente={api} equipeId={equipeId} comissao={comissao} aoAtualizar={atualizar} />}
-        {aba === 'dados' && <AbaDados equipe={equipe} />}
+        {aba === 'dados' && <AbaDados cliente={api} equipe={equipe} meuPapel={meuPapel} aoAtualizar={atualizar} />}
         {aba === 'inscricoes' && <AbaInscricoes inscricoes={inscricoes} hrefInscricao={hrefAssistente} />}
       </div>
     </Pagina>

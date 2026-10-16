@@ -1,26 +1,7 @@
 import Link from 'next/link'
-import { Aviso, botaoPrimario, cartao } from './ui'
-import { NAIPE_ROTULO } from './rotulos'
+import { botaoPrimario, cartao } from './ui'
 import { descreverStatusInscricao } from '@/lib/meu-time-ui/respostas'
-import type { Equipe, InscricaoResumo } from '@/lib/meu-time-ui/tipos'
-
-export function AbaDados({ equipe }: { equipe: Equipe }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <dl className={`${cartao} grid grid-cols-[auto_1fr] gap-x-4 gap-y-3`}>
-        <dt className="text-sm font-bold text-[var(--vs-muted)]">Nome</dt>
-        <dd className="font-bold">{equipe.nome}</dd>
-        <dt className="text-sm font-bold text-[var(--vs-muted)]">Cidade</dt>
-        <dd>{equipe.cidade || 'Não informada'}</dd>
-        <dt className="text-sm font-bold text-[var(--vs-muted)]">Naipe</dt>
-        <dd>{NAIPE_ROTULO[equipe.naipe]}</dd>
-        <dt className="text-sm font-bold text-[var(--vs-muted)]">Escudo</dt>
-        <dd>{equipe.escudoUrl ? 'Cadastrado' : 'Ainda sem escudo'}</dd>
-      </dl>
-      <Aviso>A edição destes dados ainda não está disponível aqui. Se algo estiver errado, avise o organizador do campeonato.</Aviso>
-    </div>
-  )
-}
+import type { InscricaoResumo } from '@/lib/meu-time-ui/tipos'
 
 type PropsInscricoes = {
   inscricoes: InscricaoResumo[]

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { obterClientePadrao, type MeuTimeClient } from './cliente'
 import { PassoAtletas } from './PassoAtletas'
 import { Aviso, botaoPrimario, botaoSecundario, Carregando, cartao, FalhaTela, falhaDe, Pagina, useCarregar } from './ui'
-import { NAIPE_ROTULO } from './rotulos'
+import { NAIPE_ROTULO, rotuloFuncao } from './rotulos'
 import {
   apagarRascunho,
   carregarRascunho,
@@ -17,7 +17,7 @@ import {
   type RascunhoAssistente,
 } from '@/lib/meu-time-ui/rascunho'
 import { descreverStatusInscricao, type Falha } from '@/lib/meu-time-ui/respostas'
-import { avisosDeEnvio, lerRegras, montarInscricao, problemasDeEnvio } from '@/lib/meu-time-ui/selecao'
+import { avisosDeEnvio, lerRegras, montarInscricao, problemasDeEnvio, regrasDeCategoria, type RegrasInscricao } from '@/lib/meu-time-ui/selecao'
 import type { DetalheEquipe, RespostaInscricao } from '@/lib/meu-time-ui/tipos'
 
 const TITULOS = ['Confirmar o time', 'Escolher atletas', 'Comissão técnica', 'Revisar e enviar'] as const
@@ -33,9 +33,21 @@ export function AssistenteInscricao({ equipeId, cliente }: { equipeId: string; c
   const categoria = params.get('categoria')
   const { carga, tentarDeNovo } = useCarregar(() => api.obterEquipe(equipeId))
   const voltar = { href: `/meu-time/${encodeURIComponent(equipeId)}`, texto: 'Voltar para o time' }
+  // Regras vêm do endpoint da categoria. Os parâmetros da URL só valem como reserva (404/503).
+  const { carga: cargaRegras, tentarDeNovo: tentarRegras } = useCarregar<RegrasInscricao | null>(async () => {
+    if (!categoria) return null
+    try {
+      return regrasDeCategoria(await api.obterRegrasCategoria(categoria))
+    } catch (erro) {
+      const falha = falhaDe(erro)
+      if (falha.status === 404 || falha.status === 503) return lerRegras((c) => params.get(c))
+      throw erro
+    }
+  })
 
-  if (carga.estado === 'carregando') return <Pagina titulo="Inscrever meu time"><Carregando texto="Preparando a inscrição…" /></Pagina>
+  if (carga.estado === 'carregando' || (categoria && cargaRegras.estado === 'carregando')) return <Pagina titulo="Inscrever meu time"><Carregando texto="Preparando a inscrição…" /></Pagina>
   if (carga.estado === 'falha') return <Pagina titulo="Inscrever meu time" voltar={{ href: '/meu-time', texto: 'Voltar para meus times' }}><FalhaTela falha={carga.falha} aoTentar={tentarDeNovo} /></Pagina>
+  if (cargaRegras.estado === 'falha') return <Pagina titulo="Inscrever meu time" voltar={voltar}><FalhaTela falha={cargaRegras.falha} aoTentar={tentarRegras} /></Pagina>
   if (!categoria) {
     return (
       <Pagina titulo="Inscrever meu time" voltar={voltar}>
@@ -50,7 +62,7 @@ export function AssistenteInscricao({ equipeId, cliente }: { equipeId: string; c
   return (
     <Assistente
       key={`${equipeId}-${categoria}`} api={api} equipeId={equipeId} categoria={categoria}
-      detalhe={carga.dados} regras={lerRegras((c) => params.get(c))}
+      detalhe={carga.dados} regras={(cargaRegras.estado === 'pronto' ? cargaRegras.dados : null) ?? lerRegras((c) => params.get(c))}
     />
   )
 }
@@ -60,7 +72,7 @@ type PropsAssistente = {
   equipeId: string
   categoria: string
   detalhe: DetalheEquipe
-  regras: ReturnType<typeof lerRegras>
+  regras: RegrasInscricao
 }
 
 function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssistente) {
@@ -100,7 +112,7 @@ function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssisten
     tituloRef.current?.focus()
   }, [rascunho.passo, enviada])
 
-  const problemas = problemasDeEnvio(rascunho.escolhas, atletas, regras)
+  const problemas = problemasDeEnvio(rascunho.escolhas, atletas, regras, rascunho.comissao.length)
   const avisos = avisosDeEnvio(rascunho.escolhas, atletas, regras)
   const nomePor = useMemo(() => new Map(atletas.map((a) => [a.id, a.nome])), [atletas])
 
@@ -166,6 +178,8 @@ function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssisten
             <p className="text-[var(--vs-muted)]">{[equipe.cidade, NAIPE_ROTULO[equipe.naipe]].filter(Boolean).join(' · ')}</p>
             <p className="pt-2 text-sm">{atletas.length} {atletas.length === 1 ? 'atleta cadastrado' : 'atletas cadastrados'}</p>
           </div>
+          {regras.nomeCategoria && <p className="font-bold">Categoria: {regras.nomeCategoria}</p>}
+          {regras.inscricoesAbertas === false && <Aviso tom="is-error" alerta>As inscrições desta categoria estão fechadas. Seu time e seus atletas continuam salvos.</Aviso>}
           <Aviso>A inscrição entra na categoria assim que você enviar. Não há fila de aprovação; o sistema avisa antes se algo estiver errado.</Aviso>
           {atletas.length === 0 && (
             <Aviso tom="is-warning">Seu time ainda não tem atletas. <Link href={voltar.href} className="font-black underline">Cadastre os atletas</Link> e volte: nada se perde.</Aviso>
@@ -196,7 +210,7 @@ function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssisten
                     type="checkbox" className="h-6 w-6 accent-[var(--vs-gold)]" checked={rascunho.comissao.includes(membro.id)}
                     onChange={(e) => setRascunho((r) => ({ ...r, comissao: e.target.checked ? [...r.comissao, membro.id] : r.comissao.filter((id) => id !== membro.id) }))}
                   />
-                  <span><strong className="block">{membro.nome}</strong><span className="text-sm text-[var(--vs-muted)]">{membro.funcao}</span></span>
+                  <span><strong className="block">{membro.nome}</strong><span className="text-sm text-[var(--vs-muted)]">{rotuloFuncao(membro.funcao)}</span></span>
                 </label>
               </li>
             ))}
