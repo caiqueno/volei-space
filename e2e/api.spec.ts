@@ -20,7 +20,7 @@ const rotasAdmin = [
 test.describe('API no servidor local', () => {
   test('webhook legado da InfinitePay está desligado e responde 410', async ({ request }) => {
     const raw = JSON.stringify(webhookPago())
-    const cabecalhos = [
+    const cabecalhos: Record<string, string>[] = [
       { 'x-infinitepay-signature': assinarCorpo(raw) },
       { 'x-infinitepay-signature': 'f'.repeat(64) },
       { 'x-infinitepay-signature': 'curta' },

@@ -13,6 +13,7 @@ const resposta = () =>
     { status: 410, headers: { 'Cache-Control': 'no-store' } },
   )
 
-export async function POST(_req?: Request) {
+export async function POST(_req: Request) {
+  void _req
   return resposta()
 }

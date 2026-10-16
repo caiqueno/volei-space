@@ -102,7 +102,8 @@ const variaveis: Record<string, string> = {}
 const variavel = /--(vs-elevated|vs-text|vs-gold):\s*(#[0-9A-Fa-f]{6})/g
 let encontrado = variavel.exec(css)
 while (encontrado) {
-  variaveis[encontrado[1]] = encontrado[2]
+  // Vale o primeiro valor (tema padrão escuro em :root); os temas claro e de alto contraste redefinem depois.
+  if (!(encontrado[1] in variaveis)) variaveis[encontrado[1]] = encontrado[2]
   encontrado = variavel.exec(css)
 }
 assert.equal(variaveis['vs-elevated'], '#16243D')
