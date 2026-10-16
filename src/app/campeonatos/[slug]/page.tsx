@@ -12,7 +12,7 @@ import { getChampionshipPodium, type PodiumTeam } from '@/lib/championship-podiu
 import { formatLigaFormato, formatLigaStatus } from '@/lib/format-liga'
 import { isCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { getMataMataBracket } from '@/lib/mata-mata'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
