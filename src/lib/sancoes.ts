@@ -31,6 +31,31 @@ export function tipoSancao(valor?: string | null): TipoSancao | null {
   return ALIAS[chave] ?? null
 }
 
+const MARCADOR_SAN = /\[\[SAN:(?:A|B):[^:\]]+:[A-Z]+:([A-Z_]+):\d+\]\]/
+
+/** Sanções do marcador que o servidor conhece. Advertência verbal e atraso não são cartões. */
+const MARCADOR_PARA_SANCAO: Record<string, TipoSancao> = {
+  AMARELO: 'ADVERTENCIA',
+  PENALIDADE: 'PENALIDADE',
+  EXPULSAO: 'EXPULSAO',
+  DESQUALIFICACAO: 'DESQUALIFICACAO',
+}
+
+/**
+ * A tela grava penalidade, expulsão e desqualificação todas como "Cartão vermelho"
+ * (CARTAO_VERMELHO). O marcador [[SAN:...]] da descrição diz qual foi. Só refina esse
+ * tipo ambíguo; nota antiga sem marcador, ou com marcador que não seja penalidade,
+ * expulsão ou desqualificação, segue como antes.
+ */
+export function tipoSancaoDaOcorrencia(ocorrencia: { tipo?: string | null; descricao?: string | null }): TipoSancao | null {
+  const base = tipoSancao(ocorrencia.tipo)
+  if (String(ocorrencia.tipo ?? '').trim().toUpperCase() !== 'CARTAO_VERMELHO') return base
+  const marcado = String(ocorrencia.descricao ?? '').match(MARCADOR_SAN)?.[1]
+  const refinado = marcado ? MARCADOR_PARA_SANCAO[marcado] : undefined
+  if (!refinado || refinado === 'ADVERTENCIA') return base
+  return refinado
+}
+
 export function sancaoEfetiva(anteriores: Array<string | null | undefined>, pedida: string): TipoSancao | null {
   const nova = tipoSancao(pedida)
   if (!nova) return null
@@ -43,6 +68,7 @@ export function sancaoEfetiva(anteriores: Array<string | null | undefined>, pedi
 
 export type OcorrenciaSancao = {
   tipo?: string | null
+  descricao?: string | null
   jogadorId?: number | null
   set?: number | null
   partidaId?: number | null
@@ -52,7 +78,7 @@ export type OcorrenciaSancao = {
 export function mensagemSancaoInvalida(ocorrencias?: OcorrenciaSancao[] | null): string | null {
   const porAtleta = new Map<number, string[]>()
   for (const ocorrencia of ocorrencias ?? []) {
-    const tipo = tipoSancao(ocorrencia.tipo)
+    const tipo = tipoSancaoDaOcorrencia(ocorrencia)
     if (!tipo || ocorrencia.jogadorId == null) continue
     const anteriores = porAtleta.get(Number(ocorrencia.jogadorId)) ?? []
     const efetiva = sancaoEfetiva(anteriores, tipo)
@@ -68,7 +94,7 @@ export function mensagemSancaoInvalida(ocorrencias?: OcorrenciaSancao[] | null):
 export function punicoesPorOcorrencia(ocorrencias: OcorrenciaSancao[], jogadorEquipe: Map<number, number>) {
   const pesos = new Map<number, number>()
   for (const ocorrencia of ocorrencias) {
-    const tipo = tipoSancao(ocorrencia.tipo)
+    const tipo = tipoSancaoDaOcorrencia(ocorrencia)
     if (!tipo || ocorrencia.jogadorId == null) continue
     const equipeId = jogadorEquipe.get(Number(ocorrencia.jogadorId))
     if (equipeId == null) continue
