@@ -1,0 +1,81 @@
+/* Placar para telão e transmissão. Usa os tokens --vs-* de globals.css.
+   Escala fluida: legível de 1280x720 a 4K. Sem animações. */
+.placar-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: clamp(12px, 3vmin, 48px);
+  background: var(--vs-bg);
+  color: var(--vs-text);
+  font-family: var(--font-display), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+.placar-root.is-transparente { background: transparent; }
+
+/* Esconde o cromo do site (cabeçalho, rodapé) só nesta tela e libera o fundo para OBS. */
+body:has(.placar-root) > header,
+body:has(.placar-root) > footer,
+body:has(.placar-root) > div > header,
+body:has(.placar-root) > div > footer { display: none !important; }
+html:has(.placar-root.is-transparente),
+body:has(.placar-root.is-transparente) { background: transparent !important; }
+
+.placar-card {
+  width: 100%;
+  display: grid;
+  gap: clamp(8px, 2vmin, 28px);
+  padding: clamp(14px, 3vmin, 40px);
+  border: 2px solid var(--vs-border-strong, var(--vs-border));
+  border-radius: clamp(16px, 3vmin, 40px);
+  background: color-mix(in srgb, var(--vs-surface) 94%, transparent);
+}
+.placar-topo {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: .5em 1em;
+  font-size: clamp(1rem, 2.6vmin, 2.2rem);
+  font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+}
+.placar-status { display: inline-flex; align-items: center; gap: .5em; color: var(--vs-text); }
+.placar-status.is-vivo { color: var(--vs-live); }
+.placar-status i { width: .7em; height: .7em; border-radius: 50%; background: currentColor; }
+.placar-liga { color: var(--vs-muted); }
+.placar-set { color: var(--vs-gold); }
+.placar-corpo {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  gap: clamp(8px, 2.5vmin, 40px);
+}
+.placar-lado { display: grid; justify-items: center; gap: clamp(4px, 1vmin, 14px); text-align: center; min-width: 0; }
+.placar-logo { zoom: 1.6; display: grid; place-items: center; }
+.placar-nome {
+  font-size: clamp(1.25rem, 4.6vmin, 4rem); line-height: 1.05; font-weight: 800;
+  overflow-wrap: anywhere; max-width: 100%;
+}
+.placar-sets {
+  display: inline-grid; place-items: center; min-width: 1.6em; padding: 0 .35em;
+  font-size: clamp(1.25rem, 4vmin, 3.4rem); font-weight: 900;
+  color: var(--vs-on-gold); background: var(--vs-gold); border-radius: .3em;
+}
+.placar-pontos {
+  display: flex; align-items: center; gap: clamp(8px, 2vmin, 32px);
+  font-weight: 900; line-height: .9;
+}
+.placar-pontos b { font-size: clamp(3.5rem, 20vmin, 18rem); min-width: 1.1ch; text-align: center; }
+.placar-pontos span { font-size: clamp(1.5rem, 6vmin, 5rem); color: var(--vs-muted); }
+.placar-parciais {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .4em 1.5em; margin: 0; padding: 0; list-style: none;
+  font-size: clamp(1rem, 2.8vmin, 2.4rem); color: var(--vs-muted);
+}
+.placar-parciais b { color: var(--vs-text); }
+.placar-aviso, .placar-estado { margin: 0; text-align: center; color: var(--vs-muted); font-size: clamp(1rem, 2.4vmin, 2rem); }
+.placar-estado { font-size: clamp(1.25rem, 4vmin, 3rem); color: var(--vs-text); }
+.placar-root.is-transparente .placar-estado,
+.placar-root.is-transparente .placar-aviso { text-shadow: 0 2px 8px rgba(0, 0, 0, .8); }
+
+@media (max-aspect-ratio: 1/1) {
+  .placar-corpo { grid-template-columns: 1fr; }
+  .placar-pontos b { font-size: clamp(3.5rem, 22vw, 12rem); }
+  .placar-nome { font-size: clamp(1.25rem, 7vw, 3rem); }
+}
