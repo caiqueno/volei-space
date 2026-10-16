@@ -109,6 +109,27 @@ caso('RG-LIB-005: rally concluído desde a última troca de líbero', () => {
   assert.equal(j.estado().inconsistencias.length, 0)
 })
 
+caso('RG-LIB-005: o ponto de penalidade não conta como rally concluído', () => {
+  const j = new Jogo()
+  j.iniciarSet()
+  j.add('TROCA_LIBERO', { equipe: 'A', sai: 6, entra: 10 })
+  assert.equal(j.estado().estadoEquipes!.A.rallyConcluidoDesdeTrocaLibero, false)
+  j.add('SANCAO', { equipe: 'B', membro: 'J:13', categoria: 'GROSSEIRA', sancao: 'PENALIDADE', pontoParaAdversario: true })
+  let p = j.estado()
+  assert.deepEqual(p.setAtual!.placar, { a: 1, b: 0 }, 'a penalidade dá o ponto')
+  assert.equal(p.estadoEquipes!.A.rallyConcluidoDesdeTrocaLibero, false, 'mas não libera a troca de líbero')
+  j.add('TROCA_LIBERO', { equipe: 'A', sai: 10, entra: 6 })
+  assert.equal(j.estado().inconsistencias.some((i) => i.codigo === 'RG-LIB-005'), true)
+  // um rally real, depois, libera
+  const k = new Jogo()
+  k.iniciarSet()
+  k.add('TROCA_LIBERO', { equipe: 'A', sai: 6, entra: 10 })
+  k.add('SANCAO', { equipe: 'B', membro: 'J:13', categoria: 'GROSSEIRA', sancao: 'PENALIDADE', pontoParaAdversario: true })
+  k.pontos('A', 1)
+  p = k.estado()
+  assert.equal(p.estadoEquipes!.A.rallyConcluidoDesdeTrocaLibero, true)
+})
+
 caso('RG-LIB-005: duas trocas sem rally no meio viram inconsistência na derivação', () => {
   const j = new Jogo()
   j.iniciarSet()
