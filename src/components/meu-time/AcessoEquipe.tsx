@@ -40,9 +40,12 @@ export function AcessoEquipe({ cliente, equipeId, meuPapel }: Props) {
     if (!resultado.valido) return
     setOcupado(true)
     try {
-      await cliente.adicionarAcesso(equipeId, resultado.dados)
+      // O servidor responde igual para conta existente e inexistente (não revela quem tem conta):
+      // mostramos a mensagem dele e recarregamos a lista, que só muda se a pessoa puder ser adicionada.
+      const resposta = (await cliente.adicionarAcesso(equipeId, resultado.dados)) as unknown as { mensagem?: string } | undefined
       setEmail('')
       setPapel('')
+      setMensagem(typeof resposta?.mensagem === 'string' ? resposta.mensagem : 'Pedido registrado. Se a pessoa tiver conta, ela aparece na lista.')
       await recarregar()
     } catch (erro) {
       setMensagem(falhaDe(erro).mensagem)
