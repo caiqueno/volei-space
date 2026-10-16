@@ -133,7 +133,8 @@
     "test:regras-volei-fechamento": "node scripts/with-ts-node.mjs scripts/regras-volei-fechamento.test.ts",
     "test:regras-volei-r3": "npm run test:regras-volei && npm run test:regras-volei-estado-derivado && npm run test:regras-volei-papeleta && npm run test:regras-volei-elenco && npm run test:regras-volei-protesto && npm run test:regras-volei-fechamento && npm run test:sumula-eventos && npm run test:sumula-eventos-rota",
     "test:uploads-tipos-novos": "node scripts/with-ts-node.mjs scripts/uploads-tipos-novos.test.ts",
-    "test:sumula-impressa": "node scripts/with-ts-node.mjs scripts/sumula-impressa.test.ts"
+    "test:sumula-impressa": "node scripts/with-ts-node.mjs scripts/sumula-impressa.test.ts",
+    "test:sumula-offline-fila": "node scripts/with-ts-node.mjs scripts/sumula-offline-fila.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
