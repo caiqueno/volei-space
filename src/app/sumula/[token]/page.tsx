@@ -41,7 +41,9 @@ export default function SumulaRegistroPage() {
 
   useEffect(() => {
     let ativo = true
-    fetch(`/api/sumula/${encodeURIComponent(token)}?consulta=1`, { cache: 'no-store' })
+    // Link com o id da partida (portal público) usa a rota pública; link com token usa a consulta por token.
+    const urlConsulta = /^\d+$/.test(token) ? `/api/partidas/${token}/sumula-publica` : `/api/sumula/${encodeURIComponent(token)}?consulta=1`
+    fetch(urlConsulta, { cache: 'no-store' })
       .then(async (resposta) => {
         const json = await resposta.json().catch(() => ({}))
         if (!resposta.ok) throw new Error(json.error || 'Não foi possível abrir a súmula.')

@@ -11,14 +11,24 @@ export type SumulaTokenAccess = {
 const JOGADOR_PARTIDA = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
 const PARTIDA_SUMULA = `*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), presencas:SumulaPresenca(*, jogador:Jogador(${JOGADOR_PARTIDA})), sets:SetPartida(*), ocorrencias:OcorrenciaPartida(*), destaques:DestaquesPartida(*, jogador:Jogador(${JOGADOR_PARTIDA})), escala:EscalaArbitro(*, arbitro:Arbitro(id,nome))`
 
+/** Resposta única para token inexistente e para Partida.id numérico. */
+const PARTIDA_NAO_ENCONTRADA = 'Partida não encontrada.'
+
+/**
+ * A credencial é só o `sumulaToken` opaco. Partida.id numérico não é credencial:
+ * a leitura pública por id vive em /api/partidas/{id}/sumula-publica, limitada
+ * a campeonato publicado e sem dados pessoais.
+ */
 export async function requireSumulaTokenAccess(token: string): Promise<SumulaTokenAccess | NextResponse> {
-  const numerico = /^\d+$/.test(token)
-  let consulta = supabase.from('Partida').select(PARTIDA_SUMULA)
-  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
-  const { data: partida, error: partidaErr } = await consulta.maybeSingle()
+  if (!tokenOpacoValido(token)) return error(PARTIDA_NAO_ENCONTRADA, 404)
+  const { data: partida, error: partidaErr } = await supabase
+    .from('Partida')
+    .select(PARTIDA_SUMULA)
+    .eq('sumulaToken', token)
+    .maybeSingle()
 
   if (partidaErr) return error('Não foi possível abrir a súmula.', 500)
-  if (!partida) return error('Partida não encontrada.', 404)
+  if (!partida) return error(PARTIDA_NAO_ENCONTRADA, 404)
   if (partida.sumulaTokenExpira && new Date(partida.sumulaTokenExpira).getTime() < Date.now()) {
     return error('O link da súmula expirou.', 410)
   }
@@ -26,6 +36,11 @@ export async function requireSumulaTokenAccess(token: string): Promise<SumulaTok
   partida.equipeA = primeiro(partida.equipeA)
   partida.equipeB = primeiro(partida.equipeB)
   return { partida }
+}
+
+/** Token opaco: nunca só dígitos (seria Partida.id) e só caracteres de token. */
+export function tokenOpacoValido(token: string) {
+  return /^[A-Za-z0-9_-]{1,200}$/.test(token) && !/^\d+$/.test(token)
 }
 
 function primeiro(valor: unknown) {
