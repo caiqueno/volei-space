@@ -24,6 +24,8 @@ import {
   rascunhoVazio,
   serializarRascunho,
 } from '../src/lib/meu-time-ui/rascunho'
+import { validarMembroComissao, validarNovoAtleta, validarNovoTime } from '../src/lib/meu-time-ui/formularios'
+import { hrefInscricao } from '../src/lib/meu-time-ui/navegacao'
 import { prepararLista } from '../src/lib/meu-time-ui/lista-colada'
 import type { Atleta } from '../src/lib/meu-time-ui/tipos'
 
@@ -173,6 +175,22 @@ async function main() {
   assert.equal((await mem.listarEquipes())[0].totalAtletas, 2)
   await assert.rejects(criarClienteMemoria({ naoHabilitado: true }).listarEquipes(), (e) => e instanceof ErroMeuTime && e.falha.status === 503)
   await assert.rejects(mem.obterEquipe('nada'), (e) => e instanceof ErroMeuTime && e.falha.tipo === 'nao-encontrado')
+
+  // --- formulários e navegação
+  assert.deepEqual(validarNovoTime({ nome: '  Vôlei   Norte ', cidade: ' Manaus ', naipe: 'MISTO', escudoUrl: '' }), { valido: true, dados: { nome: 'Vôlei Norte', naipe: 'MISTO', cidade: 'Manaus' }, erros: {} })
+  const timeRuim = validarNovoTime({ nome: 'A', cidade: '', naipe: '', escudoUrl: 'javascript:alert(1)' })
+  assert.equal(timeRuim.valido, false)
+  assert.deepEqual(Object.keys(timeRuim.erros).sort(), ['escudoUrl', 'naipe', 'nome'])
+  const atletaOk = validarNovoAtleta({ nome: 'Ana', dataNascimento: '2000-01-02', numero: '7', posicao: 'Líbero' })
+  assert.deepEqual(atletaOk.valido && atletaOk.dados, { nome: 'Ana', dataNascimento: '2000-01-02', numeroPreferido: 7, posicao: 'Líbero' })
+  assert.deepEqual(Object.keys(validarNovoAtleta({ nome: '', dataNascimento: '', numero: '100', posicao: '' }).erros).sort(), ['dataNascimento', 'nome', 'numero'])
+  assert.equal(validarNovoAtleta({ nome: 'Ana', dataNascimento: '2000-01-02', numero: '0', posicao: '' }).valido, false)
+  assert.equal(validarMembroComissao({ nome: 'Rui', funcao: '' }).valido, false)
+  assert.equal(validarMembroComissao({ nome: 'Rui', funcao: 'Técnico' }).valido, true)
+  assert.equal(hrefInscricao('e 1', () => null), undefined)
+  const convite: Record<string, string> = { categoria: 'c1', min: '6', lixo: 'x' }
+  assert.equal(hrefInscricao('e 1', (c) => convite[c]), '/meu-time/e%201/inscrever?categoria=c1&min=6')
+  assert.ok(problemasDeEnvio(dup, atletas, REGRAS_PADRAO).some((p) => p.codigo === 'repetida'))
 
   console.log('meu-time-ui: ok')
 }

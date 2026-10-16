@@ -14,7 +14,9 @@ export const REGRAS_PADRAO: RegrasInscricao = { minimo: 6, maximo: 14, maxLibero
 
 export type Escolha = { atletaId: string; numero: string; capitao: boolean; libero: boolean }
 
-export type Problema = { mensagem: string; atletaId?: string }
+export type CodigoProblema = 'minimo' | 'maximo' | 'liberos' | 'numero' | 'repetida' | 'libero-capitao'
+
+export type Problema = { codigo: CodigoProblema; mensagem: string; atletaId?: string }
 
 const CAMISA_MAXIMA = 99
 
@@ -132,33 +134,33 @@ export function problemasDeEnvio(escolhas: Escolha[], atletas: Atleta[], regras:
 
   if (n < regras.minimo) {
     const falta = regras.minimo - n
-    problemas.push({ mensagem: `Faltam ${falta} ${plural(falta, 'atleta', 'atletas')}. Esta categoria precisa de pelo menos ${regras.minimo}.` })
+    problemas.push({ codigo: 'minimo', mensagem: `Faltam ${falta} ${plural(falta, 'atleta', 'atletas')}. Esta categoria precisa de pelo menos ${regras.minimo}.` })
   }
   if (n > regras.maximo) {
     const sobra = n - regras.maximo
-    problemas.push({ mensagem: `Você marcou ${n}. O máximo é ${regras.maximo}. Desmarque ${sobra}.` })
+    problemas.push({ codigo: 'maximo', mensagem: `Você marcou ${n}. O máximo é ${regras.maximo}. Desmarque ${sobra}.` })
   }
   const liberos = escolhas.filter((e) => e.libero).length
   if (liberos > regras.maxLiberos) {
-    problemas.push({ mensagem: `Você marcou ${liberos} líberos. Esta categoria aceita ${regras.maxLiberos}.` })
+    problemas.push({ codigo: 'liberos', mensagem: `Você marcou ${liberos} líberos. Esta categoria aceita ${regras.maxLiberos}.` })
   }
 
   const donos = new Map<string, string>()
   for (const e of escolhas) {
     const numero = inteiroPositivo(e.numero)
     if (numero == null || numero > CAMISA_MAXIMA) {
-      problemas.push({ atletaId: e.atletaId, mensagem: `Falta a camisa de ${nome(e.atletaId)}. Use um número de 1 a ${CAMISA_MAXIMA}.` })
+      problemas.push({ codigo: 'numero', atletaId: e.atletaId, mensagem: `Falta a camisa de ${nome(e.atletaId)}. Use um número de 1 a ${CAMISA_MAXIMA}.` })
       continue
     }
     const chave = String(numero)
     const dono = donos.get(chave)
     if (dono) {
-      problemas.push({ atletaId: e.atletaId, mensagem: `A camisa ${chave} já está com ${nome(dono)}. Escolha outro número para ${nome(e.atletaId)}.` })
+      problemas.push({ codigo: 'repetida', atletaId: e.atletaId, mensagem: `A camisa ${chave} já está com ${nome(dono)}. Escolha outro número para ${nome(e.atletaId)}.` })
     } else {
       donos.set(chave, e.atletaId)
     }
     if (e.libero && e.capitao) {
-      problemas.push({ atletaId: e.atletaId, mensagem: `${nome(e.atletaId)} é líbero e não pode ser capitão. Escolha outra pessoa para capitão.` })
+      problemas.push({ codigo: 'libero-capitao', atletaId: e.atletaId, mensagem: `${nome(e.atletaId)} é líbero e não pode ser capitão. Escolha outra pessoa para capitão.` })
     }
   }
   return problemas
