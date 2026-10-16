@@ -8,12 +8,20 @@ summary: >-
   Scouts gerais e rankings leem os lances em lotes de 1000 ordenados por id. O corte de 1000 do Supabase sai. Sem banco.
 status: misto
 created: 2026-09-25
-updated: 2026-10-12
+updated: 2026-10-16
 ---
 
 # Hot
 
 ## Foco atual
+
+Em 16 de outubro de 2026 os nove índices de `20261011025731_indices_fks_sem_cobertura.sql` já estão em produção. O arquivo no repositório só tem `CREATE INDEX IF NOT EXISTS` e não é executado aqui. O plano de repair também não roda. `20261010139000_wo_configuravel.sql` não muda de nome. Fonte: [[06-BANCO-DE-DADOS]].
+
+Em 16 de outubro de 2026 `PAGAMENTO_HABILITADO` ausente mantém o checkout simulado: a estrutura não responde 402 e não grava `pagamentoConfirmadoEm`. `false` desliga a cobrança e libera o campeonato. `true` exige a confirmação antes dos grupos. Sem migration. Fonte: [[modulos/PAGAMENTOS]], [[modulos/PARAMETRIZACAO]], [[08-INTEGRACOES]].
+
+Em 11 de outubro de 2026 `GET /api/ligas` sem `organizadorId` e o 200 de `GET /api/categorias` passam a usar o CDN da Vercel: `public, max-age=0, s-maxage=30, stale-while-revalidate=60`. As duas respostas ignoram cookie e sessão. `status`, `q` e `ligaId` mudam o corpo e entram na URL, que é a chave do cache. `GET /api/ligas?organizadorId=` continua exigindo a sessão daquele organizador e responde `private, no-store`, inclusive no 401. Erro dessas rotas também fica sem cache. Nenhuma migration. Fonte: [[07-SEGURANCA]], [[08-INTEGRACOES]].
+
+Em 11 de outubro de 2026 o build deixa de baixar fonte no Google. Manrope e Barlow Condensed ficam em `src/fonts` via `next/font/local`. O workflow Testes roda `tsc --noEmit` antes da suíte. Sem migration. Fonte: [[09-UI-UX]].
 
 Em 12 de outubro de 2026 Scouts gerais, o top de fundamentos, os stories e o cartão de MVP leem `OcorrenciaPartida` em lotes de 1000 linhas, com `id` crescente. A liga que passa de 1000 lances deixa de perder pontos a cada carga. Sem banco. Fonte: [[modulos/SCOUTS]].
 

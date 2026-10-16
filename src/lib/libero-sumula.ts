@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 /**
  * Líbero. A confirmação da papeleta não exige líbero inicial: vazio,
  * `--` ou `nenhum` significam que o time não tem líbero neste set.
@@ -48,9 +50,8 @@ export function quantidadeDeLiberos(valor: unknown): 1 | 2 | null {
   return numero
 }
 
-export function colunaDeLiberoAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /exigirLiberoInicial|quantidadeLiberos/i.test(texto)
+export function colunaDeLiberoAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['exigirLiberoInicial', 'quantidadeLiberos'])
 }
 
 export function semLibero<T extends Record<string, unknown>>(patch: T): T {

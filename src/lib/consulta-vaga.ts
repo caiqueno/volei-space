@@ -1,6 +1,7 @@
+import { colunaAusente } from '@/lib/coluna-ausente'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-type ErroColuna = { message?: string; code?: string; details?: string } | null | undefined
+type ErroColuna = { message?: string | null; code?: string | null; details?: string | null } | null | undefined
 type Resposta = { data: any; error: ErroColuna }
 
 let colunasAtivas: boolean | null = null
@@ -9,8 +10,7 @@ const REVER_AUSENCIA_MS = 60_000
 
 export function erroColunaDeVagaAusente(erro: ErroColuna) {
   if (!erro) return false
-  const texto = `${erro.code ?? ''} ${erro.message ?? ''} ${erro.details ?? ''}`
-  return /origemVaga[AB]/i.test(texto)
+  return colunaAusente(erro, ['origemVagaA', 'origemVagaB'])
 }
 
 /** A vaga a definir só liga quando a migration já criou as colunas. Sem elas, a leitura segue como hoje. */

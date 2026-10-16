@@ -8,6 +8,7 @@ import { requireOwnedLigaForSetup, getStoredSectionStatuses } from '@/lib/champi
 import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
 import { SECTION_ORDER, computeAllEffectiveStatuses, computeSetupProgress, type SetupSection } from '@/lib/championship-setup-status'
 import { calculateChampionshipPrice, estimateMatchCount } from '@/lib/pricing'
+import { pagamentoHabilitado } from '@/lib/pagamento-config'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -121,6 +122,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     partidasGeradas: partidasGeradas ?? 0,
     pricing,
     pagamentoConfirmadoEm: (liga.pagamentoConfirmadoEm as string | null) ?? null,
+    pagamentoHabilitado: pagamentoHabilitado(),
     progress,
     sectionStatus: effective,
     validation: {

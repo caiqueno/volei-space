@@ -8,13 +8,13 @@ summary: >-
   Jornadas ponta a ponta.
 status: misto
 created: 2026-09-20
-updated: 2026-09-28
+updated: 2026-10-10
 ---
 # Fluxos do produto
 
 ## Jornada do organizador
 
-O administrador atribui usuário e senha em `/admin/acessos` e pode resetar essa senha na mesma tela. O organizador só entra com esses dados e não cria a própria conta. Na primeira entrada, e de novo depois de cada reset, a tela `/trocar-senha` pede para substituir a senha recebida por uma senha nova antes de abrir `/painel`. Com a conta ativa: perfil/organização → criação do campeonato → o painel mostra o link para a equipe preencher jogadores segundo as regras daquele campeonato → parametrização → estrutura e inscrições → equipes e atletas → calendário e confrontos → operação das partidas → classificação, rankings e área pública. No perfil, Árbitros cria o usuário e a senha de cada árbitro. Na primeira entrada, e depois de cada reset, o árbitro também substitui a senha antes de abrir o painel de partidas. As seções de parametrização têm dependências e validações; ver [[modulos/PARAMETRIZACAO]].
+O administrador atribui usuário e senha em `/admin/acessos` e pode resetar essa senha na mesma tela. O organizador só entra com esses dados e não cria a própria conta. Na primeira entrada, e de novo depois de cada reset, a tela `/trocar-senha` pede para substituir a senha recebida por uma senha nova antes de abrir `/painel`. Com a conta ativa: perfil/organização → criação do campeonato → o painel mostra o link para a equipe preencher jogadores segundo as regras daquele campeonato → parametrização → estrutura e inscrições → equipes e atletas → calendário e confrontos → operação das partidas → classificação, rankings e área pública. Com `PAGAMENTO_HABILITADO=false`, a parametrização segue direto para os grupos, sem tela de pagamento. Sem a variável, a tela de pagamento simulada permanece. No perfil, Árbitros cria o usuário e a senha de cada árbitro. Na primeira entrada, e depois de cada reset, o árbitro também substitui a senha antes de abrir o painel de partidas. As seções de parametrização têm dependências e validações; ver [[modulos/PARAMETRIZACAO]].
 
 ## Jornada do público
 

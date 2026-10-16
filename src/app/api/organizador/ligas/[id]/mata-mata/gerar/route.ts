@@ -7,6 +7,7 @@ import { getBracketRounds } from '@/lib/mata-mata'
 import { metodoChaveamentoInformado, montarConfrontosAutomaticos, ranquearGrupo } from '@/lib/chave-grupos'
 import { gruposEncerradosNaCategoria } from '@/lib/operacao-categoria'
 import { faseContaNaClassificacao, type PartidaClassificacao } from '@/lib/classificacao'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import { gerarSumulaToken } from '@/lib/sumula-token'
 
 export const dynamic = 'force-dynamic'
@@ -164,8 +165,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 }
 
 function colunaDeMetodoAusente(erro: { code?: string; message?: string } | null) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''}`
-  return /42703|PGRST204/i.test(texto)
+  return colunaAusente({ code: erro?.code, message: erro?.message }, ['42703', 'PGRST204'])
 }
 
 async function lerLinha(

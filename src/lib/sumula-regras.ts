@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 export const JANELA_CORRECAO_SUMULA_MS = 30 * 60 * 1000
 export const LIMITE_SUBSTITUICOES_POR_SET = 8
 
@@ -8,9 +10,8 @@ export function limiteDeSubstituicoes(valor: unknown): number {
   return numero
 }
 
-export function colunaDeLimiteSubstituicoesAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /limiteSubstituicoesPorSet/i.test(texto)
+export function colunaDeLimiteSubstituicoesAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['limiteSubstituicoesPorSet'])
 }
 
 export function semLimiteSubstituicoes<T extends Record<string, unknown>>(patch: T): T {

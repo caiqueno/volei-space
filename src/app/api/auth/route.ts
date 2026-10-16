@@ -9,6 +9,7 @@ import { emailsConferem, padraoIlikeLiteral } from '@/lib/email-lookup'
 import { loginDestination } from '@/lib/login-destination'
 import { consumirCota, ipDaRequisicao } from '@/lib/rate-limit'
 import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
+import { colunaAusente } from '@/lib/coluna-ausente'
 
 const CREDENCIAIS = 'Usuário ou senha não conferem.'
 const FALHA_ENTRADA = 'Não foi possível entrar agora. Tente novamente.'
@@ -169,7 +170,7 @@ async function findPublicAccount(email: string): Promise<PublicUser | null> {
 
   if (lookupError) {
     console.error('[AUTH PUBLICO DB ERROR]', lookupError.message)
-    if (/does not exist|schema cache/i.test(lookupError.message)) return null
+    if (colunaAusente({ message: lookupError.message }, ['does not exist', 'schema cache'])) return null
     throw new Error('Nao foi possivel consultar o publico.')
   }
 
@@ -200,7 +201,7 @@ async function findPublicUser(email: string): Promise<PublicUser | null> {
 }
 
 function colunaAusenteNoSelect(mensagem: string, select: string) {
-  if (!/does not exist|schema cache/i.test(mensagem)) return null
+  if (!colunaAusente({ message: mensagem }, ['does not exist', 'schema cache'])) return null
   const colunas = select.split(',').sort((a, b) => b.length - a.length)
   return colunas.find((coluna) => mensagem.includes(coluna)) ?? null
 }
@@ -208,9 +209,9 @@ function colunaAusenteNoSelect(mensagem: string, select: string) {
 async function consultarPorEmail(table: string, select: string, email: string) {
   const pedir = (colunas: string) => supabase.from(table).select(colunas).ilike('email', padraoIlikeLiteral(email)).limit(1)
   let resultado = await pedir(select)
-  const colunaAusente = colunaAusenteNoSelect(resultado.error?.message ?? '', select)
-  if (colunaAusente) {
-    const semColuna = select.split(',').filter((coluna) => coluna !== colunaAusente).join(',')
+  const colunaQueFalta = colunaAusenteNoSelect(resultado.error?.message ?? '', select)
+  if (colunaQueFalta) {
+    const semColuna = select.split(',').filter((coluna) => coluna !== colunaQueFalta).join(',')
     resultado = await pedir(semColuna)
   }
   return resultado
@@ -255,7 +256,7 @@ async function findInTables(email: string, tables: string[]): Promise<PublicUser
 
       if (lookupError) {
         console.error(`[AUTH PUBLIC DB ERROR] ${lookup.table}`, lookupError.message)
-        if (/does not exist|schema cache/i.test(lookupError.message)) return null
+        if (colunaAusente({ message: lookupError.message }, ['does not exist', 'schema cache'])) return null
         throw new Error(`Nao foi possivel consultar ${lookup.perfil}.`)
       }
 

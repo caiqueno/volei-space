@@ -3,6 +3,7 @@ import { partidaEncerrada } from '@/lib/classificacao'
 import { resolveLeagueLifecycleStatus } from '@/lib/championship-lifecycle'
 import { gruposDeConfronto } from '@/lib/isolamento-categoria'
 import { gerarSumulaToken } from '@/lib/sumula-token'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import { montarConfrontos, type JogoExistente } from '@/lib/rodadas'
 
 type LigaRecord = {
@@ -265,19 +266,14 @@ async function querTurnoReturno(ligaId: number, categoriaId: string | null) {
       .eq('categoriaCampeonatoId', categoriaId)
       .maybeSingle()
     if (!categoria.error) return categoria.data?.turnoReturno === true
-    if (!colunaAusente(categoria.error)) throw categoria.error
+    if (!colunaAusente({ code: categoria.error.code, message: categoria.error.message }, ['42703', 'PGRST204'])) throw categoria.error
   }
   const liga = await supabase.from('Liga').select('turnoReturno').eq('id', ligaId).maybeSingle()
   if (liga.error) {
-    if (colunaAusente(liga.error)) return false
+    if (colunaAusente({ code: liga.error.code, message: liga.error.message }, ['42703', 'PGRST204'])) return false
     throw liga.error
   }
   return liga.data?.turnoReturno === true
-}
-
-function colunaAusente(erro: { code?: string; message?: string } | null) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''}`
-  return /42703|PGRST204/i.test(texto)
 }
 
 function nextSaturdayAtFive() {

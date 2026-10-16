@@ -8,10 +8,30 @@ summary: >-
   Registro append-only de ingestões, atualizações e manutenções do vault.
 status: implementado
 created: 2026-09-25
-updated: 2026-10-12
+updated: 2026-10-16
 ---
 
 # Log
+
+## [2026-10-16] fix | índices de FK já aplicados e W.O. sem renomear
+
+- pages_updated=`06-BANCO-DE-DADOS`, `12-BUGS-E-DEBITOS-TECNICOS`, `hot`, `log`
+- `20261011025731_indices_fks_sem_cobertura.sql` fica no repositório, idempotente, e já está em produção. Nada é executado. `20261010139000_wo_configuravel.sql` não é renomeado.
+
+## [2026-10-16] fix | PAGAMENTO_HABILITADO com padrão seguro
+
+- pages_updated=`modulos/PAGAMENTOS`, `modulos/PARAMETRIZACAO`, `08-INTEGRACOES`, `04-FLUXOS`, `03-REGRAS-DE-NEGOCIO`, `12-BUGS-E-DEBITOS-TECNICOS`, `13-TRIAGEM-PRODUTO`, `hot`, `log`
+- Sem a variável, o checkout simulado permanece, a estrutura não responde 402 e `pagamentoConfirmadoEm` não é gravado. `false` desliga a cobrança. `true` exige a confirmação. Sem migration.
+
+## [2026-10-11] decisao | cache de CDN em GET /api/ligas e GET /api/categorias
+
+- pages_updated=`07-SEGURANCA`, `08-INTEGRACOES`, `hot`, `log`
+- A listagem pública fica fresca 30s no CDN, com mais 60s em stale-while-revalidate. `?organizadorId=` permanece `private, no-store`. Sem migration.
+
+## [2026-10-11] fix | fontes locais e typecheck antes dos testes
+
+- pages_updated=`09-UI-UX`, `hot`, `log`
+- Manrope e Barlow Condensed passam a `next/font/local`, com os recortes latinos em `src/fonts`. O workflow Testes roda `tsc --noEmit` antes da suíte. Sem migration.
 
 ## [2026-10-12] fix | Paginação dos lances de scout
 

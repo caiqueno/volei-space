@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 /**
  * Tempos da súmula. Sem número gravado, cada equipe segue com 2.
  * O tempo de equipe só existe quando separarTempos está true.
@@ -22,9 +24,8 @@ export function ehTempoDeEquipe(texto: string) {
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('tempo de equipe')
 }
 
-export function colunaDeTemposAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /limiteTemposPorSet|separarTempos/i.test(texto)
+export function colunaDeTemposAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['limiteTemposPorSet', 'separarTempos'])
 }
 
 export function semTempos<T extends Record<string, unknown>>(patch: T): T {

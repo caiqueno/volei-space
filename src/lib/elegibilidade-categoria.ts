@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 /**
  * Gênero e faixa de idade da categoria. Os dois são opcionais.
  * Sem coluna no banco, a regra fica desligada e a inscrição segue como está.
@@ -20,9 +22,8 @@ export type ElegibilidadeCategoria = {
 
 const VAZIA: ElegibilidadeCategoria = { genero: null, idadeMinima: null, idadeMaxima: null }
 
-export function colunaElegibilidadeAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /genero|idadeMinima|idadeMaxima|\bsexo\b|42703|PGRST204/i.test(texto)
+export function colunaElegibilidadeAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['genero', 'idadeMinima', 'idadeMaxima', /\bsexo\b/i, '42703', 'PGRST204'])
 }
 
 export function generoCategoria(valor: unknown): GeneroCategoria | null {

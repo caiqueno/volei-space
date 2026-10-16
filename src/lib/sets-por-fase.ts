@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 /**
  * Quantidade de sets da fase. Null ou ausente herda `setsPorPartida` do campeonato.
  * Vale para final, semifinal, quartas, oitavas e disputa de 3º lugar.
@@ -27,9 +29,8 @@ const FASE_DO_CAMPO: Record<(typeof CAMPOS_SETS_POR_FASE)[number], string> = {
   setsPorPartidaTerceiroLugar: 'TERCEIRO_LUGAR',
 }
 
-export function colunaDeSetsQuartasOitavasAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartidaQuartas|setsPorPartidaOitavas/i.test(texto)
+export function colunaDeSetsQuartasOitavasAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['setsPorPartidaQuartas', 'setsPorPartidaOitavas'])
 }
 
 export function semSetsQuartasOitavas<T extends Record<string, unknown>>(patch: T): T {

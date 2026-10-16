@@ -162,4 +162,57 @@ assert.doesNotMatch(schema, /WHERE simulacao = false/)
 
 assert.equal(fs.existsSync(path.join(process.cwd(), 'setup-db.mjs')), false)
 
+const cobertura = files.filter((name) => name.endsWith('_indices_fks_sem_cobertura.sql'))
+assert.deepEqual(cobertura, ['20261011025731_indices_fks_sem_cobertura.sql'])
+assert.ok(versionOf(cobertura[0]) > '20261010142000', 'o índice de FK precisa ficar depois do último prefixo do main')
+const coberturaSql = fs.readFileSync(path.join(dir, cobertura[0]), 'utf8')
+const coberturaLimpa = sqlSemComentario(coberturaSql)
+const indicesFk = [
+  '"Partida_ligaId_idx"',
+  '"SetPartida_partidaId_idx"',
+  '"SumulaPresenca_partidaId_idx"',
+  '"EscalaArbitro_partidaId_idx"',
+  '"DestaquesPartida_partidaId_idx"',
+  '"ClassificacaoEntrada_categoriaCampeonatoId_idx"',
+  '"InscricaoCampeonato_ligaId_idx"',
+  '"InscricaoCampeonato_equipeId_idx"',
+  '"InscricaoCampeonato_categoriaCampeonatoId_idx"',
+]
+for (const nome of indicesFk) {
+  assert.ok(coberturaLimpa.includes(`create index if not exists ${nome}`), `índice ausente: ${nome}`)
+}
+assert.equal((coberturaLimpa.match(/create index if not exists/g) ?? []).length, indicesFk.length)
+assert.doesNotMatch(coberturaLimpa, /concurrently/i)
+assert.doesNotMatch(coberturaLimpa, /\b(delete|truncate|drop|alter|grant|update|insert)\b/i)
+for (const trecho of [
+  '@@index([ligaId])',
+  '@@index([partidaId])',
+  '@@index([categoriaCampeonatoId])',
+  '@@index([equipeId])',
+]) {
+  assert.ok(schema.includes(trecho), `Prisma sem ${trecho}`)
+}
+function corpoDoModel(nome) {
+  const match = schema.match(new RegExp(`model ${nome} \\{[\\s\\S]*?\\n\\}`))
+  assert.ok(match, `model ${nome} ausente`)
+  return match[0]
+}
+assert.match(corpoDoModel('Partida'), /@@index\(\[ligaId\]\)/)
+assert.match(corpoDoModel('SetPartida'), /@@index\(\[partidaId\]\)/)
+assert.match(corpoDoModel('SumulaPresenca'), /@@index\(\[partidaId\]\)/)
+assert.match(corpoDoModel('EscalaArbitro'), /@@index\(\[partidaId\]\)/)
+assert.match(corpoDoModel('DestaquesPartida'), /@@index\(\[partidaId\]\)/)
+assert.match(corpoDoModel('ClassificacaoEntrada'), /@@index\(\[categoriaCampeonatoId\]\)/)
+const inscricao = corpoDoModel('InscricaoCampeonato')
+assert.match(inscricao, /@@index\(\[ligaId\]\)/)
+assert.match(inscricao, /@@index\(\[equipeId\]\)/)
+assert.match(inscricao, /@@index\(\[categoriaCampeonatoId\]\)/)
+
+const consulta = fs.readFileSync(path.join(process.cwd(), 'scripts', 'consultar-historico-migrations.sql'), 'utf8')
+const consultaLimpa = sqlSemComentario(consulta).trim()
+assert.match(consultaLimpa, /from supabase_migrations\.schema_migrations/i)
+assert.doesNotMatch(consultaLimpa, /\b(insert|update|delete|truncate|drop|alter|create|grant|repair)\b/i)
+const listagem = fs.readFileSync(path.join(process.cwd(), 'scripts', 'listar-migrations-locais.mjs'), 'utf8')
+assert.doesNotMatch(listagem, /process\.env|createClient|from 'pg'|net\.connect|fetch\(/)
+
 console.log(`migrations ok: ${files.length} arquivos versionados`)

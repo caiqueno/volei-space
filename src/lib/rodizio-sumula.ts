@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 /**
  * Alerta de rodízio. Só deve ser chamado quando o campeonato ligou a opção.
  * Compara a quadra atual com a do ponto anterior e aceita substituição:
@@ -11,9 +13,8 @@ export function mensagemRodizioIlegal(anterior: string[], atual: string[]): stri
   return 'Rodízio diferente do esperado. Confira a ordem da quadra.'
 }
 
-export function colunaDeAlertaRodizioAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /alertaRodizioIlegal/i.test(texto)
+export function colunaDeAlertaRodizioAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['alertaRodizioIlegal'])
 }
 
 export function semAlertaRodizio<T extends Record<string, unknown>>(patch: T): T {

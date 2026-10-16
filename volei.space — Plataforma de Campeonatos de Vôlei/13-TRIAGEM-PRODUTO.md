@@ -8,7 +8,7 @@ summary: >-
   O que corrigir, o que atualizar e o que tirar do fluxo do volei.space em 4 de outubro de 2026.
 status: implementado
 created: 2026-10-04
-updated: 2026-10-04
+updated: 2026-10-10
 ---
 
 # Triagem do produto
@@ -28,7 +28,7 @@ Falhas ou promessas quebradas no que já está publicado.
 | Três cadastros de organizador | Seja membro grava `CandidaturaOrganizador`. A home grava `Interessado`. `/cadastro` ainda pede um formulário longo. | Uma porta só: nome, e-mail e telefone, visível para o administrador. |
 | Senha temporária | A senha aparece uma vez na tela do administrador. Se a tela fecha, o organizador fica sem acesso. | Reenviar acesso, com nova senha e troca obrigatória no primeiro login. |
 | Leitura aberta de elenco | Criar, editar e excluir equipe, jogador e partida já exige o dono. Listar equipe e jogador ainda devolve o conjunto inteiro. | A consulta do painel devolve só o campeonato daquele organizador. |
-| Ativação de campeonato | O pagamento do organizador está simulado. O código da InfinitePay existe e não conclui a cobrança. | Cobrança real, ou tirar o botão que parece pagamento concluído. |
+| Ativação de campeonato | Sem `PAGAMENTO_HABILITADO`, o pagamento simulado permanece. `false` na Vercel tira o botão e segue para os grupos. O código da InfinitePay permanece. | Definir `false` para não cobrar, ou `true` só quando o checkout real estiver pronto. |
 | Súmula incompleta | Substituição fica em 6 e some ao recarregar; o requisito é 8 por equipe e set. Encerrar ainda não obriga o MVP. | Gravar substituição e exigir MVP antes de oficializar. |
 | Massa no portal | A nota do banco registra a massa `TOURNAMENT-SEED-2026` nos dois projetos. O Ao vivo lista toda partida `EM_ANDAMENTO`. | Conferir a produção e tirar campeonato de teste do placar público. |
 

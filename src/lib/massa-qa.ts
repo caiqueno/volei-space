@@ -3,6 +3,7 @@ import { calcularClassificacao, type PartidaClassificacao, type RegrasCategoria,
 import { punicoesPorOcorrencia } from '@/lib/sancoes'
 import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import { rpcAusente } from '@/lib/rpc-ausente'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
@@ -322,8 +323,17 @@ type RegraCategoriaLida = {
 }
 
 function colunaOpcionalAusente(erro: { message?: string; code?: string; details?: string } | null) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|woSetsVencedor|woPunicaoPontos|PGRST204|42703/i.test(texto)
+  return colunaAusente(erro, [
+    'setsPorPartidaFinal',
+    'setsPorPartidaSemifinal',
+    'setsPorPartidaQuartas',
+    'setsPorPartidaOitavas',
+    'setsPorPartidaTerceiroLugar',
+    'woSetsVencedor',
+    'woPunicaoPontos',
+    'PGRST204',
+    '42703',
+  ])
 }
 
 async function listarRegrasDeCategoria(ligaId: number): Promise<RegraCategoriaLida[]> {

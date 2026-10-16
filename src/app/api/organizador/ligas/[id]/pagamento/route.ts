@@ -7,12 +7,20 @@ import { error, success } from '@/lib/api-response'
 import { requireOwnedLigaForSetup } from '@/lib/championship-setup-access'
 import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
 import { categoriesCheckoutGate, getCategoriesPricing } from '@/lib/category-pricing-server'
+import { pagamentoHabilitado } from '@/lib/pagamento-config'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ligaId = Number(id)
   const liga = await requireOwnedLigaForSetup(req, ligaId, '*')
   if (liga instanceof Response) return liga
+
+  if (!pagamentoHabilitado()) {
+    return success({
+      pagamentoHabilitado: false,
+      destino: `/painel/estrutura?ligaId=${ligaId}`,
+    })
+  }
 
   const jaConfirmado = liga.pagamentoConfirmadoEm != null
   if (!jaConfirmado) {
@@ -38,6 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const pixPayload = totalCents == null ? null : `SIMULACAO-PIX|liga:${ligaId}|valor:${totalCents}|ref:${referencia}`
 
   return success({
+    pagamentoHabilitado: true,
     pricing,
     coupon: pricing.coupon,
     totalCents,

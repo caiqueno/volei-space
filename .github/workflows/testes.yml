@@ -40,6 +40,8 @@ jobs:
       - run: npm ci
       - name: Prisma generate
         run: npx prisma generate
+      - name: Typecheck
+        run: npm run typecheck
       - name: Chromium do Playwright
         run: npx playwright install --with-deps chromium
       - name: Testes

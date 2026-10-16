@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { consultar } from '@/lib/api-cliente'
-import { formatCents } from '@/lib/pricing'
+import { formatCents, linhasDoCheckout } from '@/lib/pricing'
 import type { ChampionshipPricing, MatchEstimate } from '@/lib/pricing'
 
 // Faixa compacta de preço "ao vivo" do wizard. Busca o mesmo endpoint
@@ -23,6 +23,7 @@ export function PricingSummary({ ligaId, refreshKey }: { ligaId: number; refresh
   const [pricing, setPricing] = useState<ChampionshipPricing | null>(null)
   const [estimate, setEstimate] = useState<MatchEstimate | null>(null)
   const [loading, setLoading] = useState(true)
+  const [oculto, setOculto] = useState(false)
   // Só a 1ª carga real mostra o skeleton "Calculando..." — refetches
   // disparados por `refreshKey` (autosave) atualizam o valor em segundo
   // plano, sem desmontar o card nem piscar loading a cada tecla digitada.
@@ -31,10 +32,17 @@ export function PricingSummary({ ligaId, refreshKey }: { ligaId: number; refresh
   useEffect(() => {
     let cancelled = false
     if (!hasLoadedOnce.current) setLoading(true)
-    consultar<{ data: { pricing: ChampionshipPricing; estimativaPartidas: MatchEstimate } }>(`/api/organizador/ligas/${ligaId}/setup/previa`, { forcar: hasLoadedOnce.current })
+    consultar<{ data: { pricing: ChampionshipPricing; estimativaPartidas: MatchEstimate; pagamentoHabilitado?: boolean } }>(`/api/organizador/ligas/${ligaId}/setup/previa`, { forcar: hasLoadedOnce.current })
       .then((payload) => payload.data)
       .then((loaded) => {
         if (cancelled) return
+        if (loaded.pagamentoHabilitado === false) {
+          setOculto(true)
+          setPricing(null)
+          setEstimate(null)
+          return
+        }
+        setOculto(false)
         setPricing(loaded.pricing)
         setEstimate(loaded.estimativaPartidas)
         hasLoadedOnce.current = true
@@ -53,6 +61,8 @@ export function PricingSummary({ ligaId, refreshKey }: { ligaId: number; refresh
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ligaId, refreshKey])
+
+  if (oculto || (loading && !hasLoadedOnce.current)) return null
 
   if (loading || !pricing || !estimate) {
     return (
@@ -84,8 +94,8 @@ export function PricingSummary({ ligaId, refreshKey }: { ligaId: number; refresh
 
       {expanded && (
         <div className="mt-4 grid gap-2 border-t border-white/10 pt-4">
-          {pricing.items.map((item) => (
-            <div key={item.key} className="flex items-center justify-between text-sm">
+          {linhasDoCheckout(pricing).map((item) => (
+            <div key={item.id} className="flex items-center justify-between text-sm">
               <p className="font-semibold text-slate-300">{item.label}</p>
               <p className="font-bold text-white">{formatCents(item.totalCents)}</p>
             </div>

@@ -151,6 +151,7 @@ export function PreviaView({ ligaId }: { ligaId: number }) {
               ligaId={ligaId}
               isValid={previa.validation.isValid}
               alreadyPaid={previa.pagamentoConfirmadoEm != null}
+              pagamentoHabilitado={previa.pagamentoHabilitado}
             />
             <div className="mt-6 flex flex-wrap gap-3">
               <LinksCategoria ligaId={ligaId} nome={previa.championship.nome} />

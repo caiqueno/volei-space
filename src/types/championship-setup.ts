@@ -234,6 +234,7 @@ export interface ChampionshipPreviaDTO {
   partidasGeradas: number
   pricing: PricingDTO
   pagamentoConfirmadoEm: string | null
+  pagamentoHabilitado: boolean
   progress: ChampionshipSetupProgressDTO
   sectionStatus: Record<SetupSection, ChampionshipSetupStatus>
   validation: { isValid: boolean; canPublish: boolean; errors: ValidationIssueDTO[]; warnings: ValidationIssueDTO[] }

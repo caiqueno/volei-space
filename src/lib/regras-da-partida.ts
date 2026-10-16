@@ -1,5 +1,6 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { montarFonteDeRegras, regrasParaFase, type CategoryMatchRules } from '@/lib/category-match-rules'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import { CAMPOS_SETS_POR_FASE_ANTERIORES, CAMPOS_SETS_QUARTAS_OITAVAS } from '@/lib/sets-por-fase'
 
 // `terceiroSetObrigatorio` existe só em CategoriaConfiguracao. Pedi-lo na Liga
@@ -19,8 +20,23 @@ function primeiro(valor: unknown) {
 }
 
 function colunaDeFaseAusente(erro: { message?: string; code?: string; details?: string } | null) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /setsPorPartida(Final|Semifinal|Quartas|Oitavas|TerceiroLugar)|limiteSubstituicoesPorSet|alertaRodizioIlegal|limiteTemposPorSet|separarTempos|tempoMedico|substituicaoPorLesao|exigirLiberoInicial|quantidadeLiberos|PGRST204|42703/i.test(texto)
+  return colunaAusente(erro, [
+    'setsPorPartidaFinal',
+    'setsPorPartidaSemifinal',
+    'setsPorPartidaQuartas',
+    'setsPorPartidaOitavas',
+    'setsPorPartidaTerceiroLugar',
+    'limiteSubstituicoesPorSet',
+    'alertaRodizioIlegal',
+    'limiteTemposPorSet',
+    'separarTempos',
+    'tempoMedico',
+    'substituicaoPorLesao',
+    'exigirLiberoInicial',
+    'quantidadeLiberos',
+    'PGRST204',
+    '42703',
+  ])
 }
 
 async function lerLinha(tabela: 'Liga' | 'CategoriaConfiguracao', campos: string, coluna: string, valor: number | string) {

@@ -12,6 +12,7 @@ import { ensureClassificationAndCalendar } from '@/lib/championship-operations'
 import { registrarEventoInscricao } from '@/lib/link-inscricao-campeonato'
 import { slugify } from '@/utils/slug'
 import { mensagemDuplicataNaCategoria } from '@/lib/atleta-duplicado-consulta'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import {
   colunaElegibilidadeAusente,
   elegibilidadeAtiva,
@@ -253,8 +254,10 @@ export async function lerFormularioDaCategoria(ligaId: number, categoriaCampeona
     .eq('categoriaCampeonatoId', categoriaCampeonatoId)
     .maybeSingle()
   if (consulta.error) {
-    const texto = `${consulta.error.code ?? ''} ${consulta.error.message ?? ''}`
-    if (/formularioInscricaoConfig|42703|PGRST204/i.test(texto)) return null
+    if (colunaAusente(
+      { code: consulta.error.code, message: consulta.error.message },
+      ['formularioInscricaoConfig', '42703', 'PGRST204'],
+    )) return null
     throw new Error(consulta.error.message)
   }
   return consulta.data?.formularioInscricaoConfig ?? null

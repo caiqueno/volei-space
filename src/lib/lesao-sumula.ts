@@ -1,3 +1,5 @@
+import { colunaAusente, type ErroDeColuna } from '@/lib/coluna-ausente'
+
 /**
  * Tempo médico e substituição por lesão. Só existem quando a opção está true.
  * Sem ela, a súmula não ganha botão e a lesão não fura o limite de substituições.
@@ -10,9 +12,8 @@ export function textoSubstituicaoLesao(equipe: string, saiu: string, nomeSaiu: s
   return `Substituição por lesão ${equipe}: sai #${saiu} ${nomeSaiu}, entra #${entrou} ${nomeEntrou}.`
 }
 
-export function colunaDeLesaoAusente(erro: { message?: string; code?: string; details?: string } | null | undefined) {
-  const texto = `${erro?.code ?? ''} ${erro?.message ?? ''} ${erro?.details ?? ''}`
-  return /tempoMedico|substituicaoPorLesao/i.test(texto)
+export function colunaDeLesaoAusente(erro: ErroDeColuna) {
+  return colunaAusente(erro, ['tempoMedico', 'substituicaoPorLesao'])
 }
 
 export function semLesao<T extends Record<string, unknown>>(patch: T): T {

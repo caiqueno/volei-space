@@ -14,6 +14,8 @@ import { categoriaDaUrl, equipesDaCategoria, escopoDaGeracao } from '@/lib/isola
 import { gerarSumulaToken } from '@/lib/sumula-token'
 import { montarConfrontos } from '@/lib/rodadas'
 import { mensagemParesForaDoGrupo } from '@/lib/grupos-fase'
+import { liberarCampeonatoSemCobranca } from '@/lib/liberar-campeonato'
+import { estruturaExigePagamentoConfirmado, pagamentoHabilitado } from '@/lib/pagamento-config'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -78,6 +80,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
   const ligaResult = await getOwnedLiga(ligaId, auth.userId)
   if (ligaResult instanceof Response) return ligaResult
   const liga = ligaResult
+  const gate = await resolverPagamentoDaEstrutura(liga)
+  if (gate) return gate
   const categorias = await listarCategorias(ligaId)
   if (categorias instanceof Response) return categorias
   const pedido = categoriaDaUrl(req.nextUrl.searchParams)
@@ -159,6 +163,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const ligaResult = await getOwnedLiga(ligaId, auth.userId)
     if (ligaResult instanceof Response) return ligaResult
+    const liga = ligaResult
+    const gate = await resolverPagamentoDaEstrutura(liga)
+    if (gate) return gate
     const bloqueio = await rejectIfCampeonatoFinalizado(ligaId)
     if (bloqueio) return bloqueio
 
@@ -294,6 +301,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
     console.error('[estrutura] erro ao gerar', err)
     return error('Erro ao gerar estrutura do campeonato.', 500)
   }
+}
+
+async function resolverPagamentoDaEstrutura(liga: LigaRecord): Promise<Response | null> {
+  if (estruturaExigePagamentoConfirmado(liga.pagamentoConfirmadoEm)) {
+    return error(
+      'A criação de grupos e do calendário só fica disponível depois que o pagamento da ativação deste campeonato é confirmado.',
+      402,
+      { code: 'PAGAMENTO_PENDENTE' },
+    )
+  }
+  if (!pagamentoHabilitado() && !liga.pagamentoConfirmadoEm) {
+    const liberado = await liberarCampeonatoSemCobranca(liga.id)
+    if (!liberado.ok) return error('Não foi possível liberar o campeonato.', 500)
+    liga.pagamentoConfirmadoEm = liberado.pagamentoConfirmadoEm
+  }
+  return null
 }
 
 async function getOwnedLiga(ligaId: number, organizadorId: string): Promise<LigaRecord | Response> {

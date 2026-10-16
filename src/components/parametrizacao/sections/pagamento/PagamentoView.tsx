@@ -7,15 +7,19 @@ import { ArrowLeft } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { FormAlert } from '../../ui/FormAlert'
 import PageLoading from '@/components/ui/page-loading'
-import { formatCents } from '@/lib/pricing'
-import type { ChampionshipPricing } from '@/lib/pricing'
+import { formatCents, linhasDoCheckout } from '@/lib/pricing'
 
 interface CheckoutData {
-  pricing: ChampionshipPricing
-  coupon: { code: string; percent: number; discountCents: number } | null
-  totalCents: number
-  pixPayload: string
-  jaConfirmado: boolean
+  pagamentoHabilitado?: boolean
+  destino?: string
+  pricing?: Parameters<typeof linhasDoCheckout>[0] & {
+    discountCents?: number | null
+    discountPercent?: number | null
+  }
+  coupon?: { code: string; percent: number; discountCents: number } | null
+  totalCents?: number | null
+  pixPayload?: string | null
+  jaConfirmado?: boolean
 }
 
 export function PagamentoView({ ligaId }: { ligaId: number }) {
@@ -27,6 +31,7 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +42,13 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
         return payload.data as CheckoutData
       })
       .then((loaded) => {
-        if (!cancelled) setData(loaded)
+        if (cancelled) return
+        if (loaded.pagamentoHabilitado === false) {
+          setRedirecting(true)
+          router.replace(loaded.destino || `/painel/estrutura?ligaId=${ligaId}`)
+          return
+        }
+        setData(loaded)
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Erro ao carregar o checkout.')
@@ -48,7 +59,7 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
     return () => {
       cancelled = true
     }
-  }, [ligaId, cupom])
+  }, [ligaId, cupom, router])
 
   async function handleConfirmar() {
     setConfirming(true)
@@ -63,7 +74,7 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
     }
   }
 
-  if (loading) return <PageLoading label="Carregando checkout..." />
+  if (loading || redirecting) return <PageLoading label={redirecting ? 'Abrindo a estrutura do campeonato...' : 'Carregando...'} />
 
   if (loadError || !data) {
     return (
@@ -95,6 +106,11 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
     )
   }
 
+  const linhas = linhasDoCheckout(data.pricing)
+  const descontoCents = Number(data.pricing?.discountCents ?? 0)
+  const descontoPercent = Number(data.pricing?.discountPercent ?? 0)
+  const totalCents = Number(data.totalCents ?? 0)
+
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
       <Link
@@ -114,16 +130,16 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
       <div className="mt-6 creator-modal-section rounded-2xl border p-5">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Resumo do pedido</p>
           <div className="mt-4 grid gap-2 border-t border-white/10 pt-4">
-            {data.pricing.items.map((item) => (
-              <div key={item.key} className="flex items-center justify-between gap-3 text-sm">
+            {linhas.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
                 <p className="font-semibold text-slate-300">{item.label}</p>
                 <p className="font-bold text-[#ffffff]">{formatCents(item.totalCents)}</p>
               </div>
             ))}
-            {data.pricing.discountCents > 0 && (
+            {descontoCents > 0 && (
               <div className="flex items-center justify-between text-sm">
-                <p className="font-semibold text-emerald-300">Desconto por volume ({Math.round(data.pricing.discountPercent * 100)}%)</p>
-                <p className="font-bold text-emerald-300">-{formatCents(data.pricing.discountCents)}</p>
+                <p className="font-semibold text-emerald-300">Desconto por volume ({Math.round(descontoPercent * 100)}%)</p>
+                <p className="font-bold text-emerald-300">-{formatCents(descontoCents)}</p>
               </div>
             )}
             {data.coupon && (
@@ -136,7 +152,7 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
             )}
             <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-3 text-base">
               <strong className="text-[#ffffff]">Total</strong>
-              <strong className="text-luva-amber">{formatCents(data.totalCents)}</strong>
+              <strong className="text-luva-amber">{formatCents(totalCents)}</strong>
             </div>
           </div>
           <ActionBar

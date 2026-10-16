@@ -6,6 +6,7 @@ import { ligaSchema } from '@/lib/schemas'
 import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { comCachePublico, semCacheCompartilhado } from '@/lib/cache-publico'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -13,11 +14,14 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status')
   const busca = searchParams.get('q')?.trim()
 
+  // Com organizadorId a lista inclui simulação, local e categorias daquele
+  // organizador e só sai depois da sessão. A CDN não pode guardar isso:
+  // a chave dela é a URL, sem o cookie.
   if (organizadorId) {
     const auth = await requirePublicRole(req, ['organizador'])
-    if (auth instanceof Response) return auth
+    if (auth instanceof Response) return semCacheCompartilhado(auth)
     if (auth.userId !== organizadorId) {
-      return error('Voce nao pode consultar campeonatos de outro organizador.', 403)
+      return semCacheCompartilhado(error('Voce nao pode consultar campeonatos de outro organizador.', 403))
     }
   }
 
@@ -39,7 +43,7 @@ export async function GET(req: NextRequest) {
   const { data, error: err } = await query
   if (err) {
     console.error('[ligas] erro ao buscar', err)
-    return error('Erro ao buscar campeonatos', 500)
+    return semCacheCompartilhado(error('Erro ao buscar campeonatos', 500))
   }
 
   // Só para a listagem do próprio organizador (usada no carrossel da home):
@@ -80,10 +84,13 @@ export async function GET(req: NextRequest) {
       }),
     }))
 
-    return success(enriched)
+    return semCacheCompartilhado(success(enriched))
   }
 
-  return success(data)
+  // Sem organizadorId o corpo ignora cookie e sessão. status e q mudam o
+  // corpo e entram na URL, que é a chave de cache da CDN.
+  if (organizadorId) return semCacheCompartilhado(success(data))
+  return comCachePublico(success(data))
 }
 
 export async function POST(req: NextRequest) {

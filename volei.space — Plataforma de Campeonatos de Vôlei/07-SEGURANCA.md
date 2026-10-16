@@ -5,7 +5,7 @@ category: area
 tags: [seguranca]
 sources: [repo:athrios/volei-space]
 summary: >-
-  20261010140000 liga RLS e ainda não foi aplicada. 20261010141000 devolve o SELECT de sets e classificação ao anon.
+  GET público de ligas e categorias usa cache de CDN por 30s. Lista com organizadorId fica private. RLS 20261010140000 ainda não foi aplicada.
 status: misto
 created: 2026-09-20
 updated: 2026-10-11
@@ -79,6 +79,15 @@ A auditoria das rotas em `src/app/api` manteve públicos os fluxos de vitrine, p
 - `GET /api/ligas` e `GET /api/ligas/[slug]` selecionam `LIGA_COLUNAS_PUBLICAS`. `organizadorId`, `seedKey`, `pagamentoConfirmadoEm`, `finalizadoPor` e `simulacaoRelogio` não saem na resposta. A listagem pública usa o `service_role`, porque a chave publicável já não lê `Liga`.
 - `GET /api/equipes` e `GET /api/rankings` não embutem relação. Sem sessão, a lista de equipes só inclui campeonatos `EM_BREVE`, `ATIVA`, `ENCERRADA` ou `FINALIZADO` com `simulacao` desligada. Administrador vê o conjunto inteiro. Organizador vê os campeonatos dele. O ranking devolve nome, número, posição, foto e o nome da equipe, sem CPF, documento, telefone ou QR.
 - `.env.example` descreve `ADMIN_EMAIL` como obrigatória em produção e no preview da Vercel. No `next dev` local, vazia, a tabela `Admin` continua valendo.
+
+## Cache de CDN nas listagens públicas (11/10/2026)
+
+**Implementado. Nenhuma migration e nenhum dado de banco.**
+
+- `GET /api/ligas` sem `organizadorId` ignora cookie e sessão. Filtra `simulacao = false` e devolve `LIGA_COLUNAS_PUBLICAS`. `status` e `q` mudam o corpo. A resposta 200 leva `Cache-Control: public, max-age=0, s-maxage=30, stale-while-revalidate=60`. A CDN da Vercel usa a URL inteira, com a query, como chave. Erro 500 fica `private, no-store`.
+- `GET /api/ligas?organizadorId=` exige a sessão do organizador daquele id. A lista inclui simulação, local e categorias reais daquele organizador. Essa variante, inclusive 401 e 403, fica `private, no-store`. A chave da CDN não inclui o cookie; guardar essa resposta entregaria a lista de um organizador a quem repetisse a URL.
+- `GET /api/categorias` não lê sessão. O 200 lista `id`, `nome`, `codigo` e `ordem` do `ligaId`. `categoria` só valida o formato e não filtra essa lista. 422 e 503 ficam sem cache. A query entra na chave porque faz parte da URL.
+- `GET /api/ligas/[slug]` e o `POST /api/ligas` não receberam esse cache.
 
 ## RLS em todas as tabelas public (10/10/2026)
 

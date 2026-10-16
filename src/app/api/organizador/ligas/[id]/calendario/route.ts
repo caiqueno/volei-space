@@ -5,6 +5,7 @@ import { requirePublicRole } from '@/lib/auth'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { partidaForaDaCategoria } from '@/lib/isolamento-categoria'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import { CARGOS_ARBITRAGEM, conflitosDeAgenda, conflitosDeArbitro, lerDiasDisponiveis } from '@/lib/conflito-agenda'
 
 type RouteContext = {
@@ -203,8 +204,7 @@ async function conferirAgenda(
   const diasPorEquipe = new Map<number, string[]>()
   if (times.size > 0) {
     const { data: equipes, error: equipesErr } = await supabase.from('Equipe').select('id,diasDisponiveis').in('id', Array.from(times))
-    const texto = `${equipesErr?.code ?? ''} ${equipesErr?.message ?? ''}`
-    if (equipesErr && !/42703|PGRST204/i.test(texto)) {
+    if (equipesErr && !colunaAusente({ code: equipesErr.code, message: equipesErr.message }, ['42703', 'PGRST204'])) {
       console.error('[calendario] erro ao ler dias das equipes', equipesErr)
       return error('Não foi possível conferir os dias das equipes.', 500)
     }

@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { formatCents } from '@/lib/pricing'
+import { hrefDepoisDaConfiguracao } from '@/lib/pagamento-navegacao'
+import { formatCents, linhasDoCheckout } from '@/lib/pricing'
 import type { ChampionshipPricing, MatchEstimate, PricingLineItem } from '@/lib/pricing'
 import { FloatingLabelInput } from '@/components/ui/floating-label'
 
@@ -18,6 +19,7 @@ export function PricingBreakdown({
   ligaId,
   isValid,
   alreadyPaid,
+  pagamentoHabilitado,
 }: {
   pricing: ChampionshipPricing
   estimativaPartidas: MatchEstimate
@@ -25,9 +27,25 @@ export function PricingBreakdown({
   ligaId: number
   isValid: boolean
   alreadyPaid: boolean
+  pagamentoHabilitado: boolean
 }) {
   const router = useRouter()
   const [cupom, setCupom] = useState('')
+  if (!pagamentoHabilitado) {
+    return (
+      <div className="creator-modal-section rounded-2xl border p-5">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Próximo passo</p>
+        <p className="mt-3 text-sm font-semibold text-slate-300">A configuração segue sem cobrança. Os grupos ficam liberados.</p>
+        <Link
+          href={hrefDepoisDaConfiguracao(ligaId, false)}
+          className="public-primary-action mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black"
+        >
+          Ir para criação de grupos
+        </Link>
+      </div>
+    )
+  }
+  const linhas = linhasDoCheckout(pricing)
   return (
     <div className="creator-modal-section rounded-2xl border p-5">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Investimento estimado</p>
@@ -44,8 +62,8 @@ export function PricingBreakdown({
       )}
 
       <div className="mt-4 grid gap-2 border-t border-white/10 pt-4">
-        {pricing.items.map((item) => (
-          <div key={item.key} className="flex items-center justify-between gap-3 text-sm">
+        {linhas.map((item) => (
+          <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
             <div>
               <p className="font-semibold text-slate-300">
                 {item.label}
@@ -87,7 +105,7 @@ export function PricingBreakdown({
             <button
               type="button"
               disabled={!isValid}
-              onClick={() => router.push(`/painel/parametrizacao/pagamento?ligaId=${ligaId}&cupom=${encodeURIComponent(cupom)}`)}
+              onClick={() => router.push(hrefDepoisDaConfiguracao(ligaId, true, cupom))}
               className="public-primary-action mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50"
             >
               Realizar pagamento
@@ -107,8 +125,8 @@ export function PricingBreakdown({
 // contratado, que aparece com totalCents=0). Derivada 100% de
 // estimativaPartidas (faseDeGrupos/eliminatorias, já calculados por
 // estimateMatchCount) — nenhum número aqui é hardcoded.
-function describeItemComposition(item: PricingLineItem, estimate: MatchEstimate): string | null {
-  if (!estimate.disponivel || item.totalCents <= 0) return null
+function describeItemComposition(item: { key?: PricingLineItem['key']; totalCents: number }, estimate: MatchEstimate): string | null {
+  if (!item.key || !estimate.disponivel || item.totalCents <= 0) return null
 
   if (item.key === 'gestao') {
     const { total, faseDeGrupos, eliminatorias } = estimate

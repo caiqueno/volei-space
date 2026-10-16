@@ -178,7 +178,9 @@ model InscricaoCampeonato {
   rascunho InscricaoEquipeRascunho?
 
   @@unique([ligaId, equipeId])
+  @@index([ligaId])
   @@index([equipeId])
+  @@index([categoriaCampeonatoId])
 }
 
 model InscricaoEquipeRascunho {
@@ -336,6 +338,7 @@ model EscalaArbitro {
   arbitro   Arbitro @relation(fields: [arbitroId], references: [id])
 
   @@unique([partidaId, cargo])
+  @@index([partidaId])
   @@index([arbitroId])
 }
 
@@ -388,6 +391,7 @@ model Partida {
   acessosArbitro       AcessoArbitroJogo?
   acessosArbitroEvento AcessoArbitroEvento[]
 
+  @@index([ligaId])
   @@index([ligaId, categoria, serie, rodada])
   @@index([equipeAId])
   @@index([equipeBId])
@@ -409,6 +413,7 @@ model SetPartida {
   partida   Partida @relation(fields: [partidaId], references: [id], onDelete: Cascade)
 
   @@unique([partidaId, numero])
+  @@index([partidaId])
 }
 
 // ─── Súmula — Presenças ───────────────────────────────────────────────────────
@@ -425,6 +430,7 @@ model SumulaPresenca {
   equipe    Equipe  @relation(fields: [equipeId], references: [id])
 
   @@unique([partidaId, jogadorId])
+  @@index([partidaId])
   @@index([jogadorId])
   @@index([equipeId])
 }
@@ -458,6 +464,7 @@ model DestaquesPartida {
   jogador   Jogador @relation(fields: [jogadorId], references: [id])
 
   @@unique([partidaId, tipo])
+  @@index([partidaId])
   @@index([jogadorId])
 }
 
@@ -503,6 +510,7 @@ model ClassificacaoEntrada {
   @@unique([ligaId, equipeId])
   @@index([ligaId])
   @@index([equipeId])
+  @@index([categoriaCampeonatoId])
 }
 
 model ClassificacaoEliminatoria {
