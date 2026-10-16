@@ -1,21 +1,23 @@
-# Contrato PROPOSTO (não implementado) da API de eventos da súmula.
-# Formato de resposta do projeto: { data } em sucesso, { error } em falha.
-# Os códigos RG-* vêm de src/lib/regras-volei e do 03-regras-validaveis.md.
+# Contrato da API de eventos da súmula. IMPLEMENTADO em src/app/api/sumula/[token]/eventos/route.ts,
+# mas DESLIGADO por padrão: 404 sem SUMULA_EVENTOS_ATIVO=1; 503 se a migration 202610170023 (pendente,
+# não aplicada) ainda não existir. Não substitui o PUT/POST atual de /api/sumula/{token}.
+# Formato de resposta do projeto: { data } em sucesso, { error, details } em falha.
+# Os códigos RG-* vêm de src/lib/regras-volei, do servidor (RG-LOG-007..011) e do 03-regras-validaveis.md.
 openapi: 3.0.3
 info:
   title: volei.space - eventos da súmula
-  version: 0.1.0-proposta
+  version: 0.2.0-implementado-desligado
 paths:
   /api/sumula/{token}/eventos:
     parameters:
-      - { name: token, in: path, required: true, schema: { type: string } }
+      - { name: token, in: path, required: true, schema: { type: string }, description: 'Mesmo token da súmula (link do jogo, árbitro escalado ou organizador da liga)' }
     get:
-      summary: Lista o log de eventos e o placar derivado
+      summary: Estado derivado da partida e eventos do log
       parameters:
-        - { name: apartirDeSeq, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: apartirDeSeq, in: query, schema: { type: integer, minimum: 0 }, description: 'Filtra só a lista de eventos; o estado é sempre completo' }
       responses:
         '200':
-          description: Log (append-only) e placar derivado pelo motor
+          description: Estado derivado pelo motor (placar, saque, rotação, contadores, impedidos) e eventos
           content:
             application/json:
               schema:
@@ -24,28 +26,43 @@ paths:
                   data:
                     type: object
                     properties:
+                      estado: { $ref: '#/components/schemas/EstadoSumula' }
                       eventos: { type: array, items: { $ref: '#/components/schemas/SumulaEvento' } }
-                      placar: { $ref: '#/components/schemas/PlacarDerivado' }
         '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
         '404': { $ref: '#/components/responses/Erro' }
+        '503':
+          description: Tabela SumulaEvento ou RPC ausente (migration pendente)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erro' }
     post:
-      summary: Anexa um evento (validado pelo motor no servidor; idempotente)
+      summary: Lote de eventos (validado pelo motor no servidor; idempotente; versão otimista)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [tipo, payload, clientEventId, seqEsperado]
+              required: [eventos]
               properties:
-                tipo: { $ref: '#/components/schemas/Tipo' }
-                payload: { type: object }
-                clientEventId: { type: string, format: uuid }
-                desfazId: { type: integer, nullable: true, description: 'Obrigatório só em DESFAZ' }
-                seqEsperado: { type: integer, description: 'Último seq conhecido pelo cliente (concorrência otimista)' }
+                seqEsperado: { type: integer, minimum: 0, description: 'Último seq que o cliente conhece. Omitido = sem controle de versão' }
+                eventos:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [clientEventId, tipo]
+                    properties:
+                      clientEventId: { type: string, format: uuid }
+                      tipo: { $ref: '#/components/schemas/Tipo' }
+                      payload: { type: object }
+                      desfazId: { type: integer, nullable: true, description: 'seq do evento desfeito; obrigatório e exclusivo de DESFAZ' }
+                      ocorridoEm: { type: string, format: date-time, description: 'Quando aconteceu no cliente (reenvio offline)' }
       responses:
-        '201':
-          description: Evento gravado
+        '200':
+          description: Lote processado. Cada evento volta aceito (novo ou duplicado) ou rejeitado; o primeiro rejeitado interrompe o lote
           content:
             application/json:
               schema:
@@ -54,30 +71,44 @@ paths:
                   data:
                     type: object
                     properties:
-                      evento: { $ref: '#/components/schemas/SumulaEvento' }
-                      placar: { $ref: '#/components/schemas/PlacarDerivado' }
-                      avisos: { type: array, items: { $ref: '#/components/schemas/Aviso' } }
-        '200':
-          description: Reenvio idempotente (mesmo clientEventId); devolve o evento já gravado
-        '400': { $ref: '#/components/responses/Erro' }
+                      aceitos: { type: array, items: { $ref: '#/components/schemas/EventoAceito' } }
+                      rejeitados: { type: array, items: { $ref: '#/components/schemas/EventoRejeitado' } }
+                      estado: { $ref: '#/components/schemas/EstadoSumula' }
         '401': { $ref: '#/components/responses/Erro' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
         '409':
-          description: seqEsperado desatualizado (outro apontador gravou antes) ou conflito de sessão
+          description: seqEsperado desatualizado (outro apontador gravou antes). Nada foi gravado depois do conflito; details traz o estado atual
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErroRegra' }
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  details:
+                    type: object
+                    properties:
+                      codigo: { type: string, example: RG-LOG-010 }
+                      seqAtual: { type: integer }
+                      aceitos: { type: array, items: { $ref: '#/components/schemas/EventoAceito' } }
+                      estado: { $ref: '#/components/schemas/EstadoSumula' }
         '422':
-          description: Regra de jogo violada. error.codigo = RG-XXX-000 e mensagem em português
+          description: Envelope inválido. Regra de jogo violada NÃO vira 422; vem em rejeitados com status 200
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErroRegra' }
+              schema: { $ref: '#/components/schemas/Erro' }
+        '503':
+          description: Tabela SumulaEvento ou RPC ausente (migration pendente)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Erro' }
 components:
   responses:
     Erro:
-      description: Falha genérica
+      description: Falha genérica (404 também quando a rota está desligada)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErroRegra' }
+          schema: { $ref: '#/components/schemas/Erro' }
   schemas:
     Tipo:
       type: string
@@ -114,21 +145,42 @@ components:
       properties:
         codigo: { type: string, example: RG-SUB-001 }
         mensagem: { type: string }
-    ErroRegra:
+    Erro:
       type: object
       properties:
-        error:
-          type: object
-          properties:
-            codigo: { type: string, example: RG-SUB-001 }
-            mensagem: { type: string }
-    PlacarDerivado:
+        error: { type: string }
+        details: {}
+    EventoAceito:
+      type: object
+      properties:
+        indice: { type: integer }
+        clientEventId: { type: string }
+        seq: { type: integer }
+        duplicado: { type: boolean }
+        avisos: { type: array, items: { $ref: '#/components/schemas/Aviso' } }
+    EventoRejeitado:
+      type: object
+      properties:
+        indice: { type: integer }
+        clientEventId: { type: string }
+        codigo: { type: string, example: RG-SUB-001 }
+        mensagem: { type: string, description: 'Em português, para o apontador' }
+        naoProcessado: { type: boolean, description: 'true = RG-LOG-009, nem chegou a ser avaliado' }
+    EstadoSumula:
       type: object
       properties:
         status: { type: string, enum: [NAO_INICIADA, EM_ANDAMENTO, ENCERRADA, WO, A_REPETIR] }
-        setsGanhos: { type: object, properties: { a: { type: integer }, b: { type: integer } } }
-        saca: { type: string, enum: [A, B], nullable: true }
-        vencedor: { type: string, enum: [A, B], nullable: true }
-        houveCancelamentoDePontos: { type: boolean }
         ultimoSeq: { type: integer }
+        setsGanhos: { type: object, properties: { a: { type: integer }, b: { type: integer } } }
+        vencedor: { type: string, enum: [A, B], nullable: true }
+        saca: { type: string, enum: [A, B], nullable: true }
+        placar: { type: object, nullable: true, properties: { a: { type: integer }, b: { type: integer } } }
+        setAtual: { type: object, nullable: true }
+        rotacao: { type: object, description: 'A e B: 6 jogadores, índice 0 = posição I (saque)' }
+        contadores: { type: object, description: 'Por equipe no set: tempos, substituições regulares e excepcionais, trocas de líbero, redesignações' }
+        impedidos: { type: object, description: 'A e B: jogadores que não podem atuar agora' }
+        limites: { type: object, properties: { substituicoesPorSet: { type: integer }, temposPorSet: { type: integer } } }
         sets: { type: array, items: { type: object } }
+        observacoes: { type: array, items: { type: object } }
+        houveCancelamentoDePontos: { type: boolean }
+        inconsistencias: { type: array, items: { type: object } }
