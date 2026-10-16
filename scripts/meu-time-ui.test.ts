@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { criarClienteHttp, criarClienteMemoria, ErroMeuTime } from '../src/components/meu-time/cliente'
-import { classificarFalha, descreverStatusInscricao, normalizarRegrasCategoria } from '../src/lib/meu-time-ui/respostas'
+import { classificarFalha, descreverStatusInscricao, normalizarRegrasCategoria, normalizarResultadoLote } from '../src/lib/meu-time-ui/respostas'
 import {
   alternarAtleta,
   avaliarElegibilidade,
@@ -29,8 +29,9 @@ import {
 } from '../src/lib/meu-time-ui/rascunho'
 import { rotuloFuncao, rotuloPosicao } from '../src/components/meu-time/rotulos'
 import { validarEdicaoTime, validarMembroComissao, validarNovoAcesso, validarNovoAtleta, validarNovoTime } from '../src/lib/meu-time-ui/formularios'
-import { hrefInscricao } from '../src/lib/meu-time-ui/navegacao'
-import { prepararLista } from '../src/lib/meu-time-ui/lista-colada'
+import { hrefInscricao, lerConvite } from '../src/lib/meu-time-ui/navegacao'
+import { mensagemSemPermissao, podeFazer } from '../src/lib/meu-time-ui/permissoes'
+import { descreverIgnoradoDoLote, prepararLista } from '../src/lib/meu-time-ui/lista-colada'
 import type { Atleta } from '../src/lib/meu-time-ui/tipos'
 
 const atleta = (id: string, nome: string, extra: Partial<Atleta> = {}): Atleta => ({
@@ -199,7 +200,15 @@ async function main() {
   // --- R3: mensagens por status e código
   assert.match(classificarFalha(401, null).mensagem, /Entre na sua conta/)
   assert.match(classificarFalha(403, null).mensagem, /permissão/)
-  assert.match(classificarFalha(404, { error: 'Não encontrado.' }).mensagem, /Não encontramos/)
+  assert.match(classificarFalha(404, { error: 'Equipe não encontrada.', codigo: 'EQUIPE_NAO_ENCONTRADA' }).mensagem, /Não encontramos/)
+  assert.equal(classificarFalha(404, { error: 'Equipe não encontrada.', codigo: 'EQUIPE_NAO_ENCONTRADA' }).tipo, 'nao-encontrado')
+  // R5 M9: flag desligada (404 sem código) é "não habilitado", não "time não encontrado"
+  assert.equal(classificarFalha(404, { error: 'Não encontrado.' }).tipo, 'nao-habilitado')
+  assert.match(classificarFalha(404, { error: 'Não encontrado.' }).mensagem, /ainda não está habilitado/)
+  assert.equal(classificarFalha(404, null).tipo, 'nao-encontrado')
+  assert.equal(classificarFalha(503, { error: 'x' }).tipo, 'nao-habilitado')
+  const httpOff = criarClienteHttp(async () => resposta(404, { error: 'Não encontrado.' }))
+  await assert.rejects(httpOff.listarEquipes(), (e) => e instanceof ErroMeuTime && e.falha.tipo === 'nao-habilitado' && e.falha.status === 404)
   assert.match(classificarFalha(409, { codigo: 'EQUIPE_DUPLICADA', error: 'x' }).mensagem, /já tem um time com esse nome/)
   assert.match(classificarFalha(404, { codigo: 'CONTA_NAO_ENCONTRADA' }).mensagem, /criar a conta/)
   assert.match(classificarFalha(503, { codigo: 'EQUIPE_DUPLICADA' }).mensagem, /ainda não está habilitado/)
@@ -223,7 +232,8 @@ async function main() {
   assert.ok(regrasServidor)
   const regrasTela = regrasDeCategoria(regrasServidor!)
   assert.deepEqual(regrasTela, { minimo: 6, maximo: 12, maxLiberos: 1, anoMinimo: 2008, maxComissao: 3, inscricoesAbertas: false, nomeCategoria: 'Sub-17' })
-  assert.equal(normalizarRegrasCategoria({ minimoAtletas: 'x' }), null)
+  assert.equal(normalizarRegrasCategoria('x'), null)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: -3 }), null)
   assert.equal(normalizarRegrasCategoria({ minimoAtletas: 8, maximoAtletas: 6, maximoLiberos: 1 }), null)
   const comRegras = problemasDeEnvio(escolhas, atletas, regrasTela, 5)
   assert.ok(comRegras.some((p) => p.codigo === 'fechada'))
@@ -293,6 +303,113 @@ async function main() {
   assert.equal(detalheR3.meuPapel, 'TECNICO')
   const loteMem = await memR3.adicionarAtletasEmLote('q1', [{ nome: 'Lia' }])
   assert.equal(contarSemNascimento(loteMem.atletasCriados), 1)
+
+  // --- R5 A1: categoria sem RegraElenco (limites null) não bloqueia a inscrição
+  const semRegra = normalizarRegrasCategoria({
+    categoriaId: 'c9', nome: 'Aberta', naipe: 'MISTO', minimoAtletas: null, maximoAtletas: null, maximoLiberos: 2,
+    maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true,
+  })
+  assert.ok(semRegra)
+  assert.equal(semRegra!.minimoAtletas, null)
+  assert.equal(semRegra!.maximoAtletas, null)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: null, maximoAtletas: null })!.maximoLiberos, 2)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: null, maximoAtletas: 10, maximoLiberos: 1 })!.maximoAtletas, 10)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: 0, maximoAtletas: null }), null)
+  const regrasLivres = regrasDeCategoria(semRegra!)
+  assert.equal(regrasLivres.minimo, null)
+  assert.equal(regrasLivres.maximo, null)
+  const muitosAtletas = Array.from({ length: 20 }, (_, i) => ({ atletaId: `a${i}`, numero: String(i + 1), capitao: false, libero: false }))
+  const atletasLivres = muitosAtletas.map((e) => atleta(e.atletaId, e.atletaId, { dataNascimento: '2000-01-01' }))
+  assert.deepEqual(problemasDeEnvio(muitosAtletas, atletasLivres, regrasLivres), [])
+  assert.deepEqual(problemasDeEnvio(muitosAtletas.slice(0, 2), atletasLivres, regrasLivres), [])
+  assert.deepEqual(problemasDeEnvio([], atletasLivres, regrasLivres).map((p) => p.codigo), ['minimo'])
+  assert.equal(resumirSelecao(muitosAtletas, regrasLivres).situacao, 'ok')
+  assert.match(resumirSelecao(muitosAtletas, regrasLivres).texto, /sem limite de atletas definido/)
+  assert.equal(resumirSelecao([], regrasLivres).situacao, 'abaixo')
+  const soMaximo = regrasDeCategoria({ ...semRegra!, maximoAtletas: 8 })
+  assert.ok(problemasDeEnvio(muitosAtletas, atletasLivres, soMaximo).some((p) => p.codigo === 'maximo'))
+  assert.equal(problemasDeEnvio(muitosAtletas.slice(0, 2), atletasLivres, soMaximo).length, 0)
+  const httpSemRegra = criarClienteHttp(async () => resposta(200, { data: { categoriaId: 'c9', nome: 'Aberta', naipe: null, minimoAtletas: null, maximoAtletas: null, maximoLiberos: 2, maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true } }))
+  assert.equal((await httpSemRegra.obterRegrasCategoria('c9')).minimoAtletas, null)
+
+  // --- R5 B10: cliente em memória segue o contrato
+  const memR5 = criarClienteMemoria({
+    equipes: [
+      { id: 'r1', nome: 'Resp', cidade: null, naipe: 'MISTO' },
+      { id: 't1', nome: 'Tec', cidade: null, naipe: 'MISTO', meuPapel: 'TECNICO' },
+      { id: 'a1', nome: 'Assist', cidade: null, naipe: 'MISTO', meuPapel: 'ASSISTENTE' },
+      { id: 'c1', nome: 'Cap', cidade: null, naipe: 'MISTO', meuPapel: 'CAPITAO' },
+    ],
+  })
+  const semPermissao = (e: unknown) => e instanceof ErroMeuTime && e.falha.status === 403 && e.falha.codigo === 'SEM_PERMISSAO'
+  // dados do time e acesso: só o responsável (TECNICO não edita)
+  await memR5.atualizarEquipe('r1', { nome: 'Resp 2', cidade: null, escudoUrl: null })
+  await assert.rejects(memR5.atualizarEquipe('t1', { nome: 'Tec 2', cidade: null, escudoUrl: null }), semPermissao)
+  // atletas, comissão e inscrição: responsável e técnico
+  await memR5.adicionarAtleta('t1', { nome: 'Ana', dataNascimento: '2000-01-01' })
+  await memR5.adicionarMembroComissao('t1', { nome: 'Rui', funcao: 'TECNICO' })
+  for (const id of ['a1', 'c1']) {
+    await assert.rejects(memR5.adicionarAtleta(id, { nome: 'Ana', dataNascimento: '2000-01-01' }), semPermissao)
+    await assert.rejects(memR5.adicionarAtletasEmLote(id, [{ nome: 'Bia' }]), semPermissao)
+    await assert.rejects(memR5.atualizarAtleta(id, 'x', { nome: 'Z' }), semPermissao)
+    await assert.rejects(memR5.removerAtleta(id, 'x'), semPermissao)
+    await assert.rejects(memR5.adicionarMembroComissao(id, { nome: 'Rui', funcao: 'TECNICO' }), semPermissao)
+    await assert.rejects(memR5.removerMembroComissao(id, 'x'), semPermissao)
+    await assert.rejects(memR5.inscrever(id, { categoriaCampeonatoId: 'c', atletas: [{ atletaId: 'a', numero: 1 }] }), semPermissao)
+    await assert.rejects(memR5.atualizarEquipe(id, { nome: 'Z Z', cidade: null, escudoUrl: null }), semPermissao)
+    assert.equal((await memR5.obterEquipe(id)).meuPapel, id === 'a1' ? 'ASSISTENTE' : 'CAPITAO')
+  }
+  // leitura continua liberada, e o detalhe traz `meuPapel` e `membros` como no contrato
+  const detalheTec = await memR5.obterEquipe('t1')
+  assert.equal(detalheTec.meuPapel, 'TECNICO')
+  assert.deepEqual(detalheTec.membros?.map((m) => [m.papel, m.voce]), [['TECNICO', true]])
+  // lote: posição gravada, camisa fora de 0..99 ignorada, `linha` = posição na lista enviada
+  const loteR5 = await memR5.adicionarAtletasEmLote('r1', [
+    { nome: 'Lia', numero: 5, posicao: 'LB' }, { nome: 'Mel', numero: 100 }, { nome: 'Lia' }, { nome: 'Zé', posicao: null },
+  ])
+  assert.equal(loteR5.criados, 2)
+  assert.equal(loteR5.atletasCriados[0].posicao, 'LB')
+  assert.deepEqual(loteR5.ignorados.map((i) => i.linha), [2, 3])
+  assert.equal(descreverIgnoradoDoLote(loteR5.ignorados[0], [{ nome: 'Lia' }, { nome: 'Mel', numero: 100 }]), 'Linha 2 (Mel): Camisa fora de 0 a 99.')
+  assert.equal(descreverIgnoradoDoLote({ linha: 9, motivo: 'x' }, []), 'Linha 9: x')
+  // R5 M9: flag desligada no cliente em memória
+  await assert.rejects(criarClienteMemoria({ desligado: true }).listarEquipes(), (e) => e instanceof ErroMeuTime && e.falha.tipo === 'nao-habilitado' && e.falha.status === 404)
+  // criados com itens inválidos não entram na lista
+  assert.equal(normalizarResultadoLote({ criados: [{ id: 'a', nome: 'Ana' }, 5, null, { nome: 'sem id' }], ignorados: [] })?.criados, 1)
+
+  // --- R5 M7: convite do organizador vai no corpo da inscrição e fica no rascunho
+  const paramsConvite: Record<string, string> = { categoria: 'c1', convite: ' tok-abc ', min: '6' }
+  assert.equal(lerConvite((c) => paramsConvite[c]), 'tok-abc')
+  assert.equal(lerConvite(() => null), undefined)
+  assert.equal(lerConvite(() => '   '), undefined)
+  assert.equal(lerConvite(() => 'x'.repeat(201)), undefined)
+  assert.equal(hrefInscricao('e1', (c) => paramsConvite[c]), '/meu-time/e1/inscrever?categoria=c1&convite=+tok-abc+&min=6')
+  const comConvite = montarInscricao('c1', [{ atletaId: 'a1', numero: '7', capitao: false, libero: false }], [], 'tok-abc')
+  assert.deepEqual(comConvite, { categoriaCampeonatoId: 'c1', atletas: [{ atletaId: 'a1', numero: 7 }], convite: 'tok-abc' })
+  assert.equal('convite' in montarInscricao('c1', [], []), false)
+  const corposConvite: string[] = []
+  const httpConvite = criarClienteHttp(async (_url, init) => {
+    corposConvite.push(String(init?.body))
+    return resposta(201, { data: { id: 'i1', categoriaCampeonatoId: 'c1', status: 'CONFIRMADA', totalAtletas: 1 } })
+  })
+  await httpConvite.inscrever('e1', comConvite)
+  assert.equal(JSON.parse(corposConvite[0]).convite, 'tok-abc')
+  const rascunhoConvite = lerRascunho(serializarRascunho({ ...rascunhoVazio(), convite: 'tok-abc' }))
+  assert.equal(rascunhoConvite?.convite, 'tok-abc')
+  assert.equal(lerRascunho(serializarRascunho(rascunhoVazio()))?.convite, undefined)
+  assert.equal(lerRascunho(JSON.stringify({ ...rascunhoVazio(), convite: 42 }))?.convite, undefined)
+
+  // --- R5 M8: ações por papel (espelha o servidor)
+  const papeis = ['RESPONSAVEL', 'TECNICO', 'ASSISTENTE', 'CAPITAO'] as const
+  const matriz = (acao: Parameters<typeof podeFazer>[1]) => papeis.map((p) => podeFazer(p, acao))
+  assert.deepEqual(matriz('atletas'), [true, true, false, false])
+  assert.deepEqual(matriz('inscricao'), [true, true, false, false])
+  assert.deepEqual(matriz('comissao'), [true, true, false, false])
+  assert.deepEqual(matriz('dados'), [true, false, false, false])
+  assert.deepEqual(matriz('acesso'), [true, false, false, false])
+  assert.equal(podeFazer(undefined, 'dados'), true)
+  assert.match(mensagemSemPermissao('dados'), /Só o responsável/)
+  assert.match(mensagemSemPermissao('atletas'), /responsável ou o técnico/)
 
   console.log('meu-time-ui: ok')
 }

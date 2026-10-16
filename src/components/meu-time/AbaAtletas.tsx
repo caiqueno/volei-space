@@ -8,7 +8,8 @@ import { FormAtleta } from './FormAtleta'
 import { CompletarNascimento } from './CompletarNascimento'
 import { formatarData, rotuloPosicao } from './rotulos'
 import { contarSemNascimento, faltaNascimento } from '@/lib/meu-time-ui/selecao'
-import type { Atleta } from '@/lib/meu-time-ui/tipos'
+import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
+import type { Atleta, PapelAcesso } from '@/lib/meu-time-ui/tipos'
 
 type Modo = { tipo: 'lista' } | { tipo: 'novo' } | { tipo: 'colar' } | { tipo: 'editar'; atleta: Atleta }
 
@@ -18,10 +19,13 @@ type Props = {
   atletas: Atleta[]
   somenteSemDocumento: boolean
   aoMudarFiltro: (valor: boolean) => void
+  /** Papel de quem está logado. ASSISTENTE e CAPITAO só olham: o servidor recusa a escrita deles (403). */
+  meuPapel?: PapelAcesso
   aoAtualizar: () => Promise<void>
 }
 
-export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, aoMudarFiltro, aoAtualizar }: Props) {
+export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, aoMudarFiltro, meuPapel, aoAtualizar }: Props) {
+  const podeEditar = podeFazer(meuPapel, 'atletas')
   const [modo, setModo] = useState<Modo>({ tipo: 'lista' })
   const [confirmando, setConfirmando] = useState<string | null>(null)
   const [removendo, setRemovendo] = useState(false)
@@ -54,22 +58,26 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
     }
   }
 
-  if (modo.tipo === 'novo') return <FormAtleta cliente={cliente} equipeId={equipeId} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
-  if (modo.tipo === 'editar') return <FormAtleta cliente={cliente} equipeId={equipeId} atleta={modo.atleta} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
-  if (modo.tipo === 'colar') return <ColarLista cliente={cliente} equipeId={equipeId} existentes={atletas} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
+  if (podeEditar && modo.tipo === 'novo') return <FormAtleta cliente={cliente} equipeId={equipeId} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
+  if (podeEditar && modo.tipo === 'editar') return <FormAtleta cliente={cliente} equipeId={equipeId} atleta={modo.atleta} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
+  if (podeEditar && modo.tipo === 'colar') return <ColarLista cliente={cliente} equipeId={equipeId} existentes={atletas} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <button type="button" onClick={() => setModo({ tipo: 'colar' })} className={botaoPrimario}>Colar lista do WhatsApp</button>
-        <button type="button" onClick={() => setModo({ tipo: 'novo' })} className={botaoSecundario}>Adicionar um por um</button>
-      </div>
+      {podeEditar ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button type="button" onClick={() => setModo({ tipo: 'colar' })} className={botaoPrimario}>Colar lista do WhatsApp</button>
+          <button type="button" onClick={() => setModo({ tipo: 'novo' })} className={botaoSecundario}>Adicionar um por um</button>
+        </div>
+      ) : (
+        <Aviso>{mensagemSemPermissao('atletas')} Você pode ver os atletas, mas não alterar.</Aviso>
+      )}
       {erro && <Aviso tom="is-error" alerta>{erro}</Aviso>}
 
       {atletas.length === 0 && (
         <div className={`${cartao} flex flex-col gap-2`}>
           <h3 className="text-lg font-black">Seu time ainda não tem atletas</h3>
-          <p className="text-[var(--vs-muted)]">Cole a lista do WhatsApp e a gente separa nome e camisa. Exemplo: João Silva, 7.</p>
+          {podeEditar && <p className="text-[var(--vs-muted)]">Cole a lista do WhatsApp e a gente separa nome e camisa. Exemplo: João Silva, 7.</p>}
         </div>
       )}
 
@@ -107,8 +115,8 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
                 {atleta.temDocumento ? 'Com documento' : 'Sem documento'}
               </span>
             </div>
-            {faltaNascimento(atleta) && <CompletarNascimento cliente={cliente} equipeId={equipeId} atleta={atleta} aoSalvar={aoAtualizar} />}
-            {confirmando === atleta.id ? (
+            {podeEditar && faltaNascimento(atleta) && <CompletarNascimento cliente={cliente} equipeId={equipeId} atleta={atleta} aoSalvar={aoAtualizar} />}
+            {!podeEditar ? null : confirmando === atleta.id ? (
               <div role="group" aria-label={`Remover ${atleta.nome}?`} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <p className="text-sm font-bold">Remover {atleta.nome} do time?</p>
                 <button type="button" disabled={removendo} onClick={() => remover(atleta)} className={botaoPerigo}>{removendo ? 'Removendo…' : 'Remover'}</button>

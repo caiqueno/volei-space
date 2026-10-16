@@ -2,8 +2,9 @@
 import type { Atleta, AtletaInscricao, NovaInscricao, RegrasCategoria } from './tipos'
 
 export type RegrasInscricao = {
-  minimo: number
-  maximo: number
+  /** null = a categoria não define limite: a tela não bloqueia (o servidor decide). */
+  minimo: number | null
+  maximo: number | null
   maxLiberos: number
   /** Ano de nascimento permitido (inclusive). Quando ausente, a categoria não limita idade. */
   anoMinimo?: number
@@ -34,7 +35,7 @@ export function contarSemNascimento(atletas: Array<Pick<Atleta, 'dataNascimento'
   return atletas.filter(faltaNascimento).length
 }
 
-export const REGRAS_PADRAO: RegrasInscricao = { minimo: 6, maximo: 14, maxLiberos: 2 }
+export const REGRAS_PADRAO = { minimo: 6, maximo: 14, maxLiberos: 2 }
 
 export type Escolha = { atletaId: string; numero: string; capitao: boolean; libero: boolean }
 
@@ -139,9 +140,13 @@ export type ResumoSelecao = { selecionados: number; liberos: number; texto: stri
 export function resumirSelecao(escolhas: Escolha[], regras: RegrasInscricao): ResumoSelecao {
   const selecionados = escolhas.length
   const liberos = escolhas.filter((e) => e.libero).length
-  const situacao = selecionados > regras.maximo || liberos > regras.maxLiberos ? 'acima' : selecionados < regras.minimo ? 'abaixo' : 'ok'
+  const situacao = (regras.maximo != null && selecionados > regras.maximo) || liberos > regras.maxLiberos ? 'acima' : selecionados < (regras.minimo ?? 1) ? 'abaixo' : 'ok'
   const rotulo = selecionados === 1 ? 'selecionado' : 'selecionados'
-  const texto = `${selecionados} ${rotulo} · mínimo ${regras.minimo} · máximo ${regras.maximo} · líberos ${liberos} de ${regras.maxLiberos}`
+  // Sem limite definido, os padrões aparecem só como sugestão, nunca como trava.
+  const limites = regras.minimo == null && regras.maximo == null
+    ? `sem limite de atletas definido (sugestão ${REGRAS_PADRAO.minimo} a ${REGRAS_PADRAO.maximo})`
+    : `mínimo ${regras.minimo ?? 'não definido'} · máximo ${regras.maximo ?? 'não definido'}`
+  const texto = `${selecionados} ${rotulo} · ${limites} · líberos ${liberos} de ${regras.maxLiberos}`
   return { selecionados, liberos, texto, situacao }
 }
 
@@ -164,11 +169,14 @@ export function problemasDeEnvio(escolhas: Escolha[], atletas: Atleta[], regras:
     problemas.push({ codigo: 'comissao', mensagem: `Você marcou ${totalComissao} pessoas na comissão. O máximo é ${regras.maxComissao}. Desmarque ${sobra}.` })
   }
 
-  if (n < regras.minimo) {
+  if (regras.minimo == null && n === 0) {
+    problemas.push({ codigo: 'minimo', mensagem: 'Escolha pelo menos 1 atleta.' })
+  }
+  if (regras.minimo != null && n < regras.minimo) {
     const falta = regras.minimo - n
     problemas.push({ codigo: 'minimo', mensagem: `Faltam ${falta} ${plural(falta, 'atleta', 'atletas')}. Esta categoria precisa de pelo menos ${regras.minimo}.` })
   }
-  if (n > regras.maximo) {
+  if (regras.maximo != null && n > regras.maximo) {
     const sobra = n - regras.maximo
     problemas.push({ codigo: 'maximo', mensagem: `Você marcou ${n}. O máximo é ${regras.maximo}. Desmarque ${sobra}.` })
   }
@@ -214,12 +222,12 @@ export function avisosDeEnvio(escolhas: Escolha[], atletas: Atleta[], regras: Re
   return avisos
 }
 
-export function montarInscricao(categoriaCampeonatoId: string, escolhas: Escolha[], comissao: string[]): NovaInscricao {
+export function montarInscricao(categoriaCampeonatoId: string, escolhas: Escolha[], comissao: string[], convite?: string): NovaInscricao {
   const atletas: AtletaInscricao[] = escolhas.map((e) => {
     const item: AtletaInscricao = { atletaId: e.atletaId, numero: Number(e.numero) }
     if (e.capitao) item.capitao = true
     if (e.libero) item.libero = true
     return item
   })
-  return { categoriaCampeonatoId, atletas, ...(comissao.length ? { comissao } : {}) }
+  return { categoriaCampeonatoId, atletas, ...(comissao.length ? { comissao } : {}), ...(convite ? { convite } : {}) }
 }

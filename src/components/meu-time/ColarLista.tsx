@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react'
 import type { MeuTimeClient } from './cliente'
 import { Aviso, botaoPrimario, botaoSecundario, Campo, campoEstilo, falhaDe } from './ui'
-import { prepararLista, resumirResultadoLote } from '@/lib/meu-time-ui/lista-colada'
+import { descreverIgnoradoDoLote, prepararLista, resumirResultadoLote } from '@/lib/meu-time-ui/lista-colada'
 import { contarSemNascimento } from '@/lib/meu-time-ui/selecao'
-import type { Atleta, ResultadoLote } from '@/lib/meu-time-ui/tipos'
+import type { Atleta, AtletaLote, ResultadoLote } from '@/lib/meu-time-ui/tipos'
 
 type Props = {
   cliente: MeuTimeClient
@@ -29,6 +29,7 @@ export function ColarLista({ cliente, equipeId, existentes, aoSalvar, aoCancelar
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [resultado, setResultado] = useState<ResultadoLote | null>(null)
+  const [enviados, setEnviados] = useState<AtletaLote[]>([])
   const preparo = useMemo(() => prepararLista(texto, existentes), [texto, existentes])
 
   async function salvar() {
@@ -42,6 +43,7 @@ export function ColarLista({ cliente, equipeId, existentes, aoSalvar, aoCancelar
         aoSalvar()
         return
       }
+      setEnviados(preparo.payload)
       setResultado(retorno)
       setSalvando(false)
     } catch (erro) {
@@ -62,7 +64,7 @@ export function ColarLista({ cliente, equipeId, existentes, aoSalvar, aoCancelar
         )}
         {resultado.ignorados.length > 0 && (
           <ul className="list-disc pl-5 text-sm">
-            {resultado.ignorados.map((item) => <li key={`${item.linha}-${item.motivo}`}>Linha {item.linha}: {item.motivo}</li>)}
+            {resultado.ignorados.map((item) => <li key={`${item.linha}-${item.motivo}`}>{descreverIgnoradoDoLote(item, enviados)}</li>)}
           </ul>
         )}
         <button type="button" onClick={aoSalvar} className={botaoPrimario}>Ver atletas e completar nascimento</button>

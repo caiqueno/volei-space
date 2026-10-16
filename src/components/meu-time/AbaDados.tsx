@@ -6,6 +6,7 @@ import { AcessoEquipe } from './AcessoEquipe'
 import { Aviso, botaoPrimario, botaoSecundario, Campo, campoEstilo, cartao, descreve, falhaDe } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
 import { validarEdicaoTime } from '@/lib/meu-time-ui/formularios'
+import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import type { Equipe, PapelAcesso } from '@/lib/meu-time-ui/tipos'
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 
 /** Dados do time (editáveis) e "Quem tem acesso". O naipe não muda depois de criado. */
 export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
+  const podeEditar = podeFazer(meuPapel, 'dados')
   const [editando, setEditando] = useState(false)
   const [nome, setNome] = useState(equipe.nome)
   const [cidade, setCidade] = useState(equipe.cidade ?? '')
@@ -64,7 +66,7 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
   return (
     <div className="flex flex-col gap-6">
       {salvo && !editando && <Aviso tom="is-success">Dados do time salvos.</Aviso>}
-      {!editando && (
+      {(!editando || !podeEditar) && (
         <div className="flex flex-col gap-3">
           <dl className={`${cartao} grid grid-cols-[auto_1fr] gap-x-4 gap-y-3`}>
             <dt className="text-sm font-bold text-[var(--vs-muted)]">Nome</dt>
@@ -76,10 +78,12 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
             <dt className="text-sm font-bold text-[var(--vs-muted)]">Escudo</dt>
             <dd>{equipe.escudoUrl ? 'Cadastrado' : 'Ainda sem escudo'}</dd>
           </dl>
-          <button type="button" onClick={abrir} className={botaoSecundario}>Editar dados do time</button>
+          {podeEditar
+            ? <button type="button" onClick={abrir} className={botaoSecundario}>Editar dados do time</button>
+            : <Aviso>{mensagemSemPermissao('dados')} Você pode ver os dados, mas não alterar.</Aviso>}
         </div>
       )}
-      {editando && (
+      {editando && podeEditar && (
         <form onSubmit={enviar} noValidate aria-label="Editar dados do time" className="flex flex-col gap-4 rounded-2xl border border-[var(--vs-border-strong)] bg-[var(--vs-elevated)] p-4">
           <h3 className="text-lg font-black">Editar dados do time</h3>
           {mensagem && <Aviso tom="is-error" alerta>{mensagem}</Aviso>}

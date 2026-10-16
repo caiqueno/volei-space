@@ -8,6 +8,8 @@ export type RascunhoAssistente = {
   escolhas: Escolha[]
   comissao: string[]
   aceite: boolean
+  /** Token do convite do organizador, guardado para sobreviver a recarregar a página ou sair e voltar. */
+  convite?: string
 }
 
 export function rascunhoVazio(): RascunhoAssistente {
@@ -38,7 +40,8 @@ export function lerRascunho(texto: string | null | undefined): RascunhoAssistent
     if (passo !== 1 && passo !== 2 && passo !== 3 && passo !== 4) return null
     if (!Array.isArray(bruto.escolhas) || !bruto.escolhas.every(escolhaValida)) return null
     if (!Array.isArray(bruto.comissao) || !bruto.comissao.every((id) => typeof id === 'string')) return null
-    return { versao: 1, passo, escolhas: bruto.escolhas, comissao: bruto.comissao as string[], aceite: bruto.aceite === true }
+    const convite = typeof bruto.convite === 'string' && bruto.convite.trim() !== '' && bruto.convite.length <= 200 ? bruto.convite.trim() : undefined
+    return { versao: 1, passo, escolhas: bruto.escolhas, comissao: bruto.comissao as string[], aceite: bruto.aceite === true, ...(convite ? { convite } : {}) }
   } catch {
     return null
   }

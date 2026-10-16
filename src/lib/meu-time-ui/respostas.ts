@@ -13,7 +13,7 @@ export type Falha = {
   detalhes?: string[]
 }
 
-export const MENSAGEM_NAO_HABILITADO = 'O Meu Time ainda não está habilitado para você. Assim que estiver, esta área abre sozinha.'
+export const MENSAGEM_NAO_HABILITADO = 'O Meu Time ainda não está habilitado para você. Assim que estiver, é só voltar aqui.'
 
 const MENSAGENS_PADRAO: Record<TipoFalha, string> = {
   'nao-habilitado': MENSAGEM_NAO_HABILITADO,
@@ -26,8 +26,24 @@ const MENSAGENS_PADRAO: Record<TipoFalha, string> = {
   outro: 'Não deu certo agora. Tente de novo em instantes.',
 }
 
-function tipoPorStatus(status: number): TipoFalha {
-  if (status === 503) return 'nao-habilitado'
+export const MENSAGEM_COMISSAO_INDISPONIVEL =
+  'A comissão técnica ainda não está disponível neste ambiente. O resto do time (atletas, inscrição, dados) funciona normalmente.'
+
+export const MENSAGEM_SO_RESPONSAVEL = 'Só o responsável pelo time pode fazer isso.'
+export const MENSAGEM_SO_RESPONSAVEL_OU_TECNICO = 'Só o responsável ou o técnico do time pode fazer isso.'
+
+/**
+ * Flag desligada: o servidor responde 404 `{error:'Não encontrado.'}` sem `codigo` (contrato).
+ * Os 404 de verdade (equipe, atleta, categoria) sempre trazem `codigo`.
+ */
+function recursoDesligado(status: number, corpo: unknown) {
+  if (status !== 404 || !corpo || typeof corpo !== 'object') return false
+  const o = corpo as Record<string, unknown>
+  return o.codigo === undefined && typeof o.error === 'string' && o.error.trim().toLowerCase() === 'não encontrado.'
+}
+
+function tipoPorStatus(status: number, corpo?: unknown): TipoFalha {
+  if (status === 503 || recursoDesligado(status, corpo)) return 'nao-habilitado'
   if (status === 401) return 'sem-sessao'
   if (status === 403) return 'sem-permissao'
   if (status === 404) return 'nao-encontrado'
@@ -46,7 +62,7 @@ const MENSAGENS_POR_CODIGO: Record<string, string> = {
   CONFLITO_DE_ELENCO: 'Algum atleta já está em outro time desta categoria. Confira o elenco.',
   CONTA_NAO_ENCONTRADA: 'Não achamos uma conta com esse e-mail. A pessoa precisa criar a conta no volei.space antes.',
   CATEGORIA_NAO_ENCONTRADA: 'Não encontramos essa categoria. Peça um link de convite novo ao organizador.',
-  SEM_PERMISSAO: 'Só quem é responsável pelo time pode fazer isso.',
+  SEM_PERMISSAO: 'Você não tem permissão para isso neste time. Peça ao responsável ou ao técnico do time.',
   INSCRICOES_FECHADAS: 'As inscrições desta categoria estão fechadas.',
   CONVITE_INVALIDO: 'Este convite não vale mais. Peça um link novo ao organizador.',
 }
@@ -57,7 +73,7 @@ function pareceTecnica(texto: string) {
 
 /** Monta a falha a partir do status HTTP e do corpo `{error, codigo?}`. */
 export function classificarFalha(status: number, corpo: unknown): Falha {
-  const tipo = tipoPorStatus(status)
+  const tipo = tipoPorStatus(status, corpo)
   const objeto = corpo && typeof corpo === 'object' ? (corpo as Record<string, unknown>) : {}
   const erro = typeof objeto.error === 'string' ? objeto.error.trim() : ''
   const codigo = typeof objeto.codigo === 'string' ? objeto.codigo : undefined
@@ -87,14 +103,16 @@ function inteiroOuNulo(valor: unknown): number | null {
   return typeof valor === 'number' && Number.isFinite(valor) ? Math.trunc(valor) : null
 }
 
-/** Valida o corpo de GET /categorias/:id/regras. Devolve null se faltar algum limite essencial. */
+/** Valida o corpo de GET /categorias/:id/regras. Limite null = sem limite (categoria sem RegraElenco). */
 export function normalizarRegrasCategoria(dado: unknown): RegrasCategoria | null {
   if (!dado || typeof dado !== 'object') return null
   const o = dado as Record<string, unknown>
   const minimo = inteiroOuNulo(o.minimoAtletas)
   const maximo = inteiroOuNulo(o.maximoAtletas)
   const liberos = inteiroOuNulo(o.maximoLiberos)
-  if (minimo == null || maximo == null || liberos == null || minimo < 1 || maximo < minimo || liberos < 0) return null
+  // Contrato: sem RegraElenco valem os padrões (limites null, maximoLiberos 2). Null nunca bloqueia a inscrição.
+  const maximoLiberos = liberos ?? 2
+  if ((minimo != null && minimo < 1) || (maximo != null && maximo < 1) || (minimo != null && maximo != null && maximo < minimo) || maximoLiberos < 0) return null
   const naipe = o.naipe === 'FEMININO' || o.naipe === 'MASCULINO' || o.naipe === 'MISTO' ? o.naipe : null
   return {
     categoriaId: typeof o.categoriaId === 'string' ? o.categoriaId : '',
@@ -102,7 +120,7 @@ export function normalizarRegrasCategoria(dado: unknown): RegrasCategoria | null
     naipe,
     minimoAtletas: minimo,
     maximoAtletas: maximo,
-    maximoLiberos: liberos,
+    maximoLiberos,
     maximoComissao: inteiroOuNulo(o.maximoComissao),
     anoNascimentoMinimo: inteiroOuNulo(o.anoNascimentoMinimo),
     anoNascimentoMaximo: inteiroOuNulo(o.anoNascimentoMaximo),
@@ -114,8 +132,10 @@ export function normalizarRegrasCategoria(dado: unknown): RegrasCategoria | null
 export function normalizarResultadoLote(dado: unknown): ResultadoLote | null {
   if (!dado || typeof dado !== 'object') return null
   const o = dado as Record<string, unknown>
-  const atletasCriados = Array.isArray(o.criados) ? (o.criados as Atleta[]) : []
-  const criados = Array.isArray(o.criados) ? o.criados.length : (inteiroOuNulo(o.criados) ?? 0)
+  const atletasCriados = Array.isArray(o.criados)
+    ? (o.criados as unknown[]).filter((a): a is Atleta => !!a && typeof a === 'object' && typeof (a as Atleta).id === 'string' && typeof (a as Atleta).nome === 'string')
+    : []
+  const criados = Array.isArray(o.criados) ? atletasCriados.length : (inteiroOuNulo(o.criados) ?? 0)
   const ignorados = Array.isArray(o.ignorados)
     ? (o.ignorados as unknown[]).flatMap((item) => {
         if (!item || typeof item !== 'object') return []
