@@ -1,5 +1,7 @@
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+import { emOrdemCronologica } from '@/lib/sumula-ui/ordem'
+import { lerOverride } from '@/lib/sumula-ui/override'
 import {
   atletaPeloNumero,
   camisaDe,
@@ -31,8 +33,9 @@ import type {
 
 export const NAO_REGISTRADO = 'não registrado nesta versão'
 
+/** Ordem cronológica pela função compartilhada com o replay da tela (M4 do doc 24). */
 function ordenar(ocorrencias: OcorrenciaRegistro[]) {
-  return [...ocorrencias].sort((a, b) => Number(a.id) - Number(b.id))
+  return emOrdemCronologica(ocorrencias, 'auto')
 }
 
 function evento(o: OcorrenciaRegistro, nomeA: string, nomeB: string): EventoImpresso {
@@ -43,7 +46,35 @@ function evento(o: OcorrenciaRegistro, nomeA: string, nomeB: string): EventoImpr
     placar: partes.placar,
     texto: partes.texto,
     lado: ladoDoTexto(partes.texto, nomeA, nomeB),
+    decisaoArbitro: decisaoDoArbitro(o.descricao),
   }
+}
+
+function decisaoDoArbitro(descricao?: string | null) {
+  const decisao = lerOverride(textoBruto(descricao))
+  return decisao ? `${decisao.codigo}: ${decisao.justificativa}` : null
+}
+
+/** Sanção sem marcador que repete outra com marcador (nota + evento gravados pela tela antiga) sai da lista. */
+const temMarcaDeSancao = (o: OcorrenciaRegistro) => String(o.descricao ?? '').includes('[[SAN:')
+
+function semSancaoRepetida(lista: OcorrenciaRegistro[]) {
+  const comMarca = new Set(
+    lista.filter((o) => temMarcaDeSancao(o)).map((o) => `${numeroDoSet(o)}|${partesDaDescricao(o.descricao).texto}`),
+  )
+  return lista.filter((o) => temMarcaDeSancao(o) || !comMarca.has(`${numeroDoSet(o)}|${partesDaDescricao(o.descricao).texto}`))
+}
+
+/** Observação gravada em dobro (mesma nota como item e como evento) aparece uma vez. */
+function semObservacaoRepetida(lista: OcorrenciaRegistro[]) {
+  const vistas = new Set<string>()
+  return lista.filter((o) => {
+    const p = partesDaDescricao(o.descricao)
+    const chave = `${numeroDoSet(o)}|${p.hora}|${p.placar}|${p.texto}`
+    if (vistas.has(chave)) return false
+    vistas.add(chave)
+    return true
+  })
 }
 
 function numeroDoSet(o: OcorrenciaRegistro) {
@@ -181,8 +212,9 @@ export function montarSumulaImpressa(registro: RegistroSumula): ModeloImpressao 
     equipeA: modeloA,
     equipeB: modeloB,
     sets,
-    sancoes: ocorrencias.filter(ehSancao).map((o) => ({ ...evento(o, nomeA, nomeB), set: o.set ? numeroDoSet(o) : null })),
-    observacoes: ocorrencias.filter(ehObservacao).map((o) => ({ ...evento(o, nomeA, nomeB), set: o.set ? numeroDoSet(o) : null })),
+    sancoes: semSancaoRepetida(ocorrencias.filter(ehSancao)).map((o) => ({ ...evento(o, nomeA, nomeB), set: o.set ? numeroDoSet(o) : null })),
+    observacoes: semObservacaoRepetida(ocorrencias.filter(ehObservacao)).map((o) => ({ ...evento(o, nomeA, nomeB), set: o.set ? numeroDoSet(o) : null })),
+    decisoesDoArbitro: ocorrencias.filter((o) => lerOverride(textoBruto(o.descricao)) != null).map((o) => ({ ...evento(o, nomeA, nomeB), set: o.set ? numeroDoSet(o) : null })),
     setsA: Number(registro.setsPorA ?? 0),
     setsB: Number(registro.setsPorB ?? 0),
     totalPontosA: sets.reduce((t, s) => t + s.pontosA, 0),

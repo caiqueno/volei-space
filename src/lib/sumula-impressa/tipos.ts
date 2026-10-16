@@ -73,6 +73,8 @@ export type EventoImpresso = {
   placar: string
   texto: string
   lado: Lado | null
+  /** Registro feito por decisão do árbitro, fora do motor de regras: "código: justificativa". */
+  decisaoArbitro?: string | null
 }
 
 export type PosicaoFormacao = { posicao: string; camisa: string; nome: string }
@@ -112,6 +114,8 @@ export type ModeloImpressao = {
   sets: SetImpresso[]
   sancoes: Array<EventoImpresso & { set: number | null }>
   observacoes: Array<EventoImpresso & { set: number | null }>
+  /** Todos os registros marcados como decisão do árbitro (override), em ordem cronológica. */
+  decisoesDoArbitro: Array<EventoImpresso & { set: number | null }>
   setsA: number
   setsB: number
   totalPontosA: number
