@@ -1,5 +1,5 @@
 // Regras de tela do passo "escolher atletas" da inscrição. O servidor valida tudo de novo.
-import type { Atleta, AtletaInscricao, NovaInscricao } from './tipos'
+import type { Atleta, AtletaInscricao, NovaInscricao, RegrasCategoria } from './tipos'
 
 export type RegrasInscricao = {
   minimo: number
@@ -8,13 +8,37 @@ export type RegrasInscricao = {
   /** Ano de nascimento permitido (inclusive). Quando ausente, a categoria não limita idade. */
   anoMinimo?: number
   anoMaximo?: number
+  /** Só vêm do endpoint de regras da categoria. */
+  maxComissao?: number
+  inscricoesAbertas?: boolean
+  nomeCategoria?: string
+}
+
+/** Converte as regras do servidor (GET /categorias/:id/regras) nas regras usadas pela tela. */
+export function regrasDeCategoria(r: RegrasCategoria): RegrasInscricao {
+  const regras: RegrasInscricao = { minimo: r.minimoAtletas, maximo: r.maximoAtletas, maxLiberos: r.maximoLiberos }
+  if (r.anoNascimentoMinimo != null) regras.anoMinimo = r.anoNascimentoMinimo
+  if (r.anoNascimentoMaximo != null) regras.anoMaximo = r.anoNascimentoMaximo
+  if (r.maximoComissao != null) regras.maxComissao = r.maximoComissao
+  regras.inscricoesAbertas = r.inscricoesAbertas
+  if (r.nome) regras.nomeCategoria = r.nome
+  return regras
+}
+
+/** Atleta que entrou sem data de nascimento (ex.: lista colada). Vira pendência. */
+export function faltaNascimento(atleta: Pick<Atleta, 'dataNascimento'>): boolean {
+  return !atleta.dataNascimento || anoDeNascimento(atleta.dataNascimento) == null
+}
+
+export function contarSemNascimento(atletas: Array<Pick<Atleta, 'dataNascimento'>>): number {
+  return atletas.filter(faltaNascimento).length
 }
 
 export const REGRAS_PADRAO: RegrasInscricao = { minimo: 6, maximo: 14, maxLiberos: 2 }
 
 export type Escolha = { atletaId: string; numero: string; capitao: boolean; libero: boolean }
 
-export type CodigoProblema = 'minimo' | 'maximo' | 'liberos' | 'numero' | 'repetida' | 'libero-capitao'
+export type CodigoProblema = 'minimo' | 'maximo' | 'liberos' | 'numero' | 'repetida' | 'libero-capitao' | 'comissao' | 'fechada'
 
 export type Problema = { codigo: CodigoProblema; mensagem: string; atletaId?: string }
 
@@ -126,11 +150,19 @@ function plural(n: number, singular: string, pluralTexto: string) {
 }
 
 /** Problemas que impedem o envio (o servidor também recusa). Cada um diz o motivo e o que fazer. */
-export function problemasDeEnvio(escolhas: Escolha[], atletas: Atleta[], regras: RegrasInscricao): Problema[] {
+export function problemasDeEnvio(escolhas: Escolha[], atletas: Atleta[], regras: RegrasInscricao, totalComissao = 0): Problema[] {
   const problemas: Problema[] = []
   const nomePor = new Map(atletas.map((a) => [a.id, a.nome]))
   const nome = (id: string) => nomePor.get(id) ?? 'Atleta'
   const n = escolhas.length
+
+  if (regras.inscricoesAbertas === false) {
+    problemas.push({ codigo: 'fechada', mensagem: 'As inscrições desta categoria estão fechadas. Fale com o organizador.' })
+  }
+  if (regras.maxComissao != null && totalComissao > regras.maxComissao) {
+    const sobra = totalComissao - regras.maxComissao
+    problemas.push({ codigo: 'comissao', mensagem: `Você marcou ${totalComissao} pessoas na comissão. O máximo é ${regras.maxComissao}. Desmarque ${sobra}.` })
+  }
 
   if (n < regras.minimo) {
     const falta = regras.minimo - n

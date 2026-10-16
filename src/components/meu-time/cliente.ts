@@ -1,23 +1,33 @@
 // Única porta de conversa da interface com o backend de "Meu Time".
-// Contrato: sucesso `{data}`; falha `{error, codigo?}`; 503 = Meu Time ainda não habilitado.
+// Contrato (docs/analise/20-contrato-meu-time.yaml): sucesso `{data}`; falha `{error, codigo?, erros?}`; 503 = Meu Time ainda não habilitado.
+//
+// Comissão técnica = nome + função, em /equipes/:id/comissao (sem conta no sistema).
+// Pessoas com acesso à equipe (com conta, por e-mail) ficam em /equipes/:id/membros.
 import {
   classificarFalha,
   extrairData,
   falhaDeRede,
+  normalizarRegrasCategoria,
+  normalizarResultadoLote,
   type Falha,
 } from '@/lib/meu-time-ui/respostas'
 import type {
   Atleta,
   AtletaLote,
   DetalheEquipe,
+  EdicaoEquipe,
   Equipe,
   EquipeResumo,
+  MembroAcesso,
   MembroComissao,
   NovaEquipe,
   NovaInscricao,
+  NovoAcesso,
   NovoAtleta,
   NovoMembroComissao,
+  PapelAcesso,
   Prontidao,
+  RegrasCategoria,
   RespostaInscricao,
   ResultadoLote,
 } from '@/lib/meu-time-ui/tipos'
@@ -36,6 +46,7 @@ export interface MeuTimeClient {
   listarEquipes(): Promise<EquipeResumo[]>
   criarEquipe(dados: NovaEquipe): Promise<Equipe>
   obterEquipe(equipeId: string): Promise<DetalheEquipe>
+  atualizarEquipe(equipeId: string, dados: EdicaoEquipe): Promise<Equipe>
   obterProntidao(equipeId: string): Promise<Prontidao>
   adicionarAtleta(equipeId: string, dados: NovoAtleta): Promise<Atleta>
   adicionarAtletasEmLote(equipeId: string, atletas: AtletaLote[]): Promise<ResultadoLote>
@@ -44,6 +55,10 @@ export interface MeuTimeClient {
   listarComissao(equipeId: string): Promise<MembroComissao[]>
   adicionarMembroComissao(equipeId: string, dados: NovoMembroComissao): Promise<MembroComissao>
   removerMembroComissao(equipeId: string, membroId: string): Promise<void>
+  listarAcesso(equipeId: string): Promise<MembroAcesso[]>
+  adicionarAcesso(equipeId: string, dados: NovoAcesso): Promise<MembroAcesso>
+  removerAcesso(equipeId: string, membroId: string): Promise<void>
+  obterRegrasCategoria(categoriaId: string): Promise<RegrasCategoria>
   inscrever(equipeId: string, dados: NovaInscricao): Promise<RespostaInscricao>
 }
 
@@ -92,9 +107,14 @@ export function criarClienteHttp(fetchImpl?: Fetch, base = '/api/meu-time'): Meu
     },
     criarEquipe: (dados) => lerData<Equipe>('POST', '/equipes', dados),
     obterEquipe: (id) => lerData<DetalheEquipe>('GET', equipe(id)),
+    atualizarEquipe: (id, dados) => lerData<Equipe>('PATCH', equipe(id), dados),
     obterProntidao: (id) => lerData<Prontidao>('GET', `${equipe(id)}/prontidao`),
     adicionarAtleta: (id, dados) => lerData<Atleta>('POST', `${equipe(id)}/atletas`, dados),
-    adicionarAtletasEmLote: (id, atletas) => lerData<ResultadoLote>('POST', `${equipe(id)}/atletas/lote`, { atletas }),
+    async adicionarAtletasEmLote(id, atletas) {
+      const resultado = normalizarResultadoLote(await lerData<unknown>('POST', `${equipe(id)}/atletas/lote`, { atletas }))
+      if (!resultado) throw new ErroMeuTime(classificarFalha(500, null))
+      return resultado
+    },
     atualizarAtleta: (id, atletaId, dados) => lerData<Atleta>('PATCH', `${equipe(id)}/atletas/${encodeURIComponent(atletaId)}`, dados),
     async removerAtleta(id, atletaId) {
       await requisitar('DELETE', `${equipe(id)}/atletas/${encodeURIComponent(atletaId)}`)
@@ -103,6 +123,16 @@ export function criarClienteHttp(fetchImpl?: Fetch, base = '/api/meu-time'): Meu
     adicionarMembroComissao: (id, dados) => lerData<MembroComissao>('POST', `${equipe(id)}/comissao`, dados),
     async removerMembroComissao(id, membroId) {
       await requisitar('DELETE', `${equipe(id)}/comissao/${encodeURIComponent(membroId)}`)
+    },
+    listarAcesso: (id) => lerData<MembroAcesso[]>('GET', `${equipe(id)}/membros`),
+    adicionarAcesso: (id, dados) => lerData<MembroAcesso>('POST', `${equipe(id)}/membros`, dados),
+    async removerAcesso(id, membroId) {
+      await requisitar('DELETE', `${equipe(id)}/membros?membroId=${encodeURIComponent(membroId)}`)
+    },
+    async obterRegrasCategoria(categoriaId) {
+      const regras = normalizarRegrasCategoria(await lerData<unknown>('GET', `/categorias/${encodeURIComponent(categoriaId)}/regras`))
+      if (!regras) throw new ErroMeuTime(classificarFalha(500, null))
+      return regras
     },
     async inscrever(id, dados) {
       const { corpo } = await requisitar('POST', `${equipe(id)}/inscricoes`, dados)
@@ -118,16 +148,26 @@ export function criarClienteHttp(fetchImpl?: Fetch, base = '/api/meu-time'): Meu
 
 // ---------------------------------------------------------------- Em memória (testes)
 
-type EquipeMemoria = Equipe & { atletas: Atleta[]; comissao: MembroComissao[]; inscricoes: DetalheEquipe['inscricoes'] }
+type EquipeMemoria = Equipe & {
+  atletas: Atleta[]
+  comissao: MembroComissao[]
+  acesso: MembroAcesso[]
+  inscricoes: DetalheEquipe['inscricoes']
+  meuPapel: PapelAcesso
+}
 
 export type OpcoesMemoria = {
   /** Simula o 503 do servidor. */
   naoHabilitado?: boolean
-  equipes?: Array<Equipe & { atletas?: Atleta[]; comissao?: MembroComissao[] }>
+  equipes?: Array<Equipe & { atletas?: Atleta[]; comissao?: MembroComissao[]; acesso?: MembroAcesso[]; meuPapel?: PapelAcesso }>
+  /** Regras por categoria; categoria ausente responde 404 (a tela cai nas regras da URL). */
+  regras?: RegrasCategoria[]
+  /** E-mails com conta, para o convite de acesso (e-mail -> nome). */
+  contas?: Record<string, string>
 }
 
-function falhaMemoria(tipo: Falha['tipo'], status: number, mensagem: string): ErroMeuTime {
-  return new ErroMeuTime({ tipo, status, mensagem })
+function falhaMemoria(tipo: Falha['tipo'], status: number, mensagem: string, codigo?: string): ErroMeuTime {
+  return new ErroMeuTime({ tipo, status, mensagem, codigo })
 }
 
 export function mensagemProntidao(total: number, semDocumento: number) {
@@ -142,7 +182,14 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
   const novoId = (prefixo: string) => `${prefixo}-${++sequencia}`
   const equipes = new Map<string, EquipeMemoria>()
   for (const semente of opcoes.equipes ?? []) {
-    equipes.set(semente.id, { ...semente, atletas: semente.atletas ?? [], comissao: semente.comissao ?? [], inscricoes: [] })
+    equipes.set(semente.id, {
+      ...semente,
+      atletas: semente.atletas ?? [],
+      comissao: semente.comissao ?? [],
+      acesso: semente.acesso ?? [{ id: 'voce', nome: 'Você', papel: 'RESPONSAVEL', voce: true }],
+      inscricoes: [],
+      meuPapel: semente.meuPapel ?? 'RESPONSAVEL',
+    })
   }
 
   const checar = () => {
@@ -153,6 +200,9 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     const encontrada = equipes.get(id)
     if (!encontrada) throw falhaMemoria('nao-encontrado', 404, 'Time não encontrado.')
     return encontrada
+  }
+  const exigirResponsavel = (e: EquipeMemoria) => {
+    if (e.meuPapel !== 'RESPONSAVEL') throw falhaMemoria('sem-permissao', 403, 'Só quem é responsável pelo time pode fazer isso.', 'SEM_PERMISSAO')
   }
   const prontidao = (e: EquipeMemoria): Prontidao => {
     const semDocumento = e.atletas.filter((a) => !a.temDocumento).length
@@ -172,16 +222,31 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
       checar()
       const nome = dados.nome.trim()
       if (nome.length < 2) throw falhaMemoria('validacao', 422, 'Informe o nome do time.')
+      const duplicada = Array.from(equipes.values()).some((e) => e.nome.toLowerCase() === nome.toLowerCase() && e.naipe === dados.naipe)
+      if (duplicada) throw falhaMemoria('conflito', 409, 'Já existe um time com esse nome e naipe.', 'EQUIPE_DUPLICADA')
       const criada: EquipeMemoria = {
         id: novoId('eq'), nome, cidade: dados.cidade?.trim() || null, naipe: dados.naipe,
-        escudoUrl: dados.escudoUrl ?? null, atletas: [], comissao: [], inscricoes: [],
+        escudoUrl: dados.escudoUrl ?? null, atletas: [], comissao: [],
+        acesso: [{ id: 'voce', nome: 'Você', papel: 'RESPONSAVEL', voce: true }], inscricoes: [], meuPapel: 'RESPONSAVEL',
       }
       equipes.set(criada.id, criada)
       return publica(criada)
     },
     async obterEquipe(id) {
       const e = achar(id)
-      return { equipe: publica(e), atletas: [...e.atletas], comissao: [...e.comissao], inscricoes: [...e.inscricoes], prontidao: prontidao(e) }
+      return { equipe: publica(e), atletas: [...e.atletas], comissao: [...e.comissao], inscricoes: [...e.inscricoes], prontidao: prontidao(e), meuPapel: e.meuPapel }
+    },
+    async atualizarEquipe(id, dados) {
+      const e = achar(id)
+      if (e.meuPapel !== 'RESPONSAVEL' && e.meuPapel !== 'TECNICO') throw falhaMemoria('sem-permissao', 403, 'Sem permissão.', 'SEM_PERMISSAO')
+      const nome = dados.nome.trim()
+      if (nome.length < 2) throw falhaMemoria('validacao', 422, 'Informe o nome do time.')
+      const duplicada = Array.from(equipes.values()).some((o) => o.id !== e.id && o.nome.toLowerCase() === nome.toLowerCase() && o.naipe === e.naipe)
+      if (duplicada) throw falhaMemoria('conflito', 409, 'Já existe um time com esse nome e naipe.', 'EQUIPE_DUPLICADA')
+      e.nome = nome
+      e.cidade = dados.cidade?.trim() || null
+      e.escudoUrl = dados.escudoUrl?.trim() || null
+      return publica(e)
     },
     async obterProntidao(id) {
       return prontidao(achar(id))
@@ -198,17 +263,21 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     async adicionarAtletasEmLote(id, lista) {
       const e = achar(id)
       const ignorados: ResultadoLote['ignorados'] = []
-      let criados = 0
+      const atletasCriados: Atleta[] = []
       lista.forEach((item, indice) => {
         const nome = item.nome.trim()
         if (!nome) { ignorados.push({ linha: indice + 1, motivo: 'Sem nome.' }); return }
         if (e.atletas.some((a) => a.nome.toLowerCase() === nome.toLowerCase())) {
           ignorados.push({ linha: indice + 1, motivo: 'Já está no time.' }); return
         }
-        e.atletas.push({ id: novoId('at'), nome, dataNascimento: null, numeroPreferido: item.numero ?? null, posicao: null, temDocumento: false })
-        criados += 1
+        const novo: Atleta = {
+          id: novoId('at'), nome, dataNascimento: item.dataNascimento ?? null,
+          numeroPreferido: item.numero ?? null, posicao: null, temDocumento: false,
+        }
+        e.atletas.push(novo)
+        atletasCriados.push(novo)
       })
-      return { criados, ignorados }
+      return { criados: atletasCriados.length, atletasCriados, ignorados }
     },
     async atualizarAtleta(id, atletaId, dados) {
       const e = achar(id)
@@ -241,6 +310,34 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     async removerMembroComissao(id, membroId) {
       const e = achar(id)
       e.comissao = e.comissao.filter((m) => m.id !== membroId)
+    },
+    async listarAcesso(id) {
+      return [...achar(id).acesso]
+    },
+    async adicionarAcesso(id, dados) {
+      const e = achar(id)
+      exigirResponsavel(e)
+      const email = dados.email.trim().toLowerCase()
+      const nome = opcoes.contas?.[email]
+      if (!nome) throw falhaMemoria('nao-encontrado', 404, 'Conta não encontrada.', 'CONTA_NAO_ENCONTRADA')
+      if (e.acesso.some((m) => m.nome === nome)) throw falhaMemoria('conflito', 409, 'Já é membro.', 'MEMBRO_DUPLICADO')
+      const membro: MembroAcesso = { id: novoId('ac'), nome, papel: dados.papel }
+      e.acesso.push(membro)
+      return membro
+    },
+    async removerAcesso(id, membroId) {
+      const e = achar(id)
+      exigirResponsavel(e)
+      const alvo = e.acesso.find((m) => m.id === membroId)
+      if (!alvo) throw falhaMemoria('nao-encontrado', 404, 'Pessoa não encontrada.')
+      if (alvo.papel === 'RESPONSAVEL') throw falhaMemoria('conflito', 409, 'O responsável não sai por aqui.', 'RESPONSAVEL_FIXO')
+      e.acesso = e.acesso.filter((m) => m.id !== membroId)
+    },
+    async obterRegrasCategoria(categoriaId) {
+      checar()
+      const regras = opcoes.regras?.find((r) => r.categoriaId === categoriaId)
+      if (!regras) throw falhaMemoria('nao-encontrado', 404, 'Categoria não encontrada.', 'CATEGORIA_NAO_ENCONTRADA')
+      return regras
     },
     async inscrever(id, dados) {
       const e = achar(id)

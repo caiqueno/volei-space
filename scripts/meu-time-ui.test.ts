@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import { criarClienteHttp, criarClienteMemoria, ErroMeuTime } from '../src/components/meu-time/cliente'
-import { classificarFalha, descreverStatusInscricao } from '../src/lib/meu-time-ui/respostas'
+import { classificarFalha, descreverStatusInscricao, normalizarRegrasCategoria } from '../src/lib/meu-time-ui/respostas'
 import {
   alternarAtleta,
   avaliarElegibilidade,
   avisosDeEnvio,
+  contarSemNascimento,
+  faltaNascimento,
+  regrasDeCategoria,
   dataNascimentoValida,
   definirCapitao,
   definirLibero,
@@ -24,7 +27,8 @@ import {
   rascunhoVazio,
   serializarRascunho,
 } from '../src/lib/meu-time-ui/rascunho'
-import { validarMembroComissao, validarNovoAtleta, validarNovoTime } from '../src/lib/meu-time-ui/formularios'
+import { rotuloFuncao, rotuloPosicao } from '../src/components/meu-time/rotulos'
+import { validarEdicaoTime, validarMembroComissao, validarNovoAcesso, validarNovoAtleta, validarNovoTime } from '../src/lib/meu-time-ui/formularios'
 import { hrefInscricao } from '../src/lib/meu-time-ui/navegacao'
 import { prepararLista } from '../src/lib/meu-time-ui/lista-colada'
 import type { Atleta } from '../src/lib/meu-time-ui/tipos'
@@ -181,16 +185,114 @@ async function main() {
   const timeRuim = validarNovoTime({ nome: 'A', cidade: '', naipe: '', escudoUrl: 'javascript:alert(1)' })
   assert.equal(timeRuim.valido, false)
   assert.deepEqual(Object.keys(timeRuim.erros).sort(), ['escudoUrl', 'naipe', 'nome'])
-  const atletaOk = validarNovoAtleta({ nome: 'Ana', dataNascimento: '2000-01-02', numero: '7', posicao: 'Líbero' })
-  assert.deepEqual(atletaOk.valido && atletaOk.dados, { nome: 'Ana', dataNascimento: '2000-01-02', numeroPreferido: 7, posicao: 'Líbero' })
+  const atletaOk = validarNovoAtleta({ nome: 'Ana', dataNascimento: '2000-01-02', numero: '7', posicao: 'LB' })
+  assert.deepEqual(atletaOk.valido && atletaOk.dados, { nome: 'Ana', dataNascimento: '2000-01-02', numeroPreferido: 7, posicao: 'LB' })
   assert.deepEqual(Object.keys(validarNovoAtleta({ nome: '', dataNascimento: '', numero: '100', posicao: '' }).erros).sort(), ['dataNascimento', 'nome', 'numero'])
   assert.equal(validarNovoAtleta({ nome: 'Ana', dataNascimento: '2000-01-02', numero: '0', posicao: '' }).valido, false)
   assert.equal(validarMembroComissao({ nome: 'Rui', funcao: '' }).valido, false)
-  assert.equal(validarMembroComissao({ nome: 'Rui', funcao: 'Técnico' }).valido, true)
+  assert.equal(validarMembroComissao({ nome: 'Rui', funcao: 'TECNICO' }).valido, true)
   assert.equal(hrefInscricao('e 1', () => null), undefined)
   const convite: Record<string, string> = { categoria: 'c1', min: '6', lixo: 'x' }
   assert.equal(hrefInscricao('e 1', (c) => convite[c]), '/meu-time/e%201/inscrever?categoria=c1&min=6')
   assert.ok(problemasDeEnvio(dup, atletas, REGRAS_PADRAO).some((p) => p.codigo === 'repetida'))
+
+  // --- R3: mensagens por status e código
+  assert.match(classificarFalha(401, null).mensagem, /Entre na sua conta/)
+  assert.match(classificarFalha(403, null).mensagem, /permissão/)
+  assert.match(classificarFalha(404, { error: 'Não encontrado.' }).mensagem, /Não encontramos/)
+  assert.match(classificarFalha(409, { codigo: 'EQUIPE_DUPLICADA', error: 'x' }).mensagem, /já tem um time com esse nome/)
+  assert.match(classificarFalha(404, { codigo: 'CONTA_NAO_ENCONTRADA' }).mensagem, /criar a conta/)
+  assert.match(classificarFalha(503, { codigo: 'EQUIPE_DUPLICADA' }).mensagem, /ainda não está habilitado/)
+  const f422 = classificarFalha(422, { error: 'Corrija', erros: [{ mensagem: 'Faltam 2 atletas.' }, { mensagem: 'Erro SQL' }, { codigo: 'x' }] })
+  assert.deepEqual(f422.detalhes, ['Faltam 2 atletas.'])
+
+  // --- R3: formulários novos
+  assert.deepEqual(validarEdicaoTime({ nome: ' Vôlei  Sul ', cidade: '  ', escudoUrl: '' }), { valido: true, dados: { nome: 'Vôlei Sul', cidade: null, escudoUrl: null }, erros: {} })
+  assert.equal(validarEdicaoTime({ nome: 'A', cidade: '', escudoUrl: 'ftp://x' }).valido, false)
+  assert.deepEqual(validarNovoAcesso({ email: ' Ana@Exemplo.com ', papel: 'TECNICO' }).valido && (validarNovoAcesso({ email: ' Ana@Exemplo.com ', papel: 'TECNICO' }) as { dados: unknown }).dados, { email: 'ana@exemplo.com', papel: 'TECNICO' })
+  assert.deepEqual(Object.keys(validarNovoAcesso({ email: 'ana', papel: 'RESPONSAVEL' }).erros).sort(), ['email', 'papel'])
+  assert.equal(validarMembroComissao({ nome: 'Rui', funcao: 'Massagista' }).valido, false)
+  assert.equal(validarMembroComissao({ nome: 'Rui', funcao: 'FISIOTERAPEUTA' }).valido, true)
+  assert.ok(validarNovoAtleta({ nome: 'Ana', dataNascimento: '2000-01-02', numero: '', posicao: 'Líbero' }).erros.posicao)
+
+  // --- R3: regras da categoria
+  const regrasServidor = normalizarRegrasCategoria({
+    categoriaId: 'c1', nome: 'Sub-17', naipe: 'FEMININO', minimoAtletas: 6, maximoAtletas: 12, maximoLiberos: 1,
+    maximoComissao: 3, anoNascimentoMinimo: 2008, anoNascimentoMaximo: null, inscricoesAbertas: false,
+  })
+  assert.ok(regrasServidor)
+  const regrasTela = regrasDeCategoria(regrasServidor!)
+  assert.deepEqual(regrasTela, { minimo: 6, maximo: 12, maxLiberos: 1, anoMinimo: 2008, maxComissao: 3, inscricoesAbertas: false, nomeCategoria: 'Sub-17' })
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: 'x' }), null)
+  assert.equal(normalizarRegrasCategoria({ minimoAtletas: 8, maximoAtletas: 6, maximoLiberos: 1 }), null)
+  const comRegras = problemasDeEnvio(escolhas, atletas, regrasTela, 5)
+  assert.ok(comRegras.some((p) => p.codigo === 'fechada'))
+  assert.ok(comRegras.some((p) => p.codigo === 'comissao' && /máximo é 3\. Desmarque 2/.test(p.mensagem)))
+  assert.equal(problemasDeEnvio(escolhas, atletas, REGRAS_PADRAO, 9).length, 0)
+
+  // --- R3: pendência de nascimento
+  assert.equal(faltaNascimento({ dataNascimento: null }), true)
+  assert.equal(faltaNascimento({ dataNascimento: '2000-01-01' }), false)
+  assert.equal(contarSemNascimento([{ dataNascimento: null }, { dataNascimento: '2001-02-03' }, { dataNascimento: null }]), 2)
+  assert.equal(rotuloPosicao('LB'), 'Líbero')
+  assert.equal(rotuloFuncao('PREPARADOR_FISICO'), 'Preparador físico')
+
+  // --- R3: cliente HTTP com fetch falso (rotas novas)
+  const chamadasR3: Array<{ url: string; metodo?: string; corpo?: string }> = []
+  const httpR3 = criarClienteHttp(async (url, init) => {
+    const u = String(url)
+    chamadasR3.push({ url: u, metodo: init?.method, corpo: init?.body as string | undefined })
+    if (u.endsWith('/comissao') && init?.method === 'POST') return resposta(201, { data: { id: 'm1', nome: 'Rui', funcao: 'TECNICO' } })
+    if (u.includes('/comissao/')) return resposta(200, { data: { removido: true } })
+    if (u.endsWith('/membros') && init?.method === 'GET') return resposta(200, { data: [{ id: 'u1', nome: 'Ana', papel: 'RESPONSAVEL' }] })
+    if (u.endsWith('/membros')) return resposta(409, { error: 'dup', codigo: 'MEMBRO_DUPLICADO' })
+    if (u.includes('/membros?')) return resposta(200, { data: { removido: true } })
+    if (u.endsWith('/categorias/c%201/regras')) return resposta(200, { data: { categoriaId: 'c 1', nome: 'Livre', naipe: 'MISTO', minimoAtletas: 6, maximoAtletas: 14, maximoLiberos: 2, maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true } })
+    if (u.endsWith('/categorias/x/regras')) return resposta(404, { error: 'Não encontrado.' })
+    if (u.endsWith('/equipes/e1') && init?.method === 'PATCH') return resposta(200, { data: { id: 'e1', nome: 'Novo', cidade: null, naipe: 'MISTO', escudoUrl: null } })
+    if (u.endsWith('/lote')) return resposta(200, { data: { criados: [{ id: 'a1', nome: 'Ana', dataNascimento: null, numeroPreferido: null, posicao: null, temDocumento: false }], ignorados: [{ linha: 2, motivo: 'Repetido' }, { lixo: 1 }] } })
+    throw new TypeError('Failed to fetch')
+  })
+  await httpR3.adicionarMembroComissao('e1', { nome: 'Rui', funcao: 'TECNICO' })
+  assert.equal(chamadasR3.at(-1)?.url, '/api/meu-time/equipes/e1/comissao')
+  assert.equal(chamadasR3.at(-1)?.corpo, JSON.stringify({ nome: 'Rui', funcao: 'TECNICO' }))
+  await httpR3.removerMembroComissao('e1', 'm 1')
+  assert.deepEqual([chamadasR3.at(-1)?.metodo, chamadasR3.at(-1)?.url], ['DELETE', '/api/meu-time/equipes/e1/comissao/m%201'])
+  assert.equal((await httpR3.listarAcesso('e1'))[0].papel, 'RESPONSAVEL')
+  await assert.rejects(httpR3.adicionarAcesso('e1', { email: 'a@b.co', papel: 'TECNICO' }), (e) => e instanceof ErroMeuTime && e.falha.tipo === 'conflito' && /já tem acesso/.test(e.falha.mensagem))
+  await httpR3.removerAcesso('e1', 'u 2')
+  assert.deepEqual([chamadasR3.at(-1)?.metodo, chamadasR3.at(-1)?.url], ['DELETE', '/api/meu-time/equipes/e1/membros?membroId=u%202'])
+  assert.equal((await httpR3.obterRegrasCategoria('c 1')).maximoAtletas, 14)
+  await assert.rejects(httpR3.obterRegrasCategoria('x'), (e) => e instanceof ErroMeuTime && e.falha.status === 404)
+  const editada = await httpR3.atualizarEquipe('e1', { nome: 'Novo', cidade: null, escudoUrl: null })
+  assert.equal(editada.nome, 'Novo')
+  assert.equal(chamadasR3.at(-1)?.metodo, 'PATCH')
+  assert.equal(chamadasR3.at(-1)?.corpo, JSON.stringify({ nome: 'Novo', cidade: null, escudoUrl: null }))
+  const lote = await httpR3.adicionarAtletasEmLote('e1', [{ nome: 'Ana' }, { nome: 'Ana' }])
+  assert.equal(lote.criados, 1)
+  assert.equal(contarSemNascimento(lote.atletasCriados), 1)
+  assert.deepEqual(lote.ignorados, [{ linha: 2, motivo: 'Repetido' }])
+
+  // --- R3: cliente em memória (edição, acesso, regras)
+  const memR3 = criarClienteMemoria({
+    equipes: [{ id: 'q1', nome: 'Alfa', cidade: null, naipe: 'MISTO' }, { id: 'q2', nome: 'Beta', cidade: null, naipe: 'MISTO', meuPapel: 'TECNICO' }],
+    contas: { 'rui@x.com': 'Rui' },
+    regras: [regrasServidor!],
+  })
+  assert.equal((await memR3.atualizarEquipe('q1', { nome: 'Alfa 2', cidade: 'Rio', escudoUrl: null })).cidade, 'Rio')
+  await assert.rejects(memR3.atualizarEquipe('q1', { nome: 'beta', cidade: null, escudoUrl: null }), (e) => e instanceof ErroMeuTime && e.falha.status === 409)
+  await memR3.adicionarAcesso('q1', { email: 'rui@x.com', papel: 'ASSISTENTE' })
+  await assert.rejects(memR3.adicionarAcesso('q1', { email: 'rui@x.com', papel: 'ASSISTENTE' }), (e) => e instanceof ErroMeuTime && e.falha.status === 409)
+  await assert.rejects(memR3.adicionarAcesso('q1', { email: 'zz@x.com', papel: 'TECNICO' }), (e) => e instanceof ErroMeuTime && e.falha.status === 404)
+  await assert.rejects(memR3.adicionarAcesso('q2', { email: 'rui@x.com', papel: 'TECNICO' }), (e) => e instanceof ErroMeuTime && e.falha.status === 403)
+  await assert.rejects(memR3.removerAcesso('q1', 'voce'), (e) => e instanceof ErroMeuTime && e.falha.codigo === 'RESPONSAVEL_FIXO')
+  assert.equal((await memR3.listarAcesso('q1')).length, 2)
+  assert.equal((await memR3.obterRegrasCategoria('c1')).nome, 'Sub-17')
+  await assert.rejects(memR3.obterRegrasCategoria('nada'), (e) => e instanceof ErroMeuTime && e.falha.status === 404)
+  const detalheR3 = await memR3.obterEquipe('q2')
+  assert.equal(detalheR3.meuPapel, 'TECNICO')
+  const loteMem = await memR3.adicionarAtletasEmLote('q1', [{ nome: 'Lia' }])
+  assert.equal(contarSemNascimento(loteMem.atletasCriados), 1)
 
   console.log('meu-time-ui: ok')
 }

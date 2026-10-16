@@ -21,7 +21,7 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
   const [nascimento, setNascimento] = useState(atleta?.dataNascimento?.slice(0, 10) ?? '')
   const [numero, setNumero] = useState(atleta?.numeroPreferido != null ? String(atleta.numeroPreferido) : '')
   const [posicao, setPosicao] = useState(atleta?.posicao ?? '')
-  const [erros, setErros] = useState<Partial<Record<'nome' | 'dataNascimento' | 'numero', string>>>({})
+  const [erros, setErros] = useState<Partial<Record<'nome' | 'dataNascimento' | 'numero' | 'posicao', string>>>({})
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const nomeRef = useRef<HTMLInputElement>(null)
@@ -68,10 +68,10 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
         <Campo id="atleta-numero" rotulo="Camisa (opcional)" erro={erros.numero}>
           <input ref={numeroRef} id="atleta-numero" inputMode="numeric" pattern="[0-9]*" maxLength={2} value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ''))} className={campoEstilo} {...descreve('atleta-numero', undefined, erros.numero)} />
         </Campo>
-        <Campo id="atleta-posicao" rotulo="Posição (opcional)">
+        <Campo id="atleta-posicao" rotulo="Posição (opcional)" erro={erros.posicao}>
           <select id="atleta-posicao" value={posicao} onChange={(e) => setPosicao(e.target.value)} className={campoEstilo}>
             <option value="">Não sei</option>
-            {POSICOES.map((p) => <option key={p} value={p}>{p}</option>)}
+            {POSICOES.map((p) => <option key={p.valor} value={p.valor}>{p.rotulo}</option>)}
           </select>
         </Campo>
       </div>

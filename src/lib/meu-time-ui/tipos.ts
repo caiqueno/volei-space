@@ -30,7 +30,37 @@ export type Atleta = {
   temDocumento: boolean
 }
 
+export const FUNCOES_COMISSAO_CODIGOS = ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO'] as const
+export type FuncaoComissao = (typeof FUNCOES_COMISSAO_CODIGOS)[number]
+
+/** Pessoa da comissão técnica: só nome e função (não tem conta no sistema). */
 export type MembroComissao = { id: string; nome: string; funcao: string }
+
+export const POSICOES_CODIGOS = ['LV', 'PT', 'OP', 'CT', 'LB'] as const
+export type PosicaoCodigo = (typeof POSICOES_CODIGOS)[number]
+
+export type PapelAcesso = 'RESPONSAVEL' | 'TECNICO' | 'ASSISTENTE' | 'CAPITAO'
+
+/** Pessoa com conta que tem acesso à equipe (rota /membros). `voce` é opcional: o servidor pode marcar a própria pessoa. */
+export type MembroAcesso = { id: string; nome: string; papel: PapelAcesso; voce?: boolean }
+
+export type NovoAcesso = { email: string; papel: 'TECNICO' | 'ASSISTENTE' }
+
+/** Limites da categoria vindos de GET /categorias/:id/regras. */
+export type RegrasCategoria = {
+  categoriaId: string
+  nome: string
+  naipe: Naipe | null
+  minimoAtletas: number
+  maximoAtletas: number
+  maximoLiberos: number
+  maximoComissao: number | null
+  anoNascimentoMinimo: number | null
+  anoNascimentoMaximo: number | null
+  inscricoesAbertas: boolean
+}
+
+export type EdicaoEquipe = { nome: string; cidade: string | null; escudoUrl: string | null }
 
 export type StatusInscricao = 'CONFIRMADA' | 'CONFIRMADA_COM_PENDENCIAS' | 'AJUSTE_PEDIDO' | 'REMOVIDA'
 
@@ -47,15 +77,22 @@ export type DetalheEquipe = {
   comissao: MembroComissao[]
   inscricoes: InscricaoResumo[]
   prontidao: Prontidao
+  /** Papel de quem está logado na equipe, quando o servidor informa. */
+  meuPapel?: PapelAcesso
 }
 
 export type NovaEquipe = { nome: string; cidade?: string; naipe: Naipe; escudoUrl?: string }
 
 export type NovoAtleta = { nome: string; dataNascimento: string; numeroPreferido?: number; posicao?: string }
 
-export type AtletaLote = { nome: string; numero?: number }
+export type AtletaLote = { nome: string; numero?: number; dataNascimento?: string }
 
-export type ResultadoLote = { criados: number; ignorados: Array<{ linha: number; motivo: string }> }
+export type ResultadoLote = {
+  criados: number
+  /** Atletas criados, quando o servidor devolve a lista (os sem nascimento vêm com `dataNascimento: null`). */
+  atletasCriados: Atleta[]
+  ignorados: Array<{ linha: number; motivo: string }>
+}
 
 export type NovoMembroComissao = { nome: string; funcao: string }
 

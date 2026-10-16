@@ -1,6 +1,6 @@
 // Validação de formulário só para dar retorno rápido; o servidor valida tudo de novo.
 import { dataNascimentoValida } from './selecao'
-import type { Naipe, NovaEquipe, NovoAtleta, NovoMembroComissao } from './tipos'
+import { FUNCOES_COMISSAO_CODIGOS, POSICOES_CODIGOS, type EdicaoEquipe, type FuncaoComissao, type Naipe, type NovaEquipe, type NovoAcesso, type NovoAtleta, type NovoMembroComissao, type PosicaoCodigo } from './tipos'
 
 export type Resultado<D, C extends string> = { valido: true; dados: D; erros: Partial<Record<C, string>> } | { valido: false; erros: Partial<Record<C, string>> }
 
@@ -24,14 +24,15 @@ export function validarNovoTime(entrada: { nome: string; cidade: string; naipe: 
 export function validarNovoAtleta(
   entrada: { nome: string; dataNascimento: string; numero: string; posicao: string },
   hoje: Date = new Date(),
-): Resultado<NovoAtleta, 'nome' | 'dataNascimento' | 'numero'> {
-  const erros: Partial<Record<'nome' | 'dataNascimento' | 'numero', string>> = {}
+): Resultado<NovoAtleta, 'nome' | 'dataNascimento' | 'numero' | 'posicao'> {
+  const erros: Partial<Record<'nome' | 'dataNascimento' | 'numero' | 'posicao', string>> = {}
   const nome = entrada.nome.replace(/\s+/g, ' ').trim()
   if (nome.length < 2) erros.nome = 'Escreva o nome do atleta.'
   if (!dataNascimentoValida(entrada.dataNascimento, hoje)) erros.dataNascimento = 'Informe a data de nascimento completa (dia, mês e ano).'
   const numeroTexto = entrada.numero.trim()
   if (numeroTexto && !/^\d{1,2}$/.test(numeroTexto)) erros.numero = 'A camisa vai de 1 a 99.'
   if (numeroTexto && /^\d{1,2}$/.test(numeroTexto) && Number(numeroTexto) < 1) erros.numero = 'A camisa vai de 1 a 99.'
+  if (entrada.posicao && !POSICOES_CODIGOS.includes(entrada.posicao as PosicaoCodigo)) erros.posicao = 'Escolha uma posição da lista ou deixe em branco.'
   if (Object.keys(erros).length > 0) return { valido: false, erros }
   const dados: NovoAtleta = { nome, dataNascimento: entrada.dataNascimento }
   if (numeroTexto) dados.numeroPreferido = Number(numeroTexto)
@@ -43,7 +44,28 @@ export function validarMembroComissao(entrada: { nome: string; funcao: string })
   const erros: Partial<Record<'nome' | 'funcao', string>> = {}
   const nome = entrada.nome.replace(/\s+/g, ' ').trim()
   if (nome.length < 2) erros.nome = 'Escreva o nome da pessoa.'
-  if (!entrada.funcao) erros.funcao = 'Escolha a função.'
+  if (!FUNCOES_COMISSAO_CODIGOS.includes(entrada.funcao as FuncaoComissao)) erros.funcao = 'Escolha a função.'
   if (Object.keys(erros).length > 0) return { valido: false, erros }
   return { valido: true, dados: { nome, funcao: entrada.funcao }, erros }
+}
+
+export function validarEdicaoTime(entrada: { nome: string; cidade: string; escudoUrl: string }): Resultado<EdicaoEquipe, 'nome' | 'escudoUrl'> {
+  const erros: Partial<Record<'nome' | 'escudoUrl', string>> = {}
+  const nome = entrada.nome.replace(/\s+/g, ' ').trim()
+  if (nome.length < 2) erros.nome = 'Escreva o nome do time (pelo menos 2 letras).'
+  const escudo = entrada.escudoUrl.trim()
+  if (escudo && !/^https?:\/\/\S+$/i.test(escudo)) erros.escudoUrl = 'O endereço do escudo precisa começar com https://. Ou deixe em branco.'
+  if (Object.keys(erros).length > 0) return { valido: false, erros }
+  const cidade = entrada.cidade.replace(/\s+/g, ' ').trim()
+  // Campo apagado vira null: é assim que o servidor entende "remover".
+  return { valido: true, dados: { nome, cidade: cidade || null, escudoUrl: escudo || null }, erros }
+}
+
+export function validarNovoAcesso(entrada: { email: string; papel: string }): Resultado<NovoAcesso, 'email' | 'papel'> {
+  const erros: Partial<Record<'email' | 'papel', string>> = {}
+  const email = entrada.email.trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) erros.email = 'Escreva o e-mail da pessoa, como nome@exemplo.com.'
+  if (entrada.papel !== 'TECNICO' && entrada.papel !== 'ASSISTENTE') erros.papel = 'Escolha o que a pessoa pode fazer.'
+  if (Object.keys(erros).length > 0) return { valido: false, erros }
+  return { valido: true, dados: { email, papel: entrada.papel as NovoAcesso['papel'] }, erros }
 }
