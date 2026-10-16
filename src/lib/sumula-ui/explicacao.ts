@@ -11,7 +11,7 @@ export type CaixaRegra = {
   acao: string
 }
 
-const ACAO_PADRAO = 'Corrija o lançamento e tente de novo. Se o árbitro decidiu de outra forma, registre em Anotações.'
+const ACAO_PADRAO = 'Corrija o lançamento e tente de novo. Se o árbitro decidiu de outra forma, use "Registrar mesmo assim (decisão do árbitro)" e escreva a justificativa.'
 
 const ACOES: Record<string, string> = {
   'RG-SUB-001': 'Siga o set com os atletas em quadra. Em caso de lesão, doença, expulsão ou desqualificação use a substituição excepcional.',
@@ -19,9 +19,9 @@ const ACOES: Record<string, string> = {
   'RG-SUB-004': 'Escolha o titular que este reserva substituiu, ou outro reserva que ainda não entrou no set.',
   'RG-SUB-006': 'Escolha um atleta em quadra para sair e um reserva que esteja fora de quadra para entrar.',
   'RG-SUB-007': 'Confirme com o árbitro: o pedido pode ter mais de um atleta, mas só depois de um rally se houver novo pedido.',
-  'RG-SUB-009': 'Avise o árbitro: substituição acima do limite oficial é ilegal na FIVB/CBV. Registre em Anotações se mantiver.',
+  'RG-SUB-009': 'Avise o árbitro: substituição acima do limite oficial é ilegal na FIVB/CBV. Se o árbitro mantiver, registre como decisão do árbitro, com justificativa.',
   'RG-SUB-011': 'Use a substituição regular, se houver. A excepcional só vale sem substituição legal e para atleta que não volta ao jogo.',
-  'RG-SUB-012': 'Sem substituto legal, a equipe é declarada incompleta: avise o árbitro e registre em Anotações.',
+  'RG-SUB-012': 'Sem substituto legal, a equipe é declarada incompleta: avise o árbitro e registre a decisão dele, com justificativa.',
   'RG-SUB-013': 'Conceda 3 minutos de recuperação (uma vez por atleta). Se não se recuperar, a equipe fica incompleta.',
   'RG-FOR-009': 'Escolha um atleta que conste na relação nominal da equipe nesta partida.',
   'RG-SAN-007': 'Escolha outro atleta: o expulso fica fora até o fim do set.',

@@ -59,13 +59,17 @@ import { ausenteExplicito, MENSAGEM_MINIMO_ATLETAS, motivoMinimoAtletas, present
 import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaSessao } from '@/lib/sumula-sessao'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
-import { CaixaRegra } from '@/components/sumula/CaixaRegra'
+import { CaixaRegra, OverrideArbitro } from '@/components/sumula/CaixaRegra'
+import { PainelCorrecoes } from '@/components/sumula/PainelCorrecoes'
 import { ModalSubstituicao, type MotivoTela, type MotorModal, type OpcaoAtleta } from '@/components/sumula/ModalSubstituicao'
 import { caixaDeBloqueio, type CaixaRegra as DadosCaixaRegra } from '@/lib/sumula-ui/explicacao'
 import { perfilDaSumula } from '@/lib/sumula-ui/perfil'
 import { avaliarExcepcional, avaliarSubstituicao, avaliarTrocaLibero, candidatosDoModo, contadorDoModo, resumoDeTrocas, type ModoTroca } from '@/lib/sumula-ui/avaliacao'
-import { comFormacaoAtual, formacaoParaMotor, historicoDeSancoes, marcadorExcepcional, marcadorSancao, reconstruirEstadoEquipe, semMarcadores, type EventoDoSet } from '@/lib/sumula-ui/estado'
-import { CATEGORIAS_DE_SANCAO, avaliarCartao, categoriaPadraoDoTipo, descreverEfeito, equipeDoMotor, tipoDaNota } from '@/lib/sumula-ui/sancao'
+import { comFormacaoAtual, formacaoParaMotor, historicoDeSancoes, marcadorExcepcional, marcadorSancao, lerTroca, reconstruirEstadoEquipe, semMarcadores, type EventoDoSet } from '@/lib/sumula-ui/estado'
+import { CATEGORIAS_DE_SANCAO, avaliarCartao, categoriaPadraoDoTipo, descreverEfeito, equipeDoMotor, resolverCartao, tipoDaNota, type DivergenciaDoCartao } from '@/lib/sumula-ui/sancao'
+import { anexarOverride, contarOverrides, frasePadraoOverride, justificativaValida, lerOverride, marcadorOverride, type DecisaoDoArbitro } from '@/lib/sumula-ui/override'
+import { emOrdemCronologica } from '@/lib/sumula-ui/ordem'
+import { anotacoesSemEventoCorrespondente, descricaoDoRegistro, semAnotacoesDosEventos, semEventos, trocasPosterioresAosRemovidos, ultimaSancaoSemPonto, ultimaTrocaDoSet } from '@/lib/sumula-ui/desfazer'
 import { avaliarTempo, limiteDeTemposDaTela, textoTempo } from '@/lib/sumula-ui/tempos'
 import type { CategoriaSancao, EstadoEquipe } from '@/lib/regras-volei'
 import { atribuirPontoAoEvento, opcoesDeOrigem, type FaixaPonto } from '@/lib/atribuicao-ponto'
@@ -140,9 +144,17 @@ type MatchRules = {
   quantidadeLiberos: 1 | 2 | null
 }
 
-type NotaPayload = Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp'> & { categoria?: CategoriaSancao; jogadorNumero?: string; membro?: 'TECNICO' | 'EQUIPE' }
+type NotaPayload = Omit<Anotacao, 'id' | 'set' | 'placar' | 'timestamp' | 'eventoId'> & {
+  categoria?: CategoriaSancao
+  jogadorNumero?: string
+  membro?: 'TECNICO' | 'EQUIPE'
+  /** Decisão do árbitro: registra o cartão tocado mesmo fora do que o motor calculou, com justificativa. */
+  decisao?: DecisaoDoArbitro
+  /** O árbitro confirmou o cartão que o motor calculou (diferente do tocado). */
+  aceitaCalculado?: boolean
+}
 
-type PreviaSancao = (teamId: TeamId, categoria: CategoriaSancao, jogadorNumero: string, membro: 'TECNICO' | 'EQUIPE') => { texto: string; bloqueio: DadosCaixaRegra | null }
+type PreviaSancao = (teamId: TeamId, categoria: CategoriaSancao, jogadorNumero: string, membro: 'TECNICO' | 'EQUIPE', tipo: string) => { texto: string; bloqueio: DadosCaixaRegra | null; divergencia: DivergenciaDoCartao | null; naoConfirmado: boolean }
 
 type SetEndPrompt = {
   winner: TeamId
@@ -159,6 +171,8 @@ type Anotacao = {
   placar: string
   descricao: string
   timestamp: string
+  /** Evento do log que carrega este mesmo registro (com marcadores). O desfazer e o PUT usam o vínculo. */
+  eventoId?: string
 }
 
 type RascunhoAndamento = {
@@ -254,6 +268,10 @@ export default function SumulaPage() {
   const [editingSlot, setEditingSlot] = useState<{ teamId: TeamId; index: number } | null>(null)
   const [subModal, setSubModal] = useState<{ teamId: TeamId; index: number; outNumber: string } | null>(null)
   const [caixaRegra, setCaixaRegra] = useState<DadosCaixaRegra | null>(null)
+  /** Saída do bloqueio mostrado em `caixaRegra` (vale só enquanto a caixa for a mesma). */
+  const [overrideDaCaixa, setOverrideDaCaixa] = useState<{ caixa: DadosCaixaRegra; executar: (justificativa: string) => void } | null>(null)
+  /** Segunda saída da caixa: aceitar o cartão que o motor calculou (o árbitro tocou outro). */
+  const [alternativaDaCaixa, setAlternativaDaCaixa] = useState<{ rotulo: string; executar: () => void } | null>(null)
   const [sancaoPendente, setSancaoPendente] = useState<{ teamId: TeamId; motivo: 'EXPULSAO' | 'DESQUALIFICACAO' } | null>(null)
   const [sidesInverted, setSidesInverted] = useState(false)
   const [falhaSalvamento, setFalhaSalvamento] = useState<string | null>(null)
@@ -261,7 +279,8 @@ export default function SumulaPage() {
   const [modalMvpAberto, setModalMvpAberto] = useState(false)
   const [escolhaMvpId, setEscolhaMvpId] = useState('')
   const modalMvpAutoRef = useRef(false)
-  const [confirmarDesfazer, setConfirmarDesfazer] = useState<{ teamId: TeamId; collateral: number; nome: string; outro: string } | null>(null)
+  const [confirmarDesfazerRegistro, setConfirmarDesfazerRegistro] = useState<{ tipo: 'sancao' | 'troca'; id: string; descricao: string } | null>(null)
+  const [confirmarDesfazer, setConfirmarDesfazer] =useState<{ teamId: TeamId; collateral: number; nome: string; outro: string } | null>(null)
   const [confirmarTempo, setConfirmarTempo] = useState<{ tipo: 'tecnico' | 'equipe' | 'medico'; teamId: TeamId; nome: string } | null>(null)
   const liveSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const filaSalvamento = useRef(criarSalvamentoCoalescido())
@@ -384,7 +403,8 @@ export default function SumulaPage() {
         setMatchNumberOverrides(numerosDaPartida)
         const gravada = maiorVersaoRegistro(savedOccurrences.map((item: { descricao?: string | null }) => item.descricao))
         if (gravada > versaoRef.current) versaoRef.current = gravada
-        const eventosRestaurados = savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')).map((o: any) => {
+        // A tela guarda os eventos do mais novo ao mais antigo; a ordem vem da função compartilhada (M4 do doc 24).
+        const eventosRestaurados = emOrdemCronologica<any>(savedOccurrences.filter((o: any) => !String(o.descricao ?? '').startsWith('Registro de ')), 'auto').reverse().map((o: any) => {
           const salvo = partirDescricaoSalva(String(o.descricao ?? 'Ocorrência registrada'))
           const jogadorId = o.jogadorId ?? undefined
           return {
@@ -549,9 +569,9 @@ export default function SumulaPage() {
     return `${score.teamA.toString().padStart(2, '0')} x ${score.teamB.toString().padStart(2, '0')}`
   }
 
-  function addMatchEvent(type: EventType, text: string, teamId?: TeamId, scoreOverride?: { teamA: number; teamB: number }, jogadorId?: number) {
+  function addMatchEvent(type: EventType, text: string, teamId?: TeamId, scoreOverride?: { teamA: number; teamB: number }, jogadorId?: number, idFixo?: string) {
     const item: MatchEvent = {
-      id: `ev-${Date.now()}-${Math.random()}`,
+      id: idFixo ?? `ev-${Date.now()}-${Math.random()}`,
       type,
       text,
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -734,6 +754,10 @@ export default function SumulaPage() {
       addToast('Nenhum ponto deste set para corrigir.')
       return
     }
+    // M5 (doc 24): a formação volta ao instante anterior ao ponto, então as trocas feitas depois dele
+    // saem junto, e os itens de `anotacoes` ligados aos eventos removidos também.
+    const trocasDepois = trocasPosterioresAosRemovidos(events, last.eventIds)
+    const idsRemovidos = [...last.eventIds, ...trocasDepois.map((troca) => troca.id)]
     flushSync(() => {
       setCurrentScore(last.score)
       setServingTeamId(last.servingTeamId)
@@ -741,12 +765,17 @@ export default function SumulaPage() {
       setServerIndexB(last.serverIndexB)
       setLineupA(last.lineupA)
       setLineupB(last.lineupB)
-      setEvents((current) => current.filter((event) => !last.eventIds.includes(event.id)))
+      if (teamA) setBenchA(getBenchNumbers(teamA, last.lineupA, startingLiberos[currentSet]?.teamA))
+      if (teamB) setBenchB(getBenchNumbers(teamB, last.lineupB, startingLiberos[currentSet]?.teamB))
+      setEvents((current) => semEventos(current, idsRemovidos))
+      setAnotacoes((current) => semAnotacoesDosEventos(current, idsRemovidos))
       setScoreHistory((current) => current.slice(0, indice))
       setSetEndPrompt(null)
     })
     void enfileirarSalvamento(false).catch(() => undefined)
-    addToast('Último ponto corrigido.')
+    addToast(trocasDepois.length > 0
+      ? `Último ponto corrigido. ${trocasDepois.length === 1 ? 'A troca feita depois dele' : `As ${trocasDepois.length} trocas feitas depois dele`} também ${trocasDepois.length === 1 ? 'foi desfeita' : 'foram desfeitas'}.`
+      : 'Último ponto corrigido.')
   }
 
   function undoLastPointForTeam(teamId: TeamId) {
@@ -768,7 +797,9 @@ export default function SumulaPage() {
     }
     const target = scoreHistory[targetIndex]
     const collateral = scoreHistory.length - 1 - targetIndex
-    const removedEventIds = scoreHistory.slice(targetIndex).flatMap((entry) => entry.eventIds)
+    const pontosRemovidos = scoreHistory.slice(targetIndex).flatMap((entry) => entry.eventIds)
+    const trocasDepois = trocasPosterioresAosRemovidos(events, pontosRemovidos)
+    const removedEventIds = [...pontosRemovidos, ...trocasDepois.map((troca) => troca.id)]
     flushSync(() => {
       setCurrentScore(target.score)
       setServingTeamId(target.servingTeamId)
@@ -776,11 +807,15 @@ export default function SumulaPage() {
       setServerIndexB(target.serverIndexB)
       setLineupA(target.lineupA)
       setLineupB(target.lineupB)
-      setEvents((current) => current.filter((event) => !removedEventIds.includes(event.id)))
+      if (teamA) setBenchA(getBenchNumbers(teamA, target.lineupA, startingLiberos[currentSet]?.teamA))
+      if (teamB) setBenchB(getBenchNumbers(teamB, target.lineupB, startingLiberos[currentSet]?.teamB))
+      setEvents((current) => semEventos(current, removedEventIds))
+      setAnotacoes((current) => semAnotacoesDosEventos(current, removedEventIds))
       setScoreHistory((current) => current.slice(0, targetIndex))
       setSetEndPrompt(null)
     })
     void enfileirarSalvamento(false).catch(() => undefined)
+    if (trocasDepois.length > 0) addToast(`${trocasDepois.length === 1 ? 'A troca feita depois desse ponto também foi desfeita' : `As ${trocasDepois.length} trocas feitas depois desse ponto também foram desfeitas`}.`)
     if (collateral > 0) {
       const otherTeamName = teamId === 'teamA' ? teamB?.name : teamA?.name
       addToast(`Último ponto do ${teamName ?? 'time'} corrigido (também foi necessário desfazer ${collateral} ponto(s) do ${otherTeamName ?? 'outro time'} para isso).`)
@@ -804,6 +839,87 @@ export default function SumulaPage() {
       return
     }
     undoLastPointForTeam(teamId)
+  }
+
+  /** Última sanção sem ponto e última troca do set: o que o desfazer de ponto não alcança (M5 do doc 24). */
+  const sancaoDesfazivel = ultimaSancaoSemPonto(events, currentSet)
+  const trocaDesfazivel = ultimaTrocaDoSet(events, currentSet)
+
+  function pedirDesfazerRegistro(tipo: 'sancao' | 'troca') {
+    const evento = tipo === 'sancao' ? sancaoDesfazivel : trocaDesfazivel
+    if (!evento) {
+      addToast(tipo === 'sancao' ? 'Nenhuma sanção sem ponto neste set para desfazer.' : 'Nenhuma troca neste set para desfazer.')
+      return
+    }
+    if (tipo === 'troca') {
+      const cronologico = emOrdemCronologica(events, 'novo-primeiro')
+      const posicao = cronologico.findIndex((item) => item.id === evento.id)
+      if (cronologico.slice(posicao + 1).some((item) => item.type === 'point' || item.type === 'attack' || item.type === 'block' || item.type === 'ace')) {
+        addToast('Houve ponto depois dessa troca. Corrija o ponto primeiro: a troca sai junto.')
+        return
+      }
+    }
+    setConfirmarDesfazerRegistro({ tipo, id: evento.id, descricao: descricaoDoRegistro(evento) })
+  }
+
+  function desfazerRegistro() {
+    const pedido = confirmarDesfazerRegistro
+    setConfirmarDesfazerRegistro(null)
+    if (!pedido || !teamA || !teamB) return
+    const evento = events.find((item) => item.id === pedido.id)
+    if (!evento) return
+    if (pedido.tipo === 'troca') {
+      const troca = lerTroca(evento.text)
+      const teamId = evento.teamId
+      const team = teamId === 'teamA' ? teamA : teamId === 'teamB' ? teamB : null
+      if (!troca || !teamId || !team) {
+        addToast('Não foi possível identificar os atletas desta troca para desfazê-la.')
+        return
+      }
+      const roster = [...team.players, ...team.reserves]
+      const porCamisa = (camisa: string) => roster.find((player) => getMatchNumber(teamId, player.number) === camisa) ?? roster.find((player) => player.number === camisa)
+      const saiu = porCamisa(troca[0])
+      const entrou = porCamisa(troca[1])
+      const lineupAtual = teamId === 'teamA' ? lineupA : lineupB
+      if (!saiu || !entrou || !lineupAtual.includes(entrou.number)) {
+        addToast('A formação em quadra mudou depois dessa troca. Ajuste a formação na aba Escalação.')
+        return
+      }
+      const lineupAnterior = lineupAtual.map((numero) => (numero === entrou.number ? saiu.number : numero))
+      const formacaoA = teamId === 'teamA' ? lineupAnterior : lineupA
+      const formacaoB = teamId === 'teamB' ? lineupAnterior : lineupB
+      flushSync(() => {
+        if (teamId === 'teamA') {
+          setLineupA(lineupAnterior)
+          setBenchA(getBenchNumbers(teamA, lineupAnterior, startingLiberos[currentSet]?.teamA))
+        } else {
+          setLineupB(lineupAnterior)
+          setBenchB(getBenchNumbers(teamB, lineupAnterior, startingLiberos[currentSet]?.teamB))
+        }
+        setEvents((current) => {
+          const formacao: MatchEvent = {
+            id: `ev-formacao-${currentSet}`,
+            type: 'anotacao',
+            text: `Formação da quadra atualizada.${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
+            time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            set: currentSet,
+            score: scoreString(),
+          }
+          return [formacao, ...semEventos(current, [pedido.id]).filter((item) => !item.text.startsWith('Formação da quadra atualizada.'))]
+        })
+        setAnotacoes((current) => semAnotacoesDosEventos(current, [pedido.id]))
+        setFormacaoVersao((atual) => atual + 1)
+      })
+      addToast('Troca desfeita: a formação voltou ao que era antes dela.')
+      return
+    }
+    flushSync(() => {
+      setEvents((current) => semEventos(current, [pedido.id]))
+      setAnotacoes((current) => semAnotacoesDosEventos(current, [pedido.id]))
+      setSancaoPendente(null)
+    })
+    void enfileirarSalvamento(false).catch(() => undefined)
+    addToast('Sanção desfeita: ela deixa de contar nas próximas.')
   }
 
   function pedirTempo(tipo: 'tecnico' | 'equipe' | 'medico', teamId: TeamId) {
@@ -1116,7 +1232,7 @@ export default function SumulaPage() {
     const lineupAtual = teamId === 'teamA' ? lineupA : lineupB
     const formacaoAtual = formacaoParaMotor(lineupAtual, idPorNumero)
     if (!formacaoAtual) return null
-    const cronologico = [...events].reverse()
+    const cronologico = emOrdemCronologica(events, 'novo-primeiro')
     const inicio = cronologico.find((event) => event.type === 'set_start' && event.set === currentSet)
     const marcador = inicio?.text.match(/\[\[ROT:\d+:(?:teamA|teamB):([^:]*):([^\]]*)\]\]/)
     const titularesPagina = marcador ? (teamId === 'teamA' ? marcador[1] : marcador[2]).split(',') : []
@@ -1188,7 +1304,7 @@ export default function SumulaPage() {
 
   const ROTULO_MOTIVO: Record<MotivoTela, string> = { LESAO: 'lesão', EXPULSAO: 'expulsão', DESQUALIFICACAO: 'desqualificação' }
 
-  function executeSubstitution(modo: ModoTroca, motivo: MotivoTela, inNumber: string) {
+  function executeSubstitution(modo: ModoTroca, motivo: MotivoTela, inNumber: string, decisao?: DecisaoDoArbitro) {
     if (!subModal || !teamA || !teamB) return
     const teamId = subModal.teamId
     const isA = teamId === 'teamA'
@@ -1209,12 +1325,13 @@ export default function SumulaPage() {
       : modo === 'libero'
         ? avaliarTrocaLibero(estado, troca)
         : avaliarSubstituicao(estado, troca, perfilRegras)
-    if (!avaliacao.ok) {
+    // Decisão do árbitro: a troca é registrada mesmo assim, marcada como override (o replay é tolerante).
+    if (!avaliacao.ok && !(decisao && justificativaValida(decisao.justificativa))) {
       setCaixaRegra(avaliacao.caixa)
       return
     }
 
-    const nextLineup = (isA ? lineupA : lineupB).map((item, index) => (index === subModal.index ? inNumber : item))
+    const nextLineup =(isA ? lineupA : lineupB).map((item, index) => (index === subModal.index ? inNumber : item))
     lineupSetter(nextLineup)
     benchSetter(getBenchNumbers(team, nextLineup, startingLiberos[currentSet]?.[teamId]))
 
@@ -1230,9 +1347,10 @@ export default function SumulaPage() {
       : modo === 'libero'
         ? `Troca de líbero ${team.name}: ${troco}`
         : `Substituição ${team.name}: ${troco}`
+    const textoComDecisao = !avaliacao.ok && decisao ? anexarOverride(texto, decisao) : texto
     addMatchEvent(
       modo === 'excepcional' ? 'injury_substitution' : modo === 'libero' ? 'libero_exchange' : 'substitution',
-      `${texto}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
+      `${textoComDecisao}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
       teamId,
     )
     marcarPresentes(teamId, [outPlayer.id, inPlayer.id])
@@ -1275,40 +1393,56 @@ export default function SumulaPage() {
     }
   }
 
-  function requestTimeout(teamId: TeamId) {
+  /** Mostra o bloqueio do motor na caixa fixa, com a saída "Registrar mesmo assim (decisão do árbitro)". */
+  function bloquearComSaida(caixa: DadosCaixaRegra, executar: (decisao: DecisaoDoArbitro) => void) {
+    setCaixaRegra(caixa)
+    setOverrideDaCaixa({ caixa, executar: (justificativa) => executar({ codigo: caixa.codigo, justificativa }) })
+  }
+
+  function requestTimeout(teamId: TeamId, decisao?: DecisaoDoArbitro) {
     if (!teamA || !teamB) return
     const isA = teamId === 'teamA'
     const used = isA ? timeoutsUsedA : timeoutsUsedB
     const limite = matchRules.timeoutLimit
     const team = isA ? teamA : teamB
     const avaliacao = avaliarTempo(used, limite, team.name)
-    if (!avaliacao.ok) {
-      setCaixaRegra(avaliacao.caixa)
+    const porDecisao = !avaliacao.ok && decisao && justificativaValida(decisao.justificativa) ? decisao : null
+    if (!avaliacao.ok && !porDecisao) {
+      bloquearComSaida(avaliacao.caixa, (d) => acoesRef.current.requestTimeout(teamId, d))
       return
     }
     setCaixaRegra(null)
-    if (avaliacao.aviso) addToast(avaliacao.aviso)
+    if (avaliacao.ok && avaliacao.aviso) addToast(avaliacao.aviso)
     if (isA) setTimeoutsUsedA(used + 1)
     else setTimeoutsUsedB(used + 1)
-    addMatchEvent('timeout', textoTempo(team.name, used + 1, currentSet, limite), teamId)
+    const texto = textoTempo(team.name, used + 1, currentSet, limite)
+    addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
   }
 
-  function requestTempoEquipe(teamId: TeamId) {
+  function requestTempoEquipe(teamId: TeamId, decisao?: DecisaoDoArbitro) {
     if (!matchRules.temposSeparados || !teamA || !teamB) return
     const isA = teamId === 'teamA'
     const used = isA ? temposEquipeA : temposEquipeB
     const limite = matchRules.timeoutLimit
     const team = isA ? teamA : teamB
     const avaliacao = avaliarTempo(used, limite, team.name)
-    if (!avaliacao.ok) {
-      setCaixaRegra(avaliacao.caixa)
+    const porDecisao = !avaliacao.ok && decisao && justificativaValida(decisao.justificativa) ? decisao : null
+    if (!avaliacao.ok && !porDecisao) {
+      bloquearComSaida(avaliacao.caixa, (d) => acoesRef.current.requestTempoEquipe(teamId, d))
       return
     }
     setCaixaRegra(null)
     if (isA) setTemposEquipeA(used + 1)
     else setTemposEquipeB(used + 1)
-    addMatchEvent('timeout', textoTempoEquipe(team.name, used + 1, currentSet, limite), teamId)
+    const texto = textoTempoEquipe(team.name, used + 1, currentSet, limite)
+    addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
   }
+
+  // A saída do bloqueio roda a versão MAIS RECENTE da ação (os contadores podem ter mudado desde o aviso).
+  const acoesRef = useRef({ requestTimeout, requestTempoEquipe, saveNote })
+  acoesRef.current.requestTimeout = requestTimeout
+  acoesRef.current.requestTempoEquipe = requestTempoEquipe
+  acoesRef.current.saveNote = saveNote
 
   function requestTempoMedico(teamId: TeamId) {
     if (!matchRules.tempoMedico || !teamA || !teamB) return
@@ -1399,15 +1533,15 @@ export default function SumulaPage() {
     }
   }
 
-  function previaSancao(teamId: TeamId, categoria: CategoriaSancao, jogadorNumero: string, membroEscolhido: 'TECNICO' | 'EQUIPE'): { texto: string; bloqueio: DadosCaixaRegra | null } {
-    if (!teamA || !teamB) return { texto: '', bloqueio: null }
+  function previaSancao(teamId: TeamId, categoria: CategoriaSancao, jogadorNumero: string, membroEscolhido: 'TECNICO' | 'EQUIPE', tipo: string): { texto: string; bloqueio: DadosCaixaRegra | null; divergencia: DivergenciaDoCartao | null; naoConfirmado: boolean } {
+    if (!teamA || !teamB) return { texto: '', bloqueio: null, divergencia: null, naoConfirmado: false }
     const punida = teamId === 'teamA' ? teamA : teamB
     const adversario = teamId === 'teamA' ? teamB : teamA
     const jogador = jogadorNumero ? getAnyPlayer(punida, jogadorNumero) : undefined
     const membro = categoria === 'ATRASO' ? 'EQUIPE' : jogador ? `J:${jogador.id}` : membroEscolhido === 'TECNICO' ? 'TECNICO' : 'EQUIPE'
-    const avaliado = avaliarCartao(historicoDeSancoes([...events].reverse()), { equipe: equipeDoMotor(teamId), membro, categoria, set: currentSet })
-    if (!avaliado.ok) return { texto: '', bloqueio: avaliado.caixa }
-    return { texto: descreverEfeito(avaliado.avaliada, adversario.name), bloqueio: null }
+    const avaliado = avaliarCartao(historicoDeSancoes(emOrdemCronologica(events, 'novo-primeiro')), { equipe: equipeDoMotor(teamId), membro, categoria, set: currentSet }, tipo)
+    if (!avaliado.ok) return { texto: '', bloqueio: avaliado.caixa, divergencia: null, naoConfirmado: false }
+    return { texto: descreverEfeito(avaliado.avaliada, adversario.name), bloqueio: null, divergencia: avaliado.divergencia, naoConfirmado: avaliado.naoConfirmado }
   }
 
   function saveNote(payload: NotaPayload) {
@@ -1430,15 +1564,29 @@ export default function SumulaPage() {
       const adversario = adversarioId === 'teamA' ? teamA : teamB
       const jogador = payload.jogadorNumero ? getAnyPlayer(penalizedTeam, payload.jogadorNumero) : undefined
       const membro = categoria === 'ATRASO' ? 'EQUIPE' : jogador ? `J:${jogador.id}` : payload.membro === 'TECNICO' ? 'TECNICO' : 'EQUIPE'
-      const avaliado = avaliarCartao(historicoDeSancoes([...events].reverse()), { equipe: equipeDoMotor(penalizedTeamId), membro, categoria, set: currentSet })
+      const avaliado = resolverCartao(
+        historicoDeSancoes(emOrdemCronologica(events, 'novo-primeiro')),
+        { equipe: equipeDoMotor(penalizedTeamId), membro, categoria, set: currentSet },
+        payload.tipo,
+        { decisao: payload.decisao, aceitaCalculado: payload.aceitaCalculado },
+      )
       if (!avaliado.ok) {
-        setCaixaRegra(avaliado.caixa)
+        // Nada é gravado e o cartão tocado não é trocado em silêncio: o árbitro escolhe (M2/M6 do doc 24).
+        const calculado = avaliado.calculado
+        bloquearComSaida(avaliado.caixa, (decisao) => acoesRef.current.saveNote({ ...payload, decisao }))
+        if (calculado) setAlternativaDaCaixa({ rotulo: `Registrar ${calculado}`, executar: () => acoesRef.current.saveNote({ ...payload, aceitaCalculado: true }) })
+        else setAlternativaDaCaixa(null)
         return
       }
+      setAlternativaDaCaixa(null)
       const { avaliada, registro } = avaliado
       tipoDaAnotacao = tipoDaNota(avaliada.sancao)
       descricaoFinal = `${payload.descricao} ${descreverEfeito(avaliada, adversario.name)}`.trim()
       marcador = marcadorSancao(equipeDoMotor(penalizedTeamId), registro)
+      if (avaliado.decisao) {
+        descricaoFinal = `${descricaoFinal} ${frasePadraoOverride(avaliado.decisao.codigo)}`
+        marcador += marcadorOverride(avaliado.decisao)
+      }
       if (avaliada.pontoParaAdversario) {
         aplicarPonto = (anteriores) => aplicarPontoDePenalidade(
           adversarioId,
@@ -1453,11 +1601,14 @@ export default function SumulaPage() {
       else setCaixaRegra(null)
     }
 
+    const noteEventId = `ev-${Date.now()}-${Math.random()}`
     const item: Anotacao = {
-      ...payload,
+      equipeRelacionada: payload.equipeRelacionada,
+      pessoaRelacionada: payload.pessoaRelacionada,
       tipo: tipoDaAnotacao,
       descricao: descricaoFinal,
       id: `note-${Date.now()}`,
+      eventoId: noteEventId,
       set: currentSet,
       placar: scoreString(),
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -1469,7 +1620,7 @@ export default function SumulaPage() {
       setMvpId(mvpDaNota)
       addToast('MVP da equipe vencedora gravado na súmula.')
     }
-    const noteEventId = addMatchEvent('anotacao', textoDaNota, penalizedTeamId)
+    addMatchEvent('anotacao', textoDaNota, penalizedTeamId, undefined, undefined, noteEventId)
     if (aplicarPonto) {
       aplicarPonto([noteEventId])
       addToast('Penalidade registrada: ponto e saque para o adversário.')
@@ -1520,7 +1671,9 @@ export default function SumulaPage() {
         numero: numeroNoPayload(matchNumberOverrides.teamB?.[player.id], player.numeroGravado),
       })),
     ]
-    const ocorrencias = [...events, ...anotacoes.map((note) => ({
+    // Nota que já existe como evento (mesmo texto + marcadores) não vai duas vezes: evitava ocorrência
+    // duplicada e sanção contada em dobro no servidor.
+    const ocorrencias = [...events, ...anotacoesSemEventoCorrespondente(anotacoes, events).map((note) => ({
       id: note.id,
       type: 'anotacao' as EventType,
       text: `[${note.tipo}] ${note.equipeRelacionada} - ${note.pessoaRelacionada}: ${note.descricao}`,
@@ -1995,8 +2148,32 @@ export default function SumulaPage() {
 
         {caixaRegra && (
           <div className="sticky top-2 z-40 mx-auto my-2 w-full max-w-3xl px-2">
-            <CaixaRegra caixa={caixaRegra} onFechar={() => setCaixaRegra(null)} />
+            <CaixaRegra
+              caixa={caixaRegra}
+              onFechar={() => setCaixaRegra(null)}
+              onOverride={overrideDaCaixa?.caixa === caixaRegra ? overrideDaCaixa.executar : undefined}
+            />
+            {alternativaDaCaixa && overrideDaCaixa?.caixa === caixaRegra ? (
+              <button
+                type="button"
+                onClick={alternativaDaCaixa.executar}
+                className="mt-2 min-h-[44px] w-full rounded-md border-2 border-blue-700 bg-white px-4 text-sm font-semibold text-blue-900"
+              >
+                {alternativaDaCaixa.rotulo}
+              </button>
+            ) : null}
           </div>
+        )}
+
+        {(activeTab === 'pontuacao' || activeTab === 'anotacoes') && (
+          <PainelCorrecoes
+            sancao={sancaoDesfazivel ? descricaoDoRegistro(sancaoDesfazivel) : null}
+            troca={trocaDesfazivel ? descricaoDoRegistro(trocaDesfazivel) : null}
+            overrides={contarOverrides(events.map((event) => event.text))}
+            hrefImpressao={`/sumula/${encodeURIComponent(String(token))}/imprimir`}
+            onDesfazerSancao={() => pedirDesfazerRegistro('sancao')}
+            onDesfazerTroca={() => pedirDesfazerRegistro('troca')}
+          />
         )}
 
         {activeTab === 'pre' && (
@@ -2208,6 +2385,20 @@ export default function SumulaPage() {
             <div>
               <button type="button" onClick={() => setConfirmarOficial(false)}>Voltar</button>
               <button type="button" onClick={() => { setConfirmarOficial(false); void submitSumula(false) }}>Confirmar oficialização</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarDesfazerRegistro && (
+        <div className="official-set-confirm" role="dialog" aria-modal="true" aria-labelledby="confirmar-desfazer-registro-titulo">
+          <div className="official-set-confirm-card">
+            <span>{confirmarDesfazerRegistro.tipo === 'sancao' ? 'Corrigir sanção' : 'Corrigir troca'}</span>
+            <h2 id="confirmar-desfazer-registro-titulo">{confirmarDesfazerRegistro.tipo === 'sancao' ? 'Desfazer a última sanção?' : 'Desfazer a última troca?'}</h2>
+            <p>{confirmarDesfazerRegistro.descricao}</p>
+            <div>
+              <button type="button" onClick={() => setConfirmarDesfazerRegistro(null)}>Voltar</button>
+              <button type="button" onClick={desfazerRegistro}>Desfazer</button>
             </div>
           </div>
         </div>
@@ -4021,10 +4212,12 @@ function PenaltyModal({
   const [categoria, setCategoria] = useState<CategoriaSancao>(categoriaPadraoDoTipo(tipo) ?? 'MENOR')
   const [note, setNote] = useState('')
   const roster = [...team.players, ...team.reserves]
-  const resultado = previa(teamId, categoria, jogadorNumero, membro)
+  const resultado = previa(teamId, categoria, jogadorNumero, membro, tipo)
 
-  function registerCard() {
-    if (resultado.bloqueio) return
+  function registerCard(escolha?: { decisao?: DecisaoDoArbitro; aceitaCalculado?: boolean }) {
+    // Bloqueio do motor ou cartão diferente do tocado: só segue com a escolha explícita do árbitro.
+    if (resultado.bloqueio && !escolha?.decisao) return
+    if (resultado.divergencia && !escolha) return
     onSave({
       tipo,
       equipeRelacionada: team.name,
@@ -4033,6 +4226,7 @@ function PenaltyModal({
       categoria,
       jogadorNumero: jogadorNumero || undefined,
       membro,
+      ...escolha,
     })
   }
 
@@ -4079,12 +4273,40 @@ function PenaltyModal({
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Observação opcional" />
         {resultado.bloqueio ? (
-          <CaixaRegra caixa={resultado.bloqueio} className="my-2" />
+          <CaixaRegra
+            caixa={resultado.bloqueio}
+            className="my-2"
+            onOverride={(justificativa) => registerCard({ decisao: { codigo: resultado.bloqueio?.codigo ?? 'SEM-CODIGO', justificativa } })}
+          />
         ) : (
-          <p className="official-modal-note" aria-live="polite">{resultado.texto}</p>
+          <>
+            <p className="official-modal-note" aria-live="polite">{resultado.texto}</p>
+            {resultado.naoConfirmado && !resultado.divergencia ? (
+              <p className="official-modal-note">Regra ainda não confirmada: o motor sugere este registro, mas o árbitro decide.</p>
+            ) : null}
+          </>
         )}
+        {resultado.divergencia ? (
+          <div role="alert" className="my-2 rounded-lg border-2 border-amber-500 bg-amber-50 p-3 text-left text-sm text-amber-950">
+            <p className="font-bold">
+              <span className="mr-2 rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">{resultado.divergencia.codigo}</span>
+              Você tocou &quot;{resultado.divergencia.tocado}&quot;, mas o motor registraria {resultado.divergencia.rotuloCalculado}.
+            </p>
+            {resultado.divergencia.naoConfirmado ? <p className="mt-1">Essa regra ainda não foi confirmada: o árbitro decide qual dos dois vale.</p> : null}
+            <button type="button" className="mt-2 min-h-[44px] w-full rounded-md border-2 border-blue-700 bg-white px-3 font-semibold text-blue-900" onClick={() => registerCard({ aceitaCalculado: true })}>
+              Registrar {resultado.divergencia.rotuloCalculado}
+            </button>
+            <OverrideArbitro
+              codigo={resultado.divergencia.codigo}
+              onConfirmar={(justificativa) => registerCard({ decisao: { codigo: resultado.divergencia?.codigo ?? 'SEM-CODIGO', justificativa } })}
+            />
+            <p className="mt-1 text-xs">&quot;Registrar mesmo assim&quot; grava o {resultado.divergencia.tocado} que você tocou.</p>
+          </div>
+        ) : null}
         <div className="official-penalty-actions">
-          <button type="button" className={tipo === 'Cartão amarelo' ? 'is-yellow' : 'is-red'} onClick={registerCard} disabled={Boolean(resultado.bloqueio)}>Registrar sanção</button>
+          {resultado.divergencia ? null : (
+            <button type="button" className={tipo === 'Cartão amarelo' ? 'is-yellow' : 'is-red'} onClick={() => registerCard()} disabled={Boolean(resultado.bloqueio)}>Registrar sanção</button>
+          )}
         </div>
       </div>
     </div>
@@ -4682,7 +4904,18 @@ function PlayerModal({ title, team, teamId, lineup = [], bench = [], onlyBench, 
 
 function LogItem({ event }: { event: MatchEvent }) {
   const displayText = semMarcadores(event.text)
-  return <div className="official-log"><span>{event.time}</span><strong>Set {event.set}</strong><p>{displayText}</p><em>{event.score}</em></div>
+  const decisao = lerOverride(event.text)
+  return (
+    <div className="official-log">
+      <span>{event.time}</span>
+      <strong>Set {event.set}</strong>
+      <p>
+        {displayText}
+        {decisao ? <strong className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-xs text-amber-950">DECISÃO DO ÁRBITRO: {decisao.justificativa}</strong> : null}
+      </p>
+      <em>{event.score}</em>
+    </div>
+  )
 }
 
 function Empty({ text }: { text: string }) {
@@ -4890,7 +5123,7 @@ function countSavedTimeouts(savedOccurrences: any[], teamA: Team, teamB: Team, c
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'timeout') continue
     if (Number(occurrence.set ?? currentSet) !== currentSet) continue
-    const text = normalizeName(String(occurrence.descricao ?? ''))
+    const text = normalizeName(semMarcadores(String(occurrence.descricao ?? '')))
     if (ehTempoDeEquipe(text)) continue
     if (text.includes(normalizeName(teamA.name))) result.teamA += 1
     if (text.includes(normalizeName(teamB.name))) result.teamB += 1
@@ -4903,7 +5136,7 @@ function countSavedTemposEquipe(savedOccurrences: any[], teamA: Team, teamB: Tea
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'timeout') continue
     if (Number(occurrence.set ?? currentSet) !== currentSet) continue
-    const text = normalizeName(String(occurrence.descricao ?? ''))
+    const text = normalizeName(semMarcadores(String(occurrence.descricao ?? '')))
     if (!ehTempoDeEquipe(text)) continue
     if (text.includes(normalizeName(teamA.name))) result.teamA += 1
     if (text.includes(normalizeName(teamB.name))) result.teamB += 1
@@ -4915,7 +5148,7 @@ function countSavedSideInversions(savedOccurrences: any[]) {
   let count = 0
   for (const occurrence of savedOccurrences) {
     if (normalizeSavedEventType(occurrence.tipo) !== 'anotacao') continue
-    const text = normalizeName(String(occurrence.descricao ?? ''))
+    const text = normalizeName(semMarcadores(String(occurrence.descricao ?? '')))
     if (text.includes(normalizeName('Equipes inverteram os lados da quadra.'))) count += 1
   }
   return count

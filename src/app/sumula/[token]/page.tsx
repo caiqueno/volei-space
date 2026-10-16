@@ -8,6 +8,9 @@ import { NomeEquipe } from '@/components/equipes/NomeEquipe'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+import { emOrdemCronologica } from '@/lib/sumula-ui/ordem'
+import { avisoDeOverrides, contarOverrides, lerOverride } from '@/lib/sumula-ui/override'
+import { limparMarcas } from '@/lib/sumula-impressa/interpretar'
 
 type Jogador = { id: number; nome: string; numero?: number | string | null; numeroHerdado?: number | null; posicao?: string | null }
 type Equipe = { id: number; nome: string; logoUrl?: string | null; corHex?: string | null; jogadores?: Jogador[] }
@@ -61,8 +64,11 @@ export default function SumulaRegistroPage() {
   }, [token])
 
   const liberos = useMemo(() => (registro ? liberosPorSet(registro) : []), [registro])
-  const tempos = useMemo(() => (registro ? temposDaPartida(registro.ocorrencias ?? []) : []), [registro])
-  const eventos = useMemo(() => (registro?.ocorrencias ?? []).filter((item) => textoDaOcorrencia(item.descricao)), [registro])
+  // M4 (doc 24): a ordem vem da função compartilhada, nunca da ordem em que o banco devolve.
+  const ocorrencias = useMemo(() => emOrdemCronologica(registro?.ocorrencias ?? [], 'auto'), [registro])
+  const tempos = useMemo(() => (registro ? temposDaPartida(ocorrencias) : []), [registro, ocorrencias])
+  const eventos = useMemo(() => ocorrencias.filter((item) => textoDaOcorrencia(item.descricao)), [ocorrencias])
+  const totalOverrides = useMemo(() => contarOverrides(ocorrencias.map((item) => item.descricao)), [ocorrencias])
 
   if (carregando) {
     return <main className="sumula-registro"><p className="sumula-registro-estado">Carregando o registro da súmula.</p></main>
@@ -85,7 +91,19 @@ export default function SumulaRegistroPage() {
           <NomeEquipe nome={registro.equipeB.nome} />
         </h1>
         <strong>{registro.setsPorA ?? 0} × {registro.setsPorB ?? 0}</strong>
+        <a
+          href={`/sumula/${encodeURIComponent(token)}/imprimir`}
+          className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-md border border-current px-4 text-sm font-bold"
+        >
+          Imprimir súmula
+        </a>
       </header>
+
+      {totalOverrides > 0 ? (
+        <p role="status" className="rounded-lg border-2 border-amber-600 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+          {avisoDeOverrides(totalOverrides)}
+        </p>
+      ) : null}
 
       <section>
         <h2>Informações da partida</h2>
@@ -163,7 +181,8 @@ export default function SumulaRegistroPage() {
           <ol>
             {eventos.map((evento) => {
               const partes = partesDaDescricao(evento.descricao)
-              return <li key={evento.id}><span>{partes.hora || '—'}</span><span>{evento.set ? `${evento.set}º set` : ''}</span><span>{partes.texto}</span></li>
+              const decisao = lerOverride(evento.descricao)
+              return <li key={evento.id}><span>{partes.hora || '—'}</span><span>{evento.set ? `${evento.set}º set` : ''}</span><span>{partes.texto}{decisao ? <strong> [Decisão do árbitro: {decisao.justificativa}]</strong> : null}</span></li>
             })}
           </ol>
         ) : <p>Nenhum acontecimento registrado pelo árbitro.</p>}
@@ -207,8 +226,8 @@ function nomesDaArbitragem(escala: NonNullable<Registro['escala']>) {
 
 function partesDaDescricao(descricao?: string | null) {
   const partes = String(descricao ?? '').split('|').map((parte) => parte.trim())
-  if (partes.length < 3) return { hora: '', texto: String(descricao ?? '') }
-  return { hora: partes[0], texto: partes.slice(2).join(' | ') }
+  if (partes.length < 3) return { hora: '', texto: limparMarcas(String(descricao ?? '')) }
+  return { hora: partes[0], texto: limparMarcas(partes.slice(2).join(' | ')) }
 }
 
 function textoDaOcorrencia(descricao?: string | null) {

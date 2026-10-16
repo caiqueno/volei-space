@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { NAO_REGISTRADO, textoDuracao } from '@/lib/sumula-impressa/montar'
+import { avisoDeOverrides } from '@/lib/sumula-ui/override'
 import type {
   EquipeImpressa,
   EventoImpresso,
@@ -46,12 +47,17 @@ function Formacao({ titulo, formacao }: { titulo: string; formacao: PosicaoForma
   )
 }
 
+/** Marca na linha o que foi registrado por decisão do árbitro, fora do motor de regras. */
+function Decisao({ e }: { e: EventoImpresso }) {
+  return e.decisaoArbitro ? <strong className="si-decisao"> [DECISÃO DO ÁRBITRO — {e.decisaoArbitro}]</strong> : null
+}
+
 function Eventos({ itens, vazio }: { itens: EventoImpresso[]; vazio: string }) {
   if (!itens.length) return <p className="si-vazio">{vazio}</p>
   return (
     <table>
       <thead><tr><th>Hora</th><th>Placar</th><th>Registro</th></tr></thead>
-      <tbody>{itens.map((e) => <tr key={e.id}><td>{e.hora || '—'}</td><td className="si-num">{e.placar || '—'}</td><td>{e.texto}</td></tr>)}</tbody>
+      <tbody>{itens.map((e) => <tr key={e.id}><td>{e.hora || '—'}</td><td className="si-num">{e.placar || '—'}</td><td>{e.texto}<Decisao e={e} /></td></tr>)}</tbody>
     </table>
   )
 }
@@ -121,7 +127,7 @@ export function SumulaImpressa({ modelo: m, aoImprimir }: { modelo: ModeloImpres
               {m.sancoes.map((e) => (
                 <tr key={e.id}>
                   <td className="si-num">{e.set ?? '—'}</td><td>{e.hora || '—'}</td><td className="si-num">{e.placar || '—'}</td>
-                  <td>{e.lado === 'A' ? m.equipeA.nome : e.lado === 'B' ? m.equipeB.nome : '—'}</td><td>{e.texto}</td>
+                  <td>{e.lado === 'A' ? m.equipeA.nome : e.lado === 'B' ? m.equipeB.nome : '—'}</td><td>{e.texto}<Decisao e={e} /></td>
                 </tr>
               ))}
             </tbody>
@@ -132,9 +138,20 @@ export function SumulaImpressa({ modelo: m, aoImprimir }: { modelo: ModeloImpres
         {m.observacoes.length ? (
           <table>
             <thead><tr><th>Set</th><th>Hora</th><th>Placar</th><th>Registro</th></tr></thead>
-            <tbody>{m.observacoes.map((e) => <tr key={e.id}><td className="si-num">{e.set ?? '—'}</td><td>{e.hora || '—'}</td><td className="si-num">{e.placar || '—'}</td><td>{e.texto}</td></tr>)}</tbody>
+            <tbody>{m.observacoes.map((e) => <tr key={e.id}><td className="si-num">{e.set ?? '—'}</td><td>{e.hora || '—'}</td><td className="si-num">{e.placar || '—'}</td><td>{e.texto}<Decisao e={e} /></td></tr>)}</tbody>
           </table>
         ) : <p className="si-vazio">Nenhuma observação registrada.</p>}
+
+        {m.decisoesDoArbitro.length ? (
+          <>
+            <h2>Registros por decisão do árbitro</h2>
+            <p className="si-aviso" role="note">{avisoDeOverrides(m.decisoesDoArbitro.length)}</p>
+            <table>
+              <thead><tr><th>Set</th><th>Hora</th><th>Placar</th><th>Registro</th><th>Regra e justificativa</th></tr></thead>
+              <tbody>{m.decisoesDoArbitro.map((e) => <tr key={e.id}><td className="si-num">{e.set ?? '—'}</td><td>{e.hora || '—'}</td><td className="si-num">{e.placar || '—'}</td><td>{e.texto}</td><td>{e.decisaoArbitro}</td></tr>)}</tbody>
+            </table>
+          </>
+        ) : null}
 
         <h2>Folha de controle de líbero</h2>
         <Ausente>Folha de controle de líbero (saídas e entradas por jogada): {NAO_REGISTRADO}. A troca de líbero aparece nas substituições de cada set.</Ausente>

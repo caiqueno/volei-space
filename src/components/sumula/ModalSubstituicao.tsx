@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { CaixaRegra } from '@/components/sumula/CaixaRegra'
 import type { Avaliacao, CaixaRegra as DadosCaixa } from '@/lib/sumula-ui/explicacao'
 import type { ModoTroca } from '@/lib/sumula-ui/avaliacao'
+import type { DecisaoDoArbitro } from '@/lib/sumula-ui/override'
 
 export type MotivoTela = 'LESAO' | 'EXPULSAO' | 'DESQUALIFICACAO'
 
@@ -19,7 +20,7 @@ export type MotorModal = {
   contador: (modo: ModoTroca) => string
   candidatos: (modo: ModoTroca) => OpcaoAtleta[]
   avaliar: (modo: ModoTroca, motivo: MotivoTela, numero: string) => Avaliacao
-  confirmar: (modo: ModoTroca, motivo: MotivoTela, numero: string) => void
+  confirmar: (modo: ModoTroca, motivo: MotivoTela, numero: string, decisao?: DecisaoDoArbitro) => void
   /** A categoria não ativou "substituição por lesão": o servidor ainda soma a excepcional ao limite. */
   excepcionalContaNoServidor: boolean
   onClose: () => void
@@ -34,7 +35,7 @@ const ROTULO_MODO: Record<ModoTroca, string> = {
 export function ModalSubstituicao({ motor }: { motor: MotorModal }) {
   const [modo, setModo] = useState<ModoTroca>(motor.modoInicial)
   const [motivo, setMotivo] = useState<MotivoTela>(motor.motivoInicial)
-  const [caixa, setCaixa] = useState<DadosCaixa | null>(null)
+  const [caixa, setCaixa] = useState<(DadosCaixa & { numero: string }) | null>(null)
   const [pendente, setPendente] = useState<{ numero: string; avisos: DadosCaixa[] } | null>(null)
 
   function trocarModo(proximo: ModoTroca) {
@@ -47,7 +48,7 @@ export function ModalSubstituicao({ motor }: { motor: MotorModal }) {
     const r = motor.avaliar(modo, motivo, numero)
     if (!r.ok) {
       setPendente(null)
-      setCaixa(r.caixa)
+      setCaixa({ ...r.caixa, numero })
       return
     }
     setCaixa(null)
@@ -97,7 +98,7 @@ export function ModalSubstituicao({ motor }: { motor: MotorModal }) {
             ) : null}
           </>
         ) : null}
-        {caixa ? <CaixaRegra caixa={caixa} onFechar={() => setCaixa(null)} className="my-2" /> : null}
+        {caixa ? <CaixaRegra caixa={caixa} onFechar={() => setCaixa(null)} onOverride={(justificativa) => motor.confirmar(modo, motivo, caixa.numero, { codigo: caixa.codigo, justificativa })} className="my-2" /> : null}
         {pendente ? (
           <div className="my-2 space-y-2">
             {pendente.avisos.map((aviso, indice) => <CaixaRegra key={`${aviso.codigo}-${indice}`} caixa={aviso} />)}

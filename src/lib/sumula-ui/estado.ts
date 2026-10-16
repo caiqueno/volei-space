@@ -82,7 +82,7 @@ export function lerRedesignacao(texto: string): { incapaz: string; novo: string 
 
 /** Remove os marcadores técnicos para exibição. */
 export function semMarcadores(texto: string) {
-  return texto.replace(/\s*\[\[(?:ROT|EXC|SAN|LIBRED):[^\]]*\]\]/g, '')
+  return texto.replace(/\s*\[\[(?:ROT|EXC|SAN|LIBRED|OVR):[^\]]*\]\]/g, '')
 }
 
 /** Histórico de sanções da partida inteira (qualquer set), do mais antigo ao mais novo. */
@@ -122,8 +122,20 @@ export type EntradaReplay = {
 
 const TIPOS_PONTO = new Set(['point', 'attack', 'block', 'ace'])
 
-function lerTroca(texto: string): [string, string] | null {
-  const m = texto.match(/sai #([^\s,]+).+entra #([^\s,]+)/i)
+/** Texto do ponto concedido por penalidade (vem de aplicarPontoDePenalidade, na tela). */
+export const PREFIXO_PONTO_PENALIDADE = 'Ponto e saque para '
+
+/**
+ * O ponto de penalidade não é um rally concluído (B7 do doc 24): não libera novo pedido de
+ * substituição nem a troca de líbero, porque a bola não foi jogada.
+ */
+export function ehPontoDePenalidade(texto: string): boolean {
+  return semMarcadores(texto).trim().startsWith(PREFIXO_PONTO_PENALIDADE)
+}
+
+export function lerTroca(textoBruto: string): [string, string] | null {
+  const texto = semMarcadores(textoBruto)
+  const m =texto.match(/sai #([^\s,]+).+entra #([^\s,]+)/i)
   if (!m) return null
   const limpar = (v: string) => v.replace(/[.,;:]+$/g, '')
   return [limpar(m[1]), limpar(m[2])]
@@ -150,7 +162,7 @@ export function reconstruirEstadoEquipe(entrada: EntradaReplay): EstadoEquipe {
 
   for (const evento of entrada.eventosDoSet) {
     if (TIPOS_PONTO.has(evento.type)) {
-      estado = registrarRallyConcluido(estado)
+      if (!(evento.type === 'point' && ehPontoDePenalidade(evento.text))) estado = registrarRallyConcluido(estado)
       continue
     }
     if (evento.type === 'anotacao') {

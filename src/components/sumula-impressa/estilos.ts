@@ -28,6 +28,8 @@ export const ESTILOS_SUMULA_IMPRESSA = `
 .si-lib { font-weight: 700; }
 .si-vazio { font-style: italic; color: #333; }
 .si-ausente { border: 0.3mm dashed #555; padding: 1.5mm 2mm; font-style: italic; margin-bottom: 1mm; break-inside: avoid; }
+.si-decisao { font-weight: 700; border: 0.3mm solid #000; padding: 0 1mm; }
+.si-aviso { border: 0.5mm solid #000; padding: 1.5mm 2mm; font-weight: 700; }
 .si-resultado { font-size: 14pt; font-weight: 700; text-align: center; }
 .si-assin { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8mm 6mm; margin-top: 6mm; break-inside: avoid; }
 .si-assin div { border-top: 0.3mm solid #000; padding-top: 1mm; min-height: 14mm; font-size: 8.5pt; }

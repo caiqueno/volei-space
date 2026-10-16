@@ -136,7 +136,8 @@
     "test:sumula-impressa": "node scripts/with-ts-node.mjs scripts/sumula-impressa.test.ts",
     "test:sumula-offline-fila": "node scripts/with-ts-node.mjs scripts/sumula-offline-fila.test.ts",
     "test:sumula-excepcional": "node scripts/with-ts-node.mjs scripts/sumula-excepcional.test.ts",
-    "test:meu-time-convite": "node scripts/with-ts-node.mjs scripts/meu-time-convite.test.ts"
+    "test:meu-time-convite": "node scripts/with-ts-node.mjs scripts/meu-time-convite.test.ts",
+    "test:sumula-r5-qa": "node scripts/with-ts-node.mjs scripts/sumula-r5-qa.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
