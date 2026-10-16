@@ -4,11 +4,13 @@ import { success, error } from '@/lib/api-response'
 import { equipeSchema } from '@/lib/schemas'
 import { verifyToken } from '@/lib/auth'
 import { exigirOrganizadorDaLiga, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
+import { STATUS_CAMPEONATO_PUBLICO } from '@/lib/campeonato-publico'
+import { EQUIPE_JOGADOR_LISTA_COLUNAS, EQUIPE_LIGA_RESUMO_COLUNAS, EQUIPE_LISTA_COLUNAS } from '@/lib/projecoes-publicas'
 
-const EQUIPE_COLUNAS = 'id,nome,slug,logoUrl,corHex,categoria,ligaId,categoriaCampeonatoId,statusEquipe'
-const LIGA_COLUNAS = 'id,nome,slug,nomeCurto,status'
-const JOGADOR_COLUNAS = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
-const STATUS_PUBLICOS = ['EM_BREVE', 'ATIVA', 'ENCERRADA', 'FINALIZADO']
+const EQUIPE_COLUNAS = EQUIPE_LISTA_COLUNAS
+const LIGA_COLUNAS = EQUIPE_LIGA_RESUMO_COLUNAS
+const JOGADOR_COLUNAS = EQUIPE_JOGADOR_LISTA_COLUNAS
+const STATUS_PUBLICOS: readonly string[] = STATUS_CAMPEONATO_PUBLICO
 
 type EquipeLinha = {
   id: number
@@ -105,7 +107,7 @@ async function anexarLigaEJogadores(equipes: EquipeLinha[]) {
     ligaIds.length
       ? supabase.from('Liga').select(LIGA_COLUNAS).in('id', ligaIds)
       : Promise.resolve({ data: [], error: null }),
-    supabase.from('Jogador').select(JOGADOR_COLUNAS).in('equipeId', equipeIds),
+    supabase.from('Jogador').select(JOGADOR_COLUNAS).in('equipeId', equipeIds).eq('banido', false),
   ])
   if (ligaErr) throw ligaErr
   if (jogadorErr) throw jogadorErr
@@ -152,7 +154,7 @@ export async function POST(req: NextRequest) {
     const { data, error: err } = await supabase
       .from('Equipe')
       .insert({ ...parsed.data, serie: null, categoriaCampeonatoId: categoria.id })
-      .select()
+      .select(EQUIPE_COLUNAS)
       .single()
 
     if (err) {

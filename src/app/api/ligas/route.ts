@@ -8,6 +8,7 @@ import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import { comCachePublico, semCacheCompartilhado } from '@/lib/cache-publico'
+import { STATUS_CAMPEONATO_PUBLICO } from '@/lib/campeonato-publico'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     .order('criadoEm', { ascending: false })
 
   if (organizadorId) query = query.eq('organizadorId', organizadorId)
-  else query = query.eq('simulacao', false)
+  else query = query.eq('simulacao', false).in('status', [...STATUS_CAMPEONATO_PUBLICO])
   if (status) query = query.eq('status', status)
   if (busca) {
     const safeBusca = busca.replace(/[%_,]/g, ' ')

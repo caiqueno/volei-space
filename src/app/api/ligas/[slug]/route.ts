@@ -7,17 +7,22 @@ import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { isCampeonatoFinalizado, respostaCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { podeLerCampeonato } from '@/lib/leitura-publica'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  // organizadorId entra só para decidir a visibilidade e nunca sai na resposta.
   const { data, error: err } = await supabase
     .from('Liga')
-    .select(LIGA_COLUNAS_PUBLICAS as '*')
+    .select(`${LIGA_COLUNAS_PUBLICAS},organizadorId` as '*')
     .eq('slug', slug)
-    .single()
+    .maybeSingle()
 
-  if (err) return error('Liga nao encontrada', 404)
-  return success(data)
+  const liga = data as unknown as ({ organizadorId?: string | null } & Record<string, unknown>) | null
+  // Rascunho e simulação são do dono: para o visitante, 404 igual ao de slug inexistente.
+  if (err || !liga || !(await podeLerCampeonato(req, liga))) return error('Liga nao encontrada', 404)
+  const { organizadorId: _organizadorId, ...publica } = liga
+  return success(publica)
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
