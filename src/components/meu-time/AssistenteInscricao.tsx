@@ -16,6 +16,7 @@ import {
   reconciliarRascunho,
   type RascunhoAssistente,
 } from '@/lib/meu-time-ui/rascunho'
+import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import { descreverStatusInscricao, type Falha } from '@/lib/meu-time-ui/respostas'
 import { avisosDeEnvio, lerRegras, montarInscricao, problemasDeEnvio, regrasDeCategoria, type RegrasInscricao } from '@/lib/meu-time-ui/selecao'
 import type { DetalheEquipe, RespostaInscricao } from '@/lib/meu-time-ui/tipos'
@@ -48,6 +49,17 @@ export function AssistenteInscricao({ equipeId, cliente }: { equipeId: string; c
   if (carga.estado === 'carregando' || (categoria && cargaRegras.estado === 'carregando')) return <Pagina titulo="Inscrever meu time"><Carregando texto="Preparando a inscrição…" /></Pagina>
   if (carga.estado === 'falha') return <Pagina titulo="Inscrever meu time" voltar={{ href: '/meu-time', texto: 'Voltar para meus times' }}><FalhaTela falha={carga.falha} aoTentar={tentarDeNovo} /></Pagina>
   if (cargaRegras.estado === 'falha') return <Pagina titulo="Inscrever meu time" voltar={voltar}><FalhaTela falha={cargaRegras.falha} aoTentar={tentarRegras} /></Pagina>
+  if (!podeFazer(carga.dados.meuPapel, 'inscricao')) {
+    return (
+      <Pagina titulo="Inscrever meu time" voltar={voltar}>
+        <Aviso tom="is-warning">
+          <strong className="block">Você não pode inscrever este time.</strong>
+          {mensagemSemPermissao('inscricao')} Peça a essa pessoa para enviar a inscrição.
+        </Aviso>
+        <Link href={voltar.href} className={botaoSecundario}>Voltar para o time</Link>
+      </Pagina>
+    )
+  }
   if (!categoria) {
     return (
       <Pagina titulo="Inscrever meu time" voltar={voltar}>

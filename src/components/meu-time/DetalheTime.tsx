@@ -11,6 +11,7 @@ import { CartaoProntidao } from './CartaoProntidao'
 import { Aviso, Carregando, FalhaTela, Pagina, useCarregar } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
 import { hrefInscricao } from '@/lib/meu-time-ui/navegacao'
+import { podeFazer } from '@/lib/meu-time-ui/permissoes'
 
 const ABAS = [
   { id: 'atletas', rotulo: 'Atletas' },
@@ -41,7 +42,9 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
   if (carga.estado === 'falha') return <Pagina titulo="Meu time" voltar={{ href: '/meu-time', texto: 'Voltar para meus times' }}><FalhaTela falha={carga.falha} aoTentar={tentarDeNovo} /></Pagina>
 
   const { equipe, atletas, comissao, inscricoes, prontidao, meuPapel } = carga.dados
-  const hrefAssistente = hrefInscricao(equipeId, (chave) => params.get(chave))
+  const podeInscrever = podeFazer(meuPapel, 'inscricao')
+  // Quem não pode inscrever não vê o atalho do convite (o servidor recusaria com 403).
+  const hrefAssistente = podeInscrever ? hrefInscricao(equipeId, (chave) => params.get(chave)) : undefined
   const atualizar = async () => { await recarregar() }
 
   return (
@@ -69,11 +72,11 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
 
       <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} tabIndex={0} className="outline-offset-4">
         {aba === 'atletas' && (
-          <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} aoAtualizar={atualizar} />
+          <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} meuPapel={meuPapel} aoAtualizar={atualizar} />
         )}
-        {aba === 'comissao' && <AbaComissao cliente={api} equipeId={equipeId} comissao={comissao} aoAtualizar={atualizar} />}
+        {aba === 'comissao' && <AbaComissao cliente={api} equipeId={equipeId} comissao={comissao} meuPapel={meuPapel} aoAtualizar={atualizar} />}
         {aba === 'dados' && <AbaDados cliente={api} equipe={equipe} meuPapel={meuPapel} aoAtualizar={atualizar} />}
-        {aba === 'inscricoes' && <AbaInscricoes inscricoes={inscricoes} hrefInscricao={hrefAssistente} />}
+        {aba === 'inscricoes' && <AbaInscricoes inscricoes={inscricoes} hrefInscricao={hrefAssistente} podeInscrever={podeInscrever} />}
       </div>
     </Pagina>
   )

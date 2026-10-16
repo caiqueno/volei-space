@@ -6,9 +6,10 @@ import { Aviso, botaoPerigo, botaoPrimario, Campo, campoEstilo, cartao, descreve
 import { FUNCOES_COMISSAO, rotuloFuncao } from './rotulos'
 import { validarMembroComissao } from '@/lib/meu-time-ui/formularios'
 import { MENSAGEM_COMISSAO_INDISPONIVEL } from '@/lib/meu-time-ui/respostas'
-import type { MembroComissao } from '@/lib/meu-time-ui/tipos'
+import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
+import type { MembroComissao, PapelAcesso } from '@/lib/meu-time-ui/tipos'
 
-type Props = { cliente: MeuTimeClient; equipeId: string; comissao: MembroComissao[]; aoAtualizar: () => Promise<void> }
+type Props = { cliente: MeuTimeClient; equipeId: string; comissao: MembroComissao[]; meuPapel?: PapelAcesso; aoAtualizar: () => Promise<void> }
 
 /** 503 aqui é só a tabela da comissão que falta: o resto do time funciona, então a explicação é própria. */
 function textoDaFalha(erro: unknown) {
@@ -16,7 +17,8 @@ function textoDaFalha(erro: unknown) {
   return falha.tipo === 'nao-habilitado' ? MENSAGEM_COMISSAO_INDISPONIVEL : falha.mensagem
 }
 
-export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props) {
+export function AbaComissao({ cliente, equipeId, comissao, meuPapel, aoAtualizar }: Props) {
+  const podeEditar = podeFazer(meuPapel, 'comissao')
   const [nome, setNome] = useState('')
   const [funcao, setFuncao] = useState('')
   const [erros, setErros] = useState<Partial<Record<'nome' | 'funcao', string>>>({})
@@ -60,17 +62,18 @@ export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props)
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[var(--vs-muted)]">Técnico, auxiliares e quem acompanha o time no banco. É opcional: só entra na inscrição se você quiser.</p>
+      {!podeEditar && <Aviso>{mensagemSemPermissao('comissao')} Você pode ver a comissão, mas não alterar.</Aviso>}
       {mensagem && <Aviso tom="is-error" alerta>{mensagem}</Aviso>}
       {comissao.length === 0 && <Aviso>Nenhuma pessoa na comissão técnica ainda.</Aviso>}
       <ul className="flex flex-col gap-2" aria-label="Comissão técnica">
         {comissao.map((membro) => (
           <li key={membro.id} className={`${cartao} flex items-center justify-between gap-3`}>
             <span><strong className="block">{membro.nome}</strong><span className="text-sm text-[var(--vs-muted)]">{rotuloFuncao(membro.funcao)}</span></span>
-            <button type="button" disabled={ocupado} onClick={() => remover(membro)} className={botaoPerigo} aria-label={`Remover ${membro.nome}`}>Remover</button>
+            {podeEditar && <button type="button" disabled={ocupado} onClick={() => remover(membro)} className={botaoPerigo} aria-label={`Remover ${membro.nome}`}>Remover</button>}
           </li>
         ))}
       </ul>
-      <form onSubmit={adicionar} noValidate aria-label="Adicionar à comissão técnica" className={`${cartao} flex flex-col gap-4`}>
+      {podeEditar && <form onSubmit={adicionar} noValidate aria-label="Adicionar à comissão técnica" className={`${cartao} flex flex-col gap-4`}>
         <h3 className="text-lg font-black">Adicionar pessoa</h3>
         <Campo id="comissao-nome" rotulo="Nome" erro={erros.nome}>
           <input id="comissao-nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={100} className={campoEstilo} {...descreve('comissao-nome', undefined, erros.nome)} />
@@ -82,7 +85,7 @@ export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props)
           </select>
         </Campo>
         <button type="submit" disabled={ocupado} className={botaoPrimario}>{ocupado ? 'Salvando…' : 'Adicionar à comissão'}</button>
-      </form>
+      </form>}
     </div>
   )
 }

@@ -30,6 +30,7 @@ import {
 import { rotuloFuncao, rotuloPosicao } from '../src/components/meu-time/rotulos'
 import { validarEdicaoTime, validarMembroComissao, validarNovoAcesso, validarNovoAtleta, validarNovoTime } from '../src/lib/meu-time-ui/formularios'
 import { hrefInscricao } from '../src/lib/meu-time-ui/navegacao'
+import { mensagemSemPermissao, podeFazer } from '../src/lib/meu-time-ui/permissoes'
 import { prepararLista } from '../src/lib/meu-time-ui/lista-colada'
 import type { Atleta } from '../src/lib/meu-time-ui/tipos'
 
@@ -330,6 +331,18 @@ async function main() {
   assert.equal(problemasDeEnvio(muitosAtletas.slice(0, 2), atletasLivres, soMaximo).length, 0)
   const httpSemRegra = criarClienteHttp(async () => resposta(200, { data: { categoriaId: 'c9', nome: 'Aberta', naipe: null, minimoAtletas: null, maximoAtletas: null, maximoLiberos: 2, maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true } }))
   assert.equal((await httpSemRegra.obterRegrasCategoria('c9')).minimoAtletas, null)
+
+  // --- R5 M8: ações por papel (espelha o servidor)
+  const papeis = ['RESPONSAVEL', 'TECNICO', 'ASSISTENTE', 'CAPITAO'] as const
+  const matriz = (acao: Parameters<typeof podeFazer>[1]) => papeis.map((p) => podeFazer(p, acao))
+  assert.deepEqual(matriz('atletas'), [true, true, false, false])
+  assert.deepEqual(matriz('inscricao'), [true, true, false, false])
+  assert.deepEqual(matriz('comissao'), [true, true, false, false])
+  assert.deepEqual(matriz('dados'), [true, false, false, false])
+  assert.deepEqual(matriz('acesso'), [true, false, false, false])
+  assert.equal(podeFazer(undefined, 'dados'), true)
+  assert.match(mensagemSemPermissao('dados'), /Só o responsável/)
+  assert.match(mensagemSemPermissao('atletas'), /responsável ou o técnico/)
 
   console.log('meu-time-ui: ok')
 }

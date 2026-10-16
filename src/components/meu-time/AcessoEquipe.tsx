@@ -5,6 +5,7 @@ import type { MeuTimeClient } from './cliente'
 import { Aviso, botaoPerigo, botaoPrimario, Campo, campoEstilo, Carregando, cartao, descreve, falhaDe, FalhaTela, useCarregar } from './ui'
 import { PAPEIS_ACESSO } from './rotulos'
 import { validarNovoAcesso } from '@/lib/meu-time-ui/formularios'
+import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import type { MembroAcesso, PapelAcesso } from '@/lib/meu-time-ui/tipos'
 
 type Props = {
@@ -28,7 +29,7 @@ export function AcessoEquipe({ cliente, equipeId, meuPapel }: Props) {
 
   const lista = carga.dados
   const papelConhecido = meuPapel ?? lista.find((m) => m.voce)?.papel
-  const podeGerir = papelConhecido === undefined || papelConhecido === 'RESPONSAVEL'
+  const podeGerir = podeFazer(papelConhecido, 'acesso')
 
   async function convidar(evento: FormEvent) {
     evento.preventDefault()
@@ -98,7 +99,7 @@ export function AcessoEquipe({ cliente, equipeId, meuPapel }: Props) {
           <button type="submit" disabled={ocupado} className={botaoPrimario}>{ocupado ? 'Salvando…' : 'Dar acesso'}</button>
         </form>
       ) : (
-        <Aviso>Só o responsável pelo time dá ou tira acesso.</Aviso>
+        <Aviso>{mensagemSemPermissao('acesso')} Só o responsável dá ou tira acesso ao time.</Aviso>
       )}
     </section>
   )
