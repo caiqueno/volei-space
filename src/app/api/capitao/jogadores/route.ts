@@ -6,6 +6,8 @@ import { requirePublicRole } from '@/lib/auth'
 import { generateQRToken } from '@/lib/qrcode'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { documentoParaLeitura, normalizarDocumentoEntrada } from '@/lib/uploads/documentos'
+import { normalizarFotoRostoEntrada } from '@/lib/uploads/foto-rosto'
+import { respostaEquipeNaoVinculada } from '@/lib/uploads/cadastro-incompleto'
 import { mensagemDuplicataNaCategoria } from '@/lib/atleta-duplicado-consulta'
 
 const POSICOES_JOGADOR = ['LV', 'PT', 'OP', 'CT', 'LB'] as const
@@ -22,7 +24,8 @@ const jogadorCapitaoSchema = z.object({
   dataNascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida').optional().nullable().or(z.literal('')),
   telefone: z.string().optional().nullable(),
   telefoneEmergencia: z.string().optional().nullable(),
-  fotoRostoUrl: z.string().url().optional().nullable().or(z.literal('')),
+  // Caminho do bucket de foto de rosto ou URL pública do próprio Storage; a posse é conferida no servidor.
+  fotoRostoUrl: z.string().trim().max(500).optional().nullable().or(z.literal('')),
   // Caminho do bucket privado (preferido) ou URL antiga do mesmo bucket; a posse é conferida no servidor.
   documentosUrls: z.array(z.string().trim().min(1).max(500)).max(8).optional(),
 })
@@ -32,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof Response) return auth
 
   const equipe = await getEquipeDoCapitao(auth.userId)
-  if (!equipe) return error('Equipe não encontrada ou ainda não vinculada.', 404)
+  if (!equipe) return respostaEquipeNaoVinculada(auth.userId)
 
   const { data, error: err } = await supabase
     .from('Jogador')
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (auth instanceof Response) return auth
 
   const equipe = await getEquipeDoCapitao(auth.userId)
-  if (!equipe) return error('Equipe não encontrada ou ainda não vinculada.', 404)
+  if (!equipe) return respostaEquipeNaoVinculada(auth.userId)
 
   const prazoError = await ensureRosterChangeAllowed(equipe.id)
   if (prazoError) return prazoError
@@ -62,7 +65,11 @@ export async function POST(req: NextRequest) {
   const jaGravados = parsed.data.id ? await documentosGravados(parsed.data.id, equipe.id) : []
   const documentos = (parsed.data.documentosUrls ?? []).map((valor) => normalizarDocumentoEntrada(valor, equipe, jaGravados))
   if (documentos.some((item) => item === null)) return error('Documento inválido: envie o arquivo pela área de documentos do atleta.', 422)
-  const payload = buildPlayerPayload(parsed.data, equipe.id, documentos as string[])
+  const fotoEnviada = parsed.data.fotoRostoUrl?.trim() || ''
+  const fotoGravada = fotoEnviada && parsed.data.id ? await fotoGravadaDoAtleta(parsed.data.id, equipe.id) : null
+  const fotoRostoUrl = fotoEnviada ? normalizarFotoRostoEntrada(fotoEnviada, equipe, fotoGravada) : null
+  if (fotoEnviada && !fotoRostoUrl) return error('Foto inválida: envie a foto pela área de fotos do atleta.', 422)
+  const payload = buildPlayerPayload(parsed.data, equipe.id, documentos as string[], fotoRostoUrl)
 
   if (parsed.data.id) {
     const owns = await playerBelongsToTeam(parsed.data.id, equipe.id)
@@ -132,7 +139,7 @@ export async function DELETE(req: NextRequest) {
   if (auth instanceof Response) return auth
 
   const equipe = await getEquipeDoCapitao(auth.userId)
-  if (!equipe) return error('Equipe não encontrada ou ainda não vinculada.', 404)
+  if (!equipe) return respostaEquipeNaoVinculada(auth.userId)
 
   const prazoError = await ensureRosterChangeAllowed(equipe.id)
   if (prazoError) return prazoError
@@ -157,6 +164,11 @@ async function getEquipeDoCapitao(candidaturaId: string) {
 async function documentosGravados(id: number, equipeId: number): Promise<string[]> {
   const { data } = await supabase.from('Jogador').select('documentosUrls').eq('id', id).eq('equipeId', equipeId).maybeSingle()
   return parseJsonArray(data?.documentosUrls).map(documentoParaLeitura).filter((item): item is string => Boolean(item))
+}
+
+async function fotoGravadaDoAtleta(id: number, equipeId: number): Promise<string | null> {
+  const { data } = await supabase.from('Jogador').select('fotoRostoUrl').eq('id', id).eq('equipeId', equipeId).maybeSingle()
+  return data?.fotoRostoUrl ? String(data.fotoRostoUrl) : null
 }
 
 async function playerBelongsToTeam(id: number, equipeId: number) {
@@ -231,7 +243,7 @@ async function ensureRosterChangeAllowed(equipeId: number) {
   return null
 }
 
-function buildPlayerPayload(data: z.infer<typeof jogadorCapitaoSchema>, equipeId: number, documentos: string[]) {
+function buildPlayerPayload(data: z.infer<typeof jogadorCapitaoSchema>, equipeId: number, documentos: string[], fotoRostoUrl: string | null) {
   const documentoTipo = data.documentoTipo?.trim() || (data.cpf ? 'CPF' : null)
   const rawDocumento = data.documentoNumero?.trim() || data.cpf?.trim() || null
   const documentoNumero = rawDocumento && documentoTipo === 'CPF' ? rawDocumento.replace(/\D/g, '') : rawDocumento
@@ -247,8 +259,8 @@ function buildPlayerPayload(data: z.infer<typeof jogadorCapitaoSchema>, equipeId
     dataNascimento: data.dataNascimento ? new Date(data.dataNascimento).toISOString() : null,
     telefone: data.telefone || null,
     telefoneEmergencia: data.telefoneEmergencia || null,
-    fotoRostoUrl: data.fotoRostoUrl || null,
-    fotoUrl: data.fotoRostoUrl || null,
+    fotoRostoUrl,
+    fotoUrl: fotoRostoUrl,
     documentosUrls: JSON.stringify(documentos),
   }
 }
