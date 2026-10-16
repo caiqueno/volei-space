@@ -1,106 +1,45 @@
-# LUVA Platform 🏐
+# volei.space
 
-Sistema web para organização de ligas amadoras de vôlei.
+Plataforma SaaS de campeonatos de vôlei: inscrição de equipes por link de categoria, tabela, súmula digital, classificação e portal público. Atende vários organizadores independentes. `Liga`, `ligaId` e LUVA são nomes legados do código e não definem a identidade do produto.
+
+## Antes de mexer no código
+
+Leia `CLAUDE.md` e a nota do módulo em `volei.space — Plataforma de Campeonatos de Vôlei/`. Os relatórios de análise e o plano de evolução estão em `docs/analise/`.
 
 ## Stack
 
-- **Next.js 14** App Router + TypeScript strict
-- **Tailwind CSS** com design system LUVA (cores navy/amber/blue)
-- **Prisma 5** + PostgreSQL (Supabase)
-- **JWT** (jose) com cookie httpOnly
-- **Zod** para validação de inputs
+Next.js 14 (App Router), TypeScript, Tailwind CSS, Supabase (Postgres, Storage), Prisma (apenas tipos e validação), JWT com cookie httpOnly (`jose`), Zod.
 
 ## Como rodar
 
+Requisitos: Node.js 22 (`.nvmrc`).
+
 ```bash
-# 1. Instalar dependências
-npm install --ignore-scripts
-npx prisma generate
-
-# 2. Configurar variáveis de ambiente
-cp .env.example .env
-# Edite .env e preencha DATABASE_URL e DIRECT_URL com sua senha do Supabase
-# (Supabase Dashboard → Settings → Database → Connection string)
-
-# 3. Rodar em desenvolvimento
-npm run dev
+npm ci
+cp .env.example .env.local   # preencha com os valores do projeto Supabase de DESENVOLVIMENTO
+npm run dev                  # http://localhost:3000
 ```
 
-> O banco de dados já está configurado no Supabase com schema e dados de seed.
-> Não é necessário rodar migrações manualmente.
+Nunca use as credenciais de produção em ambiente local. A trava em `src/lib/supabase-env.ts` recusa combinar o alvo errado.
 
-## Acesso admin
+## Comandos
 
-- URL: `http://localhost:3000/admin/login`
-- Email: `admin@luv.com.br`
-- Senha: `LuvAdmin@2026`
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Conferência de tipos |
+| `npm run test:unit` | Todos os testes de `scripts/` |
+| `npm run build` | Build de produção local |
 
-## Páginas públicas
+## Administrador
 
-| Rota | Descrição |
-|------|-----------|
-| `/` | Home com equipes, próximos jogos e mural |
-| `/classificacao` | Tabela de classificação |
-| `/jogos` | Partidas agrupadas por rodada |
-| `/rankings` | MVPs e votação dos torcedores |
-| `/galeria` | Fotos e vídeos |
-| `/sumula/:token` | Formulário de súmula digital (árbitro) |
+Não há credencial padrão. O administrador é a conta da tabela `Admin` do seu ambiente e `ADMIN_EMAIL` precisa estar definido; sem ele ninguém entra como admin.
 
-## Painel admin
+## Fluxo de trabalho
 
-| Rota | Descrição |
-|------|-----------|
-| `/admin` | Dashboard com resumo |
-| `/admin/partidas` | Lista e aprovação de súmulas |
-| `/admin/partidas/nova` | Criar nova partida |
-| `/admin/equipes` | CRUD de equipes |
-| `/admin/jogadores` | CRUD de jogadores |
-| `/admin/configuracoes` | Editar dados da liga |
+`fix/…`, `feat/…` ou `docs/…` → PR para `teste-integrado` → teste integrado local → PR para `main`. A `main` publica direto em produção na Vercel: nada entra nela sem aprovação, e nunca durante uma rodada com jogos em andamento.
 
-## API
+## Banco de dados
 
-Todos os endpoints retornam `{ data }` em sucesso ou `{ error }` em falha.
-
-Endpoints protegidos requerem cookie `luva_token` (obtido via `POST /api/auth`).
-
-| Endpoint | Método | Auth |
-|----------|--------|------|
-| `/api/auth` | POST / DELETE | — |
-| `/api/ligas/:slug` | GET / PUT | PUT🔒 |
-| `/api/equipes` | GET / POST | POST🔒 |
-| `/api/equipes/:id` | PUT / DELETE | 🔒 |
-| `/api/jogadores` | GET / POST | POST🔒 |
-| `/api/jogadores/:id` | PUT / DELETE | 🔒 |
-| `/api/partidas` | GET / POST | POST🔒 |
-| `/api/partidas/:id/aprovar` | POST | 🔒 |
-| `/api/classificacao` | GET | — |
-| `/api/rankings` | GET | — |
-| `/api/galeria` | GET / POST | POST🔒 |
-| `/api/mensagens` | GET / POST | — |
-| `/api/sumula/:token` | GET / POST | — |
-
-## Fluxo da súmula digital
-
-1. Admin cria partida → sistema gera token UUID com validade 24h após a partida
-2. Árbitro acessa `/sumula/:token` no celular
-3. Preenche: times → W.O.? → presenças → placar por set → ocorrências → revisão
-4. Submete → status muda para `PENDENTE_APROVACAO`
-5. Admin aprova em `/admin/partidas` → status `ENCERRADA` + classificação recalculada
-
-## Regras de pontuação
-
-| Resultado | Vencedor | Perdedor |
-|-----------|----------|----------|
-| 2×0 | 3 pts | 0 pts |
-| 2×1 | 2 pts | 1 pt |
-| W.O. | 3 pts | 0 pts + punição |
-
-## Seed de desenvolvimento
-
-O banco já contém:
-- 1 liga: LUVA 2026
-- 8 equipes (Masculino Ouro)
-- 48 jogadores
-- 10 partidas encerradas + classificação calculada
-- 3 partidas agendadas com tokens de súmula
-- Mensagens aprovadas no mural
+As migrations aplicáveis ficam em `supabase/migrations/`. As da Fase 0 ainda não aplicadas, com a reversão de cada uma, ficam em `supabase/pendentes/` (ver o `LEIA-ME.md` de lá e `docs/analise/16-plano-aplicacao-migrations.md`).

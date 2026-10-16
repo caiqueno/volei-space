@@ -23,7 +23,7 @@ test('etapa A — candidatura de equipe responde 201 com id', async ({ request }
 })
 
 test('etapa B — admin vê Volei Touchet pendente', async ({ page }) => {
-  test.fail(true, 'O roteiro entra em /admin/login com admin@luv.com.br e LuvAdmin@2026 e espera a candidatura PENDENTE. /admin/login redireciona para /login; o admin não é essa senha fixa (vem da tabela Admin); GET /api/admin/candidaturas?tipo=equipe devolve lista vazia.')
+  test.fail(true, 'O roteiro antigo entra em /admin/login com uma credencial fixa de exemplo (removida) e espera a candidatura PENDENTE. /admin/login redireciona para /login; o admin não é essa senha fixa (vem da tabela Admin); GET /api/admin/candidaturas?tipo=equipe devolve lista vazia.')
   await page.goto('/admin/login')
   await expect(page).toHaveURL(/\/admin\/login/)
   await expect(page.getByRole('button', { name: 'Membro' })).toBeVisible()

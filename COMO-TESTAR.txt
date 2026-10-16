@@ -117,7 +117,7 @@ ETAPA B — Ver a candidatura no painel admin
 ─────────────────────────────────────────────────────────────────────────────
 
 1. Acesse: http://localhost:3001/admin/login
-2. Login: admin@luv.com.br  |  Senha: LuvAdmin@2026
+2. Login: use a conta de administrador do seu ambiente (tabela Admin; ADMIN_EMAIL definido). Não há credencial padrão.
 3. Clique em "Candidaturas" no menu lateral
 4. Você deve ver "Volei Touchet" com status PENDENTE
 
