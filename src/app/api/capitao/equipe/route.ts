@@ -4,6 +4,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
+import { respostaEquipeNaoVinculada } from '@/lib/uploads/cadastro-incompleto'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 
 const equipeIdentitySchema = z.object({
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof Response) return auth
 
   const equipe = await ensureEquipeForCandidatura(auth.userId)
-  if (!equipe) return error('Equipe nao encontrada ou ainda nao vinculada.', 404)
+  if (!equipe) return respostaEquipeNaoVinculada(auth.userId)
 
   return success(normalizeEquipe(equipe))
 }
@@ -26,7 +27,7 @@ export async function PUT(req: NextRequest) {
   if (auth instanceof Response) return auth
 
   const equipe = await ensureEquipeForCandidatura(auth.userId)
-  if (!equipe) return error('Equipe nao encontrada ou ainda nao vinculada.', 404)
+  if (!equipe) return respostaEquipeNaoVinculada(auth.userId)
 
   const body = await req.json().catch(() => ({}))
   const parsed = equipeIdentitySchema.safeParse(body)

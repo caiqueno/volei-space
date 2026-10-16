@@ -1,5 +1,6 @@
 import { ErroMeuTime, lerCorpo, rotaMeuTime, sucesso, validar } from '@/lib/meu-time/acesso'
-import { adicionarMembro, exigirEquipe, listarMembros, removerMembro } from '@/lib/meu-time/dados'
+import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
+import { MENSAGEM_MEMBRO_UNIFORME, adicionarMembro, exigirEquipe, listarMembros, removerMembro } from '@/lib/meu-time/dados'
 import { novoMembroSchema } from '@/lib/meu-time/schemas'
 
 export const dynamic = 'force-dynamic'
@@ -12,11 +13,23 @@ export const GET = rotaMeuTime<Params>(async ({ usuarioId, params }) => {
   return sucesso(await listarMembros(equipe.id))
 })
 
-// POST {email, papel}: só o responsável adiciona; a pessoa precisa ter conta.
+// Limites contra varredura de e-mails (M10). Em memória por instância; ver docs/analise/21.
+const LIMITE_MEMBROS_POR_USUARIO = { max: 10, janelaMs: 60 * 60 * 1000 }
+const LIMITE_MEMBROS_POR_IP = { max: 30, janelaMs: 60 * 60 * 1000 }
+
+// POST {email, papel}: só o responsável adiciona. A resposta é a mesma (202) exista conta ou não,
+// ou a pessoa já seja membro: não revela cadastro, id nem nome. A lista (GET) mostra quem entrou.
 export const POST = rotaMeuTime<Params>(async ({ req, usuarioId, params }) => {
   const { equipe } = await exigirEquipe(usuarioId, params.id, 'responsavel')
+  const porUsuario = consumirLimite(`meu-time-membro:u:${usuarioId}`, LIMITE_MEMBROS_POR_USUARIO.max, LIMITE_MEMBROS_POR_USUARIO.janelaMs)
+  const porIp = consumirLimite(`meu-time-membro:ip:${ipDaRequisicao(req)}`, LIMITE_MEMBROS_POR_IP.max, LIMITE_MEMBROS_POR_IP.janelaMs)
+  if (!porUsuario.ok || !porIp.ok) {
+    const espera = Math.max(porUsuario.retryAfterSeconds, porIp.retryAfterSeconds)
+    throw new ErroMeuTime('Muitas tentativas de adicionar pessoas. Aguarde e tente de novo.', 429, 'LIMITE_DE_TAXA', { retryAfterSeconds: espera })
+  }
   const entrada = validar(novoMembroSchema, await lerCorpo(req))
-  return sucesso(await adicionarMembro(equipe.id, entrada), 201)
+  await adicionarMembro(equipe.id, entrada)
+  return sucesso({ solicitado: true, mensagem: MENSAGEM_MEMBRO_UNIFORME }, 202)
 })
 
 // DELETE ?membroId=: só o responsável remove; o próprio responsável não sai por aqui.

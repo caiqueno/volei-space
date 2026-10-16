@@ -3,7 +3,8 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { normalizarElegibilidade, type ElegibilidadeCategoria } from '@/lib/elegibilidade-categoria'
 import { registrationWindowDecision } from '@/lib/team-registration-draft'
-import { ErroMeuTime, lerDados, violacaoUnica } from '@/lib/meu-time/acesso'
+import { ErroMeuTime, lerDados, tabelaAusente, violacaoUnica } from '@/lib/meu-time/acesso'
+import { avaliarConvite, type LinkCampeonato } from '@/lib/meu-time/convite'
 import {
   listarAtletasDoClube,
   listarComissao,
@@ -90,9 +91,18 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
     'categoria',
   ) as { id: string; ligaId: number; tokenInscricao: string | null } | null
   if (!categoria) throw new ErroMeuTime('Categoria não encontrada.', 404, 'CATEGORIA_NAO_ENCONTRADA')
-  if (pedido.convite && categoria.tokenInscricao && pedido.convite !== categoria.tokenInscricao) {
-    throw new ErroMeuTime('O link de inscrição não confere com esta categoria.', 403, 'CONVITE_INVALIDO')
-  }
+  // Convite (M7): exigido se a categoria tem link ou o campeonato tem link ativo; ver convite.ts.
+  const resposta = await supabase
+    .from('LinkInscricaoCampeonato')
+    .select('token,ativo,revogadoEm,expiraEm')
+    .eq('ligaId', categoria.ligaId)
+    .maybeSingle()
+  if (resposta.error && !tabelaAusente(resposta.error)) lerDados(resposta, 'link de inscrição do campeonato')
+  const decisao = avaliarConvite(pedido.convite, {
+    tokenCategoria: categoria.tokenInscricao,
+    linkCampeonato: resposta.error ? null : (resposta.data as LinkCampeonato | null),
+  })
+  if (!decisao.ok) throw new ErroMeuTime(decisao.mensagem, decisao.status, decisao.codigo)
   const liga = lerDados(
     await supabase.from('Liga').select('id,status,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm').eq('id', categoria.ligaId).maybeSingle(),
     'campeonato',

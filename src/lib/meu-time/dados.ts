@@ -260,17 +260,33 @@ export type EntradaLote = { nome: string; numero?: number | string | null; dataN
 export type LinhaIgnoradaLote = { linha: number; motivo: string }
 
 /** Quebra o lote em linhas válidas e ignoradas (sem gravar). `texto` usa o parser da inscrição rápida. */
-export function prepararLote(entrada: { atletas?: EntradaLote[]; texto?: string }, existentes: Array<{ nome: string }>) {
+/**
+ * Prepara o lote. Numeração de `linha` (B6): primeiro as linhas do `texto` (número da linha colada,
+ * contando as em branco), depois as de `atletas`, continuando a contagem; assim a linha de um
+ * ignorado é única mesmo com `texto` e `atletas` juntos.
+ * Repetido: mesmo nome já no banco ou repetido no lote. Se os dois lados têm data de nascimento e as
+ * datas diferem, são pessoas diferentes (homônimos) e ambas entram.
+ */
+export function prepararLote(
+  entrada: { atletas?: EntradaLote[]; texto?: string },
+  existentes: Array<{ nome: string; dataNascimento?: string | Date | null }>,
+) {
   const ignorados: LinhaIgnoradaLote[] = []
   const candidatos: Array<{ linha: number; nome: string; dataNascimento: string | null; numeroPreferido: number | null; posicao: string | null }> = []
+  let linhasDoTexto = 0
   if (entrada.texto != null) {
     const lido = interpretarListaColada(entrada.texto)
-    lido.atletas.forEach((item, indice) => candidatos.push({ linha: indice + 1, nome: item.nome, dataNascimento: null, numeroPreferido: null, posicao: null }))
+    const linhas = String(entrada.texto).split(/\r?\n/)
+    linhasDoTexto = linhas.length
+    // Aceitas = linhas não vazias que o parser não ignorou, na mesma ordem.
+    const ignoradasNoTexto = new Set(lido.ignoradas.map((item) => item.linha))
+    const aceitas = linhas.map((texto, indice) => ({ texto, linha: indice + 1 })).filter((item) => item.texto.trim() && !ignoradasNoTexto.has(item.linha))
+    lido.atletas.forEach((item, indice) => candidatos.push({ linha: aceitas[indice]?.linha ?? indice + 1, nome: item.nome, dataNascimento: null, numeroPreferido: null, posicao: null }))
     lido.ignoradas.forEach((item) => ignorados.push({ linha: item.linha, motivo: item.motivo }))
   }
   ;(entrada.atletas ?? []).forEach((item, indice) => {
     const nome = String(item.nome ?? '').replace(/\s+/g, ' ').trim()
-    const linha = indice + 1
+    const linha = linhasDoTexto + indice + 1
     const numero = item.numero == null || item.numero === '' ? null : Number(item.numero)
     if (nome.length < 2 || !/[A-Za-zÀ-ɏ]/.test(nome)) return void ignorados.push({ linha, motivo: 'Sem nome reconhecível' })
     if (numero != null && (!Number.isInteger(numero) || numero < 0 || numero > 99)) {
@@ -279,15 +295,23 @@ export function prepararLote(entrada: { atletas?: EntradaLote[]; texto?: string 
     candidatos.push({ linha, nome, dataNascimento: item.dataNascimento ?? null, numeroPreferido: numero, posicao: item.posicao ?? null })
   })
 
-  const nomes = new Set(existentes.map((item) => normalizarChaveNome(item.nome)))
+  const dia = (valor: unknown) => (valor ? String(valor instanceof Date ? valor.toISOString() : valor).slice(0, 10) : null)
+  const vistos = new Map<string, Array<string | null>>()
+  const registrar = (nome: string, nascimento: string | null) => {
+    const chave = normalizarChaveNome(nome)
+    vistos.set(chave, [...(vistos.get(chave) ?? []), nascimento])
+  }
+  const jaExiste = (nome: string, nascimento: string | null) =>
+    (vistos.get(normalizarChaveNome(nome)) ?? []).some((outro) => !outro || !nascimento || outro === nascimento)
+  existentes.forEach((item) => registrar(item.nome, dia(item.dataNascimento)))
   const novos: typeof candidatos = []
   for (const candidato of candidatos) {
-    const chave = normalizarChaveNome(candidato.nome)
-    if (nomes.has(chave)) {
+    const nascimento = dia(candidato.dataNascimento)
+    if (jaExiste(candidato.nome, nascimento)) {
       ignorados.push({ linha: candidato.linha, motivo: 'Já está no banco do time' })
       continue
     }
-    nomes.add(chave)
+    registrar(candidato.nome, nascimento)
     novos.push(candidato)
   }
   ignorados.sort((a, b) => a.linha - b.linha)
@@ -405,16 +429,20 @@ async function acharContaPorEmail(email: string) {
   return null
 }
 
+export const MENSAGEM_MEMBRO_UNIFORME = 'Pedido recebido. Se houver uma conta com esse e-mail, a pessoa passa a ter acesso à equipe.'
+
+/**
+ * Resposta uniforme (M10): a rota não revela se o e-mail tem conta, nem devolve id ou nome.
+ * Conta inexistente e pessoa que já é membro terminam sem erro e sem diferença visível.
+ * Devolve `adicionado` só para auditoria interna; a rota nunca o expõe.
+ */
 export async function adicionarMembro(timeId: string, entrada: { email: string; papel: 'TECNICO' | 'ASSISTENTE' }) {
   const usuarioId = await acharContaPorEmail(entrada.email)
-  if (!usuarioId) {
-    throw new ErroMeuTime('Essa pessoa precisa ter conta no volei.space para entrar na comissão.', 404, 'CONTA_NAO_ENCONTRADA')
-  }
+  if (!usuarioId) return { adicionado: false }
   const resposta = await supabase.from('MembroEquipe').insert({ timeId, usuarioId, papel: entrada.papel })
-  if (violacaoUnica(resposta.error)) throw new ErroMeuTime('Essa pessoa já faz parte da equipe.', 409, 'MEMBRO_DUPLICADO')
+  if (violacaoUnica(resposta.error)) return { adicionado: false }
   lerDados(resposta, 'adicionar membro')
-  const nomes = await nomesDasContas([usuarioId])
-  return { id: usuarioId, nome: nomes.get(usuarioId) || 'Membro', papel: entrada.papel } as MembroAcesso
+  return { adicionado: true }
 }
 
 export async function removerMembro(timeId: string, membroId: string) {

@@ -6,6 +6,7 @@ import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
 import { verifyPublicToken, isReleasedPublicStatus } from '@/lib/auth'
 import { exigirOrganizadorDaLiga, requireOrganizador } from '@/lib/organizador-isolamento'
 import { carregarEquipeAlvo, exigirAtorDaEquipe } from '@/lib/uploads/acesso-equipe'
+import { MENSAGEM_CADASTRO_INCOMPLETO, candidaturaSemEquipe } from '@/lib/uploads/cadastro-incompleto'
 import { assinarEnvio } from '@/lib/uploads/assinatura'
 import { montarCaminhoDono, montarCaminhoUpload } from '@/lib/uploads/caminho'
 import { TIPOS_UPLOAD, tipoDeUploadValido } from '@/lib/uploads/config'
@@ -42,7 +43,14 @@ export async function POST(req: NextRequest) {
   let montar: () => string
   switch (validacao.config.escopo) {
     case 'equipe': {
-      if (!parsed.data.equipeId) return semCacheCompartilhado(error('Dados inválidos', 422))
+      if (!parsed.data.equipeId) {
+        // Capitão sem equipe vinculada não tem onde gravar: explica o motivo em vez de "dados inválidos".
+        const sessaoCapitao = await verifyPublicToken(req)
+        if (sessaoCapitao?.tipo === 'equipe' && isReleasedPublicStatus(sessaoCapitao.status) && (await candidaturaSemEquipe(String(sessaoCapitao.userId)))) {
+          return semCacheCompartilhado(error(MENSAGEM_CADASTRO_INCOMPLETO, 409, { codigo: 'CADASTRO_INCOMPLETO' }))
+        }
+        return semCacheCompartilhado(error('Dados inválidos', 422))
+      }
       const equipe = await carregarEquipeAlvo(parsed.data.equipeId)
       if (!equipe) return semCacheCompartilhado(error('Equipe não encontrada.', 404))
       const ator = await exigirAtorDaEquipe(req, equipe, ['organizador', 'capitao'])

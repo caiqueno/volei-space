@@ -94,6 +94,17 @@ async function main() {
         'https://x.supabase.co/storage/v1/object/public/atleta-arquivos/cand-1/documento/123-rg.pdf',
         'https://evil.example/a.pdf',
       ]),
+    }, {
+      // Atleta da equipe 1 com valores envenenados (gravados antes da correção da A2).
+      id: 11,
+      equipeId: 1,
+      documentosUrls: JSON.stringify([
+        `atleta-documento/liga-8/equipe-2/${UUID}.pdf`,
+        `atleta-documento/liga-8/equipe-1/${UUID}.pdf`,
+        'atleta-documento/liga-7/equipe-1/../equipe-2/x.pdf',
+        'https://evil.example/storage/v1/object/public/atleta-arquivos/cand-9/documento/x.pdf',
+        `atleta-documento/liga-7/equipe-1/${UUID}.pdf`,
+      ]),
     }],
   }
   const assinados: string[] = []
@@ -233,6 +244,18 @@ async function main() {
     assert.equal((await ler('jogadorId=999&indice=0')).status, 404)
     sessaoAtual = sessao('equipe', 'cap-2')
     assert.equal((await ler('jogadorId=10&indice=0')).status, 403, 'capitão de outra equipe lendo documento de atleta alheio')
+
+    // A2: documento gravado no atleta com dono de outra equipe/liga, `..` ou host estranho não é assinado.
+    sessaoAtual = sessao('equipe', 'cap-1')
+    lidos.length = 0
+    for (const indice of [0, 1, 2]) {
+      assert.equal((await ler(`jogadorId=11&indice=${indice}`)).status, 404, `valor envenenado ${indice}`)
+    }
+    // URL de host estranho: o caminho extraído só vale pelo bucket; o host nunca é consultado.
+    assert.equal(lidos.filter((item) => item.includes('liga-8') || item.includes('..')).length, 0, 'nada assinado para valor de outro dono')
+    assert.equal((await ler('jogadorId=11&indice=4')).status, 200, 'caminho da própria equipe e liga')
+    sessaoAtual = sessao('organizador', 'org-A')
+    assert.equal((await ler(`caminho=${encodeURIComponent(`atleta-documento/liga-8/equipe-1/${UUID}.pdf`)}`)).status, 404, 'liga do caminho diferente da liga da equipe')
   } finally {
     falso.restaurar()
   }

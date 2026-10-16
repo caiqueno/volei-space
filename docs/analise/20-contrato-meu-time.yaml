@@ -422,7 +422,13 @@ paths:
         '401': { $ref: '#/components/responses/Erro' }
         '503': { $ref: '#/components/responses/Erro' }
     post:
-      summary: Dá acesso a uma conta (só RESPONSAVEL). A pessoa precisa ter conta no volei.space.
+      summary: Pede acesso para uma conta (só RESPONSAVEL). Resposta uniforme, não revela se o e-mail tem conta.
+      description: |
+        M10. Responde sempre 202 com a mesma mensagem, haja conta com esse e-mail, não haja, ou a pessoa já seja
+        membro. Não devolve id nem nome da conta. Se a conta existe e ainda não é membro, o acesso é concedido
+        (sem aceite); quem entrou aparece em GET /membros. Limite de taxa: 10 pedidos por hora por usuário e 30
+        por hora por IP (429 LIMITE_DE_TAXA com `retryAfterSeconds`), em memória por instância. Pendente de
+        produto: aceite da pessoa convidada, que fecharia a enumeração pela lista.
       requestBody:
         required: true
         content:
@@ -434,20 +440,25 @@ paths:
                 email: { type: string, format: email }
                 papel: { type: string, enum: [TECNICO, ASSISTENTE] }
       responses:
-        '201':
-          description: Membro adicionado
+        '202':
+          description: Pedido recebido (mesma resposta com ou sem conta)
           content:
             application/json:
               schema:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: '#/components/schemas/Membro' }
+                  data:
+                    type: object
+                    required: [solicitado, mensagem]
+                    properties:
+                      solicitado: { type: boolean }
+                      mensagem: { type: string }
         '404':
-          # Equipe ou conta não encontrada (CONTA_NAO_ENCONTRADA)
+          # Equipe não encontrada
           $ref: '#/components/responses/Erro'
-        '409':
-          # Já é membro (MEMBRO_DUPLICADO)
+        '429':
+          # LIMITE_DE_TAXA
           $ref: '#/components/responses/Erro'
         '403': { $ref: '#/components/responses/Erro' }
         '422': { $ref: '#/components/responses/Erro' }
@@ -492,11 +503,14 @@ paths:
         faixa de nascimento/idade, atleta em um só time por categoria, comissão do próprio time e dentro do limite.
         Grava uma CÓPIA dos atletas. Status final: CONFIRMADA, ou CONFIRMADA_COM_PENDENCIAS se faltar documento
         (quando a RegraElenco exige) ou nascimento (quando há faixa de idade).
-        `convite` (token do link do organizador) é opcional; se vier, precisa conferir com a categoria.
+        `convite` (M7): obrigatório quando a categoria tem link de inscrição (`tokenInscricao`), quando o campeonato
+        tem LinkInscricaoCampeonato ativo (não revogado nem expirado) ou quando a competição for privada (ainda não
+        há coluna para isso no schema). Vale o token da categoria ou o do link do campeonato. Sem link e sem
+        competição privada o campo é opcional e ignorado.
         Códigos de erro 422: SEM_ATLETAS, ATLETA_FORA_DO_TIME, ATLETA_REPETIDO, NUMERO_INVALIDO, NUMERO_REPETIDO,
         CAPITAO_LIBERO, MAIS_DE_UM_CAPITAO, LIBEROS_ACIMA, ABAIXO_DO_MINIMO, ACIMA_DO_MAXIMO, FORA_DA_IDADE,
         NAIPE_INCOMPATIVEL, ATLETA_EM_OUTRO_TIME, COMISSAO_ACIMA, MEMBRO_FORA_DA_EQUIPE.
-        Outros: 403 INSCRICOES_FECHADAS / CONVITE_INVALIDO, 404 CATEGORIA_NAO_ENCONTRADA, 409 JA_INSCRITA /
+        Outros: 403 INSCRICOES_FECHADAS / CONVITE_OBRIGATORIO / CONVITE_INVALIDO, 404 CATEGORIA_NAO_ENCONTRADA, 409 JA_INSCRITA /
         CONFLITO_DE_ELENCO. Em 422 o campo `erros` lista todas as violações ({codigo, mensagem, atletaId?}).
       requestBody:
         required: true

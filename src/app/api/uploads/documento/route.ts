@@ -8,6 +8,7 @@ import { carregarEquipeAlvo, exigirAtorDaEquipe } from '@/lib/uploads/acesso-equ
 import { assinarLeitura } from '@/lib/uploads/assinatura'
 import { caminhoDoValorArmazenado, lerCaminhoUpload } from '@/lib/uploads/caminho'
 import { TIPOS_UPLOAD } from '@/lib/uploads/config'
+import { documentoPertenceAEquipe } from '@/lib/uploads/documentos'
 
 const BUCKET_PRIVADO = TIPOS_UPLOAD['atleta-documento'].bucket
 
@@ -40,6 +41,9 @@ export async function GET(req: NextRequest) {
 
   const equipe = await carregarEquipeAlvo(alvo.equipeId)
   if (!equipe) return semCacheCompartilhado(error('Documento não encontrado.', 404))
+
+  // O caminho (da consulta ou gravado no atleta) tem de pertencer à equipe e à liga que autorizam a leitura.
+  if (!documentoPertenceAEquipe(alvo.caminho, equipe)) return semCacheCompartilhado(error('Documento não encontrado.', 404))
 
   const ator = await exigirAtorDaEquipe(req, equipe, ['organizador', 'capitao', 'arbitro'])
   if (ator instanceof NextResponse) return semCacheCompartilhado(ator)

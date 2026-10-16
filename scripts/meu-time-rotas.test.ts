@@ -38,6 +38,7 @@ function tabelasBase(): Record<string, LinhaEscrita[]> {
     ],
     CandidaturaEquipe: [{ id: 'user-tecnico', email: 'tec@volei.space', responsavel: 'Téo Técnico', nome: 'Equipe T' }],
     ContaPublico: [],
+    LinkInscricaoCampeonato: [],
   }
 }
 
@@ -175,12 +176,28 @@ async function main() {
   assert.equal(colado.data.criados.length, 2)
 
   // --- Membros (contas com acesso) ---------------------------------------------
-  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'ninguem@volei.space', papel: 'TECNICO' }), params)).status, 404)
+  // M10: resposta uniforme, exista conta, não exista ou já seja membro.
+  const semConta = await membrosRota.POST(req('POST', '/x', { email: 'ninguem@volei.space', papel: 'TECNICO' }), params)
+  assert.equal(semConta.status, 202)
+  const corpoSemConta = await json(semConta)
   assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'RESPONSAVEL' }), params)).status, 422)
   const membro = await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)
-  assert.equal(membro.status, 201)
-  assert.deepEqual((await json(membro)).data, { id: 'user-tecnico', nome: 'Téo Técnico', papel: 'TECNICO' })
-  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)).status, 409, 'membro duplicado')
+  assert.equal(membro.status, 202)
+  assert.deepEqual(await json(membro), corpoSemConta, 'corpo idêntico com e sem conta')
+  assert.ok(!JSON.stringify(corpoSemConta).includes('user-tecnico') && !JSON.stringify(corpoSemConta).includes('Téo'), 'sem id nem nome')
+  const duplicado = await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)
+  assert.equal(duplicado.status, 202, 'membro duplicado também uniforme')
+  assert.deepEqual(await json(duplicado), corpoSemConta)
+  // Limite por usuário: a 11ª tentativa na hora é barrada (já foram 4).
+  const { reiniciarCotas } = await import('../src/lib/rate-limit')
+  let barrado = 0
+  for (let i = 0; i < 10; i++) {
+    const r = await membrosRota.POST(req('POST', '/x', { email: `varredura${i}@volei.space`, papel: 'TECNICO' }), params)
+    if (r.status === 429) barrado += 1
+    else assert.equal(r.status, 202)
+  }
+  assert.ok(barrado >= 3, `limite por usuário aplicado (${barrado})`)
+  reiniciarCotas()
   const membrosLista = (await json(await membrosRota.GET(req('GET', '/x'), params))).data
   assert.equal(membrosLista.length, 2)
   assert.ok(!JSON.stringify(membrosLista).includes('@'), 'membros não expõem e-mail')
@@ -229,17 +246,31 @@ async function main() {
   const todos = (await json(await detalhe.GET(req('GET', '/x'), params))).data.atletas as any[]
   const seis = todos.slice(0, 6)
   const selecao = seis.map((a, i) => ({ atletaId: a.id, numero: i + 1, capitao: i === 0, libero: i === 5 }))
-  const pedido = (extras: Record<string, unknown> = {}) => req('POST', '/x', { categoriaCampeonatoId: CAT, atletas: selecao, ...extras })
+  const pedido = (extras: Record<string, unknown> = {}) => req('POST', '/x', { categoriaCampeonatoId: CAT, convite: 'token-ok', atletas: selecao, ...extras })
 
-  assert.equal((await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, atletas: [] }), params)).status, 422)
+  assert.equal((await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, convite: 'token-ok', atletas: [] }), params)).status, 422)
   assert.equal((await inscricoesRota.POST(pedido({ categoriaCampeonatoId: '44444444-4444-4444-8444-444444444444' }), params)).status, 404)
   assert.equal((await inscricoesRota.POST(pedido({ convite: 'outro' }), params)).status, 403)
+  // M7: categoria com link exige convite; sem ele, 403 CONVITE_OBRIGATORIO.
+  const semConvite = await inscricoesRota.POST(pedido({ convite: undefined }), params)
+  assert.equal(semConvite.status, 403)
+  assert.equal((await json(semConvite)).codigo, 'CONVITE_OBRIGATORIO')
+  // Categoria sem link e campeonato sem link ativo: convite opcional (chega à regra de naipe).
+  assert.equal((await json(await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_MASC, convite: undefined }), params))).codigo, 'NAIPE_INCOMPATIVEL')
+  // Link ativo do campeonato passa a exigir o token dele, mesmo em categoria sem link.
+  tabelas.LinkInscricaoCampeonato.push({ id: 'l1', ligaId: 1, token: 'link-liga', ativo: true, revogadoEm: null, expiraEm: null })
+  assert.equal((await json(await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_MASC, convite: undefined }), params))).codigo, 'CONVITE_OBRIGATORIO')
+  assert.equal((await json(await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_MASC, convite: 'errado' }), params))).codigo, 'CONVITE_INVALIDO')
+  assert.equal((await json(await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_MASC, convite: 'link-liga' }), params))).codigo, 'NAIPE_INCOMPATIVEL')
+  tabelas.LinkInscricaoCampeonato[0].revogadoEm = '2026-01-01T00:00:00Z'
+  assert.equal((await json(await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_MASC, convite: undefined }), params))).codigo, 'NAIPE_INCOMPATIVEL', 'link revogado não exige')
+  tabelas.LinkInscricaoCampeonato.length = 0
   assert.equal((await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_FECHADA }), params)).status, 403, 'inscrições fechadas')
   const masculina = await inscricoesRota.POST(pedido({ categoriaCampeonatoId: CAT_MASC }), params)
   assert.equal(masculina.status, 422)
   assert.equal((await json(masculina)).codigo, 'NAIPE_INCOMPATIVEL')
 
-  const repetido = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, atletas: [{ atletaId: seis[0].id, numero: 5 }, { atletaId: seis[1].id, numero: 5 }] }), params)
+  const repetido = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, convite: 'token-ok', atletas: [{ atletaId: seis[0].id, numero: 5 }, { atletaId: seis[1].id, numero: 5 }] }), params)
   assert.equal(repetido.status, 422)
   assert.equal((await json(repetido)).codigo, 'NUMERO_REPETIDO')
   assert.equal(tabelas.Inscricao.length, 0, 'nada é gravado quando a regra reprova')
@@ -276,14 +307,14 @@ async function main() {
   const outra = await json(await equipes.POST(req('POST', '/api/meu-time/equipes', { nome: 'Rival', naipe: 'FEMININO' })))
   const clubeRival = tabelas.TimeClube.find((t) => t.id === outra.data.id)!.clubeId
   tabelas.VinculoAtletaClube.push({ clubeId: clubeRival, atletaId: seis[0].id, status: 'ATIVO' })
-  const rival = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, atletas: [{ atletaId: seis[0].id, numero: 1 }] }), { params: { id: outra.data.id } })
+  const rival = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, convite: 'token-ok', atletas: [{ atletaId: seis[0].id, numero: 1 }] }), { params: { id: outra.data.id } })
   assert.equal(rival.status, 422)
   assert.equal((await json(rival)).codigo, 'ATLETA_EM_OUTRO_TIME')
 
   // Comissão de fora da equipe não entra na inscrição (a equipe "Vôlei Norte Sub-17" ainda está livre na CAT).
   await entrar('user-a')
   const subs = tabelas.TimeClube.find((t) => t.nome === 'Vôlei Norte Sub-17')!
-  const naoMembro = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, atletas: [{ atletaId: todos[6].id, numero: 1 }], comissao: ['estranho'] }), { params: { id: subs.id } })
+  const naoMembro = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, convite: 'token-ok', atletas: [{ atletaId: todos[6].id, numero: 1 }], comissao: ['estranho'] }), { params: { id: subs.id } })
   assert.equal(naoMembro.status, 422)
   assert.equal((await json(naoMembro)).codigo, 'MEMBRO_FORA_DA_EQUIPE')
 

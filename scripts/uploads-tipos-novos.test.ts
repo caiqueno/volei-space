@@ -59,6 +59,7 @@ async function main() {
   const tabelas: Tabelas = {
     Liga: [{ id: 7, organizadorId: 'org-A' }, { id: 8, organizadorId: 'org-B' }],
     Equipe: [{ id: 1, ligaId: 7 }],
+    CandidaturaEquipe: [{ id: 'cap-sem', equipeId: null }, { id: 'cap-com', equipeId: 1 }],
   }
   const assinados: string[] = []
   const falso = instalarPostgrestFalso(tabelas, {
@@ -148,6 +149,11 @@ async function main() {
 
     // Tipos de equipe continuam exigindo equipe existente.
     assert.equal((await post({ tipo: 'equipe-emblema', ...imagem })).status, 422)
+    // B2: capitão sem equipe vinculada recebe mensagem de cadastro incompleto (409), não "dados inválidos".
+    const semEquipe = await post({ tipo: 'atleta-foto-rosto', ...imagem }, await entrar('equipe', 'cap-sem'))
+    assert.equal(semEquipe.status, 409)
+    assert.match((await semEquipe.json()).error, /Cadastro incompleto/)
+    assert.equal((await post({ tipo: 'atleta-foto-rosto', ...imagem }, await entrar('equipe', 'cap-com'))).status, 422, 'com equipe, faltou equipeId')
     assert.equal((await post({ tipo: 'equipe-emblema', ...imagem, equipeId: 999 })).status, 404)
     assert.equal((await post({ tipo: 'equipe-emblema', ...imagem, equipeId: 1 })).status, 401)
     assert.equal((await post({ tipo: 'equipe-emblema', ...imagem, equipeId: 1 }, orgA)).status, 201)
@@ -161,7 +167,8 @@ async function main() {
   const bucketUrl = 'https://x.supabase.co/storage/v1/object/'
   assert.equal(documentos.normalizarDocumentoEntrada(proprio, equipe), proprio)
   assert.equal(documentos.normalizarDocumentoEntrada(`${bucketUrl}sign/atleta-arquivos/${proprio}`, equipe), proprio, 'referência sem token vira caminho')
-  assert.equal(documentos.normalizarDocumentoEntrada(`${bucketUrl}public/atleta-arquivos/cand-1/documento/a.pdf`, equipe), 'cand-1/documento/a.pdf', 'URL antiga')
+  assert.equal(documentos.normalizarDocumentoEntrada(`${bucketUrl}public/atleta-arquivos/cand-1/documento/a.pdf`, equipe), null, 'URL antiga nova de legado (A2)')
+  assert.equal(documentos.normalizarDocumentoEntrada(`${bucketUrl}public/atleta-arquivos/cand-1/documento/a.pdf`, equipe, ['cand-1/documento/a.pdf']), 'cand-1/documento/a.pdf', 'URL antiga já gravada')
   assert.equal(documentos.normalizarDocumentoEntrada('cand-1/documento/a.pdf', equipe), null, 'caminho legado desconhecido')
   assert.equal(documentos.normalizarDocumentoEntrada('cand-1/documento/a.pdf', equipe, ['cand-1/documento/a.pdf']), 'cand-1/documento/a.pdf', 'legado já gravado')
   assert.equal(documentos.normalizarDocumentoEntrada(`atleta-documento/liga-7/equipe-2/${UUID}.pdf`, equipe), null, 'outra equipe')
@@ -169,6 +176,54 @@ async function main() {
   assert.equal(documentos.normalizarDocumentoEntrada(`atleta-foto-rosto/liga-7/equipe-1/${UUID}.png`, equipe), null, 'não é documento')
   assert.equal(documentos.normalizarDocumentoEntrada('atleta-documento/liga-7/equipe-1/../equipe-2/x.pdf', equipe), null)
   assert.equal(documentos.normalizarDocumentoEntrada('https://evil.example/a.pdf', equipe), null)
+  // A2: URL do bucket com caminho legado de outro dono não é aceita; só o que já está gravado no atleta.
+  const legadoAlheio = 'cand-9/documento/123-rg.pdf'
+  for (const host of ['https://proj.supabase.co', 'http://proj.supabase.co', 'https://evil.example']) {
+    const base = `${host}/storage/v1/object/public/atleta-arquivos`
+    assert.equal(documentos.normalizarDocumentoEntrada(`${base}/${legadoAlheio}`, equipe), null, `legado por URL ${host}`)
+    assert.equal(documentos.normalizarDocumentoEntrada(`${host}/storage/v1/object/sign/atleta-arquivos/${legadoAlheio}?token=x`, equipe), null)
+    assert.equal(documentos.normalizarDocumentoEntrada(`${base}/atleta-documento/liga-7/equipe-2/${UUID}.pdf`, equipe), null, 'outra equipe por URL')
+    assert.equal(documentos.normalizarDocumentoEntrada(`${base}/atleta-documento/liga-8/equipe-1/${UUID}.pdf`, equipe), null, 'outra liga por URL')
+    assert.equal(documentos.normalizarDocumentoEntrada(`${base}/atleta-documento/liga-7/equipe-1/../equipe-2/x.pdf`, equipe), null, '.. por URL')
+  }
+  const urlLegada = `https://proj.supabase.co/storage/v1/object/public/atleta-arquivos/${legadoAlheio}`
+  assert.equal(documentos.normalizarDocumentoEntrada(urlLegada, equipe, [legadoAlheio]), legadoAlheio, 'legado por URL já gravado no mesmo atleta')
+  assert.equal(documentos.normalizarDocumentoEntrada(urlLegada, equipe, ['cand-9/documento/outro.pdf']), null, 'gravado é outro objeto')
+  // B1: fotoRostoUrl só aceita caminho/URL do Storage do projeto, bucket de foto de rosto, da própria equipe.
+  const fotos = await import('../src/lib/uploads/foto-rosto')
+  const base = 'https://proj.supabase.co'
+  const caminhoFoto = `atleta-foto-rosto/liga-7/equipe-1/${UUID}.png`
+  const urlFoto = `${base}/storage/v1/object/public/jogador-fotos-rosto/${caminhoFoto}`
+  assert.equal(fotos.normalizarFotoRostoEntrada(urlFoto, equipe, null, base), urlFoto)
+  assert.equal(fotos.normalizarFotoRostoEntrada(caminhoFoto, equipe, null, base), urlFoto, 'caminho vira URL pública')
+  assert.equal(fotos.normalizarFotoRostoEntrada('https://old.example/foto.png', equipe, 'https://old.example/foto.png', base), 'https://old.example/foto.png', 'já gravada no atleta é preservada')
+  for (const ruim of [
+    'javascript:alert(1)',
+    'data:image/png;base64,AAAA',
+    'https://evil.example/foto.png',
+    `https://evil.example/storage/v1/object/public/jogador-fotos-rosto/${caminhoFoto}`,
+    `https://proj.supabase.co.evil.example/storage/v1/object/public/jogador-fotos-rosto/${caminhoFoto}`,
+    `https://user:pw@proj.supabase.co/storage/v1/object/public/jogador-fotos-rosto/${caminhoFoto}`,
+    `${base}/storage/v1/object/public/equipe-emblemas/${caminhoFoto}`,
+    `${base}/storage/v1/object/public/jogador-fotos-rosto/atleta-foto-rosto/liga-7/equipe-2/${UUID}.png`,
+    `${base}/storage/v1/object/public/jogador-fotos-rosto/atleta-foto-rosto/liga-8/equipe-1/${UUID}.png`,
+    `${base}/storage/v1/object/public/jogador-fotos-rosto/atleta-foto-rosto/liga-7/equipe-1/../equipe-2/x.png`,
+    `atleta-foto-rosto/liga-7/equipe-2/${UUID}.png`,
+    `atleta-documento/liga-7/equipe-1/${UUID}.pdf`,
+    'qualquer-nome.png',
+    42,
+    '',
+  ]) {
+    assert.equal(fotos.normalizarFotoRostoEntrada(ruim, equipe, null, base), null, String(ruim))
+  }
+  assert.equal(fotos.normalizarFotoRostoEntrada(urlFoto, equipe, null, undefined), null, 'sem URL do projeto configurada, nada passa')
+
+  // Leitura: dono do caminho novo precisa ser a equipe e a liga do atleta.
+  assert.equal(documentos.documentoPertenceAEquipe(proprio, equipe), true)
+  assert.equal(documentos.documentoPertenceAEquipe(`atleta-documento/liga-7/equipe-2/${UUID}.pdf`, equipe), false)
+  assert.equal(documentos.documentoPertenceAEquipe(`atleta-documento/liga-8/equipe-1/${UUID}.pdf`, equipe), false)
+  assert.equal(documentos.documentoPertenceAEquipe(`atleta-foto-rosto/liga-7/equipe-1/${UUID}.png`, equipe), false)
+  assert.equal(documentos.documentoPertenceAEquipe(legadoAlheio, equipe), true, 'legado não tem dono no nome')
   assert.equal(documentos.documentoParaLeitura(`${bucketUrl}public/atleta-arquivos/${proprio}`), proprio)
   assert.equal(documentos.documentoParaLeitura(proprio), proprio)
   assert.equal(documentos.documentoParaLeitura('https://evil.example/a.pdf'), null)
