@@ -160,6 +160,22 @@ assert.equal(resumoProntidao([]).mensagem, 'Seu time ainda não tem atletas. Adi
   const lista = prepararLote({ atletas: [{ nome: 'Carla Dias', numero: 5 }, { nome: '  ', numero: 1 }, { nome: 'Dani Reis', numero: 150 }, { nome: 'CARLA  dias' }] }, [])
   assert.deepEqual(lista.novos.map((n) => n.nome), ['Carla Dias'])
   assert.deepEqual(lista.ignorados.map((i) => i.linha), [2, 3, 4])
+
+  // B6: com texto e atletas juntos a numeração não se repete; a linha do texto é a linha colada.
+  const junto = prepararLote({ texto: 'Ana Lima\n\nx\nAna Lima', atletas: [{ nome: '  ' }, { nome: 'Bia Costa', numero: 150 }] }, [])
+  assert.deepEqual(junto.novos.map((n) => ({ nome: n.nome, linha: n.linha })), [{ nome: 'Ana Lima', linha: 1 }])
+  assert.deepEqual(junto.ignorados.map((i) => i.linha), [3, 4, 5, 6], 'texto 3 e 4, atletas 5 e 6')
+  assert.equal(new Set(junto.ignorados.map((i) => i.linha)).size, junto.ignorados.length)
+  const colado2 = prepararLote({ texto: '\n\nCarla Dias' }, [])
+  assert.equal(colado2.novos[0].linha, 3, 'linha colada, não a posição do candidato')
+
+  // Homônimos: datas diferentes entram; mesma data ou data ausente de um lado repete.
+  const homonimos = prepararLote(
+    { atletas: [{ nome: 'Lia Nunes', dataNascimento: '2001-01-01' }, { nome: 'Lia Nunes', dataNascimento: '2002-02-02' }, { nome: 'Lia Nunes', dataNascimento: '2002-02-02' }, { nome: 'Lia Nunes' }] },
+    [{ nome: 'Lia Nunes', dataNascimento: '2000-05-05T00:00:00Z' }],
+  )
+  assert.deepEqual(homonimos.novos.map((n) => n.dataNascimento), ['2001-01-01', '2002-02-02'])
+  assert.deepEqual(homonimos.ignorados.map((i) => i.linha), [3, 4])
 }
 
 console.log('meu-time-regras: ok')
