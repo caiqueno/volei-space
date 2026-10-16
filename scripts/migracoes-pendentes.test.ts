@@ -29,7 +29,7 @@ function ler(dir: string, nome: string): string {
 
 const pendentes = listarSql(dirPendentes)
 const rollbacks = listarSql(dirRollback)
-assert.ok(pendentes.length >= 26, 'esperava ao menos 26 migrations pendentes')
+assert.ok(pendentes.length >= 29, 'esperava ao menos 29migrations pendentes')
 
 // 1) Cada migration tem reversão de mesmo nome e vice-versa.
 assert.deepEqual(rollbacks, pendentes, 'cada migration pendente precisa de rollback de mesmo nome')
@@ -117,6 +117,37 @@ for (const proibido of ['EM_ANALISE', 'PENDENCIA\'', 'LISTA_ESPERA', 'RECUSADA']
 assert.ok(!/'APROVADA'/.test(sqlInscricao), 'Inscricao ainda aceita APROVADA')
 assert.match(sqlInscricao, /avisos\s+jsonb/i, 'Inscricao.avisos jsonb ausente')
 assert.ok(!/RENAME\s+(TO|COLUMN)/i.test(Object.values(sqlPendente).join('\n')), 'pendentes não devem renomear tabelas nem colunas')
+
+// 5b) Rodada 3 (Meu Time): ComissaoTime, Atleta de lote, tipos do motor e função experimental.
+const sqlComissao = sqlPendente['202610170027_meu_time_comissao_time.sql']
+assert.match(sqlComissao, /create\s+table\s+if\s+not\s+exists\s+public\."ComissaoTime"/i)
+assert.match(sqlComissao, /"timeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)\s+on\s+delete\s+cascade/i)
+for (const funcao of ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO']) {
+  assert.ok(sqlComissao.includes(`'${funcao}'`), `ComissaoTime sem função ${funcao}`)
+}
+assert.match(sqlComissao, /alter\s+table\s+public\."ComissaoTime"\s+enable\s+row\s+level\s+security/i)
+assert.match(sqlComissao, /revoke\s+all\s+on\s+table\s+public\."ComissaoTime"\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sqlComissao, /index\s+if\s+not\s+exists\s+"ComissaoTime_timeId_idx"/i)
+assert.match(sqlComissao, /add\s+column\s+if\s+not\s+exists\s+"comissaoTimeId"\s+uuid\s+references\s+public\."ComissaoTime"/i)
+assert.ok(!/"comissaoTimeId"\s+uuid\s+not\s+null/i.test(sqlComissao), 'comissaoTimeId precisa ser nullable')
+assert.match(sqlPendente['202610170028_meu_time_atleta_lote_posicao.sql'], /'LOTE'/)
+const sqlLote = sqlPendente['202610170028_meu_time_atleta_lote_posicao.sql']
+assert.match(sqlLote, /add\s+column\s+if\s+not\s+exists\s+posicao\s+text/i)
+assert.match(sqlLote, /add\s+column\s+if\s+not\s+exists\s+"numeroPreferido"\s+integer/i)
+assert.match(sqlLote, /"numeroPreferido"\s+between\s+0\s+and\s+99/i)
+assert.match(sqlLote, /origem\s+in\s*\('MIGRACAO',\s*'LOTE'\)\s+or\s+"dataNascimento"\s+is\s+not\s+null/i)
+const sqlTipos = sqlPendente['202610170029_sumula_evento_tipos_motor.sql']
+const motor = fs.readFileSync(path.join(raiz, 'src', 'lib', 'regras-volei', 'eventos.ts'), 'utf8').replace(/\r\n/g, '\n')
+const blocoPayload = /export interface PayloadPorTipo \{([\s\S]*?)\n\}\n\nexport type SumulaEventoTipo/.exec(motor)
+assert.ok(blocoPayload, 'PayloadPorTipo não encontrado em eventos.ts')
+const tiposMotor = [...blocoPayload![1].matchAll(/^ {2}([A-Z_]+):/gm)].map((m) => m[1])
+assert.ok(tiposMotor.length >= 15, 'esperava ao menos 15 tipos no motor')
+for (const tipo of tiposMotor) assert.ok(sqlTipos.includes(`'${tipo}'`), `CHECK de SumulaEvento sem o tipo do motor ${tipo}`)
+assert.match(sqlTipos, /comment\s+on\s+column\s+public\."SumulaEvento"\.payload/i)
+const experimental = fs.readFileSync(path.join(raiz, 'supabase', 'pendentes', 'experimental', 'registrar_inscricao_meu_time.sql'), 'utf8')
+assert.match(experimental, /EXPERIMENTAL/)
+assert.match(experimental, /revoke\s+all\s+on\s+function\s+public\.registrar_inscricao_meu_time\(jsonb\)\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.ok(!/grant\s+execute[^;]*\sto\s+[^;]*\b(anon|authenticated|public)\b/i.test(sqlSemComentario(experimental)), 'função experimental não pode ter execute para anon/authenticated')
 
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {
