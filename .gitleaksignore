@@ -1,0 +1,5 @@
+# Achados do gitleaks já tratados (segredo rotacionado ou falso positivo confirmado).
+# Formato: uma linha por fingerprint (commit:arquivo:regra:linha), copiado do
+# relatório do gitleaks. O fingerprint não contém o valor do segredo.
+# Antes de cada linha, um comentário com motivo, data e quem aprovou.
+# NUNCA escreva aqui o valor do segredo.

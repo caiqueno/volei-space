@@ -1,0 +1,27 @@
+# Configuração do gitleaks (CI, job `segredos`).
+#
+# Regra deste arquivo: NUNCA colar aqui um valor de segredo, nem parcial, nem em
+# comentário. Achado conhecido e já tratado entra pelo FINGERPRINT.
+#
+# Como liberar um achado (só depois de rotacionar/revogar o segredo exposto):
+#   1. Rode: gitleaks detect --source . --redact --report-format json --report-path <fora-do-repo>
+#   2. Copie o campo "Fingerprint" do achado (formato commit:arquivo:regra:linha).
+#      O fingerprint não contém o valor do segredo.
+#   3. Escreva a linha do fingerprint em .gitleaksignore (um por linha, com
+#      comentário dizendo o motivo e a data), em vez de afrouxar regras aqui.
+#   Rotacionar vem antes de liberar: liberar sem rotacionar não protege nada.
+#
+# O gitleaks lê .gitleaksignore automaticamente na raiz do repositório.
+
+title = "volei.space"
+
+[extend]
+# Mantém todas as regras padrão do gitleaks.
+useDefault = true
+
+[allowlist]
+description = "Somente arquivos de exemplo sem valor real. Achados pontuais usam .gitleaksignore."
+paths = [
+  # Modelo de variáveis: contém só nomes e marcadores como "troque-por-...".
+  '''^\.env\.example$''',
+]
