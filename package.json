@@ -93,7 +93,8 @@
     "test:semi-provisoria": "node scripts/with-ts-node.mjs scripts/semi-provisoria.test.ts",
     "test:ida-volta": "node scripts/with-ts-node.mjs scripts/ida-volta.test.ts",
     "test:conflito-agenda": "node scripts/with-ts-node.mjs scripts/conflito-agenda.test.ts",
-    "test:stories-instagram": "node scripts/with-ts-node.mjs scripts/stories-instagram.test.ts"
+    "test:elenco-inscricao": "node scripts/with-ts-node.mjs scripts/elenco-inscricao.test.ts",
+    "test:stories-instagram":"node scripts/with-ts-node.mjs scripts/stories-instagram.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

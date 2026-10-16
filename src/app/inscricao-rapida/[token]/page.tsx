@@ -37,6 +37,8 @@ export default async function InscricaoRapidaTokenPage({ params }: PageProps) {
         readOnlyReason={context.readOnlyReason}
         registrationStatus={context.registrationStatus}
         elegibilidade={context.elegibilidade}
+        elencoMinimo={context.liga.elencoQuantidadeMinima ?? null}
+        elencoMaximo={context.liga.elencoQuantidadeMaxima ?? null}
       />
     )
   } catch (err) {

@@ -75,8 +75,8 @@ const PLAYER_POSITIONS = [
 
 const DOCUMENT_TYPES = [
   { value: 'CPF', label: 'CPF' },
-  { value: 'CIN', label: 'CIN' },
-  { value: 'CTPS', label: 'Carteira Profissional' },
+  { value: 'CIN', label: 'Identidade nova (CIN)' },
+  { value: 'CTPS', label: 'Carteira de trabalho' },
   { value: 'RG', label: 'RG' },
   { value: 'PASSAPORTE', label: 'Passaporte' },
   { value: 'OUTRO', label: 'Outro' },
@@ -166,7 +166,7 @@ export default function CapitaoPage() {
       setCampeonatoMsg(json.error ?? 'Não foi possível solicitar inscrição.')
       return
     }
-    setCampeonatoMsg('Inscrição enviada para análise da organização.')
+    setCampeonatoMsg('Inscrição registrada no campeonato.')
     fetchCampeonatos(session.candidaturaId)
   }
 
@@ -186,7 +186,7 @@ export default function CapitaoPage() {
       setJogadores(json.data?.jogadores ?? [])
     } else {
       setJogadores([])
-      setRosterMsg(json.error ?? 'Elenco liberado apenas para equipes aprovadas e vinculadas.')
+      setRosterMsg(json.error ?? 'O elenco fica disponível quando a equipe está vinculada a um campeonato.')
     }
     setRosterLoading(false)
   }
@@ -412,7 +412,7 @@ export default function CapitaoPage() {
             <p className="type-lead mt-4 max-w-2xl">
               {approved
                 ? 'Sua equipe está no campeonato. Aqui você atualiza o elenco, os dados da equipe e acompanha os jogos.'
-                : 'A organização ainda está conferindo o cadastro. Enquanto isso, você pode revisar os dados da equipe.'}
+                : 'Vincule sua equipe a um campeonato para liberar o elenco. Enquanto isso, você pode revisar os dados da equipe.'}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/" className="capitain-primary-action inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
@@ -440,9 +440,9 @@ export default function CapitaoPage() {
       </section>
 
       {!approved && <section className="mx-auto grid max-w-7xl gap-4 px-4 py-10 md:grid-cols-2 xl:grid-cols-5">
-        <PanelCard icon={<ClipboardCheck size={22} />} title="Cadastro" text={approved ? 'Cadastro da equipe concluído.' : 'Dados de contato enviados para análise.'} status={approved ? 'Ativa' : 'Pendente'} action={!approved ? { label: 'Editar contato', section: 'cadastro' } : undefined} onEdit={setEditSection} />
+        <PanelCard icon={<ClipboardCheck size={22} />} title="Cadastro" text={approved ? 'Cadastro da equipe concluído.' : 'Dados de contato salvos. Você pode editar quando quiser.'} status={approved ? 'Ativa' : 'Pendente'} action={!approved ? { label: 'Editar contato', section: 'cadastro' } : undefined} onEdit={setEditSection} />
         <PanelCard icon={<MapPin size={22} />} title="Quadra" text={approved ? 'Estrutura registrada para operação da equipe.' : 'Endereço, piso e estrutura cedida pela equipe.'} status={approved ? 'Validada' : 'Pendente'} action={!approved ? { label: 'Editar quadra', section: 'quadra' } : undefined} onEdit={setEditSection} />
-        <PanelCard icon={<UsersRound size={22} />} title="Elenco" text={approved ? 'Área liberada para cadastrar atletas, fotos e documentos.' : 'Área de atletas será liberada após aprovação.'} status={approved ? 'Liberado' : 'Em breve'} />
+        <PanelCard icon={<UsersRound size={22} />} title="Elenco" text={approved ? 'Área liberada para cadastrar atletas, fotos e documentos.' : 'Área de atletas liberada quando a equipe estiver vinculada a um campeonato.'} status={approved ? 'Liberado' : 'Em breve'} />
         <PanelCard icon={<QrCode size={22} />} title="QR Codes" text={approved ? 'Credenciais serão geradas a partir dos atletas cadastrados.' : 'Validação individual dos jogadores ficará aqui.'} status={approved ? 'Liberado' : 'Em breve'} />
         <PanelCard icon={<CalendarDays size={22} />} title="Agenda" text={approved ? 'Dias e períodos ficam disponíveis para organização de jogos.' : 'Dias e períodos disponíveis para jogos.'} status={approved ? 'Ativa' : 'Em breve'} action={!approved ? { label: 'Editar agenda', section: 'disponibilidade' } : undefined} onEdit={setEditSection} />
       </section>}
@@ -453,7 +453,7 @@ export default function CapitaoPage() {
             <p className="luva-kicker">Próximos passos</p>
             <h2 className="mt-3 font-display text-3xl font-black text-white">Preparação da equipe</h2>
             <div className="mt-5 space-y-3">
-              {['Aguardar aprovação da organização', 'Cadastrar atletas e documentos', 'Gerar QR Codes de validação', 'Acompanhar calendário oficial'].map((item, index) => (
+              {['Vincular a equipe a um campeonato', 'Cadastrar atletas e documentos', 'Gerar QR Codes de validação', 'Acompanhar calendário oficial'].map((item, index) => (
                 <div key={item} className="capitain-step-item flex items-center gap-3 rounded-2xl border p-3">
                   <span className="capitain-step-number flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black">{index + 1}</span>
                   <p className="text-sm font-black text-slate-100">{item}</p>
@@ -559,9 +559,9 @@ export default function CapitaoPage() {
 
           {!approved ? (
             <div className="mt-6 rounded-[1.5rem] border border-luva-amber/35 bg-luva-amber/10 p-5">
-              <p className="font-display text-2xl font-black text-white">Elenco aguardando aprovação.</p>
+              <p className="font-display text-2xl font-black text-white">Elenco ainda não disponível.</p>
               <p className="mt-2 text-sm font-semibold leading-6 text-slate-200">
-                A equipe precisa estar aprovada e vinculada antes de cadastrar atletas, fotos, documentos e QR Codes.
+                Vincule a equipe a um campeonato pelo link de inscrição da categoria para cadastrar atletas, fotos, documentos e QR Codes.
               </p>
             </div>
           ) : (
@@ -873,7 +873,7 @@ function getCapitaoStatus(status?: string) {
   if (['APROVADA', 'APROVADO', 'ATIVA', 'ATIVO'].includes(normalized)) {
     return {
       approved: true,
-      label: normalized === 'ATIVA' || normalized === 'ATIVO' ? 'Ativa' : 'Aprovada',
+      label: normalized === 'ATIVA' || normalized === 'ATIVO' ? 'Ativa' : 'Inscrita',
       description: 'Equipe inscrita no campeonato. Elenco e dados já podem ser atualizados.',
     }
   }
@@ -881,14 +881,14 @@ function getCapitaoStatus(status?: string) {
   if (normalized === 'REJEITADA' || normalized === 'REJEITADO') {
     return {
       approved: false,
-      label: 'Não aprovada',
-      description: 'A organização retornou a candidatura. Entre em contato para entender os próximos passos.',
+      label: 'Ajuste pedido pela organização',
+      description: 'A organização pediu um ajuste no cadastro. Entre em contato para saber o que corrigir.',
     }
   }
 
   return {
     approved: false,
-    label: 'Em análise',
-    description: 'A organização valida os dados antes de liberar inscrição de atletas, QR Codes e agenda da equipe.',
+    label: 'Cadastro em andamento',
+    description: 'Complete os dados e vincule a equipe a um campeonato para liberar atletas, QR Codes e agenda.',
   }
 }
