@@ -93,6 +93,9 @@ export function validarSubstituicoes(input: {
     const tipo = String(ocorrencia.tipo ?? '').trim().toLowerCase()
     if (tipo === 'troca_libero' || tipo === 'libero_exchange') continue
     const lesao = tipo === 'lesao' || tipo === 'injury_substitution'
+    // A tela marca a troca excepcional (expulsão, desqualificação, lesão, doença) com [[EXC:motivo]].
+    // Ela tem contador próprio e não entra na cota regular nem forma par. Sem marcador, o tipo `lesao` segue a regra da categoria.
+    if (lesao && ehSubstituicaoExcepcionalMarcada(ocorrencia.descricao)) continue
     if (lesao && input.substituicaoPorLesao === true) continue
     if (!lesao && tipo !== 'substitution' && tipo !== 'substituicao') continue
 
@@ -117,6 +120,12 @@ export function validarSubstituicoes(input: {
   }
 
   return null
+}
+
+const MARCADOR_EXCEPCIONAL = /\[\[EXC:(?:LESAO|DOENCA|EXPULSAO|DESQUALIFICACAO)\]\]/
+
+export function ehSubstituicaoExcepcionalMarcada(descricao?: string | null) {
+  return MARCADOR_EXCEPCIONAL.test(String(descricao ?? ''))
 }
 
 export function aplicarSubstituicao(
