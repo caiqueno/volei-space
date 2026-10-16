@@ -8,6 +8,7 @@ import { requireOwnedLigaForSetup } from '@/lib/championship-setup-access'
 import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { gravarPagamentoSimulado } from '@/lib/pagamento-simulado'
 import { categoriesCheckoutGate } from '@/lib/category-pricing-server'
 
 function confirmacaoSimuladaLiberada() {
@@ -58,10 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const pagamentoConfirmadoEm = new Date().toISOString()
-  const { error: updateErr } = await supabase
-    .from('Liga')
-    .update({ pagamentoConfirmadoEm })
-    .eq('id', ligaId)
+  const { error: updateErr } = await gravarPagamentoSimulado(supabase, ligaId, pagamentoConfirmadoEm)
 
   if (updateErr) {
     console.error('[pagamento/confirmar] erro ao gravar', updateErr)

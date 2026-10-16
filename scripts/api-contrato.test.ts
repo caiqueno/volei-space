@@ -66,34 +66,15 @@ async function main() {
     amount: 25000,
   })
 
+  // Webhook legado desligado (D4): 410 para qualquer evento, com ou sem assinatura.
   process.env.INFINITEPAY_WEBHOOK_SECRET = segredo
-  process.env.NODE_ENV = 'production'
-  const semAssinatura = await postWebhook(pago, null)
-  assert.equal(semAssinatura.status, 401)
-  assert.equal(semAssinatura.json.error, 'Assinatura inválida')
-
-  const assinaturaErrada = await postWebhook(pago, 'a'.repeat(64))
-  assert.equal(assinaturaErrada.status, 401)
-  assert.equal(assinaturaErrada.json.error, 'Assinatura inválida')
-
-  process.env.INFINITEPAY_WEBHOOK_SECRET = ''
-  process.env.NODE_ENV = 'production'
-  const segredoVazioProducao = await postWebhook(pendente, assinar(pendente, segredo))
-  assert.equal(segredoVazioProducao.status, 401, 'secret vazio em produção recusa o webhook')
-
-  process.env.INFINITEPAY_WEBHOOK_SECRET = ''
-  process.env.NODE_ENV = 'development'
-  const segredoVazioDev = await postWebhook(pendente, null)
-  assert.equal(segredoVazioDev.status, 200, 'secret vazio fora de produção aceita, como o roteiro local descreve')
-  assert.equal(segredoVazioDev.json.received ?? segredoVazioDev.json.data?.received, true)
-
-  process.env.INFINITEPAY_WEBHOOK_SECRET = segredo
-  process.env.NODE_ENV = 'development'
-  for (const status of ['pending', 'cancelled', 'expired']) {
-    const raw = JSON.stringify({ id: `evt-${status}`, external_id: 'equipe:cand-pendente', status, amount: 1 })
-    const resposta = await postWebhook(raw, assinar(raw, segredo))
-    assert.equal(resposta.status, 200, status)
-    assert.equal(resposta.json.received ?? resposta.json.data?.received, true, status)
+  for (const ambiente of ['production', 'development']) {
+    process.env.NODE_ENV = ambiente
+    for (const [raw, assinatura] of [[pago, assinar(pago, segredo)], [pago, null], [pago, 'a'.repeat(64)], [pendente, assinar(pendente, segredo)]] as const) {
+      const resposta = await postWebhook(raw, assinatura)
+      assert.equal(resposta.status, 410, ambiente)
+      assert.match(resposta.json.error, /desativado/i)
+    }
   }
 
   const { validateWebhookSignature } = await import('../src/lib/infinitepay')

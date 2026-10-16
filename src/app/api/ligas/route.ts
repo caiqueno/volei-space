@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { isSupabaseServiceConfigured, supabaseAdmin } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { requireAuth, requirePublicRole } from '@/lib/auth'
+import { requireOrganizador } from '@/lib/organizador-isolamento'
 import { ligaSchema } from '@/lib/schemas'
 import { normalizeEliminatoryPhase } from '@/lib/eliminatorias'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (parsed.data.organizadorId) {
-      const auth = await requirePublicRole(req, ['organizador'])
+      const auth = await requireOrganizador(req)
       if (auth instanceof Response) return auth
       if (auth.userId !== parsed.data.organizadorId) {
         return error('Você não pode criar campeonato para outro organizador.', 403)

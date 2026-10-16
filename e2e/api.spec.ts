@@ -18,54 +18,20 @@ const rotasAdmin = [
 ] as const
 
 test.describe('API no servidor local', () => {
-  test('webhook com assinatura inválida de mesmo tamanho responde 401', async ({ request }) => {
+  test('webhook legado da InfinitePay está desligado e responde 410', async ({ request }) => {
     const raw = JSON.stringify(webhookPago())
-    const resposta = await request.post('/api/webhooks/infinitepay', {
-      headers: {
-        'content-type': 'application/json',
-        'x-infinitepay-signature': 'f'.repeat(64),
-      },
-      data: raw,
-    })
-    expect(resposta.status()).toBe(401)
-    expect(await resposta.json()).toMatchObject({ error: 'Assinatura inválida' })
-  })
-
-  test('webhook sem o header x-infinitepay-signature responde 401', async ({ request }) => {
-    const resposta = await request.post('/api/webhooks/infinitepay', {
-      headers: { 'content-type': 'application/json' },
-      data: webhookPago(),
-    })
-    expect(resposta.status()).toBe(401)
-    expect(await resposta.json()).toMatchObject({ error: 'Assinatura inválida' })
-  })
-
-  test('assinatura curta inválida responde 401', async ({ request }) => {
-    const resposta = await request.post('/api/webhooks/infinitepay', {
-      headers: {
-        'content-type': 'application/json',
-        'x-infinitepay-signature': 'curta',
-      },
-      data: webhookPago(),
-    })
-    expect(resposta.status()).toBe(401)
-    expect(await resposta.json()).toMatchObject({ error: 'Assinatura inválida' })
-  })
-
-  test('status diferente de paid é acusado com 200', async ({ request }) => {
-    for (const status of ['pending', 'cancelled', 'expired']) {
-      const corpo = { ...webhookPago(), status }
-      const raw = JSON.stringify(corpo)
+    const cabecalhos = [
+      { 'x-infinitepay-signature': assinarCorpo(raw) },
+      { 'x-infinitepay-signature': 'f'.repeat(64) },
+      { 'x-infinitepay-signature': 'curta' },
+      {},
+    ]
+    for (const extra of cabecalhos) {
       const resposta = await request.post('/api/webhooks/infinitepay', {
-        headers: {
-          'content-type': 'application/json',
-          'x-infinitepay-signature': assinarCorpo(raw),
-        },
+        headers: { 'content-type': 'application/json', ...extra },
         data: raw,
       })
-      expect(resposta.status(), status).toBe(200)
-      const json = await resposta.json()
-      expect(json.received ?? json.data?.received, status).toBe(true)
+      expect(resposta.status()).toBe(410)
     }
   })
 

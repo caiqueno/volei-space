@@ -16,7 +16,7 @@ import {
   sessaoGestaoExpirada,
 } from '../src/lib/sessao-gestao'
 import { TOKEN_AUD, TOKEN_TYP } from '../src/lib/token-claims'
-import { lerToken } from '../src/lib/token-verify'
+import { getSecret, lerToken } from '../src/lib/token-verify'
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'segredo-de-teste-volei-space'
 
@@ -63,7 +63,7 @@ function testCookieDeNavegador() {
 
 async function testExpiracaoDoToken() {
   const agora = Math.floor(Date.now() / 1000)
-  const secreto = new TextEncoder().encode(process.env.JWT_SECRET)
+  const secreto = getSecret('session')
   const inativo = await new SignJWT({
     scope: 'admin',
     typ: TOKEN_TYP.admin,

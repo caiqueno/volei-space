@@ -7,25 +7,22 @@ import { clearTokenCookie, isReleasedPublicStatus, signPublicToken, signToken, s
 import { adminEmailAllowed } from '@/lib/admin-access'
 import { emailsConferem, padraoIlikeLiteral } from '@/lib/email-lookup'
 import { loginDestination } from '@/lib/login-destination'
-import { consumirCota, ipDaRequisicao } from '@/lib/rate-limit'
+import { checkRateLimit, ipDaRequisicao, limiteEsgotado, zerarLimite } from '@/lib/rate-limit'
 import { EMAIL_ARBITRO_SIMULACAO } from '@/lib/simulacao'
 import { colunaAusente } from '@/lib/coluna-ausente'
 
 const CREDENCIAIS = 'Usuário ou senha não conferem.'
 const FALHA_ENTRADA = 'Não foi possível entrar agora. Tente novamente.'
-const JANELA_LOGIN_MS = 10 * 60 * 1000
+const JANELA_LOGIN_MS = 15 * 60 * 1000
+// Só falhas contam. Por e-mail o limite é baixo; por IP é maior porque um
+// ginásio ou provedor pode concentrar várias pessoas atrás do mesmo endereço.
+const LIMITE_FALHAS_LOGIN_EMAIL = 5
+const LIMITE_FALHAS_LOGIN_IP = 30
 let hashComparacao: Promise<string> | null = null
 
 function hashParaComparacao() {
   hashComparacao ??= bcrypt.hash('comparacao-login-volei-space', 10)
   return hashComparacao
-}
-
-function podeTentarLogin(req: NextRequest, email: string) {
-  const ip = ipDaRequisicao(req)
-  const porIp = consumirCota(`login:ip:${ip}`, 30, JANELA_LOGIN_MS)
-  const porConta = consumirCota(`login:email:${ip}:${email}`, 8, JANELA_LOGIN_MS)
-  return porIp.permitido && porConta.permitido
 }
 const loginSchema = z.object({
   email: z.string().email(),
@@ -54,8 +51,17 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.trim().toLowerCase()
     const senha = parsed.data.senha
 
-    if (!podeTentarLogin(req, email)) {
-      return error('Muitas tentativas. Tente novamente em instantes.', 429)
+    const chaveIp = `login:ip:${ipDaRequisicao(req)}`
+    const chaveEmail = `login:email:${email}`
+    const [bloqueioIp, bloqueioEmail] = await Promise.all([
+      limiteEsgotado(chaveIp, LIMITE_FALHAS_LOGIN_IP),
+      limiteEsgotado(chaveEmail, LIMITE_FALHAS_LOGIN_EMAIL),
+    ])
+    if (!bloqueioIp.permitido || !bloqueioEmail.permitido) {
+      const espera = Math.max(bloqueioIp.retryAfterSeconds, bloqueioEmail.retryAfterSeconds)
+      const res = error('Muitas tentativas. Tente novamente em instantes.', 429)
+      res.headers.set('Retry-After', String(espera))
+      return res
     }
 
     if (!isSupabaseServiceConfigured) {
@@ -63,11 +69,33 @@ export async function POST(req: NextRequest) {
       return error(FALHA_ENTRADA, 500)
     }
 
+    const res = await autenticar(email, senha, parsed.data.perfil, adminOnly)
+    if (res.status === 401) {
+      await Promise.all([
+        checkRateLimit(chaveIp, { limite: LIMITE_FALHAS_LOGIN_IP, janelaMs: JANELA_LOGIN_MS }),
+        checkRateLimit(chaveEmail, { limite: LIMITE_FALHAS_LOGIN_EMAIL, janelaMs: JANELA_LOGIN_MS }),
+      ])
+    } else if (res.status === 200) {
+      await zerarLimite(chaveEmail)
+    }
+    return res
+  } catch (err: unknown) {
+    console.error('[AUTH ERROR]', err)
+    return error(FALHA_ENTRADA, 500)
+  }
+}
+
+async function autenticar(
+  email: string,
+  senha: string,
+  perfil: z.infer<typeof loginSchema>['perfil'],
+  adminOnly: boolean,
+): Promise<NextResponse> {
+  try {
     const adminResponse = await loginAdmin(email, senha)
     if (adminResponse) return adminResponse
     if (adminOnly) return error(CREDENCIAIS, 401)
 
-    const perfil = parsed.data.perfil
     const usuario = perfil === 'publico'
       ? await findPublicAccount(email)
       : perfil === 'organizador'

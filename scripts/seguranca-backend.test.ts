@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
 import { jwtVerify } from 'jose'
+import { getSecret } from '../src/lib/token-verify'
 import { adminEmailAllowed, ambienteExigeEmailDeAdmin, isAdminSession } from '../src/lib/admin-access'
 import { emailsConferem, padraoIlikeLiteral } from '../src/lib/email-lookup'
 import { fingerprintsMatch, passwordResetFingerprint, signPasswordResetToken, signToken } from '../src/lib/auth'
@@ -42,7 +43,7 @@ async function main() {
   process.env.NODE_ENV = 'production'
 
   const sessao = await signToken({ adminId: 7, email: 'admin@volei.space', nome: 'Admin' })
-  const payloadSessao = (await jwtVerify(sessao, new TextEncoder().encode(process.env.JWT_SECRET))).payload
+  const payloadSessao = (await jwtVerify(sessao, getSecret('session'))).payload
   assert.equal(isAdminSession(payloadSessao), true)
   assert.equal(isAdminSession({ ...payloadSessao, purpose: 'password-reset' }), false)
   assert.equal(isAdminSession({ adminId: 7, email: 'admin@volei.space' }), false)
@@ -50,7 +51,7 @@ async function main() {
 
   const hash = '$2a$10$hash-de-teste-que-nao-pode-vazar'
   const reset = await signPasswordResetToken({ adminId: 7, email: 'admin@volei.space', senhaHash: hash })
-  const payloadReset = (await jwtVerify(reset, new TextEncoder().encode(process.env.JWT_SECRET))).payload
+  const payloadReset = (await jwtVerify(reset, getSecret('password-reset'))).payload
   assert.equal(payloadReset.senhaHash, undefined)
   assert.equal(String(payloadReset.senhaFingerprint).includes(hash), false)
   assert.equal(isAdminSession(payloadReset), false)

@@ -3,6 +3,15 @@ import { requirePublicRole, verifyPublicToken, verifyToken } from '@/lib/auth'
 import { error } from '@/lib/api-response'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
+/**
+ * Sessão de organizador para escrita. Por padrão exige cadastro liberado
+ * (status APROVADO/ATIVO...) e senha já trocada; leituras do próprio perfil
+ * podem passar `releasedOnly: false`.
+ */
+export async function requireOrganizador(req: NextRequest, options: { releasedOnly?: boolean } = {}) {
+  return requirePublicRole(req, ['organizador'], { releasedOnly: options.releasedOnly ?? true })
+}
+
 export async function exigirOrganizadorDaLiga(req: NextRequest, ligaId: number) {
   const auth = await requirePublicRole(req, ['organizador'], { releasedOnly: true })
   if (auth instanceof NextResponse) return auth
