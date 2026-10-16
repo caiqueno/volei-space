@@ -78,6 +78,8 @@ export type DetalheEquipe = {
   comissao: MembroComissao[]
   inscricoes: InscricaoResumo[]
   prontidao: Prontidao
+  /** Contas com acesso à equipe (o contrato sempre envia; opcional aqui por tolerância a servidor antigo). */
+  membros?: MembroAcesso[]
   /** Papel de quem está logado na equipe, quando o servidor informa. */
   meuPapel?: PapelAcesso
 }
@@ -86,8 +88,12 @@ export type NovaEquipe = { nome: string; cidade?: string; naipe: Naipe; escudoUr
 
 export type NovoAtleta = { nome: string; dataNascimento: string; numeroPreferido?: number; posicao?: string }
 
-export type AtletaLote = { nome: string; numero?: number; dataNascimento?: string }
+export type AtletaLote = { nome: string; numero?: number | null; dataNascimento?: string | null; posicao?: PosicaoCodigo | null }
 
+/**
+ * Resultado do lote já normalizado. No contrato `criados` é a lista de atletas; aqui `atletasCriados`
+ * guarda a lista e `criados` o total (o servidor antigo mandava só o número).
+ */
 export type ResultadoLote = {
   criados: number
   /** Atletas criados, quando o servidor devolve a lista (os sem nascimento vêm com `dataNascimento: null`). */

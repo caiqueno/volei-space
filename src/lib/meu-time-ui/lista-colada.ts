@@ -27,6 +27,15 @@ export function prepararLista(texto: string, existentes: Atleta[]): PreparoLista
   return { novos, repetidos, ignoradas, payload, semNumero: novos.filter((a) => !a.numero).length }
 }
 
+/**
+ * O servidor numera `linha` pela posição na lista enviada (1 a N), que não é a linha do texto colado
+ * (linhas vazias, repetidos e ignoradas já saíram). Por isso o nome vai junto: "Linha 2 (Bia): motivo".
+ */
+export function descreverIgnoradoDoLote(item: { linha: number; motivo: string }, enviados: AtletaLote[]): string {
+  const nome = enviados[item.linha - 1]?.nome
+  return `Linha ${item.linha}${nome ? ` (${nome})` : ''}: ${item.motivo}`
+}
+
 export function resumirResultadoLote(criados: number, ignorados: Array<{ linha: number; motivo: string }>) {
   const salvos = `${criados} ${criados === 1 ? 'atleta salvo' : 'atletas salvos'}`
   if (ignorados.length === 0) return `${salvos}.`

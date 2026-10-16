@@ -132,8 +132,10 @@ export function normalizarRegrasCategoria(dado: unknown): RegrasCategoria | null
 export function normalizarResultadoLote(dado: unknown): ResultadoLote | null {
   if (!dado || typeof dado !== 'object') return null
   const o = dado as Record<string, unknown>
-  const atletasCriados = Array.isArray(o.criados) ? (o.criados as Atleta[]) : []
-  const criados = Array.isArray(o.criados) ? o.criados.length : (inteiroOuNulo(o.criados) ?? 0)
+  const atletasCriados = Array.isArray(o.criados)
+    ? (o.criados as unknown[]).filter((a): a is Atleta => !!a && typeof a === 'object' && typeof (a as Atleta).id === 'string' && typeof (a as Atleta).nome === 'string')
+    : []
+  const criados = Array.isArray(o.criados) ? atletasCriados.length : (inteiroOuNulo(o.criados) ?? 0)
   const ignorados = Array.isArray(o.ignorados)
     ? (o.ignorados as unknown[]).flatMap((item) => {
         if (!item || typeof item !== 'object') return []

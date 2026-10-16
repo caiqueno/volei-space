@@ -11,6 +11,8 @@ import {
   normalizarResultadoLote,
   type Falha,
 } from '@/lib/meu-time-ui/respostas'
+import { mensagemSemPermissao, podeFazer, type Acao } from '@/lib/meu-time-ui/permissoes'
+import { POSICOES_CODIGOS } from '@/lib/meu-time-ui/tipos'
 import type {
   Atleta,
   AtletaLote,
@@ -157,8 +159,10 @@ type EquipeMemoria = Equipe & {
 }
 
 export type OpcoesMemoria = {
-  /** Simula o 503 do servidor. */
+  /** Simula o 503 do servidor (tabela ausente). */
   naoHabilitado?: boolean
+  /** Simula a flag MEU_TIME_ATIVO desligada: 404 `{error:'Não encontrado.'}` em tudo. */
+  desligado?: boolean
   equipes?: Array<Equipe & { atletas?: Atleta[]; comissao?: MembroComissao[]; acesso?: MembroAcesso[]; meuPapel?: PapelAcesso }>
   /** Regras por categoria; categoria ausente responde 404 (a tela cai nas regras da URL). */
   regras?: RegrasCategoria[]
@@ -186,13 +190,14 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
       ...semente,
       atletas: semente.atletas ?? [],
       comissao: semente.comissao ?? [],
-      acesso: semente.acesso ?? [{ id: 'voce', nome: 'Você', papel: 'RESPONSAVEL', voce: true }],
+      acesso: semente.acesso ?? [{ id: 'voce', nome: 'Você', papel: semente.meuPapel ?? 'RESPONSAVEL', voce: true }],
       inscricoes: [],
       meuPapel: semente.meuPapel ?? 'RESPONSAVEL',
     })
   }
 
   const checar = () => {
+    if (opcoes.desligado) throw new ErroMeuTime(classificarFalha(404, { error: 'Não encontrado.' }))
     if (opcoes.naoHabilitado) throw falhaMemoria('nao-habilitado', 503, 'Meu Time ainda não habilitado')
   }
   const achar = (id: string) => {
@@ -201,9 +206,11 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     if (!encontrada) throw falhaMemoria('nao-encontrado', 404, 'Time não encontrado.')
     return encontrada
   }
-  const exigirResponsavel = (e: EquipeMemoria) => {
-    if (e.meuPapel !== 'RESPONSAVEL') throw falhaMemoria('sem-permissao', 403, 'Só quem é responsável pelo time pode fazer isso.', 'SEM_PERMISSAO')
+  // Mesma matriz do servidor (contrato): atletas, inscrição e comissão = RESPONSAVEL e TECNICO; dados e acesso = só RESPONSAVEL.
+  const exigir = (e: EquipeMemoria, acao: Acao) => {
+    if (!podeFazer(e.meuPapel, acao)) throw falhaMemoria('sem-permissao', 403, mensagemSemPermissao(acao), 'SEM_PERMISSAO')
   }
+  const exigirResponsavel = (e: EquipeMemoria) => exigir(e, 'acesso')
   const prontidao = (e: EquipeMemoria): Prontidao => {
     const semDocumento = e.atletas.filter((a) => !a.temDocumento).length
     return { atletas: e.atletas.length, semDocumento, mensagem: mensagemProntidao(e.atletas.length, semDocumento) }
@@ -234,11 +241,14 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async obterEquipe(id) {
       const e = achar(id)
-      return { equipe: publica(e), atletas: [...e.atletas], comissao: [...e.comissao], inscricoes: [...e.inscricoes], prontidao: prontidao(e), meuPapel: e.meuPapel }
+      return {
+        equipe: publica(e), atletas: [...e.atletas], comissao: [...e.comissao], membros: [...e.acesso],
+        inscricoes: [...e.inscricoes], prontidao: prontidao(e), meuPapel: e.meuPapel,
+      }
     },
     async atualizarEquipe(id, dados) {
       const e = achar(id)
-      if (e.meuPapel !== 'RESPONSAVEL' && e.meuPapel !== 'TECNICO') throw falhaMemoria('sem-permissao', 403, 'Sem permissão.', 'SEM_PERMISSAO')
+      exigir(e, 'dados')
       const nome = dados.nome.trim()
       if (nome.length < 2) throw falhaMemoria('validacao', 422, 'Informe o nome do time.')
       const duplicada = Array.from(equipes.values()).some((o) => o.id !== e.id && o.nome.toLowerCase() === nome.toLowerCase() && o.naipe === e.naipe)
@@ -253,6 +263,7 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async adicionarAtleta(id, dados) {
       const e = achar(id)
+      exigir(e, 'atletas')
       const atleta: Atleta = {
         id: novoId('at'), nome: dados.nome.trim(), dataNascimento: dados.dataNascimento,
         numeroPreferido: dados.numeroPreferido ?? null, posicao: dados.posicao ?? null, temDocumento: false,
@@ -262,17 +273,24 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async adicionarAtletasEmLote(id, lista) {
       const e = achar(id)
+      exigir(e, 'atletas')
       const ignorados: ResultadoLote['ignorados'] = []
       const atletasCriados: Atleta[] = []
       lista.forEach((item, indice) => {
         const nome = item.nome.trim()
+        // `linha` = posição (1 a N) na lista enviada, como no servidor.
         if (!nome) { ignorados.push({ linha: indice + 1, motivo: 'Sem nome.' }); return }
+        if (item.numero != null && (!Number.isInteger(item.numero) || item.numero < 0 || item.numero > 99)) {
+          ignorados.push({ linha: indice + 1, motivo: 'Camisa fora de 0 a 99.' }); return
+        }
         if (e.atletas.some((a) => a.nome.toLowerCase() === nome.toLowerCase())) {
           ignorados.push({ linha: indice + 1, motivo: 'Já está no time.' }); return
         }
         const novo: Atleta = {
           id: novoId('at'), nome, dataNascimento: item.dataNascimento ?? null,
-          numeroPreferido: item.numero ?? null, posicao: null, temDocumento: false,
+          numeroPreferido: item.numero ?? null,
+          posicao: item.posicao && (POSICOES_CODIGOS as readonly string[]).includes(item.posicao) ? item.posicao : null,
+          temDocumento: false,
         }
         e.atletas.push(novo)
         atletasCriados.push(novo)
@@ -281,6 +299,7 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async atualizarAtleta(id, atletaId, dados) {
       const e = achar(id)
+      exigir(e, 'atletas')
       const indice = e.atletas.findIndex((a) => a.id === atletaId)
       if (indice < 0) throw falhaMemoria('nao-encontrado', 404, 'Atleta não encontrado.')
       const atual = e.atletas[indice]
@@ -296,6 +315,7 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async removerAtleta(id, atletaId) {
       const e = achar(id)
+      exigir(e, 'atletas')
       e.atletas = e.atletas.filter((a) => a.id !== atletaId)
     },
     async listarComissao(id) {
@@ -303,12 +323,14 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async adicionarMembroComissao(id, dados) {
       const e = achar(id)
+      exigir(e, 'comissao')
       const membro: MembroComissao = { id: novoId('cm'), nome: dados.nome.trim(), funcao: dados.funcao }
       e.comissao.push(membro)
       return membro
     },
     async removerMembroComissao(id, membroId) {
       const e = achar(id)
+      exigir(e, 'comissao')
       e.comissao = e.comissao.filter((m) => m.id !== membroId)
     },
     async listarAcesso(id) {
@@ -341,6 +363,7 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     },
     async inscrever(id, dados) {
       const e = achar(id)
+      exigir(e, 'inscricao')
       if (dados.atletas.length === 0) throw falhaMemoria('validacao', 422, 'Escolha pelo menos um atleta.')
       const inscricao = {
         id: novoId('in'),
