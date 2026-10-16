@@ -9,9 +9,21 @@ const BUCKET = TIPOS_UPLOAD['atleta-documento'].bucket
 export type EquipeDoDocumento = { id: number; ligaId: number }
 
 /**
+ * Leitura: o documento gravado num atleta só é assinado se, no formato novo, o dono do caminho
+ * for a equipe do atleta (e a liga dela). Formato legado não carrega dono no nome e segue legível.
+ */
+export function documentoPertenceAEquipe(caminho: string, equipe: EquipeDoDocumento): boolean {
+  const lido = lerCaminhoUpload(caminho)
+  if (!lido) return true
+  return lido.tipo === 'atleta-documento' && lido.equipeId === equipe.id && lido.ligaId === equipe.ligaId
+}
+
+/**
  * Valor recebido do cliente -> caminho a gravar, ou null se não for aceito.
- * Aceita caminho puro do formato novo (da própria equipe), URL do bucket privado (formato antigo
- * ou referência sem token) e caminho legado que já estava gravado neste mesmo atleta.
+ * Regra única, vale também quando o valor chega como URL do bucket:
+ *  - formato novo: só se pertencer à equipe e à liga do capitão;
+ *  - formato legado (sem dono no nome): só se JÁ estiver gravado neste mesmo atleta (`jaGravados`).
+ * Legado novo, de outro dono, `..` e URL de outro host nunca passam.
  */
 export function normalizarDocumentoEntrada(valor: unknown, equipe: EquipeDoDocumento, jaGravados: string[] = []): string | null {
   const caminho = caminhoDoValorArmazenado(valor, BUCKET)
@@ -21,9 +33,7 @@ export function normalizarDocumentoEntrada(valor: unknown, equipe: EquipeDoDocum
     if (lido.tipo !== 'atleta-documento') return null
     return lido.equipeId === equipe.id && lido.ligaId === equipe.ligaId ? caminho : null
   }
-  // Formato legado (objeto antigo do bucket): só se for URL do bucket ou já estiver gravado neste atleta.
-  const veioComoUrl = typeof valor === 'string' && /^https?:\/\//i.test(valor.trim())
-  return veioComoUrl || jaGravados.includes(caminho) ? caminho : null
+  return jaGravados.includes(caminho) ? caminho : null
 }
 
 /** Valor gravado -> caminho para devolver na API. Valores que não são do bucket privado (ex.: URL externa) saem da resposta. */
