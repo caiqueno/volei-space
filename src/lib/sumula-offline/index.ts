@@ -1,0 +1,4 @@
+export * from './tipos'
+export * from './armazenamento'
+export { FilaSumula, calcularRecuo, chaveDaFila } from './fila'
+export { textoDoIndicador } from './texto'
