@@ -17,17 +17,10 @@ import { anexarNumerosHerdados } from '@/lib/numero-herdado-leitura'
 import { correcaoPeloLinkPermitida, limiteDeSubstituicoes, validarSubstituicoes } from '@/lib/sumula-regras'
 import { andamentoPodeGravar } from '@/lib/encerramento-sumula'
 import { AndamentoSuperado, gravarSumulaComRestauracao, liberarAndamento, reservarAndamento, SumulaJaOficializada } from '@/lib/sumula-gravacao'
-import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
+import { demoSumulaLiberado } from '@/lib/sumula-demo'
+import { sumulaParaConsulta } from '@/lib/sumula-consulta'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
 import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
-
-const DEMO_SUMULA_TOKENS = new Set(['token-demo-1-luva2026', 'token-demo-1-luv2026'])
-
-function demoSumulaLiberado(token: string) {
-  if (process.env.NODE_ENV === 'production') return false
-  if (process.env.VERCEL_ENV === 'production' || process.env.VERCEL_ENV === 'preview') return false
-  return DEMO_SUMULA_TOKENS.has(token)
-}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -36,17 +29,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     return success(makeDemoPartida(token))
   }
 
+  // A credencial é o sumulaToken opaco; id numérico responde 404 (ver requireSumulaTokenAccess).
   const access = await requireSumulaTokenAccess(token)
   if (access instanceof Response) return access
   await anexarNumerosHerdados(access.partida)
-  const fonte = await carregarFonteDeSets(access.partida)
-  const liga = Array.isArray(access.partida.liga) ? access.partida.liga[0] ?? {} : access.partida.liga ?? {}
-  access.partida.liga = { ...liga, ...fonte }
-  // Consulta pública da página /sumula/{token}. A projeção tira documento, telefone e e-mail.
+  // Consulta da página /sumula/{token}. A projeção tira documento, telefone, nascimento e tokens.
   // O GET sem ?consulta=1 continua passando por requireSumulaLeitura.
   if (new URL(req.url).searchParams.get('consulta') === '1') {
     return success(sumulaParaConsulta(access.partida))
   }
+  const fonte = await carregarFonteDeSets(access.partida)
+  const liga = Array.isArray(access.partida.liga) ? access.partida.liga[0] ?? {} : access.partida.liga ?? {}
+  access.partida.liga = { ...liga, ...fonte }
   const leitura = await requireSumulaLeitura(req, access.partida)
   if (leitura) return leitura
   return success(access.partida)
@@ -266,70 +260,6 @@ async function concluirPublicacao(ligaId: number) {
 
 function valorUnico<T>(valor: T | T[] | null | undefined) {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null
-}
-
-function jogadorConsulta(jogador: any) {
-  const item = valorUnico(jogador)
-  if (!item) return null
-  return {
-    id: item.id,
-    nome: item.nome,
-    numero: item.numero ?? null,
-    posicao: item.posicao ?? null,
-    numeroHerdado: item.numeroHerdado ?? null,
-  }
-}
-
-function equipeConsulta(equipe: any) {
-  const item = valorUnico(equipe)
-  if (!item) return null
-  return {
-    id: item.id,
-    nome: item.nome,
-    logoUrl: item.logoUrl ?? null,
-    corHex: item.corHex ?? null,
-    jogadores: (item.jogadores ?? []).map(jogadorConsulta).filter(Boolean),
-  }
-}
-
-function sumulaParaConsulta(partida: any) {
-  const liga = valorUnico(partida.liga)
-  return {
-    id: partida.id,
-    ligaId: partida.ligaId,
-    rodada: partida.rodada,
-    status: partida.status,
-    categoria: partida.categoria,
-    dataHora: partida.dataHora,
-    localNome: partida.localNome,
-    setsPorA: partida.setsPorA,
-    setsPorB: partida.setsPorB,
-    pontosPorA: partida.pontosPorA,
-    pontosPorB: partida.pontosPorB,
-    vencedorId: partida.vencedorId,
-    sumulaAprovadaEm: partida.sumulaAprovadaEm,
-    liga: liga ? { id: liga.id, nome: liga.nome } : null,
-    equipeA: equipeConsulta(partida.equipeA),
-    equipeB: equipeConsulta(partida.equipeB),
-    sets: [...(partida.sets ?? [])].sort((a: { numero: number }, b: { numero: number }) => Number(a.numero) - Number(b.numero)),
-    presencas: (partida.presencas ?? []).map((item: any) => ({
-      id: item.id,
-      presente: item.presente,
-      equipeId: item.equipeId,
-      jogadorId: item.jogadorId,
-      numero: item.numero ?? null,
-      jogador: jogadorConsulta(item.jogador),
-    })),
-    ocorrencias: [...(partida.ocorrencias ?? [])]
-      .filter((item: { tipo?: string | null; descricao?: string | null }) => !ocorrenciaOperacional(item))
-      .map((item: any) => ({ id: item.id, tipo: item.tipo, descricao: item.descricao, set: item.set, jogadorId: item.jogadorId ?? null }))
-      .sort((a: { id: number }, b: { id: number }) => Number(a.id) - Number(b.id)),
-    destaques: (partida.destaques ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, jogador: jogadorConsulta(item.jogador) })),
-    escala: (partida.escala ?? []).map((item: any) => {
-      const arbitro = valorUnico(item.arbitro)
-      return { id: item.id, cargo: item.cargo, arbitro: arbitro ? { nome: arbitro.nome } : null }
-    }),
-  }
 }
 
 function campeonatoDeSimulacao(partida: any) {

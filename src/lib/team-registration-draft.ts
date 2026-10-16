@@ -330,15 +330,45 @@ export function mascararNascimento(valor: string | null) {
   return '****-**-**'
 }
 
+/** Documento (RG etc.): só os dois últimos caracteres; documento muito curto some inteiro. */
+export function mascararDocumento(valor: string | null) {
+  if (!valor?.trim()) return null
+  const limpo = valor.replace(/[^0-9A-Za-z]/g, '')
+  if (limpo.length <= 4) return '****'
+  return `****${limpo.slice(-2)}`
+}
+
+/** Atleta como sai em qualquer leitura do rascunho: CPF, nascimento e documento mascarados. */
+export function mascararAtletaInscricao<T extends Pick<RegistrationPlayer, 'cpf' | 'dataNascimento' | 'documentoNumero'>>(player: T): T {
+  return {
+    ...player,
+    cpf: mascararCpf(player.cpf),
+    dataNascimento: mascararNascimento(player.dataNascimento),
+    documentoNumero: mascararDocumento(player.documentoNumero),
+  }
+}
+
 export function mascararLeituraInscricao<T extends { players: RegistrationPlayer[] }>(contexto: T): T {
   return {
     ...contexto,
-    players: contexto.players.map((player) => ({
-      ...player,
-      cpf: mascararCpf(player.cpf),
-      dataNascimento: mascararNascimento(player.dataNascimento),
-    })),
+    players: contexto.players.map(mascararAtletaInscricao),
   }
+}
+
+const CAMPOS_MASCARAVEIS = ['cpf', 'dataNascimento', 'documentoNumero'] as const
+
+/**
+ * A tela de edição devolve o que recebeu na leitura. Valor mascarado (com asterisco) significa
+ * "não mexi neste campo": é descartado, o dado salvo permanece e a edição não grava máscara.
+ */
+export function descartarCamposMascarados<T>(input: T): T {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return input
+  const limpo: Record<string, unknown> = { ...(input as Record<string, unknown>) }
+  for (const campo of CAMPOS_MASCARAVEIS) {
+    const valor = limpo[campo]
+    if (typeof valor === 'string' && valor.includes('*')) delete limpo[campo]
+  }
+  return limpo as T
 }
 
 export async function updateRegistrationDraft(token: string, patch: Record<string, unknown>) {
@@ -436,7 +466,8 @@ function exigirAtletaConfigurado(input: Record<string, unknown>, liga: Registrat
   if (pendencias.length) throw new RegistrationDraftError(pendencias[0], 422, pendencias)
 }
 
-export async function createRegistrationPlayer(token: string, input: Record<string, unknown>) {
+export async function createRegistrationPlayer(token: string, entrada: Record<string, unknown>) {
+  const input = descartarCamposMascarados(entrada)
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context)
   exigirAtletaConfigurado(input, context.liga, context.elegibilidade)
@@ -452,7 +483,8 @@ export async function createRegistrationPlayer(token: string, input: Record<stri
   return data
 }
 
-export async function updateRegistrationPlayer(token: string, playerId: string, input: Record<string, unknown>) {
+export async function updateRegistrationPlayer(token: string, playerId: string, entrada: Record<string, unknown>) {
+  const input = descartarCamposMascarados(entrada)
   const context = await editableRosterContext(token)
   assertRosterPlayer(input, context, playerId)
   exigirAtletaConfigurado(input, context.liga, context.elegibilidade, context.players.find((player) => String(player.id) === String(playerId)))

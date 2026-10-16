@@ -1,6 +1,6 @@
 import { success, error } from '@/lib/api-response'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
 const COLUMNS = 'id,slug,nome,subtitulo,descricao,capaUrl,logoUrl,formato,dataInicio,dataFim,inscricoesAbertas,status,corTematica'

@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { requirePublicRole, verifyPublicToken, isReleasedPublicStatus, type PublicJWTPayload } from '@/lib/auth'
 import { error } from '@/lib/api-response'
 import { lerSessaoAcesso } from '@/lib/acesso-arbitro-jogo'
+import { lerPartidaOperacao, organizadorDaLiga, type FiltroPartida } from '@/lib/partida-operacao'
 
 export type ArbitroPartidaAccess = {
   auth: PublicJWTPayload
@@ -16,8 +17,6 @@ export type ArbitroPartidaAccess = {
   partida: any
 }
 
-const JOGADOR_PARTIDA = 'id,nome,numero,posicao,fotoUrl,fotoRostoUrl,equipeId'
-const PARTIDA_OPERACAO = `*, liga:Liga!Partida_ligaId_fkey(*), equipeA:Equipe!Partida_equipeAId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), equipeB:Equipe!Partida_equipeBId_fkey(*, jogadores:Jogador(${JOGADOR_PARTIDA})), presencas:SumulaPresenca(*, jogador:Jogador(${JOGADOR_PARTIDA})), escala:EscalaArbitro(*, arbitro:Arbitro(id,nome))`
 
 export async function requireArbitroPartidaAccess(
   req: NextRequest,
@@ -52,16 +51,10 @@ export async function requireArbitroPartidaAccess(
     return error('Cadastro de arbitro ainda nao liberado para operar partidas.', 403)
   }
 
-  const numerico = /^\d+$/.test(token)
-  let consulta = supabase.from('Partida').select(PARTIDA_OPERACAO)
-  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
-  const { data: partida, error: partidaErr } = await consulta.maybeSingle()
+  const { partida, error: partidaErr } = await lerPartidaOperacao(filtroDoToken(token))
 
   if (partidaErr) return error('Não foi possível abrir a partida.', 500)
   if (!partida) return error('Partida não encontrada.', 404)
-  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
-  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
-  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
 
   const escala = Array.isArray(partida.escala) ? partida.escala : []
   const arbitroId = Number(candidatura.arbitroId)
@@ -81,14 +74,8 @@ async function acessoPelaSessaoNaPartida(req: NextRequest, token: string): Promi
     .maybeSingle()
   if (!acesso || !acesso.ativo || acesso.revogadoEm || acesso.token !== sessao.token || Number(acesso.partidaId) !== Number(sessao.partidaId)) return null
 
-  const numerico = /^\d+$/.test(token)
-  let consulta = supabase.from('Partida').select(PARTIDA_OPERACAO)
-  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
-  const { data: partida } = await consulta.maybeSingle()
+  const { partida } = await lerPartidaOperacao(filtroDoToken(token))
   if (!partida || Number(partida.id) !== Number(acesso.partidaId)) return null
-  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
-  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
-  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
   return {
     auth: { userId: acesso.id, email: '', nome: 'Árbitro do jogo', tipo: 'arbitro', status: 'ATIVA' },
     candidatura: { id: acesso.id, nome: 'Árbitro do jogo', email: '', status: 'ATIVA', arbitroId: null },
@@ -101,15 +88,10 @@ async function acessoPeloOrganizador(req: NextRequest, token: string): Promise<A
   if (!sessao || sessao.tipo !== 'organizador' || sessao.trocarSenha) return null
   if (!isReleasedPublicStatus(sessao.status)) return null
 
-  const numerico = /^\d+$/.test(token)
-  let consulta = supabase.from('Partida').select(PARTIDA_OPERACAO)
-  consulta = numerico ? consulta.eq('id', Number(token)) : consulta.eq('sumulaToken', token)
-  const { data: partida } = await consulta.maybeSingle()
-  if (!partida) return null
-  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
-  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
-  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
-  if (!partida.liga || partida.liga.organizadorId !== sessao.userId) return null
+  const { partida } = await lerPartidaOperacao(filtroDoToken(token))
+  if (!partida?.liga) return null
+  // O organizadorId não vem no embed da partida: a posse é lida à parte.
+  if ((await organizadorDaLiga(partida.ligaId)) !== sessao.userId) return null
 
   return {
     auth: sessao,
@@ -138,14 +120,16 @@ async function acessoPeloLink(req: NextRequest, token: string): Promise<ArbitroP
   if (!sessao || sessao.acessoId !== acesso.id || sessao.token !== acesso.token || sessao.partidaId !== acesso.partidaId) {
     return error('Informe o código de acesso enviado pelo organizador.', 401)
   }
-  const { data: partida, error: partidaErr } = await supabase.from('Partida').select(PARTIDA_OPERACAO).eq('id', acesso.partidaId).maybeSingle()
+  const { partida, error: partidaErr } = await lerPartidaOperacao({ coluna: 'id', valor: Number(acesso.partidaId) })
   if (partidaErr || !partida) return error('Não foi possível abrir a partida.', 500)
-  partida.liga = Array.isArray(partida.liga) ? partida.liga[0] ?? null : partida.liga
-  partida.equipeA = Array.isArray(partida.equipeA) ? partida.equipeA[0] ?? null : partida.equipeA
-  partida.equipeB = Array.isArray(partida.equipeB) ? partida.equipeB[0] ?? null : partida.equipeB
   return {
     auth: { userId: acesso.id, email: '', nome: 'Árbitro do jogo', tipo: 'arbitro', status: 'ATIVA' },
     candidatura: { id: acesso.id, nome: 'Árbitro do jogo', email: '', status: 'ATIVA', arbitroId: null },
     partida,
   }
+}
+
+/** Token numérico é Partida.id (só com sessão válida); qualquer outro é o sumulaToken opaco. */
+function filtroDoToken(token: string): FiltroPartida {
+  return /^d+$/.test(token) ? { coluna: 'id', valor: Number(token) } : { coluna: 'sumulaToken', valor: token }
 }

@@ -20,7 +20,8 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     const { token } = await params
     const parsed = atualizarInscricaoEquipeRascunhoSchema.safeParse(await req.json())
     if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
-    return success(await updateRegistrationDraft(token, parsed.data))
+    // Mesma máscara da leitura: o PATCH não devolve CPF, nascimento nem documento por extenso.
+    return success(mascararLeituraInscricao(await updateRegistrationDraft(token, parsed.data)))
   } catch (err) {
     if (err instanceof RegistrationDraftError) return error(err.message, err.status, err.details)
     console.error('[inscricao-rapida] erro ao salvar', err)

@@ -120,7 +120,12 @@
     "test:meu-time-ui": "node scripts/with-ts-node.mjs scripts/meu-time-ui.test.ts",
     "test:regras-volei-estado-derivado": "node scripts/with-ts-node.mjs scripts/regras-volei-estado-derivado.test.ts",
     "test:sumula-eventos": "node scripts/with-ts-node.mjs scripts/sumula-eventos.test.ts",
-    "test:sumula-eventos-rota": "node scripts/with-ts-node.mjs scripts/sumula-eventos-rota.test.ts"
+    "test:sumula-eventos-rota": "node scripts/with-ts-node.mjs scripts/sumula-eventos-rota.test.ts",
+    "test:sumula-acesso": "node scripts/with-ts-node.mjs scripts/sumula-acesso.test.ts",
+    "test:projecoes-publicas": "node scripts/with-ts-node.mjs scripts/projecoes-publicas.test.ts",
+    "test:anon-guard": "node scripts/with-ts-node.mjs scripts/anon-client-guard.test.ts",
+    "test:uploads": "node scripts/with-ts-node.mjs scripts/uploads-assinados.test.ts",
+    "test:inscricao-mascara": "node scripts/with-ts-node.mjs scripts/inscricao-mascara.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

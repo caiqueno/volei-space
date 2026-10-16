@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { requireAuth } from '@/lib/auth'
 import { auditarMassa, criarCopaMassa, preencherEquipesVazias } from '@/lib/massa-qa'
-import { alvoSupabase, ambienteProducao } from '@/lib/supabase'
+import { alvoSupabase, ambienteProducao } from '@/lib/supabase-config'
 
 export const dynamic = 'force-dynamic'
 

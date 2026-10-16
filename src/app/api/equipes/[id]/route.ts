@@ -3,20 +3,33 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { equipeSchema } from '@/lib/schemas'
 import { exigirOrganizadorDaEquipe, exigirOrganizadorDaLiga } from '@/lib/organizador-isolamento'
+import { podeLerCampeonato } from '@/lib/leitura-publica'
+import { EQUIPE_COLUNAS, EQUIPE_JOGADOR_COLUNAS } from '@/lib/projecoes-publicas'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const equipeId = Number(id)
+  if (!Number.isInteger(equipeId)) return error('Equipe não encontrada', 404)
   const { data, error: err } = await supabase
     .from('Equipe')
-    .select('id,nome,slug,logoUrl,corHex,categoria,categoriaCampeonatoId,ligaId,statusEquipe,serie')
+    .select(EQUIPE_COLUNAS)
     .eq('id', equipeId)
     .maybeSingle()
   if (err || !data) return error('Equipe não encontrada', 404)
+
+  // Visitante só lê equipe de campeonato publicado; rascunho e simulação são do organizador dono.
+  const { data: liga } = await supabase
+    .from('Liga')
+    .select('status,simulacao,organizadorId')
+    .eq('id', data.ligaId)
+    .maybeSingle()
+  if (!(await podeLerCampeonato(req, liga))) return error('Equipe não encontrada', 404)
+
   const { data: jogadores, error: jogadoresErr } = await supabase
     .from('Jogador')
-    .select('id,nome,numero,posicao,fotoUrl,fotoRostoUrl')
+    .select(EQUIPE_JOGADOR_COLUNAS)
     .eq('equipeId', equipeId)
+    .eq('banido', false)
   if (jogadoresErr) {
     console.error('[equipes] erro ao ler elenco', jogadoresErr)
     return error('Equipe não encontrada', 404)
@@ -41,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .from('Equipe')
       .update(parsed.data)
       .eq('id', Number(id))
-      .select()
+      .select(EQUIPE_COLUNAS)
       .single()
     if (err) throw err
     return success(data)
