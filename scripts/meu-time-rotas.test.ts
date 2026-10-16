@@ -175,12 +175,28 @@ async function main() {
   assert.equal(colado.data.criados.length, 2)
 
   // --- Membros (contas com acesso) ---------------------------------------------
-  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'ninguem@volei.space', papel: 'TECNICO' }), params)).status, 404)
+  // M10: resposta uniforme, exista conta, não exista ou já seja membro.
+  const semConta = await membrosRota.POST(req('POST', '/x', { email: 'ninguem@volei.space', papel: 'TECNICO' }), params)
+  assert.equal(semConta.status, 202)
+  const corpoSemConta = await json(semConta)
   assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'RESPONSAVEL' }), params)).status, 422)
   const membro = await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)
-  assert.equal(membro.status, 201)
-  assert.deepEqual((await json(membro)).data, { id: 'user-tecnico', nome: 'Téo Técnico', papel: 'TECNICO' })
-  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)).status, 409, 'membro duplicado')
+  assert.equal(membro.status, 202)
+  assert.deepEqual(await json(membro), corpoSemConta, 'corpo idêntico com e sem conta')
+  assert.ok(!JSON.stringify(corpoSemConta).includes('user-tecnico') && !JSON.stringify(corpoSemConta).includes('Téo'), 'sem id nem nome')
+  const duplicado = await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)
+  assert.equal(duplicado.status, 202, 'membro duplicado também uniforme')
+  assert.deepEqual(await json(duplicado), corpoSemConta)
+  // Limite por usuário: a 11ª tentativa na hora é barrada (já foram 4).
+  const { reiniciarCotas } = await import('../src/lib/rate-limit')
+  let barrado = 0
+  for (let i = 0; i < 10; i++) {
+    const r = await membrosRota.POST(req('POST', '/x', { email: `varredura${i}@volei.space`, papel: 'TECNICO' }), params)
+    if (r.status === 429) barrado += 1
+    else assert.equal(r.status, 202)
+  }
+  assert.ok(barrado >= 3, `limite por usuário aplicado (${barrado})`)
+  reiniciarCotas()
   const membrosLista = (await json(await membrosRota.GET(req('GET', '/x'), params))).data
   assert.equal(membrosLista.length, 2)
   assert.ok(!JSON.stringify(membrosLista).includes('@'), 'membros não expõem e-mail')

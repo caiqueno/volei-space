@@ -405,16 +405,20 @@ async function acharContaPorEmail(email: string) {
   return null
 }
 
+export const MENSAGEM_MEMBRO_UNIFORME = 'Pedido recebido. Se houver uma conta com esse e-mail, a pessoa passa a ter acesso à equipe.'
+
+/**
+ * Resposta uniforme (M10): a rota não revela se o e-mail tem conta, nem devolve id ou nome.
+ * Conta inexistente e pessoa que já é membro terminam sem erro e sem diferença visível.
+ * Devolve `adicionado` só para auditoria interna; a rota nunca o expõe.
+ */
 export async function adicionarMembro(timeId: string, entrada: { email: string; papel: 'TECNICO' | 'ASSISTENTE' }) {
   const usuarioId = await acharContaPorEmail(entrada.email)
-  if (!usuarioId) {
-    throw new ErroMeuTime('Essa pessoa precisa ter conta no volei.space para entrar na comissão.', 404, 'CONTA_NAO_ENCONTRADA')
-  }
+  if (!usuarioId) return { adicionado: false }
   const resposta = await supabase.from('MembroEquipe').insert({ timeId, usuarioId, papel: entrada.papel })
-  if (violacaoUnica(resposta.error)) throw new ErroMeuTime('Essa pessoa já faz parte da equipe.', 409, 'MEMBRO_DUPLICADO')
+  if (violacaoUnica(resposta.error)) return { adicionado: false }
   lerDados(resposta, 'adicionar membro')
-  const nomes = await nomesDasContas([usuarioId])
-  return { id: usuarioId, nome: nomes.get(usuarioId) || 'Membro', papel: entrada.papel } as MembroAcesso
+  return { adicionado: true }
 }
 
 export async function removerMembro(timeId: string, membroId: string) {
