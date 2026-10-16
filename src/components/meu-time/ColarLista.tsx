@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import type { MeuTimeClient } from './cliente'
 import { Aviso, botaoPrimario, botaoSecundario, Campo, campoEstilo, falhaDe } from './ui'
 import { prepararLista, resumirResultadoLote } from '@/lib/meu-time-ui/lista-colada'
+import { contarSemNascimento } from '@/lib/meu-time-ui/selecao'
 import type { Atleta, ResultadoLote } from '@/lib/meu-time-ui/tipos'
 
 type Props = {
@@ -14,7 +15,12 @@ type Props = {
   aoCancelar: () => void
 }
 
-const EXEMPLO = 'João Silva, 7\nMaria Souza, 10'
+/** Atletas do lote sem nascimento. Se o servidor só devolveu o total, vale o total (a lista colada não tem datas). */
+function semNascimentoDoLote(r: ResultadoLote) {
+  return r.atletasCriados.length > 0 ? contarSemNascimento(r.atletasCriados) : r.criados
+}
+
+const EXEMPLO ='João Silva, 7\nMaria Souza, 10'
 
 /** Passo 1: colar. Passo 2: conferir. Nada é salvo até o líder confirmar. */
 export function ColarLista({ cliente, equipeId, existentes, aoSalvar, aoCancelar }: Props) {
@@ -31,7 +37,8 @@ export function ColarLista({ cliente, equipeId, existentes, aoSalvar, aoCancelar
     setMensagem(null)
     try {
       const retorno = await cliente.adicionarAtletasEmLote(equipeId, preparo.payload)
-      if (retorno.ignorados.length === 0) {
+      // Sem nascimento é pendência: mostramos o resultado para avisar e levar ao preenchimento rápido.
+      if (retorno.ignorados.length === 0 && semNascimentoDoLote(retorno) === 0) {
         aoSalvar()
         return
       }
@@ -47,10 +54,18 @@ export function ColarLista({ cliente, equipeId, existentes, aoSalvar, aoCancelar
     return (
       <section aria-labelledby="lista-resultado" className="flex flex-col gap-3 rounded-2xl border border-[var(--vs-border-strong)] bg-[var(--vs-elevated)] p-4">
         <h3 id="lista-resultado" className="text-lg font-black">{resumirResultadoLote(resultado.criados, resultado.ignorados)}</h3>
-        <ul className="list-disc pl-5 text-sm">
-          {resultado.ignorados.map((item) => <li key={`${item.linha}-${item.motivo}`}>Linha {item.linha}: {item.motivo}</li>)}
-        </ul>
-        <button type="button" onClick={aoSalvar} className={botaoPrimario}>Ver atletas do time</button>
+        {semNascimentoDoLote(resultado) > 0 && (
+          <Aviso tom="is-warning">
+            <strong className="block">Falta nascimento: {semNascimentoDoLote(resultado)} {semNascimentoDoLote(resultado) === 1 ? 'atleta' : 'atletas'}.</strong>
+            A lista colada não traz a data. Preencha na tela de atletas; é rápido, direto no cartão de cada um.
+          </Aviso>
+        )}
+        {resultado.ignorados.length > 0 && (
+          <ul className="list-disc pl-5 text-sm">
+            {resultado.ignorados.map((item) => <li key={`${item.linha}-${item.motivo}`}>Linha {item.linha}: {item.motivo}</li>)}
+          </ul>
+        )}
+        <button type="button" onClick={aoSalvar} className={botaoPrimario}>Ver atletas e completar nascimento</button>
       </section>
     )
   }

@@ -81,7 +81,12 @@ export function FalhaTela({ falha, aoTentar }: { falha: Falha; aoTentar?: () => 
   }
   return (
     <div className="flex flex-col gap-3">
-      <Aviso tom="is-error" alerta>{falha.mensagem}</Aviso>
+      <Aviso tom="is-error" alerta>
+        {falha.mensagem}
+        {falha.detalhes && falha.detalhes.length > 0 && (
+          <ul className="mt-2 list-disc pl-5">{falha.detalhes.map((d) => <li key={d}>{d}</li>)}</ul>
+        )}
+      </Aviso>
       {falha.tipo === 'sem-sessao' && <Link href="/login" className={botaoPrimario}>Entrar na conta</Link>}
       {aoTentar && falha.tipo !== 'sem-sessao' && <button type="button" onClick={aoTentar} className={botaoPrimario}>Tentar de novo</button>}
       {falha.tipo === 'nao-encontrado' && <Link href="/meu-time" className={botaoSecundario}>Ver meus times</Link>}

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import type { MeuTimeClient } from './cliente'
 import { Aviso, botaoPerigo, botaoPrimario, Campo, campoEstilo, cartao, descreve, falhaDe } from './ui'
-import { FUNCOES_COMISSAO } from './rotulos'
+import { FUNCOES_COMISSAO, rotuloFuncao } from './rotulos'
 import { validarMembroComissao } from '@/lib/meu-time-ui/formularios'
 import type { MembroComissao } from '@/lib/meu-time-ui/tipos'
 
@@ -58,7 +58,7 @@ export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props)
       <ul className="flex flex-col gap-2" aria-label="Comissão técnica">
         {comissao.map((membro) => (
           <li key={membro.id} className={`${cartao} flex items-center justify-between gap-3`}>
-            <span><strong className="block">{membro.nome}</strong><span className="text-sm text-[var(--vs-muted)]">{membro.funcao}</span></span>
+            <span><strong className="block">{membro.nome}</strong><span className="text-sm text-[var(--vs-muted)]">{rotuloFuncao(membro.funcao)}</span></span>
             <button type="button" disabled={ocupado} onClick={() => remover(membro)} className={botaoPerigo} aria-label={`Remover ${membro.nome}`}>Remover</button>
           </li>
         ))}
@@ -71,7 +71,7 @@ export function AbaComissao({ cliente, equipeId, comissao, aoAtualizar }: Props)
         <Campo id="comissao-funcao" rotulo="Função" erro={erros.funcao}>
           <select id="comissao-funcao" value={funcao} onChange={(e) => setFuncao(e.target.value)} className={campoEstilo} {...descreve('comissao-funcao', undefined, erros.funcao)}>
             <option value="">Escolha a função</option>
-            {FUNCOES_COMISSAO.map((f) => <option key={f} value={f}>{f}</option>)}
+            {FUNCOES_COMISSAO.map((f) => <option key={f.valor} value={f.valor}>{f.rotulo}</option>)}
           </select>
         </Campo>
         <button type="submit" disabled={ocupado} className={botaoPrimario}>{ocupado ? 'Salvando…' : 'Adicionar à comissão'}</button>

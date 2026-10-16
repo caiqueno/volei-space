@@ -5,7 +5,9 @@ import type { MeuTimeClient } from './cliente'
 import { Aviso, botaoPerigo, botaoPrimario, botaoSecundario, cartao, falhaDe } from './ui'
 import { ColarLista } from './ColarLista'
 import { FormAtleta } from './FormAtleta'
-import { formatarData } from './rotulos'
+import { CompletarNascimento } from './CompletarNascimento'
+import { formatarData, rotuloPosicao } from './rotulos'
+import { contarSemNascimento, faltaNascimento } from '@/lib/meu-time-ui/selecao'
 import type { Atleta } from '@/lib/meu-time-ui/tipos'
 
 type Modo = { tipo: 'lista' } | { tipo: 'novo' } | { tipo: 'colar' } | { tipo: 'editar'; atleta: Atleta }
@@ -25,7 +27,12 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
   const [removendo, setRemovendo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  const visiveis = somenteSemDocumento ? atletas.filter((a) => !a.temDocumento) : atletas
+  const [somenteSemNascimento, setSomenteSemNascimento] = useState(false)
+  const semNascimento = contarSemNascimento(atletas)
+  const filtroNascimento = somenteSemNascimento && semNascimento > 0
+  const visiveis = atletas
+    .filter((a) => (somenteSemDocumento ? !a.temDocumento : true))
+    .filter((a) => (filtroNascimento ? faltaNascimento(a) : true))
 
   async function concluir() {
     setModo({ tipo: 'lista' })
@@ -73,7 +80,18 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
         </label>
       )}
 
-      {atletas.length > 0 && visiveis.length === 0 && <Aviso tom="is-success">Ninguém está sem documento. Desmarque o filtro para ver todos.</Aviso>}
+      {semNascimento > 0 && (
+        <Aviso tom="is-warning">
+          <strong className="block">{semNascimento} {semNascimento === 1 ? 'atleta está' : 'atletas estão'} sem data de nascimento.</strong>
+          Sem ela, a categoria com faixa de idade fica com pendência. Preencha direto no cartão de cada atleta.
+          <label className="mt-2 flex min-h-[44px] items-center gap-3 font-bold">
+            <input type="checkbox" checked={somenteSemNascimento} onChange={(e) => setSomenteSemNascimento(e.target.checked)} className="h-5 w-5 accent-[var(--vs-gold)]" />
+            Mostrar só quem falta nascimento
+          </label>
+        </Aviso>
+      )}
+
+      {atletas.length > 0 && visiveis.length === 0 && <Aviso tom="is-success">Ninguém neste filtro. Desmarque para ver todos.</Aviso>}
 
       <ul className="flex flex-col gap-2" aria-label="Atletas do time">
         {visiveis.map((atleta) => (
@@ -82,14 +100,14 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
               <div>
                 <p className="text-base font-black">{atleta.nome}</p>
                 <p className="text-sm text-[var(--vs-muted)]">
-                  {[atleta.numeroPreferido != null ? `camisa ${atleta.numeroPreferido}` : 'sem camisa', atleta.posicao, atleta.dataNascimento ? formatarData(atleta.dataNascimento) : null].filter(Boolean).join(' · ')}
+                  {[atleta.numeroPreferido != null ? `camisa ${atleta.numeroPreferido}` : 'sem camisa', rotuloPosicao(atleta.posicao), atleta.dataNascimento ? formatarData(atleta.dataNascimento) : null].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${atleta.temDocumento ? 'vs-state is-success' : 'vs-state is-warning'}`}>
                 {atleta.temDocumento ? 'Com documento' : 'Sem documento'}
               </span>
             </div>
-            {!atleta.dataNascimento && <p className="text-sm font-bold text-[var(--vs-warning-fg)]">Falta a data de nascimento. Toque em Editar para preencher.</p>}
+            {faltaNascimento(atleta) && <CompletarNascimento cliente={cliente} equipeId={equipeId} atleta={atleta} aoSalvar={aoAtualizar} />}
             {confirmando === atleta.id ? (
               <div role="group" aria-label={`Remover ${atleta.nome}?`} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <p className="text-sm font-bold">Remover {atleta.nome} do time?</p>
