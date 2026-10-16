@@ -109,7 +109,10 @@
     "test:regras-volei-sancoes": "node scripts/with-ts-node.mjs scripts/regras-volei-sancoes.test.ts",
     "test:regras-volei-wo": "node scripts/with-ts-node.mjs scripts/regras-volei-wo-interrupcao.test.ts",
     "test:regras-volei-eventos": "node scripts/with-ts-node.mjs scripts/regras-volei-eventos.test.ts",
-    "test:regras-volei": "npm run test:regras-volei-set && npm run test:regras-volei-rotacao && npm run test:regras-volei-substituicoes && npm run test:regras-volei-libero && npm run test:regras-volei-sancoes && npm run test:regras-volei-wo && npm run test:regras-volei-eventos"
+    "test:regras-volei": "npm run test:regras-volei-set && npm run test:regras-volei-rotacao && npm run test:regras-volei-substituicoes && npm run test:regras-volei-libero && npm run test:regras-volei-sancoes && npm run test:regras-volei-wo && npm run test:regras-volei-eventos",
+    "test:meu-time-regras": "node scripts/with-ts-node.mjs scripts/meu-time-regras.test.ts",
+    "test:meu-time-rotas": "node scripts/with-ts-node.mjs scripts/meu-time-rotas.test.ts",
+    "test:meu-time": "npm run test:meu-time-regras && npm run test:meu-time-rotas"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
