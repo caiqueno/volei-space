@@ -4,7 +4,9 @@ import { ADMIN_SESSION_SCOPE, configuredAdminEmail, isAdminSession } from '@/lib
 import { COOKIE_SESSAO, classificarCookieGestao, setTokenCookie } from '@/lib/cookie-gestao'
 import { fingerprintSenha, fingerprintsConferem } from '@/lib/password-fingerprint'
 import { caminhoIsentoDeInatividade, sessaoGestaoExpirada } from '@/lib/sessao-gestao'
-import { assinarToken, lerToken } from '@/lib/token-verify'
+import { assinarToken, getSecret, lerToken } from '@/lib/token-verify'
+
+export { getSecret }
 
 export { classificarCookieGestao, setTokenCookie }
 export { clearTokenCookie, tokenCookieOptions } from '@/lib/cookie-gestao'

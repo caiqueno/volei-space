@@ -79,6 +79,7 @@
     "test:api-layer": "node scripts/with-ts-node.mjs scripts/api-layer.test.ts",
     "test:seguranca": "node scripts/with-ts-node.mjs scripts/seguranca-backend.test.ts",
     "test:auth-security": "node scripts/with-ts-node.mjs scripts/auth-security.test.ts",
+    "test:rate-limit": "node scripts/with-ts-node.mjs scripts/rate-limit.test.ts",
     "test:sessao-gestao": "node scripts/with-ts-node.mjs scripts/sessao-gestao.test.ts",
     "test:import-winners": "node scripts/import-winners.test.mjs",
     "seed:simulacao": "node scripts/with-ts-node.mjs scripts/recriar-simulacao.ts",

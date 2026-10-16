@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { verifyPasswordResetToken } from '@/lib/auth'
+import { checkRateLimit, ipDaRequisicao } from '@/lib/rate-limit'
 import { fingerprintSenha, fingerprintsConferem } from '@/lib/password-fingerprint'
 
 const schema = z.object({
@@ -12,6 +13,12 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const cota = await checkRateLimit(`reset:ip:${ipDaRequisicao(req)}`, { limite: 10, janelaMs: 15 * 60 * 1000 })
+  if (!cota.permitido) {
+    const res = error('Muitas tentativas. Tente novamente em instantes.', 429)
+    res.headers.set('Retry-After', String(cota.retryAfterSeconds))
+    return res
+  }
   try {
     const body = await req.json()
     const parsed = schema.safeParse(body)

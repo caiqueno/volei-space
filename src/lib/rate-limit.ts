@@ -46,3 +46,194 @@ export function reiniciarCotas() {
 export function limparLimites() {
   baldes.clear()
 }
+
+// ---------------------------------------------------------------------------
+// Store do limitador (B2). A memória segue como padrão e como fallback; o
+// store do Supabase usa a tabela "RateLimit"(chave, contagem, expiraEm) e só
+// vale quando a tabela existe. Sem tabela, cai para memória sem quebrar o login.
+// ---------------------------------------------------------------------------
+
+export type ConsultaCota = { contagem: number; retryAfterSeconds: number }
+
+export interface RateLimitStore {
+  /** Conta uma ocorrência na janela e informa se ainda cabe no limite. */
+  consumir(chave: string, limite: number, janelaMs: number, agora?: number): Promise<ResultadoCota>
+  /** Lê a contagem atual sem contar uma ocorrência. */
+  consultar(chave: string, agora?: number): Promise<ConsultaCota>
+  /** Zera a chave (ex.: login correto limpa as falhas do e-mail). */
+  zerar(chave: string): Promise<void>
+}
+
+export class MemoryRateLimitStore implements RateLimitStore {
+  private readonly mapa = new Map<string, Balde>()
+
+  async consumir(chave: string, limite: number, janelaMs: number, agora = Date.now()): Promise<ResultadoCota> {
+    if (this.mapa.size >= LIMITE_BALDES) {
+      this.mapa.forEach((balde, k) => {
+        if (balde.reiniciaEm <= agora) this.mapa.delete(k)
+      })
+    }
+    const atual = this.mapa.get(chave)
+    if (!atual || atual.reiniciaEm <= agora) {
+      this.mapa.set(chave, { contagem: 1, reiniciaEm: agora + janelaMs })
+      return { permitido: true, retryAfterSeconds: 0 }
+    }
+    if (atual.contagem >= limite) {
+      return { permitido: false, retryAfterSeconds: Math.max(1, Math.ceil((atual.reiniciaEm - agora) / 1000)) }
+    }
+    atual.contagem += 1
+    return { permitido: true, retryAfterSeconds: 0 }
+  }
+
+  async consultar(chave: string, agora = Date.now()): Promise<ConsultaCota> {
+    const atual = this.mapa.get(chave)
+    if (!atual || atual.reiniciaEm <= agora) return { contagem: 0, retryAfterSeconds: 0 }
+    return { contagem: atual.contagem, retryAfterSeconds: Math.max(1, Math.ceil((atual.reiniciaEm - agora) / 1000)) }
+  }
+
+  async zerar(chave: string): Promise<void> {
+    this.mapa.delete(chave)
+  }
+}
+
+type ClienteRateLimit = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from(tabela: string): any
+}
+
+const TABELA = 'RateLimit'
+
+export class SupabaseRateLimitStore implements RateLimitStore {
+  constructor(private readonly cliente: ClienteRateLimit) {}
+
+  private tabela() {
+    return this.cliente.from(TABELA)
+  }
+
+  private async ler(chave: string): Promise<{ contagem: number; expiraEm: number } | null> {
+    const { data, error: erro } = await this.tabela().select('contagem,expiraEm').eq('chave', chave).maybeSingle()
+    if (erro) throw erro
+    if (!data) return null
+    const expiraEm = new Date(String(data.expiraEm)).getTime()
+    return { contagem: Number(data.contagem) || 0, expiraEm: Number.isNaN(expiraEm) ? 0 : expiraEm }
+  }
+
+  async consumir(chave: string, limite: number, janelaMs: number, agora = Date.now()): Promise<ResultadoCota> {
+    for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+      const atual = await this.ler(chave)
+      if (!atual || atual.expiraEm <= agora) {
+        const { error: erro } = await this.tabela().upsert(
+          { chave, contagem: 1, expiraEm: new Date(agora + janelaMs).toISOString() },
+          { onConflict: 'chave' },
+        )
+        if (erro) throw erro
+        return { permitido: true, retryAfterSeconds: 0 }
+      }
+      if (atual.contagem >= limite) {
+        return { permitido: false, retryAfterSeconds: Math.max(1, Math.ceil((atual.expiraEm - agora) / 1000)) }
+      }
+      // Compara e troca: só soma se ninguém alterou a contagem desde a leitura.
+      const { data, error: erro } = await this.tabela()
+        .update({ contagem: atual.contagem + 1 })
+        .eq('chave', chave)
+        .eq('contagem', atual.contagem)
+        .select('chave')
+      if (erro) throw erro
+      if (Array.isArray(data) && data.length > 0) return { permitido: true, retryAfterSeconds: 0 }
+    }
+    // Disputa persistente: trata como excesso em vez de deixar passar.
+    return { permitido: false, retryAfterSeconds: 1 }
+  }
+
+  async consultar(chave: string, agora = Date.now()): Promise<ConsultaCota> {
+    const atual = await this.ler(chave)
+    if (!atual || atual.expiraEm <= agora) return { contagem: 0, retryAfterSeconds: 0 }
+    return { contagem: atual.contagem, retryAfterSeconds: Math.max(1, Math.ceil((atual.expiraEm - agora) / 1000)) }
+  }
+
+  async zerar(chave: string): Promise<void> {
+    const { error: erro } = await this.tabela().delete().eq('chave', chave)
+    if (erro) throw erro
+  }
+}
+
+const REPETIR_PRINCIPAL_APOS_MS = 5 * 60 * 1000
+
+/**
+ * Tenta o store principal e, se ele falhar (tabela ausente, rede), usa a
+ * memória. Depois de uma falha o principal fica de lado por alguns minutos.
+ */
+export class RateLimitStoreComFallback implements RateLimitStore {
+  private indisponivelAte = 0
+
+  constructor(
+    private readonly principal: RateLimitStore | null,
+    private readonly reserva: RateLimitStore = new MemoryRateLimitStore(),
+    private readonly relogio: () => number = Date.now,
+  ) {}
+
+  private async tentar<T>(operacao: (store: RateLimitStore) => Promise<T>): Promise<T> {
+    if (this.principal && this.relogio() >= this.indisponivelAte) {
+      try {
+        return await operacao(this.principal)
+      } catch (err) {
+        this.indisponivelAte = this.relogio() + REPETIR_PRINCIPAL_APOS_MS
+        const mensagem = err instanceof Error ? err.message : (err as { message?: string } | null)?.message
+        console.warn('[rate-limit] store do Supabase indisponível; usando memória.', mensagem ?? '')
+      }
+    }
+    return operacao(this.reserva)
+  }
+
+  consumir(chave: string, limite: number, janelaMs: number, agora?: number) {
+    return this.tentar((s) => s.consumir(chave, limite, janelaMs, agora))
+  }
+
+  consultar(chave: string, agora?: number) {
+    return this.tentar((s) => s.consultar(chave, agora))
+  }
+
+  zerar(chave: string) {
+    return this.tentar((s) => s.zerar(chave))
+  }
+}
+
+let storePadrao: RateLimitStore | null = null
+let storeDeTeste: RateLimitStore | null = null
+
+async function obterStore(): Promise<RateLimitStore> {
+  if (storeDeTeste) return storeDeTeste
+  if (storePadrao) return storePadrao
+  let principal: RateLimitStore | null = null
+  try {
+    const { supabaseAdmin, isSupabaseServiceConfigured } = await import('@/lib/supabase-admin')
+    if (isSupabaseServiceConfigured) principal = new SupabaseRateLimitStore(supabaseAdmin)
+  } catch {
+    principal = null
+  }
+  storePadrao = new RateLimitStoreComFallback(principal)
+  return storePadrao
+}
+
+/** Só para testes: troca o store usado pelas funções assíncronas. */
+export function definirStoreDeRateLimit(store: RateLimitStore | null) {
+  storeDeTeste = store
+  storePadrao = null
+}
+
+export type OpcoesLimite = { limite: number; janelaMs: number }
+
+/** Conta uma ocorrência e responde se ainda cabe. */
+export async function checkRateLimit(chave: string, opcoes: OpcoesLimite, agora = Date.now()): Promise<ResultadoCota> {
+  return (await obterStore()).consumir(chave, opcoes.limite, opcoes.janelaMs, agora)
+}
+
+/** Informa se a chave já estourou o limite, sem contar uma nova ocorrência. */
+export async function limiteEsgotado(chave: string, limite: number, agora = Date.now()): Promise<ResultadoCota> {
+  const { contagem, retryAfterSeconds } = await (await obterStore()).consultar(chave, agora)
+  return contagem >= limite ? { permitido: false, retryAfterSeconds } : { permitido: true, retryAfterSeconds: 0 }
+}
+
+export async function zerarLimite(chave: string): Promise<void> {
+  await (await obterStore()).zerar(chave)
+}

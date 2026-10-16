@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
+import { checkRateLimit, ipDaRequisicao } from '@/lib/rate-limit'
 import { setTokenCookie, signPublicToken, verifyAccountActivationToken } from '@/lib/auth'
 
 const schema = z.object({
@@ -9,6 +10,12 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const cota = await checkRateLimit(`ativar:ip:${ipDaRequisicao(req)}`, { limite: 20, janelaMs: 15 * 60 * 1000 })
+  if (!cota.permitido) {
+    const res = error('Muitas tentativas. Tente novamente em instantes.', 429)
+    res.headers.set('Retry-After', String(cota.retryAfterSeconds))
+    return res
+  }
   try {
     const body = await req.json()
     const parsed = schema.safeParse(body)
