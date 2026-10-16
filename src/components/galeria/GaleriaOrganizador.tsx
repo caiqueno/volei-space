@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { optimizeImageFile, validateImageFile } from '@/lib/client-image-upload'
 import { lerJson } from '@/lib/api-cliente'
-import { supabase } from '@/lib/supabase'
+import { enviarArquivoAssinado } from '@/lib/uploads-cliente'
 
 type Foto = {
   id: number
@@ -71,15 +71,11 @@ export function GaleriaOrganizador({ ligaId, capaUrl }: { ligaId: number; capaUr
         optimizeImageFile(arquivo, `liga-${ligaId}`),
         optimizeImageFile(arquivo, `liga-${ligaId}-thumb`, { maxDimension: 480, maxOutputBytes: 180 * 1024 }),
       ])
-      const nome = crypto.randomUUID()
-      const caminho = `ligas/${ligaId}/${nome}.webp`
-      const caminhoMini = `ligas/${ligaId}/${nome}-thumb.webp`
-      const envioGrande = await supabase.storage.from('galeria-campeonato').upload(caminho, grande.file, { upsert: false, contentType: 'image/webp', cacheControl: '3600' })
-      if (envioGrande.error) throw new Error('Não foi possível enviar a foto.')
-      const envioMini = await supabase.storage.from('galeria-campeonato').upload(caminhoMini, mini.file, { upsert: false, contentType: 'image/webp', cacheControl: '3600' })
-      if (envioMini.error) throw new Error('Não foi possível enviar a miniatura.')
-      const url = supabase.storage.from('galeria-campeonato').getPublicUrl(caminho).data.publicUrl
-      const thumbUrl = supabase.storage.from('galeria-campeonato').getPublicUrl(caminhoMini).data.publicUrl
+      const envioGrande = await enviarArquivoAssinado({ tipo: 'galeria-campeonato', ligaId, arquivo: grande.file })
+      const envioMini = await enviarArquivoAssinado({ tipo: 'galeria-campeonato', ligaId, arquivo: mini.file })
+      const url = envioGrande.urlPublica
+      const thumbUrl = envioMini.urlPublica
+      if (!url || !thumbUrl) throw new Error('Não foi possível obter o link da foto enviada.')
       const resposta = await fetch('/api/galeria', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

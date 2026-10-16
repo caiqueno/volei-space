@@ -22,7 +22,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { EscolhaInicial } from '@/components/cadastro/EscolhaInicial'
-import { supabase } from '@/lib/supabase'
+import { enviarArquivoAssinado, ErroUpload } from '@/lib/uploads-cliente'
 import { fetchCepAddress, normalizeCep } from '@/lib/client-cep'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
 
@@ -907,25 +907,20 @@ function EquipeIdentidade({ form, setField }: FieldProps) {
         return optimized.previewUrl
       })
 
-      const extension = optimized.file.type === 'image/webp' ? 'webp' : 'jpg'
-      const fileName = `emblemas/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
-      const { error } = await supabase.storage.from('equipe-emblemas').upload(fileName, optimized.file, {
-        upsert: false,
-        contentType: optimized.file.type,
-        cacheControl: '3600',
-      })
-      if (error) {
+      let publicUrl: string | null
+      try {
+        publicUrl = (await enviarArquivoAssinado({ tipo: 'candidatura-emblema', arquivo: optimized.file })).urlPublica
+      } catch (erroEnvio) {
         setField('emblemaUrl', '')
-        setUploadError('Não foi possível enviar o emblema. Tente novamente ou verifique o bucket equipe-emblemas no Supabase.')
+        setUploadError(erroEnvio instanceof ErroUpload ? erroEnvio.message : 'Não foi possível enviar o emblema. Tente novamente.')
         return
       }
-      const { data } = supabase.storage.from('equipe-emblemas').getPublicUrl(fileName)
-      if (!data.publicUrl) {
+      if (!publicUrl) {
         setField('emblemaUrl', '')
         setUploadError('Não foi possível obter o link público do emblema.')
         return
       }
-      setField('emblemaUrl', data.publicUrl)
+      setField('emblemaUrl', publicUrl)
       setUploadInfo(`Imagem otimizada: ${formatBytes(optimized.originalBytes)} para ${formatBytes(optimized.optimizedBytes)}.`)
     } catch (error) {
       setField('emblemaUrl', '')
@@ -1275,27 +1270,12 @@ function FotosQuadra({ form, setField }: FieldProps) {
         continue
       }
 
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const safeName = file.name
-        .replace(/\.[^/.]+$/, '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9-_]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase()
-      const path = `candidaturas/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName || 'quadra'}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('quadra-fotos').upload(path, file, {
-        cacheControl: '3600',
-        upsert: false,
-      })
-
-      if (uploadError) {
-        setError('Não foi possível enviar uma das fotos. Verifique o bucket quadra-fotos no Supabase.')
-        continue
+      try {
+        const envio = await enviarArquivoAssinado({ tipo: 'quadra-foto', arquivo: file })
+        if (envio.urlPublica) uploaded.push(envio.urlPublica)
+      } catch (erroEnvio) {
+        setError(erroEnvio instanceof ErroUpload ? erroEnvio.message : 'Não foi possível enviar uma das fotos. Tente novamente.')
       }
-
-      const { data } = supabase.storage.from('quadra-fotos').getPublicUrl(path)
-      if (data.publicUrl) uploaded.push(data.publicUrl)
     }
 
     if (uploaded.length) setField('fotosQuadraUrls', [...fotos, ...uploaded].slice(0, 8))
