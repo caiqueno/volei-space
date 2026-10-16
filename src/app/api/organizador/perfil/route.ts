@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { error, success } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
+import { requireOrganizador } from '@/lib/organizador-isolamento'
 import { isSupabaseServiceConfigured, supabaseAdmin } from '@/lib/supabase-admin'
 import { organizadorPerfilSchema } from '@/lib/schemas'
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requirePublicRole(req, ['organizador'])
+  const auth = await requireOrganizador(req)
   if (auth instanceof Response) return auth
 
   if (!isSupabaseServiceConfigured) {

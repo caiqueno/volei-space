@@ -4,6 +4,7 @@ import { success, error } from '@/lib/api-response'
 import { inscricaoCampeonatoSchema } from '@/lib/schemas'
 import { countApprovedRegistrations, ensureClassificationAndCalendar } from '@/lib/championship-operations'
 import { requirePublicRole } from '@/lib/auth'
+import { requireOrganizador } from '@/lib/organizador-isolamento'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { reconcileAcceptedInvitations } from '@/lib/championship-registration-sync'
 import { statusInicialDaInscricao } from '@/lib/inscricao-status'
@@ -210,7 +211,7 @@ export async function PATCH(req: NextRequest) {
       return error('Dados inválidos.', 422)
     }
 
-    const auth = await requirePublicRole(req, ['organizador'])
+    const auth = await requireOrganizador(req)
     if (auth instanceof Response) return auth
 
     const { data: inscricaoAtual, error: findErr } = await supabase

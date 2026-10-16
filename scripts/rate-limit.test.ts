@@ -8,6 +8,7 @@ import {
   definirStoreDeRateLimit,
   type RateLimitStore,
 } from '../src/lib/rate-limit'
+import { criarBanco, instalarSupabaseFalso, type Linha } from './helpers/fake-supabase'
 import { getSecret, assinarToken, lerToken } from '../src/lib/token-verify'
 
 process.env.JWT_SECRET = 'segredo-de-teste-rate-limit-com-32-caracteres'
@@ -15,73 +16,7 @@ delete process.env.ADMIN_EMAIL
 
 // --- Fakes ---------------------------------------------------------------
 
-type Linha = Record<string, unknown>
-
-function criarBanco(tabelas: Record<string, Linha[]>) {
-  const from = (nome: string) => {
-    const filtros: Array<(l: Linha) => boolean> = []
-    let operacao: 'select' | 'update' | 'delete' | 'upsert' = 'select'
-    let valores: Linha = {}
-    let retornaLinhas = false
-    const executar = () => {
-      const tabela = tabelas[nome]
-      if (!tabela) return { data: null, error: { code: '42P01', message: `relation "${nome}" does not exist` } }
-      const alvo = tabela.filter((l) => filtros.every((f) => f(l)))
-      if (operacao === 'select') return { data: alvo, error: null }
-      if (operacao === 'delete') {
-        tabelas[nome] = tabela.filter((l) => !alvo.includes(l))
-        return { data: null, error: null }
-      }
-      if (operacao === 'update') {
-        alvo.forEach((l) => Object.assign(l, valores))
-        return { data: retornaLinhas ? alvo : null, error: null }
-      }
-      const existente = tabela.find((l) => l.chave === valores.chave)
-      if (existente) Object.assign(existente, valores)
-      else tabela.push({ ...valores })
-      return { data: null, error: null }
-    }
-    const b: any = {
-      select() {
-        if (operacao === 'update') retornaLinhas = true
-        return b
-      },
-      ilike(coluna: string, valor: string) {
-        filtros.push((l) => String(l[coluna] ?? '').toLowerCase() === valor.toLowerCase())
-        return b
-      },
-      eq(coluna: string, valor: unknown) {
-        filtros.push((l) => l[coluna] === valor)
-        return b
-      },
-      is() { return b },
-      limit() { return b },
-      order() { return b },
-      update(v: Linha) { operacao = 'update'; valores = v; return b },
-      delete() { operacao = 'delete'; return b },
-      upsert(v: Linha) { operacao = 'upsert'; valores = v; return b },
-      maybeSingle() {
-        const r = executar()
-        return Promise.resolve(r.error ? r : { data: (r.data as Linha[])[0] ?? null, error: null })
-      },
-      then(res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) {
-        return Promise.resolve(executar()).then(res, rej)
-      },
-    }
-    return b
-  }
-  return { from }
-}
-
-const banco = { atual: criarBanco({}) }
-const supabaseFalso = { from: (nome: string) => banco.atual.from(nome) }
-const caminhoSupabase = require.resolve('../src/lib/supabase-admin')
-require.cache[caminhoSupabase] = {
-  id: caminhoSupabase,
-  filename: caminhoSupabase,
-  loaded: true,
-  exports: { supabaseAdmin: supabaseFalso, isSupabaseServiceConfigured: true },
-} as unknown as NodeJS.Module
+const banco = instalarSupabaseFalso(require.resolve('../src/lib/supabase-admin'))
 
 function requisicao(url: string, corpo: unknown, ip = '10.0.0.1') {
   return new NextRequest(`http://127.0.0.1:3001${url}`, {
