@@ -29,7 +29,7 @@ import {
 } from '../src/lib/meu-time-ui/rascunho'
 import { rotuloFuncao, rotuloPosicao } from '../src/components/meu-time/rotulos'
 import { validarEdicaoTime, validarMembroComissao, validarNovoAcesso, validarNovoAtleta, validarNovoTime } from '../src/lib/meu-time-ui/formularios'
-import { hrefInscricao } from '../src/lib/meu-time-ui/navegacao'
+import { hrefInscricao, lerConvite } from '../src/lib/meu-time-ui/navegacao'
 import { mensagemSemPermissao, podeFazer } from '../src/lib/meu-time-ui/permissoes'
 import { prepararLista } from '../src/lib/meu-time-ui/lista-colada'
 import type { Atleta } from '../src/lib/meu-time-ui/tipos'
@@ -331,6 +331,28 @@ async function main() {
   assert.equal(problemasDeEnvio(muitosAtletas.slice(0, 2), atletasLivres, soMaximo).length, 0)
   const httpSemRegra = criarClienteHttp(async () => resposta(200, { data: { categoriaId: 'c9', nome: 'Aberta', naipe: null, minimoAtletas: null, maximoAtletas: null, maximoLiberos: 2, maximoComissao: null, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true } }))
   assert.equal((await httpSemRegra.obterRegrasCategoria('c9')).minimoAtletas, null)
+
+  // --- R5 M7: convite do organizador vai no corpo da inscrição e fica no rascunho
+  const paramsConvite: Record<string, string> = { categoria: 'c1', convite: ' tok-abc ', min: '6' }
+  assert.equal(lerConvite((c) => paramsConvite[c]), 'tok-abc')
+  assert.equal(lerConvite(() => null), undefined)
+  assert.equal(lerConvite(() => '   '), undefined)
+  assert.equal(lerConvite(() => 'x'.repeat(201)), undefined)
+  assert.equal(hrefInscricao('e1', (c) => paramsConvite[c]), '/meu-time/e1/inscrever?categoria=c1&convite=+tok-abc+&min=6')
+  const comConvite = montarInscricao('c1', [{ atletaId: 'a1', numero: '7', capitao: false, libero: false }], [], 'tok-abc')
+  assert.deepEqual(comConvite, { categoriaCampeonatoId: 'c1', atletas: [{ atletaId: 'a1', numero: 7 }], convite: 'tok-abc' })
+  assert.equal('convite' in montarInscricao('c1', [], []), false)
+  const corposConvite: string[] = []
+  const httpConvite = criarClienteHttp(async (_url, init) => {
+    corposConvite.push(String(init?.body))
+    return resposta(201, { data: { id: 'i1', categoriaCampeonatoId: 'c1', status: 'CONFIRMADA', totalAtletas: 1 } })
+  })
+  await httpConvite.inscrever('e1', comConvite)
+  assert.equal(JSON.parse(corposConvite[0]).convite, 'tok-abc')
+  const rascunhoConvite = lerRascunho(serializarRascunho({ ...rascunhoVazio(), convite: 'tok-abc' }))
+  assert.equal(rascunhoConvite?.convite, 'tok-abc')
+  assert.equal(lerRascunho(serializarRascunho(rascunhoVazio()))?.convite, undefined)
+  assert.equal(lerRascunho(JSON.stringify({ ...rascunhoVazio(), convite: 42 }))?.convite, undefined)
 
   // --- R5 M8: ações por papel (espelha o servidor)
   const papeis = ['RESPONSAVEL', 'TECNICO', 'ASSISTENTE', 'CAPITAO'] as const

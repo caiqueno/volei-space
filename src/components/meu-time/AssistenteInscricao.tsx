@@ -16,6 +16,7 @@ import {
   reconciliarRascunho,
   type RascunhoAssistente,
 } from '@/lib/meu-time-ui/rascunho'
+import { lerConvite } from '@/lib/meu-time-ui/navegacao'
 import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import { descreverStatusInscricao, type Falha } from '@/lib/meu-time-ui/respostas'
 import { avisosDeEnvio, lerRegras, montarInscricao, problemasDeEnvio, regrasDeCategoria, type RegrasInscricao } from '@/lib/meu-time-ui/selecao'
@@ -73,7 +74,7 @@ export function AssistenteInscricao({ equipeId, cliente }: { equipeId: string; c
   }
   return (
     <Assistente
-      key={`${equipeId}-${categoria}`} api={api} equipeId={equipeId} categoria={categoria}
+      key={`${equipeId}-${categoria}`} api={api} equipeId={equipeId} categoria={categoria} convite={lerConvite((c) => params.get(c))}
       detalhe={carga.dados} regras={(cargaRegras.estado === 'pronto' ? cargaRegras.dados : null) ?? lerRegras((c) => params.get(c))}
     />
   )
@@ -83,11 +84,13 @@ type PropsAssistente = {
   api: MeuTimeClient
   equipeId: string
   categoria: string
+  /** `?convite=` da URL: vai no corpo da inscrição e fica no rascunho. */
+  convite?: string
   detalhe: DetalheEquipe
   regras: RegrasInscricao
 }
 
-function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssistente) {
+function Assistente({ api, equipeId, categoria, convite, detalhe, regras }: PropsAssistente) {
   const chave = chaveRascunho(equipeId, categoria)
   const { equipe, atletas, comissao } = detalhe
   const [rascunho, setRascunho] = useState<RascunhoAssistente>(rascunhoVazio)
@@ -104,11 +107,14 @@ function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssisten
   // Retoma o rascunho guardado no aparelho (se houver), descartando o que já não existe no time.
   useEffect(() => {
     const guardado = carregarRascunho(chave)
-    if (guardado) setRascunho(reconciliarRascunho(guardado, atletas, comissao))
+    // O convite da URL (link novo do organizador) vale mais que o guardado; sem ele, mantém o que já estava no rascunho.
+    const tokenConvite = convite ?? guardado?.convite
+    const base = guardado ? reconciliarRascunho(guardado, atletas, comissao) : rascunhoVazio()
+    setRascunho(tokenConvite ? { ...base, convite: tokenConvite } : base)
     setPronto(true)
     // Só na abertura: depois disso o estado da tela manda e o salvamento acompanha.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chave])
+  }, [chave, convite])
 
   // Salva sozinho a cada mudança.
   useEffect(() => {
@@ -137,7 +143,7 @@ function Assistente({ api, equipeId, categoria, detalhe, regras }: PropsAssisten
     setEnviando(true)
     setFalha(null)
     try {
-      const resposta = await api.inscrever(equipeId, montarInscricao(categoria, rascunho.escolhas, rascunho.comissao))
+      const resposta = await api.inscrever(equipeId, montarInscricao(categoria, rascunho.escolhas, rascunho.comissao, rascunho.convite ?? convite))
       apagarRascunho(chave)
       setEnviada(resposta)
     } catch (erro) {

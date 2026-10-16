@@ -103,6 +103,8 @@ export type NovaInscricao = {
   categoriaCampeonatoId: string
   atletas: AtletaInscricao[]
   comissao?: string[]
+  /** Token do link do organizador (`?convite=`). Se vier, o servidor confere com a categoria. */
+  convite?: string
 }
 
 export type RespostaInscricao = { data: InscricaoResumo; avisos: string[] }

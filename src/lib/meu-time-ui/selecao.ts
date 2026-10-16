@@ -222,12 +222,12 @@ export function avisosDeEnvio(escolhas: Escolha[], atletas: Atleta[], regras: Re
   return avisos
 }
 
-export function montarInscricao(categoriaCampeonatoId: string, escolhas: Escolha[], comissao: string[]): NovaInscricao {
+export function montarInscricao(categoriaCampeonatoId: string, escolhas: Escolha[], comissao: string[], convite?: string): NovaInscricao {
   const atletas: AtletaInscricao[] = escolhas.map((e) => {
     const item: AtletaInscricao = { atletaId: e.atletaId, numero: Number(e.numero) }
     if (e.capitao) item.capitao = true
     if (e.libero) item.libero = true
     return item
   })
-  return { categoriaCampeonatoId, atletas, ...(comissao.length ? { comissao } : {}) }
+  return { categoriaCampeonatoId, atletas, ...(comissao.length ? { comissao } : {}), ...(convite ? { convite } : {}) }
 }
