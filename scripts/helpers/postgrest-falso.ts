@@ -49,13 +49,23 @@ function casa(linha: Record<string, any>, coluna: string, filtro: string) {
   return true
 }
 
-export function instalarPostgrestFalso(tabelas: Tabelas) {
+export type OpcoesPostgrestFalso = {
+  /** Responde chamadas /storage/v1/...; devolver null cai no erro de fetch fora do teste. */
+  storage?: (caminho: string, init?: RequestInit) => Response | null
+}
+
+export function instalarPostgrestFalso(tabelas: Tabelas, opcoes: OpcoesPostgrestFalso = {}) {
   const original = globalThis.fetch
   const chamadas: ChamadaFalsa[] = []
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
     if (!url.startsWith(HOST_FALSO)) throw new Error(`fetch fora do teste: ${url}`)
     const parsed = new URL(url)
+    if (parsed.pathname.startsWith('/storage/v1/')) {
+      const resposta = opcoes.storage?.(parsed.pathname + parsed.search, init)
+      if (!resposta) throw new Error(`storage fora do teste: ${url}`)
+      return resposta
+    }
     const tabela = decodeURIComponent(parsed.pathname.replace('/rest/v1/', ''))
     const select = parsed.searchParams.get('select') ?? '*'
     chamadas.push({ tabela, select, search: parsed.search, metodo: (init?.method ?? 'GET').toUpperCase() })
