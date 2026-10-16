@@ -173,3 +173,30 @@ export function calcularReversaoFaltaRotacao(pontosDoSet: readonly PontoLog[], f
     mensagem,
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Replay do rodízio (RG-ROT-001/002)                                  */
+/* ------------------------------------------------------------------ */
+
+export type PassoReplay =
+  | { tipo: 'PONTO'; equipe: Equipe; cancelado: boolean }
+  | { tipo: 'TROCA'; equipe: Equipe; sai: number; entra: number }
+
+/**
+ * Recalcula quem saca e as duas formações PARTINDO da formação inicial do set e reaplicando, em ordem,
+ * só os pontos vivos e as trocas de jogadores (substituição, líbero, redesignação). É o que "retifica o
+ * rodízio" depois de a reversão cancelar pontos da equipe faltosa: os rodízios ganhos em side-outs
+ * cancelados deixam de existir. Função pura e determinística.
+ */
+export function reconstruirRodizio(inicio: EstadoSaque, passos: readonly PassoReplay[]): EstadoSaque {
+  let estado: EstadoSaque = { formacaoA: [...inicio.formacaoA], formacaoB: [...inicio.formacaoB], saca: inicio.saca }
+  for (const passo of passos) {
+    if (passo.tipo === 'PONTO') {
+      if (!passo.cancelado) estado = aplicarRally(estado, passo.equipe)
+      continue
+    }
+    const troca = (f: Formacao) => f.map((j) => (j === passo.sai ? passo.entra : j))
+    estado = passo.equipe === 'A' ? { ...estado, formacaoA: troca(estado.formacaoA) } : { ...estado, formacaoB: troca(estado.formacaoB) }
+  }
+  return estado
+}

@@ -9,7 +9,10 @@
  */
 import {
   anexarEvento,
+  aplicarSubstituicaoLote,
   avaliarSancao,
+  trocasDoPayload,
+  type PayloadPorTipo,
   bloqueio,
   decidirInterrupcao,
   derivarPlacar,
@@ -26,7 +29,6 @@ import {
   validarSacador,
   validarSaqueDoLibero,
   validarSubstituicaoExcepcional,
-  validarSubstituicaoRegular,
   validarTrocaLibero,
   type AvisoRegra,
   type ConfigPartida,
@@ -246,17 +248,29 @@ function checarPorTipo(amb: Ambiente, tipo: NovoEvento['tipo'], p: Record<string
       if (erro) return { bloqueio: erro }
       const estado = estadoOuErro(amb, p.equipe)
       if (ehBloqueio(estado)) return { bloqueio: estado }
+      const trocas = trocasDoPayload(p as PayloadPorTipo['SUBSTITUICAO'])
+      if (trocas.length === 0) {
+        return { bloqueio: bloqueio('RG-SUB-007', 'Informe a troca (sai/entra) ou a lista de trocas do pedido.') }
+      }
       const excepcional = p.excepcional === true
       if (excepcional) {
         if (!p.motivo) {
           return { bloqueio: bloqueio('RG-SUB-011', 'A substituição excepcional exige motivo: lesão, doença, expulsão ou desqualificação.') }
         }
-        const r = validarSubstituicaoExcepcional(estado, { sai: p.sai, entra: p.entra, motivo: p.motivo }, config.perfil)
+        if (trocas.length > 1) {
+          return { bloqueio: bloqueio('RG-SUB-011', 'A substituição excepcional é de um jogador por vez; envie um pedido para cada jogador.') }
+        }
+        const r = validarSubstituicaoExcepcional(estado, { ...trocas[0]!, motivo: p.motivo }, config.perfil)
         return r.ok ? { avisos: r.avisos, payload: { ...p, excepcional: true } } : { bloqueio: r }
       }
-      const r = validarSubstituicaoRegular(estado, { sai: p.sai, entra: p.entra }, config.perfil)
+      // Pedido em lote (RG-SUB-007): simula as trocas em sequência; qualquer falha recusa o pedido todo.
+      const lote = aplicarSubstituicaoLote(estado, trocas, config.perfil)
       const { motivo: _motivo, ...semMotivo } = p
-      return r.ok ? { avisos: r.avisos, payload: { ...semMotivo, excepcional: false } } : { bloqueio: r }
+      if (!lote.resultado.ok) {
+        const quando = trocas.length > 1 && lote.indiceBloqueado !== null ? ` (troca ${lote.indiceBloqueado + 1} do pedido)` : ''
+        return { bloqueio: bloqueio(lote.resultado.codigo, `${lote.resultado.mensagem}${quando}`) }
+      }
+      return { avisos: lote.resultado.avisos, payload: { ...semMotivo, excepcional: false } }
     }
     case 'TROCA_LIBERO': {
       const erro = exigirSetEmAndamento(amb, 'RG-LIB-006', 'A troca de líbero')

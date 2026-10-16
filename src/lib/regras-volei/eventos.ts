@@ -18,10 +18,10 @@ import {
   type EstadoEquipe,
 } from './estado-equipe'
 import { aplicarTrocaLibero, aplicarRedesignacaoLibero, validarSaqueDoLibero, type MomentoDaTroca } from './libero'
-import { aplicarRally, calcularReversaoFaltaRotacao, validarSacador, type PontoLog } from './rotacao'
+import { aplicarRally, calcularReversaoFaltaRotacao, reconstruirRodizio, validarSacador, type PassoReplay, type PontoLog } from './rotacao'
 import { avaliarSancao, registrarSancao, type CategoriaSancao, type SancaoRegistrada } from './sancoes'
 import { alvoDoSet, deveTrocarDeLado, ehSetDecisivo, partidaEncerrada, setEncerrado, validarPedidoDeTempo } from './set-partida'
-import { aplicarSubstituicaoExcepcional, aplicarSubstituicaoRegular, type MotivoExcepcional } from './substituicoes'
+import { aplicarSubstituicaoExcepcional, aplicarSubstituicaoLote, type MotivoExcepcional } from './substituicoes'
 import { decidirInterrupcao, resolverEquipeIncompleta, resolverWO, type ResultadoWO } from './wo-interrupcao'
 import {
   bloqueio,
@@ -48,7 +48,15 @@ export interface PayloadPorTipo {
   /** `sacador` (opcional): jogador que sacou o rally; o servidor confere a ordem de saque (RG-ROT-001). */
   PONTO: { equipe: Equipe; sacador?: number }
   RALLY_REPETIDO: Record<string, never>
-  SUBSTITUICAO: { equipe: Equipe; sai: number; entra: number; excepcional?: boolean; motivo?: string }
+  /** Uma troca (`sai`/`entra`) ou várias no mesmo pedido (`trocas`, RG-SUB-007). */
+  SUBSTITUICAO: {
+    equipe: Equipe
+    sai?: number
+    entra?: number
+    trocas?: Array<{ sai: number; entra: number }>
+    excepcional?: boolean
+    motivo?: string
+  }
   TEMPO: { equipe: Equipe }
   TROCA_LIBERO: { equipe: Equipe; sai: number; entra: number; momento?: MomentoDaTroca }
   REDESIGNACAO_LIBERO: { equipe: Equipe; liberoIncapaz: number; novoLibero: number }
@@ -181,7 +189,7 @@ export function anexarEvento(log: readonly SumulaEvento[], novo: NovoEvento): Re
 export interface PontoDerivado {
   seq: number
   equipe: Equipe
-  origem: 'RALLY' | 'PENALIDADE' | 'FALTA_POSICAO' | 'FALTA_ROTACAO'
+  origem: 'RALLY' | 'PENALIDADE' | 'FALTA_POSICAO' | 'FALTA_ROTACAO' | 'PAPELETA'
   cancelado: boolean
 }
 
@@ -211,6 +219,20 @@ export interface SetDerivado {
   sacouPrimeiro: Equipe
   /** Placar imposto por equipe incompleta (RG-WO-005). */
   ajusteIncompleta: PlacarSet | null
+  /** seq do SET_INICIADO (pontos com este seq são penalidades lançadas no 0x0). */
+  inicioSeq: number
+  /** Passos que mexem no rodízio, em ordem (pontos e trocas), para o replay (RG-ROT-001/002). */
+  jornal: JornalPasso[]
+}
+
+export type JornalPasso =
+  | { tipo: 'PONTO'; ponto: PontoDerivado }
+  | { tipo: 'TROCA'; equipe: Equipe; sai: number; entra: number }
+
+/** Trocas de um pedido de substituição (uma, ou várias em `trocas`, RG-SUB-007). */
+export function trocasDoPayload(p: PayloadPorTipo['SUBSTITUICAO']): Array<{ sai: number; entra: number }> {
+  if (p.trocas && p.trocas.length > 0) return p.trocas.map((t) => ({ sai: t.sai, entra: t.entra }))
+  return p.sai !== undefined && p.entra !== undefined ? [{ sai: p.sai, entra: p.entra }] : []
 }
 
 export type StatusPartida = 'NAO_INICIADA' | 'EM_ANDAMENTO' | 'ENCERRADA' | 'WO' | 'A_REPETIR'
@@ -325,12 +347,51 @@ export function derivarPlacar(
       eq.A = registrarRallyConcluido(eq.A)
       eq.B = registrarRallyConcluido(eq.B)
     }
-    set.pontos.push({ seq, equipe, origem, cancelado: false })
+    const novoPonto: PontoDerivado = { seq, equipe, origem, cancelado: false }
+    set.pontos.push(novoPonto)
+    set.jornal.push({ tipo: 'PONTO', ponto: novoPonto })
     if (st.saque) {
       const prox = aplicarRally(st.saque, equipe)
       st.saque = { saca: prox.saca, formacaoA: [...prox.formacaoA], formacaoB: [...prox.formacaoB] }
     }
     recalcular(set, config)
+  }
+
+  /**
+   * Reversão por falta de rotação / papeleta (RG-ROT-001/002, RG-FOR-008/009): cancela os pontos da faltosa,
+   * RECALCULA o rodízio por replay dos pontos vivos e dá ponto e saque ao adversário.
+   * `formacaoCorrigida` (informada pelo árbitro) prevalece sobre o replay para a equipe faltosa.
+   */
+  const reverterEPontuar = (
+    set: SetDerivado,
+    seq: number,
+    equipeFaltosa: Equipe,
+    momentoSeq: number | null,
+    pontoDoRallyDaFaltaSeq: number | null,
+    formacaoCorrigida: number[] | undefined,
+    origem: PontoDerivado['origem'],
+  ) => {
+    const vivos: PontoLog[] = set.pontos.filter((x) => !x.cancelado).map((x) => ({ seq: x.seq, equipe: x.equipe }))
+    const reversao = calcularReversaoFaltaRotacao(vivos, { equipeFaltosa, momentoSeq, pontoDoRallyDaFaltaSeq })
+    for (const ponto of set.pontos) if (reversao.cancelados.includes(ponto.seq)) ponto.cancelado = true
+    if (reversao.cancelados.length > 0) houveCancelamento = true
+    // O set pode ter sido reaberto pela reversão: o ponto do adversário entra normalmente.
+    set.encerrado = false
+    const passos: PassoReplay[] = set.jornal.map((j) =>
+      j.tipo === 'PONTO' ? { tipo: 'PONTO', equipe: j.ponto.equipe, cancelado: j.ponto.cancelado } : j,
+    )
+    const refeito = reconstruirRodizio(
+      { formacaoA: set.formacaoInicialA, formacaoB: set.formacaoInicialB, saca: set.sacouPrimeiro },
+      passos,
+    )
+    st.saque = { saca: refeito.saca, formacaoA: [...refeito.formacaoA], formacaoB: [...refeito.formacaoB] }
+    if (formacaoCorrigida) {
+      st.saque = {
+        ...st.saque,
+        ...(equipeFaltosa === 'A' ? { formacaoA: [...formacaoCorrigida] } : { formacaoB: [...formacaoCorrigida] }),
+      }
+    }
+    concedePonto(set, seq, outraEquipe(equipeFaltosa), origem)
   }
 
   for (const e of efetivos) {
@@ -375,6 +436,8 @@ export function derivarPlacar(
           contadores: { A: contadoresVazios(), B: contadoresVazios() },
           sacouPrimeiro: p.saqueInicial,
           ajusteIncompleta: null,
+          inicioSeq: e.seq,
+          jornal: [],
         }
         sets.push(set)
         st.saque = { formacaoA: [...p.formacaoA], formacaoB: [...p.formacaoB], saca: p.saqueInicial }
@@ -471,23 +534,7 @@ export function derivarPlacar(
           break
         }
         const p = e.payload
-        const vivos: PontoLog[] = set.pontos.filter((x) => !x.cancelado).map((x) => ({ seq: x.seq, equipe: x.equipe }))
-        const reversao = calcularReversaoFaltaRotacao(vivos, {
-          equipeFaltosa: p.equipeFaltosa,
-          momentoSeq: p.momentoSeq,
-          pontoDoRallyDaFaltaSeq: p.pontoDoRallyDaFaltaSeq ?? null,
-        })
-        for (const ponto of set.pontos) if (reversao.cancelados.includes(ponto.seq)) ponto.cancelado = true
-        if (reversao.cancelados.length > 0) houveCancelamento = true
-        // O set pode ter sido reaberto pela reversão: o ponto do adversário entra normalmente.
-        set.encerrado = false
-        if (p.formacaoCorrigida) {
-          st.saque = {
-            ...st.saque,
-            ...(p.equipeFaltosa === 'A' ? { formacaoA: [...p.formacaoCorrigida] } : { formacaoB: [...p.formacaoCorrigida] }),
-          }
-        }
-        concedePonto(set, e.seq, outraEquipe(p.equipeFaltosa), 'FALTA_ROTACAO')
+        reverterEPontuar(set, e.seq, p.equipeFaltosa, p.momentoSeq, p.pontoDoRallyDaFaltaSeq ?? null, p.formacaoCorrigida, 'FALTA_ROTACAO')
         break
       }
       case 'SUBSTITUICAO': {
@@ -497,16 +544,24 @@ export function derivarPlacar(
           break
         }
         const p = e.payload
-        if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.sai, p.entra) }
-        else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.sai, p.entra) }
+        const trocas = trocasDoPayload(p)
+        if (trocas.length === 0) {
+          rejeitar(e.seq, 'RG-SUB-007', 'Substituição sem jogadores (informe sai/entra ou trocas).')
+          break
+        }
+        for (const t of trocas) {
+          if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, t.sai, t.entra) }
+          else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, t.sai, t.entra) }
+          set.jornal.push({ tipo: 'TROCA', equipe: p.equipe, sai: t.sai, entra: t.entra })
+        }
+        // Contagem por jogador que entra: cada troca do pedido conta 1 (RG-SUB-007).
         const c = set.contadores[p.equipe]
-        if (p.excepcional) c.substituicoesExcepcionais += 1
-        else c.substituicoesRegulares += 1
+        if (p.excepcional) c.substituicoesExcepcionais += trocas.length
+        else c.substituicoesRegulares += trocas.length
         if (eq) {
-          const pedido = { sai: p.sai, entra: p.entra }
           const r = p.excepcional
-            ? aplicarSubstituicaoExcepcional(eq[p.equipe], { ...pedido, motivo: p.motivo as MotivoExcepcional }, config.perfil)
-            : aplicarSubstituicaoRegular(eq[p.equipe], pedido, config.perfil)
+            ? aplicarSubstituicaoExcepcional(eq[p.equipe], { ...trocas[0]!, motivo: p.motivo as MotivoExcepcional }, config.perfil)
+            : aplicarSubstituicaoLote(eq[p.equipe], trocas, config.perfil)
           if (r.resultado.ok) eq[p.equipe] = r.estado
           else rejeitar(e.seq, r.resultado.codigo, r.resultado.mensagem)
         }
@@ -521,6 +576,7 @@ export function derivarPlacar(
         const p = e.payload
         if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.sai, p.entra) }
         else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.sai, p.entra) }
+        set.jornal.push({ tipo: 'TROCA', equipe: p.equipe, sai: p.sai, entra: p.entra })
         set.contadores[p.equipe].trocasLibero += 1
         if (eq) {
           const r = aplicarTrocaLibero(eq[p.equipe], { sai: p.sai, entra: p.entra }, { momento: p.momento ?? 'BOLA_FORA' })
@@ -535,6 +591,7 @@ export function derivarPlacar(
         const p = e.payload
         if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.liberoIncapaz, p.novoLibero) }
         else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.liberoIncapaz, p.novoLibero) }
+        set.jornal.push({ tipo: 'TROCA', equipe: p.equipe, sai: p.liberoIncapaz, entra: p.novoLibero })
         set.contadores[p.equipe].redesignacoes += 1
         if (eq) {
           const pontosEquipe = p.equipe === 'A' ? set.placar.a : set.placar.b

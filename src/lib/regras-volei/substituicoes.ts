@@ -166,6 +166,50 @@ export function aplicarSubstituicaoRegular(
   }
 }
 
+export interface ResultadoLoteSubstituicao {
+  resultado: ResultadoRegra
+  estado: EstadoEquipe
+  /** Índice (0-based) da troca que bloqueou o pedido; null se todas valem. */
+  indiceBloqueado: number | null
+}
+
+/**
+ * RG-SUB-007 (15.2.2): um pedido pode ter vários jogadores. A regra de "um pedido por interrupção"
+ * vale entre PEDIDOS; dentro do pedido cada troca conta 1 no limite do set (uma por jogador que entra).
+ * Tudo ou nada: se uma troca falhar, o estado devolvido é o original.
+ */
+export function aplicarSubstituicaoLote(
+  estado: EstadoEquipe,
+  trocas: readonly PedidoSubstituicao[],
+  perfil: PerfilRegras,
+): ResultadoLoteSubstituicao {
+  if (trocas.length === 0) {
+    return { resultado: bloqueio('RG-SUB-007', 'O pedido de substituição precisa ter ao menos uma troca.'), estado, indiceBloqueado: 0 }
+  }
+  const usados = new Set<number>()
+  for (let i = 0; i < trocas.length; i += 1) {
+    const t = trocas[i]!
+    for (const j of [t.sai, t.entra]) {
+      if (usados.has(j)) {
+        return { resultado: bloqueio('RG-SUB-007', `O jogador ${j} aparece em mais de uma troca do mesmo pedido.`), estado, indiceBloqueado: i }
+      }
+      usados.add(j)
+    }
+  }
+  const avisos: AvisoRegra[] = []
+  let atual = estado
+  for (let i = 0; i < trocas.length; i += 1) {
+    const t = trocas[i]!
+    // A primeira troca respeita o "um pedido por interrupção"; as seguintes são do mesmo pedido.
+    const base: EstadoEquipe = i === 0 ? atual : { ...atual, pedidoNaInterrupcao: false }
+    const r = aplicarSubstituicaoRegular(base, t, perfil)
+    if (!r.resultado.ok) return { resultado: r.resultado, estado, indiceBloqueado: i }
+    avisos.push(...r.resultado.avisos)
+    atual = r.estado
+  }
+  return { resultado: ok(avisos), estado: atual, indiceBloqueado: null }
+}
+
 /** Há alguma substituição regular legal para tirar `sai`? (RG-SUB-011: excepcional só sem legal). */
 export function existeSubstituicaoRegular(estado: EstadoEquipe, sai: number, perfil: PerfilRegras): boolean {
   const naoPodeContarInterrupcao: EstadoEquipe = { ...estado, pedidoNaInterrupcao: false }

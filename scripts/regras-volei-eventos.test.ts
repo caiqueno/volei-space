@@ -450,4 +450,64 @@ caso('RG-SAN-012: equipe incompleta para o jogo encerra a partida', () => {
   assert.equal(p.vencedor, 'A')
 })
 
+/* ---------------- RODADA 3: lote por pedido e replay do rodízio ---------------- */
+
+const CTX = { elenco: { A: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], B: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] } }
+
+caso('RG-SUB-007: evento SUBSTITUICAO com trocas[] conta uma por jogador e atualiza a formação', () => {
+  const j = new Jogo()
+  j.iniciarSet(1)
+  j.add('SUBSTITUICAO', { equipe: 'A', trocas: [{ sai: 1, entra: 7 }, { sai: 2, entra: 8 }] })
+  const p = derivarPlacar(j.log, c5, CTX)
+  assert.equal(p.inconsistencias.length, 0, JSON.stringify(p.inconsistencias))
+  assert.equal(p.setAtual?.contadores.A.substituicoesRegulares, 2)
+  assert.deepEqual(p.formacaoA, [7, 8, 3, 4, 5, 6])
+  assert.equal(p.estadoEquipes?.A.regulares, 2)
+})
+
+caso('RG-SUB-007: dois pedidos seguidos sem rally continuam indevidos no log', () => {
+  const j = new Jogo()
+  j.iniciarSet(1)
+  j.add('SUBSTITUICAO', { equipe: 'A', trocas: [{ sai: 1, entra: 7 }] })
+  j.add('SUBSTITUICAO', { equipe: 'A', sai: 2, entra: 8 })
+  const p = derivarPlacar(j.log, c5, CTX)
+  assert.equal(p.inconsistencias[0]?.codigo, 'RG-SUB-007')
+})
+
+caso('RG-ROT-001/002: a falta de rotação refaz o rodízio por replay dos pontos vivos (sem formacaoCorrigida)', () => {
+  const j = new Jogo()
+  j.iniciarSet(1) // A saca
+  j.add('PONTO', { equipe: 'B' }) // seq 2: side-out de B, B roda e saca
+  j.add('PONTO', { equipe: 'A' }) // seq 3: side-out de A, A roda e saca
+  j.add('PONTO', { equipe: 'A' }) // seq 4
+  const antes = derivarPlacar(j.log, c5)
+  assert.deepEqual(antes.formacaoA, [2, 3, 4, 5, 6, 1])
+  j.add('FALTA_ROTACAO', { equipeFaltosa: 'A', momentoSeq: 3 })
+  const p = derivarPlacar(j.log, c5)
+  assert.deepEqual(p.formacaoA, [1, 2, 3, 4, 5, 6], 'os rodízios dos side-outs cancelados desaparecem')
+  assert.deepEqual(p.formacaoB, [12, 13, 14, 15, 16, 11], 'o side-out de B (ponto vivo) continua valendo')
+  assert.equal(p.saca, 'B', 'B ganhou o ponto da falta e sacava')
+  assert.equal(p.setAtual?.pontos.filter((x) => !x.cancelado && x.equipe === 'A').length, 0)
+})
+
+caso('RG-ROT-001/002: o replay preserva substituições feitas antes da falta', () => {
+  const j = new Jogo()
+  j.iniciarSet(1)
+  j.add('SUBSTITUICAO', { equipe: 'A', sai: 1, entra: 7 })
+  j.add('PONTO', { equipe: 'B' })
+  j.add('PONTO', { equipe: 'A' }) // seq 4
+  j.add('FALTA_ROTACAO', { equipeFaltosa: 'A', momentoSeq: 4 })
+  const p = derivarPlacar(j.log, c5)
+  assert.deepEqual(p.formacaoA, [7, 2, 3, 4, 5, 6])
+})
+
+caso('RG-ROT-001/002: formacaoCorrigida informada pelo árbitro prevalece sobre o replay', () => {
+  const j = new Jogo()
+  j.iniciarSet(1)
+  j.add('PONTO', { equipe: 'B' })
+  j.add('PONTO', { equipe: 'A' })
+  j.add('FALTA_ROTACAO', { equipeFaltosa: 'A', momentoSeq: 3, formacaoCorrigida: [6, 1, 2, 3, 4, 5] })
+  assert.deepEqual(derivarPlacar(j.log, c5).formacaoA, [6, 1, 2, 3, 4, 5])
+})
+
 encerrar('regras-volei-eventos')
