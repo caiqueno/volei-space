@@ -1,10 +1,14 @@
 openapi: 3.0.3
 info:
-  title: volei.space - API do Meu Time (Rodada 2)
-  version: 0.1.0
+  title: volei.space - API do Meu Time (Rodada 3)
+  version: 0.2.0
   description: |
     Contrato das rotas /api/meu-time. STATUS: implementado no código, mas depende das migrations PENDENTES
     202610170024 a 202610170026 (supabase/pendentes) e do ajuste do CHECK de status da inscrição pelo agente de banco.
+    Rodada 3 (agente de banco, em paralelo): tabela "ComissaoTime"(id, timeId, nome, funcao, criadoEm), colunas
+    Atleta.posicao e Atleta.numeroPreferido e Atleta.origem='LOTE' (nascimento nulo só nessa origem).
+    Sem elas a API tolera: ComissaoTime ausente = 503 (o detalhe da equipe devolve `comissao: []`); colunas ausentes =
+    grava sem elas; CHECK antigo sem 'LOTE' = regrava com origem MIGRACAO.
 
     Regras gerais
     - Atrás de MEU_TIME_ATIVO=1. Desligado: 404 `{error:'Não encontrado.'}` em todas as rotas.
@@ -13,7 +17,8 @@ info:
     - Sucesso `{data}`; falha `{error, codigo?, erros?}`. A inscrição devolve também `avisos` ao lado de `data`.
     - Posse por MembroEquipe. Quem não é membro recebe 404 (a equipe "não existe" para ele).
       Leitura: RESPONSAVEL, TECNICO, ASSISTENTE, CAPITAO. Escrita (atletas, inscrição): RESPONSAVEL e TECNICO.
-      Comissão (adicionar/remover): só RESPONSAVEL. Sem permissão: 403 `SEM_PERMISSAO`.
+      Membros com acesso (adicionar/remover) e dados do time (PATCH): só RESPONSAVEL.
+      Comissão técnica (adicionar/remover): RESPONSAVEL e TECNICO. Sem permissão: 403 `SEM_PERMISSAO`.
     - NUNCA devolve CPF, documento, telefone, e-mail, hash ou caminho de arquivo. Só `temDocumento`.
     - Inscrição automática: sem aprovação. Status: RASCUNHO, CONFIRMADA, CONFIRMADA_COM_PENDENCIAS,
       AJUSTE_PEDIDO, REMOVIDA. O organizador nunca vê o banco de atletas do time; a inscrição guarda uma CÓPIA.
@@ -91,7 +96,7 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [equipe, atletas, comissao, inscricoes, prontidao]
+                    required: [equipe, atletas, comissao, membros, inscricoes, prontidao]
                     properties:
                       equipe: { $ref: '#/components/schemas/Equipe' }
                       atletas:
@@ -99,12 +104,48 @@ paths:
                         items: { $ref: '#/components/schemas/Atleta' }
                       comissao:
                         type: array
+                        description: Comissão técnica (nome e função). Vazia se a tabela ainda não existe.
+                        items: { $ref: '#/components/schemas/MembroComissao' }
+                      membros:
+                        type: array
+                        description: Contas com acesso à equipe
                         items: { $ref: '#/components/schemas/Membro' }
                       inscricoes:
                         type: array
                         items: { $ref: '#/components/schemas/InscricaoResumo' }
                       prontidao: { $ref: '#/components/schemas/Prontidao' }
         '404': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+    patch:
+      summary: Edita os dados do time (aba "Dados do time"). Só RESPONSAVEL; o naipe não muda.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 200 }
+                cidade: { type: string, maxLength: 120, nullable: true }
+                escudoUrl: { type: string, format: uri, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: Equipe atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Equipe' }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '409':
+          # Já existe equipe com esse nome e naipe (EQUIPE_DUPLICADA)
+          $ref: '#/components/responses/Erro'
+        '422': { $ref: '#/components/responses/Erro' }
         '401': { $ref: '#/components/responses/Erro' }
         '503': { $ref: '#/components/responses/Erro' }
   /meu-time/equipes/{id}/prontidao:
@@ -131,8 +172,8 @@ paths:
     post:
       summary: Cadastra um atleta no banco do time
       description: |
-        `numeroPreferido` e `posicao` são aceitos e validados, mas só são gravados quando as colunas existirem em
-        "Atleta" (hoje não existem nas migrations pendentes; voltam null até lá).
+        `numeroPreferido` e `posicao` são gravados e devolvidos. Se as colunas ainda não existem em "Atleta",
+        o cadastro é regravado sem elas e voltam null.
       requestBody:
         required: true
         content:
@@ -171,9 +212,9 @@ paths:
       description: |
         Aceita `atletas` (contrato) ou `texto` (lista colada do WhatsApp, mesmo parser da inscrição rápida).
         Até 100 linhas. Repetidos (mesmo nome), linhas sem nome e camisa fora de 0..99 vão em `ignorados`.
-        Linhas sem `dataNascimento` entram como origem MIGRACAO (o banco só aceita nascimento vazio nessa origem)
+        Linhas sem `dataNascimento` entram com origem 'LOTE' (o banco só aceita nascimento vazio nessa origem)
         e ficam com a pendência "falta nascimento" quando a categoria tem faixa de idade.
-        `numero` é validado mas não é gravado no atleta (a camisa é definida na inscrição).
+        `numero` vira `numeroPreferido` e `posicao` é gravada (a camisa definitiva é escolhida na inscrição).
       requestBody:
         required: true
         content:
@@ -191,6 +232,7 @@ paths:
                       nome: { type: string }
                       numero: { type: integer, minimum: 0, maximum: 99, nullable: true }
                       dataNascimento: { type: string, format: date, nullable: true }
+                      posicao: { type: string, enum: [LV, PT, OP, CT, LB], nullable: true }
                 texto: { type: string, maxLength: 20000 }
       responses:
         '200':
@@ -281,7 +323,85 @@ paths:
     parameters:
       - { $ref: '#/components/parameters/EquipeId' }
     get:
-      summary: Membros da equipe
+      summary: Comissão técnica do time (tabela "ComissaoTime")
+      responses:
+        '200':
+          description: Comissão técnica
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MembroComissao' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+    post:
+      summary: Cadastra pessoa na comissão técnica (RESPONSAVEL ou TECNICO; a pessoa não precisa de conta)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, funcao]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 200 }
+                funcao: { $ref: '#/components/schemas/FuncaoComissao' }
+      responses:
+        '201':
+          description: Pessoa adicionada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/MembroComissao' }
+        '409':
+          # Mesmo nome e função já na comissão (COMISSAO_DUPLICADA)
+          $ref: '#/components/responses/Erro'
+        '403': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+        '422': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+  /meu-time/equipes/{id}/comissao/{membroId}:
+    parameters:
+      - { $ref: '#/components/parameters/EquipeId' }
+      - name: membroId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      summary: Tira a pessoa da comissão técnica (RESPONSAVEL ou TECNICO). Cópias em inscrições permanecem.
+      responses:
+        '200':
+          description: Removido
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      removido: { type: boolean }
+        '403': { $ref: '#/components/responses/Erro' }
+        '404':
+          # Equipe ou membro (de outra equipe também) não encontrado (MEMBRO_NAO_ENCONTRADO)
+          $ref: '#/components/responses/Erro'
+        '401': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+  /meu-time/equipes/{id}/membros:
+    parameters:
+      - { $ref: '#/components/parameters/EquipeId' }
+    get:
+      summary: Contas com acesso à equipe (id, nome, papel)
       responses:
         '200':
           description: Membros
@@ -298,7 +418,7 @@ paths:
         '401': { $ref: '#/components/responses/Erro' }
         '503': { $ref: '#/components/responses/Erro' }
     post:
-      summary: Adiciona membro (só RESPONSAVEL). A pessoa precisa ter conta no volei.space.
+      summary: Dá acesso a uma conta (só RESPONSAVEL). A pessoa precisa ter conta no volei.space.
       requestBody:
         required: true
         content:
@@ -330,7 +450,7 @@ paths:
         '401': { $ref: '#/components/responses/Erro' }
         '503': { $ref: '#/components/responses/Erro' }
     delete:
-      summary: Remove membro (só RESPONSAVEL; o responsável não sai por aqui)
+      summary: Remove o acesso (só RESPONSAVEL; o responsável não sai por aqui)
       parameters:
         - name: membroId
           in: query
@@ -371,7 +491,7 @@ paths:
         `convite` (token do link do organizador) é opcional; se vier, precisa conferir com a categoria.
         Códigos de erro 422: SEM_ATLETAS, ATLETA_FORA_DO_TIME, ATLETA_REPETIDO, NUMERO_INVALIDO, NUMERO_REPETIDO,
         CAPITAO_LIBERO, MAIS_DE_UM_CAPITAO, LIBEROS_ACIMA, ABAIXO_DO_MINIMO, ACIMA_DO_MAXIMO, FORA_DA_IDADE,
-        NAIPE_INCOMPATIVEL, ATLETA_EM_OUTRO_TIME, COMISSAO_ACIMA, MEMBRO_FORA_DA_EQUIPE, FUNCAO_INVALIDA.
+        NAIPE_INCOMPATIVEL, ATLETA_EM_OUTRO_TIME, COMISSAO_ACIMA, MEMBRO_FORA_DA_EQUIPE.
         Outros: 403 INSCRICOES_FECHADAS / CONVITE_INVALIDO, 404 CATEGORIA_NAO_ENCONTRADA, 409 JA_INSCRITA /
         CONFLITO_DE_ELENCO. Em 422 o campo `erros` lista todas as violações ({codigo, mensagem, atletaId?}).
       requestBody:
@@ -398,7 +518,7 @@ paths:
                 comissao:
                   type: array
                   maxItems: 20
-                  description: ids de Membro (papéis TECNICO ou ASSISTENTE da própria equipe)
+                  description: ids de MembroComissao ("ComissaoTime") da própria equipe; copiados para InscricaoComissao (nome e função)
                   items: { type: string }
                 convite: { type: string }
       responses:
@@ -419,6 +539,32 @@ paths:
         '404': { $ref: '#/components/responses/Erro' }
         '409': { $ref: '#/components/responses/Erro' }
         '422': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '503': { $ref: '#/components/responses/Erro' }
+  /meu-time/categorias/{categoriaId}/regras:
+    parameters:
+      - name: categoriaId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Regras de elenco da categoria (para o assistente de inscrição)
+      description: |
+        Exige só sessão de equipe (não há vínculo com a categoria antes de inscrever). Lê CategoriaCampeonato,
+        RegraElenco, CategoriaConfiguracao (naipe) e a janela de inscrição da Liga. Não devolve token de convite.
+        Sem RegraElenco valem os padrões (limites null, maximoLiberos 2). Categoria sem gênero = MISTO.
+        `anoNascimentoMinimo`/`anoNascimentoMaximo` são o ano de nascimentoDe/nascimentoAte da regra.
+      responses:
+        '200':
+          description: Regras
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/RegrasCategoria' }
+        '404': { $ref: '#/components/responses/Erro' }
         '401': { $ref: '#/components/responses/Erro' }
         '503': { $ref: '#/components/responses/Erro' }
 components:
@@ -492,11 +638,35 @@ components:
         numeroPreferido: { type: integer, nullable: true }
         posicao: { type: string, nullable: true }
         temDocumento: { type: boolean }
+    FuncaoComissao:
+      type: string
+      enum: [TECNICO, ASSISTENTE, PREPARADOR_FISICO, FISIOTERAPEUTA, MEDICO]
+    MembroComissao:
+      type: object
+      required: [id, nome, funcao]
+      properties:
+        id: { type: string, format: uuid, description: 'Usado em DELETE /comissao/{membroId} e em inscricoes.comissao' }
+        nome: { type: string }
+        funcao: { $ref: '#/components/schemas/FuncaoComissao' }
+    RegrasCategoria:
+      type: object
+      required: [categoriaId, nome, naipe, minimoAtletas, maximoAtletas, maximoLiberos, maximoComissao, anoNascimentoMinimo, anoNascimentoMaximo, inscricoesAbertas]
+      properties:
+        categoriaId: { type: string, format: uuid }
+        nome: { type: string }
+        naipe: { $ref: '#/components/schemas/Naipe' }
+        minimoAtletas: { type: integer, nullable: true }
+        maximoAtletas: { type: integer, nullable: true }
+        maximoLiberos: { type: integer }
+        maximoComissao: { type: integer, nullable: true }
+        anoNascimentoMinimo: { type: integer, nullable: true }
+        anoNascimentoMaximo: { type: integer, nullable: true }
+        inscricoesAbertas: { type: boolean }
     Membro:
       type: object
       required: [id, nome, papel]
       properties:
-        id: { type: string, description: 'Identificador da conta (usado em DELETE ?membroId= e em inscricoes.comissao)' }
+        id: { type: string, description: 'Identificador da conta (usado em DELETE /membros?membroId=)' }
         nome: { type: string }
         papel: { type: string, enum: [RESPONSAVEL, TECNICO, ASSISTENTE, CAPITAO] }
     InscricaoResumo:

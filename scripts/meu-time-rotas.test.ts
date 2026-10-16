@@ -22,13 +22,13 @@ const CAT_FECHADA = '33333333-3333-4333-8333-333333333333'
 function tabelasBase(): Record<string, LinhaEscrita[]> {
   return {
     Clube: [], TimeClube: [], MembroEquipe: [], Atleta: [], VinculoAtletaClube: [],
-    Inscricao: [], InscricaoAtleta: [], InscricaoComissao: [], RegraElenco: [],
+    Inscricao: [], InscricaoAtleta: [], InscricaoComissao: [], RegraElenco: [], ComissaoTime: [],
     CategoriaConfiguracao: [
       { ligaId: 1, categoriaCampeonatoId: CAT, genero: 'FEMININO', idadeMinima: null, idadeMaxima: null },
       { ligaId: 1, categoriaCampeonatoId: CAT_MASC, genero: 'MASCULINO', idadeMinima: null, idadeMaxima: null },
     ],
     CategoriaCampeonato: [
-      { id: CAT, ligaId: 1, tokenInscricao: 'token-ok', removidaEm: null },
+      { id: CAT, ligaId: 1, nome: 'Adulto Feminino', tokenInscricao: 'token-ok', removidaEm: null },
       { id: CAT_MASC, ligaId: 1, tokenInscricao: null, removidaEm: null },
       { id: CAT_FECHADA, ligaId: 2, tokenInscricao: null, removidaEm: null },
     ],
@@ -65,6 +65,9 @@ async function main() {
   const loteRota = await import('../src/app/api/meu-time/equipes/[id]/atletas/lote/route')
   const atletaRota = await import('../src/app/api/meu-time/equipes/[id]/atletas/[atletaId]/route')
   const comissaoRota = await import('../src/app/api/meu-time/equipes/[id]/comissao/route')
+  const comissaoItem = await import('../src/app/api/meu-time/equipes/[id]/comissao/[membroId]/route')
+  const membrosRota = await import('../src/app/api/meu-time/equipes/[id]/membros/route')
+  const regrasRota = await import('../src/app/api/meu-time/categorias/[categoriaId]/regras/route')
   const inscricoesRota = await import('../src/app/api/meu-time/equipes/[id]/inscricoes/route')
   const prontidaoRota = await import('../src/app/api/meu-time/equipes/[id]/prontidao/route')
 
@@ -170,24 +173,55 @@ async function main() {
   const colado = await json(await loteRota.POST(req('POST', '/x', { texto: 'Jade Melo, 4\n5 - Kika Reis' }), params))
   assert.equal(colado.data.criados.length, 2)
 
-  // --- Comissão ----------------------------------------------------------------
-  assert.equal((await comissaoRota.POST(req('POST', '/x', { email: 'ninguem@volei.space', papel: 'TECNICO' }), params)).status, 404)
-  assert.equal((await comissaoRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'RESPONSAVEL' }), params)).status, 422)
-  const membro = await comissaoRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)
+  // --- Membros (contas com acesso) ---------------------------------------------
+  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'ninguem@volei.space', papel: 'TECNICO' }), params)).status, 404)
+  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'RESPONSAVEL' }), params)).status, 422)
+  const membro = await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)
   assert.equal(membro.status, 201)
   assert.deepEqual((await json(membro)).data, { id: 'user-tecnico', nome: 'Téo Técnico', papel: 'TECNICO' })
-  assert.equal((await comissaoRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)).status, 409, 'membro duplicado')
-  const comissaoLista = (await json(await comissaoRota.GET(req('GET', '/x'), params))).data
-  assert.equal(comissaoLista.length, 2)
-  assert.ok(!JSON.stringify(comissaoLista).includes('@'), 'comissão não expõe e-mail')
-  assert.equal((await comissaoRota.DELETE(req('DELETE', '/x?membroId=user-a'), params)).status, 409, 'responsável não sai')
-  assert.equal((await comissaoRota.DELETE(req('DELETE', '/x'), params)).status, 400)
+  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'TECNICO' }), params)).status, 409, 'membro duplicado')
+  const membrosLista = (await json(await membrosRota.GET(req('GET', '/x'), params))).data
+  assert.equal(membrosLista.length, 2)
+  assert.ok(!JSON.stringify(membrosLista).includes('@'), 'membros não expõem e-mail')
+  assert.equal((await membrosRota.DELETE(req('DELETE', '/x?membroId=user-a'), params)).status, 409, 'responsável não sai')
+  assert.equal((await membrosRota.DELETE(req('DELETE', '/x'), params)).status, 400)
+
+  // --- Comissão técnica (nome + função) -----------------------------------------
+  assert.equal((await comissaoRota.POST(req('POST', '/x', { nome: 'Carlos', funcao: 'GOLEIRO' }), params)).status, 422)
+  assert.equal((await comissaoRota.POST(req('POST', '/x', { funcao: 'TECNICO' }), params)).status, 422)
+  const tecnico = await comissaoRota.POST(req('POST', '/x', { nome: 'Carlos Lima', funcao: 'TECNICO' }), params)
+  assert.equal(tecnico.status, 201)
+  const tecnicoDados = (await json(tecnico)).data
+  assert.deepEqual(Object.keys(tecnicoDados).sort(), ['funcao', 'id', 'nome'])
+  assert.equal((await comissaoRota.POST(req('POST', '/x', { nome: 'carlos  LIMA', funcao: 'TECNICO' }), params)).status, 409)
+  const fisio = (await json(await comissaoRota.POST(req('POST', '/x', { nome: 'Dora Reis', funcao: 'FISIOTERAPEUTA' }), params))).data
+  const listaComissao = (await json(await comissaoRota.GET(req('GET', '/x'), params))).data
+  assert.deepEqual(listaComissao.map((m: any) => m.nome), ['Carlos Lima', 'Dora Reis'])
+  assert.equal(tabelas.ComissaoTime[0].timeId, idEquipe)
+  const detalheComissao = (await json(await detalhe.GET(req('GET', '/x'), params))).data
+  assert.equal(detalheComissao.comissao.length, 2)
+  assert.equal(detalheComissao.membros.length, 2)
+  // Outra equipe não remove a comissão desta (isolamento).
+  await entrar('user-c')
+  const alheia = await json(await equipes.POST(req('POST', '/api/meu-time/equipes', { nome: 'Alheia', naipe: 'FEMININO' })))
+  assert.equal((await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: alheia.data.id, membroId: fisio.id } })).status, 404)
+  assert.equal((await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: idEquipe, membroId: fisio.id } })).status, 404, 'não-membro da equipe')
+  assert.equal(tabelas.ComissaoTime.length, 2)
+  await entrar('user-a')
+  assert.equal((await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: idEquipe, membroId: 'nao-uuid' } })).status, 404)
+  assert.equal((await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: idEquipe, membroId: fisio.id } })).status, 200)
+  assert.equal((await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: idEquipe, membroId: fisio.id } })).status, 404)
+  assert.equal(tabelas.ComissaoTime.length, 1)
 
   // O técnico lê e edita atletas, mas não gerencia a comissão.
   await entrar('user-tecnico')
   assert.equal((await detalhe.GET(req('GET', '/x'), params)).status, 200)
   assert.equal((await atletasRota.POST(req('POST', '/x', { nome: 'Lia Nunes', dataNascimento: '2001-01-01' }), params)).status, 201)
-  assert.equal((await comissaoRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'ASSISTENTE' }), params)).status, 403)
+  assert.equal((await membrosRota.POST(req('POST', '/x', { email: 'tec@volei.space', papel: 'ASSISTENTE' }), params)).status, 403)
+  assert.equal((await comissaoRota.POST(req('POST', '/x', { nome: 'Edu Prado', funcao: 'ASSISTENTE' }), params)).status, 201, 'técnico também cadastra a comissão')
+  assert.equal((await detalhe.PATCH(req('PATCH', '/x', { nome: 'Novo' }), params)).status, 403, 'dados do time: só o responsável')
+  const edu = tabelas.ComissaoTime.find((m) => m.nome === 'Edu Prado')!
+  tabelas.ComissaoTime.splice(tabelas.ComissaoTime.indexOf(edu), 1)
 
   // --- Inscrição ---------------------------------------------------------------
   await entrar('user-a')
@@ -214,7 +248,7 @@ async function main() {
   assert.equal(poucos.codigo, 'ABAIXO_DO_MINIMO')
   tabelas.RegraElenco[0].atletasMin = 6
 
-  const ok = await inscricoesRota.POST(pedido({ convite: 'token-ok', comissao: ['user-tecnico'] }), params)
+  const ok = await inscricoesRota.POST(pedido({ convite: 'token-ok', comissao: [tecnicoDados.id] }), params)
   assert.equal(ok.status, 201)
   const inscrita = await json(ok)
   assert.deepEqual(Object.keys(inscrita.data).sort(), ['categoriaCampeonatoId', 'id', 'status', 'totalAtletas'])
@@ -225,7 +259,10 @@ async function main() {
   assert.equal(tabelas.InscricaoAtleta.length, 6)
   assert.equal(tabelas.InscricaoAtleta[0].nomeSnapshot, seis[0].nome)
   assert.equal(tabelas.InscricaoAtleta.filter((l) => l.capitao).length, 1)
-  assert.equal(tabelas.InscricaoComissao[0].nomeSnapshot, 'Téo Técnico')
+  assert.equal(tabelas.InscricaoComissao.length, 1)
+  assert.equal(tabelas.InscricaoComissao[0].nomeSnapshot, 'Carlos Lima')
+  assert.equal(tabelas.InscricaoComissao[0].funcao, 'TECNICO')
+  assert.equal(tabelas.InscricaoComissao[0].inscricaoId, inscrita.data.id)
   Object.assign(tabelas.Atleta.find((a) => a.id === seis[1].id)!, { nome: 'Nome Alterado Depois' })
   assert.equal(tabelas.InscricaoAtleta.find((l) => l.atletaId === seis[1].id)!.nomeSnapshot, seis[1].nome, 'mudar o banco não altera a inscrição')
 
@@ -248,6 +285,99 @@ async function main() {
   const naoMembro = await inscricoesRota.POST(req('POST', '/x', { categoriaCampeonatoId: CAT, atletas: [{ atletaId: todos[6].id, numero: 1 }], comissao: ['estranho'] }), { params: { id: subs.id } })
   assert.equal(naoMembro.status, 422)
   assert.equal((await json(naoMembro)).codigo, 'MEMBRO_FORA_DA_EQUIPE')
+
+  // --- PATCH da equipe (aba "Dados do time") -----------------------------------
+  await entrar('user-a')
+  assert.equal((await detalhe.PATCH(req('PATCH', '/x', {}), params)).status, 422)
+  assert.equal((await detalhe.PATCH(req('PATCH', '/x', { nome: '' }), params)).status, 422)
+  assert.equal((await detalhe.PATCH(req('PATCH', '/x', { escudoUrl: 'nao-e-url' }), params)).status, 422)
+  const editada = await detalhe.PATCH(req('PATCH', '/x', { nome: 'Vôlei Norte FC', cidade: 'Ananindeua', escudoUrl: 'https://exemplo.com/escudo.png', naipe: 'MASCULINO' }), params)
+  assert.equal(editada.status, 200)
+  assert.deepEqual((await json(editada)).data, { id: idEquipe, nome: 'Vôlei Norte FC', cidade: 'Ananindeua', naipe: 'FEMININO', escudoUrl: 'https://exemplo.com/escudo.png' })
+  assert.equal((await json(await detalhe.PATCH(req('PATCH', '/x', { cidade: null }), params))).data.cidade, null)
+  await entrar('user-b')
+  assert.equal((await detalhe.PATCH(req('PATCH', '/x', { nome: 'Invasor' }), params)).status, 404, 'estranho não edita')
+  assert.equal(tabelas.TimeClube.find((t) => t.id === idEquipe)!.nome, 'Vôlei Norte FC')
+
+  // --- Regras da categoria (só sessão, sem vínculo com a equipe) ----------------
+  const regrasReq = (id: string) => regrasRota.GET(req('GET', '/x'), { params: { categoriaId: id } })
+  const regras = await regrasReq(CAT)
+  assert.equal(regras.status, 200)
+  assert.deepEqual((await json(regras)).data, {
+    categoriaId: CAT, nome: 'Adulto Feminino', naipe: 'FEMININO', minimoAtletas: 6, maximoAtletas: 14, maximoLiberos: 1,
+    maximoComissao: 1, anoNascimentoMinimo: null, anoNascimentoMaximo: null, inscricoesAbertas: true,
+  })
+  tabelas.RegraElenco[0].nascimentoDe = '2005-01-01'
+  tabelas.RegraElenco[0].nascimentoAte = '2010-12-31'
+  const faixa = (await json(await regrasReq(CAT))).data
+  assert.equal(faixa.anoNascimentoMinimo, 2005)
+  assert.equal(faixa.anoNascimentoMaximo, 2010)
+  const semRegra = (await json(await regrasReq(CAT_MASC))).data
+  assert.equal(semRegra.naipe, 'MASCULINO')
+  assert.equal(semRegra.maximoLiberos, 2, 'sem RegraElenco vale o padrão')
+  assert.equal(semRegra.minimoAtletas, null)
+  assert.equal((await json(await regrasReq(CAT_FECHADA))).data.inscricoesAbertas, false)
+  assert.equal((await regrasReq('44444444-4444-4444-8444-444444444444')).status, 404)
+  assert.equal((await regrasReq('nao-uuid')).status, 404)
+  assert.ok(!JSON.stringify(faixa).includes('token'), 'regras não vazam o token do convite')
+  sessao.token = null
+  assert.equal((await regrasReq(CAT)).status, 401)
+  delete process.env.MEU_TIME_ATIVO
+  await entrar('user-b')
+  assert.equal((await regrasReq(CAT)).status, 404, 'flag desligada')
+  assert.equal((await membrosRota.GET(req('GET', '/x'), params)).status, 404)
+  assert.equal((await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: idEquipe, membroId: 'x' } })).status, 404)
+  process.env.MEU_TIME_ATIVO = '1'
+
+  // --- Lote: origem LOTE, número e posição gravados ------------------------------
+  await entrar('user-a')
+  const loteNovo = await json(await loteRota.POST(req('POST', '/x', { atletas: [{ nome: 'Lia Sem Data', numero: 7, posicao: 'LB' }, { nome: 'Mel Com Data', dataNascimento: '2001-02-03' }] }), params))
+  assert.equal(loteNovo.data.criados.length, 2)
+  const semData = loteNovo.data.criados.find((a: any) => a.nome === 'Lia Sem Data')
+  assert.equal(semData.dataNascimento, null)
+  assert.equal(semData.numeroPreferido, 7)
+  assert.equal(semData.posicao, 'LB')
+  assert.equal(tabelas.Atleta.find((a) => a.id === semData.id)!.origem, 'LOTE')
+  assert.equal(tabelas.Atleta.find((a) => a.nome === 'Mel Com Data')!.origem, 'APP')
+  const unico = await json(await atletasRota.POST(req('POST', '/x', { nome: 'Nina Posicao', dataNascimento: '2002-05-05', numeroPreferido: 12, posicao: 'CT' }), params))
+  assert.equal(unico.data.numeroPreferido, 12)
+  assert.equal(unico.data.posicao, 'CT')
+  assert.equal(tabelas.Atleta.find((a) => a.id === unico.data.id)!.posicao, 'CT')
+
+  // --- Colunas novas ausentes: regrava sem elas ----------------------------------
+  const tabelasSemColuna = tabelasBase()
+  banco.atual = criarBancoEscrita(tabelasSemColuna, { colunasAusentes: { Atleta: ['posicao', 'numeroPreferido'] } })
+  await entrar('user-a')
+  const eqSemColuna = (await json(await equipes.POST(req('POST', '/api/meu-time/equipes', { nome: 'Sem Coluna', naipe: 'FEMININO' })))).data
+  const pSem = { params: { id: eqSemColuna.id } }
+  const gravado = await atletasRota.POST(req('POST', '/x', { nome: 'Ola Posicao', dataNascimento: '2000-01-01', posicao: 'OP', numeroPreferido: 3 }), pSem)
+  assert.equal(gravado.status, 201)
+  assert.equal((await json(gravado)).data.posicao, null)
+  const loteSem = await loteRota.POST(req('POST', '/x', { atletas: [{ nome: 'Pia Lote', numero: 4 }] }), pSem)
+  assert.equal(loteSem.status, 200)
+  assert.equal((await json(loteSem)).data.criados.length, 1)
+
+  // --- Sem a tabela "ComissaoTime": 503 na comissão, detalhe continua -------------
+  const tabelasSemComissao = tabelasBase()
+  delete (tabelasSemComissao as Record<string, unknown>).ComissaoTime
+  banco.atual = criarBancoEscrita(tabelasSemComissao)
+  await entrar('user-a')
+  const eqSemTab = (await json(await equipes.POST(req('POST', '/api/meu-time/equipes', { nome: 'Sem Tabela', naipe: 'FEMININO' })))).data
+  const pTab = { params: { id: eqSemTab.id } }
+  for (const resposta of [
+    await comissaoRota.GET(req('GET', '/x'), pTab),
+    await comissaoRota.POST(req('POST', '/x', { nome: 'Fulano', funcao: 'MEDICO' }), pTab),
+    await comissaoItem.DELETE(req('DELETE', '/x'), { params: { id: eqSemTab.id, membroId: '55555555-5555-4555-8555-555555555555' } }),
+  ]) {
+    assert.equal(resposta.status, 503)
+    assert.deepEqual(await json(resposta), { error: 'Meu Time ainda não está habilitado neste ambiente.' })
+  }
+  const detalheSemTab = await detalhe.GET(req('GET', '/x'), pTab)
+  assert.equal(detalheSemTab.status, 200)
+  assert.deepEqual((await json(detalheSemTab)).data.comissao, [])
+  assert.equal((await membrosRota.GET(req('GET', '/x'), pTab)).status, 200)
+  banco.atual = criarBancoEscrita({})
+  assert.equal((await regrasRota.GET(req('GET', '/x'), { params: { categoriaId: CAT } })).status, 503)
 
   console.log('meu-time-rotas: ok')
 }

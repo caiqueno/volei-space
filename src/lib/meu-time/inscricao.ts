@@ -33,7 +33,7 @@ export type PedidoInscricao = {
   convite?: string
 }
 
-function paraRegra(linha: any): RegraElencoDados {
+export function paraRegra(linha: any): RegraElencoDados {
   if (!linha) return { ...REGRA_ELENCO_PADRAO }
   return {
     atletasMin: linha.atletasMin ?? null,
@@ -127,16 +127,13 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
     'atletas já inscritos na categoria',
   ) as Array<{ atletaId: string }> | null) ?? []
 
-  // 5. Comissão: só membros da própria equipe, nas funções que a súmula conhece.
-  const equipeComissao = await listarComissao(equipe.id)
-  const comissao = (pedido.comissao ?? []).map((membroId) => {
-    const membro = equipeComissao.find((item) => item.id === membroId)
+  // 5. Comissão técnica: ids de "ComissaoTime" que pertencem a esta equipe (a tabela só é lida se vier comissão).
+  const idsComissao = Array.from(new Set(pedido.comissao ?? []))
+  const comissao = idsComissao.length === 0 ? [] : await listarComissao(equipe.id).then((todos) => idsComissao.map((membroId) => {
+    const membro = todos.find((item) => item.id === membroId)
     if (!membro) throw new ErroMeuTime('Há membro da comissão que não faz parte desta equipe.', 422, 'MEMBRO_FORA_DA_EQUIPE')
-    if (membro.papel !== 'TECNICO' && membro.papel !== 'ASSISTENTE') {
-      throw new ErroMeuTime(`${membro.nome} não pode ser inscrito na comissão técnica.`, 422, 'FUNCAO_INVALIDA')
-    }
     return membro
-  })
+  }))
 
   const resultado = validarInscricao(pedido.atletas, {
     naipeEquipe: equipe.naipe,
@@ -194,7 +191,7 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
   }
   if (comissao.length > 0) {
     const gravada = await supabase.from('InscricaoComissao').insert(
-      comissao.map((membro) => ({ inscricaoId: inscricao.id, nomeSnapshot: membro.nome, funcao: membro.papel, noBanco: true })),
+      comissao.map((membro) => ({ inscricaoId: inscricao.id, nomeSnapshot: membro.nome, funcao: membro.funcao, noBanco: true })),
     )
     if (gravada.error) {
       await desfazer()

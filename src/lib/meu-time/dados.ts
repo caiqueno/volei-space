@@ -256,16 +256,16 @@ export async function adicionarAtleta(
   return paraAtleta(atleta)
 }
 
-export type EntradaLote = { nome: string; numero?: number | string | null; dataNascimento?: string | null }
+export type EntradaLote = { nome: string; numero?: number | string | null; dataNascimento?: string | null; posicao?: string | null }
 export type LinhaIgnoradaLote = { linha: number; motivo: string }
 
 /** Quebra o lote em linhas válidas e ignoradas (sem gravar). `texto` usa o parser da inscrição rápida. */
 export function prepararLote(entrada: { atletas?: EntradaLote[]; texto?: string }, existentes: Array<{ nome: string }>) {
   const ignorados: LinhaIgnoradaLote[] = []
-  const candidatos: Array<{ linha: number; nome: string; dataNascimento: string | null }> = []
+  const candidatos: Array<{ linha: number; nome: string; dataNascimento: string | null; numeroPreferido: number | null; posicao: string | null }> = []
   if (entrada.texto != null) {
     const lido = interpretarListaColada(entrada.texto)
-    lido.atletas.forEach((item, indice) => candidatos.push({ linha: indice + 1, nome: item.nome, dataNascimento: null }))
+    lido.atletas.forEach((item, indice) => candidatos.push({ linha: indice + 1, nome: item.nome, dataNascimento: null, numeroPreferido: null, posicao: null }))
     lido.ignoradas.forEach((item) => ignorados.push({ linha: item.linha, motivo: item.motivo }))
   }
   ;(entrada.atletas ?? []).forEach((item, indice) => {
@@ -276,7 +276,7 @@ export function prepararLote(entrada: { atletas?: EntradaLote[]; texto?: string 
     if (numero != null && (!Number.isInteger(numero) || numero < 0 || numero > 99)) {
       return void ignorados.push({ linha, motivo: 'Camisa deve ser de 0 a 99' })
     }
-    candidatos.push({ linha, nome, dataNascimento: item.dataNascimento ?? null })
+    candidatos.push({ linha, nome, dataNascimento: item.dataNascimento ?? null, numeroPreferido: numero, posicao: item.posicao ?? null })
   })
 
   const nomes = new Set(existentes.map((item) => normalizarChaveNome(item.nome)))
@@ -295,19 +295,24 @@ export function prepararLote(entrada: { atletas?: EntradaLote[]; texto?: string 
 }
 
 /**
- * Lote ("colar lista"): Atleta.dataNascimento é obrigatória no banco, exceto para origem 'MIGRACAO'.
- * Linhas sem data entram como MIGRACAO e ficam com a pendência "falta nascimento" até o líder completar.
+ * Lote ("colar lista"): Atleta.dataNascimento é obrigatória no banco, exceto para origem 'LOTE'.
+ * Linhas sem data entram como LOTE e ficam com a pendência "falta nascimento" até o líder completar.
+ * Se o banco ainda só conhece a origem 'MIGRACAO' (CHECK antigo, erro 23514), regrava com ela.
  */
 export async function adicionarLote(usuarioId: string, clubeId: string, entrada: { atletas?: EntradaLote[]; texto?: string }) {
   const existentes = await listarAtletasDoClube(clubeId)
   const { novos, ignorados } = prepararLote(entrada, existentes)
   if (novos.length === 0) return { criados: [] as AtletaPublico[], ignorados }
-  const resposta = await inserirAtletas(novos.map((item) => ({
+  const montar = (origemSemData: string) => novos.map((item) => ({
     nome: item.nome,
     dataNascimento: item.dataNascimento,
-    origem: item.dataNascimento ? 'APP' : 'MIGRACAO',
+    origem: item.dataNascimento ? 'APP' : origemSemData,
     criadoPor: usuarioId,
-  })))
+    ...(item.numeroPreferido != null ? { numeroPreferido: item.numeroPreferido } : {}),
+    ...(item.posicao ? { posicao: item.posicao } : {}),
+  }))
+  let resposta = await inserirAtletas(montar('LOTE'))
+  if (resposta.error && resposta.error.code === '23514') resposta = await inserirAtletas(montar('MIGRACAO'))
   const criados = (lerDados(resposta, 'criar atletas em lote') as any[] | null) ?? []
   const vinculo = await supabase.from('VinculoAtletaClube').insert(criados.map((item) => ({ clubeId, atletaId: item.id, status: 'ATIVO' })))
   if (vinculo.error) {
@@ -359,9 +364,10 @@ export async function removerAtleta(clubeId: string, atletaId: string) {
   )
 }
 
-// --- Comissão técnica --------------------------------------------------------
+// --- Acesso à equipe (contas) -------------------------------------------------
 
-export type MembroComissao = { id: string; nome: string; papel: PapelEquipe }
+/** Conta com acesso à equipe. Não é a comissão técnica da súmula (essa é "ComissaoTime"). */
+export type MembroAcesso = { id: string; nome: string; papel: PapelEquipe }
 
 async function nomesDasContas(ids: string[]) {
   const nomes = new Map<string, string>()
@@ -377,10 +383,10 @@ async function nomesDasContas(ids: string[]) {
   return nomes
 }
 
-export async function listarComissao(timeId: string): Promise<MembroComissao[]> {
+export async function listarMembros(timeId: string): Promise<MembroAcesso[]> {
   const membros = (lerDados(
     await supabase.from('MembroEquipe').select('usuarioId,papel').eq('timeId', timeId),
-    'comissão',
+    'membros da equipe',
   ) as Array<{ usuarioId: string; papel: PapelEquipe }> | null) ?? []
   const nomes = await nomesDasContas(membros.map((item) => item.usuarioId))
   return membros.map((item) => ({ id: item.usuarioId, nome: nomes.get(item.usuarioId) || 'Membro', papel: item.papel }))
@@ -408,15 +414,93 @@ export async function adicionarMembro(timeId: string, entrada: { email: string; 
   if (violacaoUnica(resposta.error)) throw new ErroMeuTime('Essa pessoa já faz parte da equipe.', 409, 'MEMBRO_DUPLICADO')
   lerDados(resposta, 'adicionar membro')
   const nomes = await nomesDasContas([usuarioId])
-  return { id: usuarioId, nome: nomes.get(usuarioId) || 'Membro', papel: entrada.papel } as MembroComissao
+  return { id: usuarioId, nome: nomes.get(usuarioId) || 'Membro', papel: entrada.papel } as MembroAcesso
 }
 
 export async function removerMembro(timeId: string, membroId: string) {
-  const membros = await listarComissao(timeId)
+  const membros = await listarMembros(timeId)
   const alvo = membros.find((item) => item.id === membroId)
   if (!alvo) throw new ErroMeuTime('Membro não encontrado.', 404, 'MEMBRO_NAO_ENCONTRADO')
   if (alvo.papel === 'RESPONSAVEL') {
     throw new ErroMeuTime('O responsável pela equipe não pode ser removido.', 409, 'RESPONSAVEL_FIXO')
   }
   lerDados(await supabase.from('MembroEquipe').delete().eq('timeId', timeId).eq('usuarioId', membroId), 'remover membro')
+}
+
+// --- Comissão técnica (nome + função, tabela "ComissaoTime") -----------------
+
+export const FUNCOES_COMISSAO = ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO'] as const
+export type FuncaoComissao = (typeof FUNCOES_COMISSAO)[number]
+export type MembroComissao = { id: string; nome: string; funcao: FuncaoComissao }
+
+function paraMembroComissao(linha: any): MembroComissao {
+  return { id: linha.id, nome: linha.nome, funcao: linha.funcao }
+}
+
+export async function listarComissao(timeId: string): Promise<MembroComissao[]> {
+  const linhas = (lerDados(
+    await supabase.from('ComissaoTime').select('id,nome,funcao').eq('timeId', timeId).order('nome', { ascending: true }),
+    'comissão técnica',
+  ) as any[] | null) ?? []
+  return linhas.map(paraMembroComissao)
+}
+
+/** Igual a listarComissao, mas devolve [] se a tabela ainda não existe (telas de leitura não caem por isso). */
+export async function listarComissaoTolerante(timeId: string): Promise<MembroComissao[]> {
+  try {
+    return await listarComissao(timeId)
+  } catch (erro) {
+    if (erro instanceof ErroMeuTime && erro.status === 503) return []
+    throw erro
+  }
+}
+
+export async function adicionarComissao(timeId: string, entrada: { nome: string; funcao: FuncaoComissao }): Promise<MembroComissao> {
+  const existentes = await listarComissao(timeId)
+  const chave = normalizarChaveNome(entrada.nome)
+  if (existentes.some((item) => item.funcao === entrada.funcao && normalizarChaveNome(item.nome) === chave)) {
+    throw new ErroMeuTime('Essa pessoa já está na comissão técnica com essa função.', 409, 'COMISSAO_DUPLICADA')
+  }
+  const criado = lerDados(
+    await supabase.from('ComissaoTime').insert({ timeId, nome: entrada.nome, funcao: entrada.funcao }).select('id,nome,funcao').single(),
+    'adicionar à comissão técnica',
+  )
+  if (!criado) throw new ErroMeuTime('Não foi possível adicionar à comissão técnica.', 500)
+  return paraMembroComissao(criado)
+}
+
+export async function removerComissao(timeId: string, membroId: string) {
+  const naoEncontrado = () => new ErroMeuTime('Membro da comissão não encontrado.', 404, 'MEMBRO_NAO_ENCONTRADO')
+  if (!idValido(membroId)) throw naoEncontrado()
+  const achado = lerDados(
+    await supabase.from('ComissaoTime').select('id').eq('id', membroId).eq('timeId', timeId).maybeSingle(),
+    'membro da comissão',
+  )
+  if (!achado) throw naoEncontrado()
+  lerDados(await supabase.from('ComissaoTime').delete().eq('id', membroId).eq('timeId', timeId).select('id'), 'remover da comissão técnica')
+}
+
+// --- Dados do time -------------------------------------------------------------
+
+export async function editarEquipe(
+  timeId: string,
+  entrada: { nome?: string; cidade?: string | null; escudoUrl?: string | null },
+): Promise<EquipeBanco> {
+  const campos: Record<string, unknown> = {}
+  if (entrada.nome !== undefined) campos.nome = entrada.nome
+  if (entrada.cidade !== undefined) campos.cidade = entrada.cidade || null
+  if (entrada.escudoUrl !== undefined) campos.escudoUrl = entrada.escudoUrl || null
+  const resposta = await supabase
+    .from('TimeClube')
+    .update(campos)
+    .eq('id', timeId)
+    .is('arquivadoEm', null)
+    .select('id,clubeId,nome,cidade,naipe,escudoUrl')
+    .single()
+  if (violacaoUnica(resposta.error)) {
+    throw new ErroMeuTime('Você já tem uma equipe com esse nome e naipe.', 409, 'EQUIPE_DUPLICADA')
+  }
+  const linha = lerDados(resposta, 'editar equipe')
+  if (!linha) throw new ErroMeuTime('Equipe não encontrada.', 404, 'EQUIPE_NAO_ENCONTRADA')
+  return paraEquipe(linha)
 }
