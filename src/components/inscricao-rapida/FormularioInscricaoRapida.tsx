@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, CheckCircle2, Copy, ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, CheckCircle2, ClipboardPaste, Copy, ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { interpretarListaColada, motivoBloqueioConcluir, resumirElenco, separarNovosAtletas } from '@/lib/elenco-inscricao'
 import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
 import { supabase } from '@/lib/supabase'
 import { optimizeImageFile } from '@/lib/client-image-upload'
@@ -11,8 +12,8 @@ import { mensagemElegibilidade, type ElegibilidadeCategoria } from '@/lib/elegib
 
 const POSICOES = ['Levantador', 'Oposto', 'Central', 'Ponteiro', 'Líbero']
 const DOCUMENT_TYPES = [
-  { value: 'CPF', label: 'CPF' }, { value: 'CIN', label: 'CIN' },
-  { value: 'CTPS', label: 'Carteira Profissional' }, { value: 'RG', label: 'RG' },
+  { value: 'CPF', label: 'CPF' }, { value: 'CIN', label: 'Identidade nova (CIN)' },
+  { value: 'CTPS', label: 'Carteira de trabalho' }, { value: 'RG', label: 'RG' },
   { value: 'PASSAPORTE', label: 'Passaporte' }, { value: 'OUTRO', label: 'Outro' },
 ]
 
@@ -111,7 +112,7 @@ async function uploadOptimizedImage(bucket: string, folder: string, file: File, 
   const extension = optimized.file.type === 'image/webp' ? 'webp' : 'jpg'
   const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
   const { error } = await supabase.storage.from(bucket).upload(fileName, optimized.file, { upsert: false, contentType: optimized.file.type, cacheControl: '3600' })
-  if (error) throw new Error(`Não foi possível enviar a imagem. Verifique o bucket ${bucket} no Supabase.`)
+  if (error) throw new Error(`Não foi possível enviar a imagem. Tente uma foto menor ou envie de novo em instantes.`)
   const { data } = supabase.storage.from(bucket).getPublicUrl(fileName)
   if (!data.publicUrl) throw new Error('Não foi possível obter o link público da imagem.')
   return data.publicUrl
@@ -143,7 +144,7 @@ function jogadorPayload(player: JogadorDraft, config: ResolvedFormularioRapidaCo
   }
 }
 
-export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, tokenCategoria = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null, elegibilidade = null }: {
+export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, categoriaFixa, categoriaOptions, token = null, linkToken = null, tokenCategoria = null, initialData = null, canEdit = true, canEditRoster = true, readOnlyReason = null, registrationStatus = null, elegibilidade = null, elencoMinimo = null, elencoMaximo = null }: {
   ligaId: number
   linkToken?: string | null
   tokenCategoria?: string | null
@@ -158,6 +159,8 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
   readOnlyReason?: string | null
   registrationStatus?: string | null
   elegibilidade?: ElegibilidadeCategoria | null
+  elencoMinimo?: number | null
+  elencoMaximo?: number | null
 }) {
   const router = useRouter()
   const [nomeEquipe, setNomeEquipe] = useState(initialData?.nomeEquipe || '')
@@ -180,6 +183,11 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
   const [successNome, setSuccessNome] = useState('')
   const [finalStatus, setFinalStatus] = useState<string | null>(registrationStatus)
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
+  const [colando, setColando] = useState(false)
+  const [textoColado, setTextoColado] = useState('')
+  const [importando, setImportando] = useState(false)
+  const [avisoColar, setAvisoColar] = useState('')
   const autosaveReady = useRef(false)
 
   const logoEnabled = config.equipe.logo !== 'disabled'
@@ -344,10 +352,59 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
     finally { setSubmitting(false) }
   }
 
+  const colagem = interpretarListaColada(textoColado)
+  const vagasRestantes = elencoMaximo != null && elencoMaximo > 0 ? Math.max(0, elencoMaximo - jogadores.length) : Infinity
+  const separacao = separarNovosAtletas(colagem.atletas, jogadores)
+
+  async function importarLista() {
+    if (!token || separacao.novos.length === 0) return
+    setImportando(true)
+    setErrorMsg('')
+    setAvisoColar('')
+    const aImportar = vagasRestantes === Infinity ? separacao.novos : separacao.novos.slice(0, vagasRestantes)
+    const falhas: Array<{ nome: string; numero: string; motivo: string }> = []
+    const salvos: JogadorDraft[] = []
+    for (const atleta of aImportar) {
+      try {
+        const response = await fetch(`/api/inscricao-rapida/${token}/jogadores`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: atleta.nome, ...(numeroEnabled && atleta.numero ? { numero: Number(atleta.numero) } : {}) }),
+        })
+        const payload = await response.json()
+        if (!response.ok) { falhas.push({ ...atleta, motivo: payload.error || 'não foi possível salvar' }); continue }
+        salvos.push(toDraft(payload.data))
+      } catch {
+        falhas.push({ ...atleta, motivo: 'sem conexão' })
+      }
+    }
+    if (salvos.length) setJogadores((current) => [...current, ...salvos])
+    const naoEntraram = colagem.ignoradas.length + separacao.repetidos.length + (separacao.novos.length - aImportar.length)
+    const partes = [`${salvos.length} ${salvos.length === 1 ? 'atleta adicionado' : 'atletas adicionados'}.`]
+    if (naoEntraram > 0) partes.push(`${naoEntraram} ${naoEntraram === 1 ? 'linha não entrou' : 'linhas não entraram'} (repetida, sem nome ou acima do máximo).`)
+    if (falhas.length) partes.push(`Não salvou: ${falhas.map((f) => `${f.nome} (${f.motivo})`).join('; ')}.`)
+    if (salvos.length) partes.push('Complete os demais dados de cada atleta tocando no lápis.')
+    setAvisoColar(partes.join(' '))
+    if (falhas.length === 0) { setTextoColado(''); setColando(false) } else {
+      setTextoColado(falhas.map((f) => `${f.nome}${f.numero ? `, ${f.numero}` : ''}`).join('\n'))
+    }
+    setImportando(false)
+  }
+
+  const resumoElenco = resumirElenco(jogadores.length, elencoMinimo, elencoMaximo)
+  const motivoConcluir = motivoBloqueioConcluir({
+    nomeEquipe, precisaCategoria: !categoriaFixa, categoriaEscolhida: Boolean(categoriaSerie),
+    liderObrigatorio: liderEnabled && liderRequired, lider, total: jogadores.length, minimo: elencoMinimo, maximo: elencoMaximo,
+  })
+
   async function copyLink() {
-    await navigator.clipboard.writeText(window.location.href)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopyFailed(false)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopyFailed(true)
+    }
   }
 
   if (!token) {
@@ -363,7 +420,7 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             {categoriaFixa ? <FloatingInput id="nomeTorneio" label="Nome do torneio" value={nomeCampeonato} onChange={() => {}} locked /> : (
               <FloatingSelect id="categoriaSerie" label="Nome do torneio" value={categoriaSerie} onChange={setCategoriaSerie} required options={categoriaOptions.map((option) => ({ value: `${option.categoria}:${option.serie}`, label: option.label }))} />
             )}
-            <ActionBar type="button" onClick={iniciarCadastro} loading={creating} loadingLabel="Criando link" disabled={nomeEquipe.trim().length < 2 || (!categoriaFixa && !categoriaSerie)} className="mt-1 w-full rounded-full bg-[#ffb331] py-3 text-sm font-black text-slate-950 disabled:opacity-50">
+            <ActionBar type="button" onClick={iniciarCadastro} loading={creating} loadingLabel="Preparando seu cadastro" disabled={nomeEquipe.trim().length < 2 || (!categoriaFixa && !categoriaSerie)} className="mt-1 w-full rounded-full bg-[#ffb331] py-3 text-sm font-black text-slate-950 disabled:opacity-50">
               Iniciar e salvar cadastro
             </ActionBar>
           </div>
@@ -377,8 +434,8 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
       <main className="flex min-h-screen items-center justify-center bg-[#040b16] px-4 py-10">
         <div className="w-full max-w-md rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-8 text-center">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white"><CheckCircle2 size={26} /></span>
-          <h1 className="mt-5 font-display text-2xl font-black text-white">Inscrição enviada</h1>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">{successNome} foi enviada para {nomeCampeonato}. {finalStatus === 'SOLICITADA' ? 'A aprovação depende do organizador.' : ''}</p>
+          <h1 className="mt-5 font-display text-2xl font-black text-white">Equipe cadastrada</h1>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-300">{successNome} foi cadastrada em {nomeCampeonato}. Guarde o link abaixo: com ele você volta e ajusta o elenco quando precisar.</p>
           <button type="button" onClick={copyLink} className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-black text-white"><Copy size={14} /> Copiar link desta inscrição</button>
         </div>
       </main>
@@ -391,14 +448,14 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-luva-amber">Cadastro de equipe</p>
         <h1 className="mt-1 font-display text-2xl font-black leading-tight text-white">Cadastre sua equipe para {nomeCampeonato}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={copyLink} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black text-white">{copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}{copied ? 'Link copiado' : 'Copiar link desta inscrição'}</button>
+          <button type="button" onClick={copyLink} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black text-white">{copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}{copied ? 'Link copiado' : copyFailed ? 'Não copiou: copie o endereço do navegador' : 'Copiar link desta inscrição'}</button>
           <span className="text-[11px] font-semibold text-slate-400">Use este link para continuar o cadastro depois.</span>
         </div>
-        {initialData?.status === 'ENVIADA' && <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100">Esta inscrição já foi enviada{registrationStatus === 'SOLICITADA' ? ' e aguarda aprovação' : ''}.</p>}
+        {initialData?.status === 'ENVIADA' && <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100">Esta inscrição já foi enviada. Você pode ajustar o elenco pelo mesmo link.</p>}
         {!canEdit && <p className="mt-4 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">Modo somente leitura. {readOnlyReason}</p>}
         {errorMsg && <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300">{errorMsg}</p>}
         {issues.length > 0 && <ul className="mt-2 list-disc rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-2 text-xs font-bold text-red-300">{issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>}
-        {canEdit && <p className={`mt-3 text-right text-[10px] font-bold uppercase tracking-wide ${saveState === 'error' ? 'text-red-300' : 'text-slate-500'}`}>{saveState === 'saving' ? 'Salvando...' : saveState === 'saved' ? 'Alterações salvas' : saveState === 'error' ? 'Falha ao salvar' : ''}</p>}
+        {canEdit && <p className={`mt-3 text-right text-[10px] font-bold uppercase tracking-wide ${saveState === 'error' ? 'text-red-300' : 'text-slate-500'}`}>{saveState === 'saving' ? 'Salvando...' : saveState === 'saved' ? 'Alterações salvas' : saveState === 'error' ? 'Não salvou. Confira a conexão e altere o campo de novo' : ''}</p>}
 
         <div className="mt-3 grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
           <FloatingInput id="nomeEquipe" label="Nome da equipe" value={nomeEquipe} onChange={setNomeEquipe} required disabled={!canEdit} />
@@ -409,7 +466,23 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
         </div>
 
         <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
-          <div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Cadastro de jogadores</p>{canEditRoster && !addingJogador && <button type="button" onClick={() => setAddingJogador(true)} className="inline-flex items-center gap-1 rounded-full bg-[#ffb331] px-3 py-1.5 text-[11px] font-black text-slate-950"><Plus size={13} /> Novo jogador</button>}</div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">Cadastro de jogadores</p>{canEditRoster && !addingJogador && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setColando((current) => !current)} aria-expanded={colando} className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-white/15 px-3.5 py-2 text-[11px] font-black text-white"><ClipboardPaste size={14} /> Colar lista</button><button type="button" onClick={() => setAddingJogador(true)} className="inline-flex min-h-[44px] items-center gap-1 rounded-full bg-[#ffb331] px-3.5 py-2 text-[11px] font-black text-slate-950"><Plus size={14} /> Novo jogador</button></div>}</div>
+          <p role="status" aria-live="polite" data-testid="contador-elenco" className={`mt-3 rounded-lg border px-3 py-2 text-xs font-black ${resumoElenco.situacao === 'ok' ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100' : resumoElenco.situacao === 'acima' ? 'border-red-400/30 bg-red-500/10 text-red-200' : 'border-amber-400/30 bg-amber-500/10 text-amber-100'}`}>{resumoElenco.texto}</p>
+          {avisoColar && <p role="status" className="mt-2 rounded-lg border border-white/10 bg-[#07111f] px-3 py-2 text-xs font-semibold text-slate-300">{avisoColar}</p>}
+          {colando && canEditRoster && <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-[#07111f] p-3">
+            <label htmlFor="listaColada" className="text-[11px] font-black uppercase tracking-wide text-slate-300">Cole um atleta por linha (nome e camisa)</label>
+            <textarea id="listaColada" value={textoColado} onChange={(event) => setTextoColado(event.target.value)} rows={7} placeholder={'Maria Souza, 10\nAna Lima, 7\nBia Santos, 12'} className="w-full rounded-lg border border-white/10 bg-[#040b16] p-3 text-sm font-semibold text-white outline-none focus:border-luva-amber" />
+            {textoColado.trim() && <p className="text-xs font-semibold text-slate-300">
+              {separacao.novos.length} {separacao.novos.length === 1 ? 'atleta reconhecido' : 'atletas reconhecidos'}
+              {separacao.repetidos.length > 0 && ` · ${separacao.repetidos.length} repetido(s): ${separacao.repetidos.map((item) => `${item.nome} (${item.motivo})`).join(', ')}`}
+              {colagem.ignoradas.length > 0 && ` · ${colagem.ignoradas.length} linha(s) ignorada(s): ${colagem.ignoradas.map((item) => `"${item.texto}" (${item.motivo})`).join(', ')}`}
+              {vagasRestantes !== Infinity && separacao.novos.length > vagasRestantes && ` · só cabem mais ${vagasRestantes} no máximo do elenco`}
+            </p>}
+            <div className="flex gap-2">
+              <ActionBar type="button" onClick={importarLista} loading={importando} loadingLabel="Adicionando" disabled={separacao.novos.length === 0 || vagasRestantes === 0} className="min-h-[44px] flex-1 rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{separacao.novos.length > 0 ? `Adicionar ${Math.min(separacao.novos.length, vagasRestantes === Infinity ? separacao.novos.length : vagasRestantes)} atletas` : 'Adicionar atletas'}</ActionBar>
+              <button type="button" onClick={() => { setColando(false); setTextoColado('') }} className="min-h-[44px] rounded-xl border border-white/15 px-4 text-xs font-black text-white">Cancelar</button>
+            </div>
+          </div>}
           {jogadores.length > 0 && <div className="mt-3 grid gap-1.5">{jogadores.map((player) => <div key={player.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-[#07111f] px-2.5 py-1.5"><p className="min-w-0 truncate text-xs font-bold text-slate-400">{player.nome}{player.numero && ` · #${player.numero}`}{player.posicao && ` · ${player.posicao}`}</p>{canEditRoster && <div className="flex shrink-0 items-center gap-2.5"><button type="button" onClick={() => editarJogador(player)} aria-label={`Editar ${player.nome}`} className="text-slate-500 hover:text-luva-amber"><Pencil size={13} /></button><button type="button" onClick={() => removerJogador(player)} aria-label={`Remover ${player.nome}`} className="text-slate-500 hover:text-red-400"><Trash2 size={13} /></button></div>}</div>)}</div>}
           {addingJogador && canEditRoster && <div className="mt-3 grid gap-2.5 rounded-xl border border-white/10 bg-[#07111f] p-3">
             <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{editingId !== null ? 'Editar jogador' : 'Novo jogador'}</p><button type="button" onClick={cancelarEdicaoJogador} aria-label="Cancelar" className="text-slate-500 hover:text-white"><X size={14} /></button></div>
@@ -423,7 +496,10 @@ export function FormularioInscricaoRapida({ ligaId, nomeCampeonato, config, cate
             <ActionBar type="button" onClick={salvarJogador} loading={savingPlayer} loadingLabel="Salvando" disabled={!draft.nome.trim()} className="mt-1 w-full rounded-xl bg-[#ffb331] py-2.5 text-xs font-black text-slate-950 disabled:opacity-50">{editingId !== null ? 'Salvar alterações' : 'Salvar jogador'}</ActionBar>
           </div>}
         </div>
-        {initialData?.status === 'RASCUNHO' && canEdit && <ActionBar type="button" onClick={handleSubmit} loading={submitting} loadingLabel="Concluindo" disabled={!nomeEquipe.trim() || (!categoriaFixa && !categoriaSerie) || jogadores.length === 0} className="mt-5 w-full rounded-full bg-[#ffb331] py-3.5 text-sm font-black text-slate-950 disabled:opacity-50">Concluir inscrição</ActionBar>}
+        {initialData?.status === 'RASCUNHO' && canEdit && <>
+          {motivoConcluir && <p id="motivo-concluir" role="status" className="mt-5 text-center text-xs font-bold text-amber-200">{motivoConcluir}</p>}
+          <ActionBar type="button" onClick={handleSubmit} loading={submitting} loadingLabel="Enviando inscrição" disabled={Boolean(motivoConcluir)} aria-describedby={motivoConcluir ? 'motivo-concluir' : undefined} className={`${motivoConcluir ? 'mt-2' : 'mt-5'} min-h-[48px] w-full rounded-full bg-[#ffb331] py-3.5 text-sm font-black text-slate-950 disabled:opacity-50`}>Concluir inscrição</ActionBar>
+        </>}
       </div>
     </main>
   )

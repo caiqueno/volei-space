@@ -58,6 +58,9 @@ import { AVISO_INICIO_SEM_SINCRONISMO, tokenDeDemonstracao } from '@/lib/sumula-
 import { ausenteExplicito, MENSAGEM_MINIMO_ATLETAS, motivoMinimoAtletas, presenteNoPayload } from '@/lib/presenca-oficial'
 import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaSessao } from '@/lib/sumula-sessao'
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
+import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
+import { avisoComContador, textoContadorTroca } from '@/lib/contador-troca'
+import { atribuirPontoAoEvento, opcoesDeOrigem, type FaixaPonto } from '@/lib/atribuicao-ponto'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
 import './sumula-micro.css'
 
@@ -232,6 +235,7 @@ export default function SumulaPage() {
   const { avisos, addToast } = useAvisosSumula()
   const [pointFlash, setPointFlash] = useState<{ teamId: TeamId; number: string; id: number } | null>(null)
   const [setEndPrompt, setSetEndPrompt] = useState<SetEndPrompt | null>(null)
+  const [faixaPonto, setFaixaPonto] = useState<FaixaPonto | null>(null)
   const [mvpId, setMvpId] = useState('')
   const [editingSlot, setEditingSlot] = useState<{ teamId: TeamId; index: number } | null>(null)
   const [subModal, setSubModal] = useState<{ teamId: TeamId; index: number; outNumber: string } | null>(null)
@@ -629,6 +633,12 @@ export default function SumulaPage() {
     )
     if (origem) addToast(`${ROTULO_PONTO[origem]} — ${playerName}`)
     else addToast('+1 — Sem jogador')
+    if (origem) setFaixaPonto(null)
+    else {
+      const filaSacando = isA ? lineupA : lineupB
+      const indiceSacador = isA ? serverIndexA : serverIndexB
+      setFaixaPonto({ eventId, teamId, eraSacando: !isSideOut, camisaSacador: !isSideOut ? (filaSacando[indiceSacador] ?? '') : '' })
+    }
     const eventIds = [eventId]
     if (number) {
       const flash = { teamId, number, id: Date.now() }
@@ -683,7 +693,22 @@ export default function SumulaPage() {
     logPoint(servingTeamId, serverNumber, { ace: true })
   }
 
+  function atribuirPontoDaFaixa(origem: OrigemPonto, numero: string) {
+    if (!faixaPonto) return
+    const team = faixaPonto.teamId === 'teamA' ? teamA : teamB
+    if (!team || !numero) return
+    const player = getPlayer(team, numero)
+    const jogador = displayPlayerName(player?.name ?? 'Atleta', team.name)
+    const resultado = atribuirPontoAoEvento(events, faixaPonto.eventId, { origem, equipe: team.name, camisa: getMatchNumber(faixaPonto.teamId, numero), jogador, jogadorId: player?.id })
+    setFaixaPonto(null)
+    if (!resultado.alterado) return
+    flushSync(() => setEvents(resultado.eventos))
+    void enfileirarSalvamento(false).catch(() => undefined)
+    addToast(`${ROTULO_PONTO[origem]} — ${jogador}`)
+  }
+
   function undoLastPoint() {
+    setFaixaPonto(null)
     const indice = indiceDoUltimoPonto({ historico: scoreHistory, placarAtual: currentScore, setAtual: currentSet })
     const last = indice >= 0 ? scoreHistory[indice] : undefined
     if (!last) {
@@ -706,6 +731,7 @@ export default function SumulaPage() {
   }
 
   function undoLastPointForTeam(teamId: TeamId) {
+    setFaixaPonto(null)
     const teamName = teamId === 'teamA' ? teamA?.name : teamB?.name
     // Cada entrada de scoreHistory guarda o estado (placar, saque, rodízio) de
     // ANTES daquele ponto. Para achar o último ponto desta equipe, comparamos
@@ -1056,9 +1082,11 @@ export default function SumulaPage() {
   function avisoDoModal() {
     if (!subModal) return null
     const lista = listaDeSubstituicao(subModal.teamId, subModal.outNumber)
-    if (!lista.aviso) return null
     const teamId = subModal.teamId
-    return textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit)
+    const usadas = (controleSubstituicao[currentSet]?.[teamId] ?? controleVazio()).usadas
+    const contador = textoContadorTroca(usadas, limiteDeSubstituicoes(matchRules.substitutionLimit))
+    const aviso = lista.aviso ? textoAvisoSubstituicao(lista.aviso, (numero) => getMatchNumber(teamId, numero), matchRules.substitutionLimit) : null
+    return avisoComContador(contador, aviso)
   }
 
   function executeSubstitution(inNumber: string, porLesao = false) {
@@ -1953,6 +1981,23 @@ export default function SumulaPage() {
             jogadorId: event.jogadorId ?? null,
             descricao: event.text,
           }))}
+        />
+      )}
+
+      {faixaPonto && !setEndPrompt && teamA && teamB && matchStatus === 'live' && (
+        <FaixaQuemFez
+          key={faixaPonto.eventId}
+          equipeNome={(faixaPonto.teamId === 'teamA' ? teamA : teamB).name}
+          opcoes={opcoesDeOrigem(faixaPonto)}
+          quadra={(faixaPonto.teamId === 'teamA' ? lineupA : lineupB).filter(Boolean).map((numero) => ({
+            numero,
+            camisa: getMatchNumber(faixaPonto.teamId, numero),
+            nome: displayPlayerName(getPlayer(faixaPonto.teamId === 'teamA' ? teamA : teamB, numero)?.name ?? 'Atleta', (faixaPonto.teamId === 'teamA' ? teamA : teamB).name),
+          }))}
+          onSaque={() => atribuirPontoDaFaixa('ace', faixaPonto.camisaSacador)}
+          onAtribuir={atribuirPontoDaFaixa}
+          onDesfazer={undoLastPoint}
+          onFechar={() => setFaixaPonto(null)}
         />
       )}
 

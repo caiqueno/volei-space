@@ -21,6 +21,7 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react'
+import { EscolhaInicial } from '@/components/cadastro/EscolhaInicial'
 import { supabase } from '@/lib/supabase'
 import { fetchCepAddress, normalizeCep } from '@/lib/client-cep'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
@@ -124,6 +125,7 @@ export default function CadastroPage() {
   const [mode, setMode] = useState<AuthMode>('cadastro')
   const [tipo, setTipo] = useState<CadastroTipo>('equipe')
   const [pronto, setPronto] = useState(false)
+  const [escolhaInicial, setEscolhaInicial] = useState(false)
   const [step, setStep] = useState(0)
   const [forms, setForms] = useState(initial)
   const [publico, setPublico] = useState({ nome: '', email: '', senha: '', confirmarSenha: '' })
@@ -154,8 +156,13 @@ export default function CadastroPage() {
       window.location.replace('/login')
       return
     }
-    if (perfil === 'organizador' || (!perfil && !ligaId && !conviteToken)) {
+    if (perfil === 'organizador') {
       window.location.replace('/seja-membro')
+      return
+    }
+    if (!perfil && !ligaId && !conviteToken) {
+      setEscolhaInicial(true)
+      setPronto(true)
       return
     }
     if (modo === 'cadastro') setMode('cadastro')
@@ -370,6 +377,8 @@ export default function CadastroPage() {
     })
   }
   if (!pronto) return <main className="luva-shell flex min-h-screen items-center justify-center px-4 text-white"><p className="text-sm font-bold">Abrindo o cadastro...</p></main>
+
+  if (escolhaInicial) return <EscolhaInicial />
 
   if (tipo === 'organizador' && mode === 'cadastro') {
     return (
