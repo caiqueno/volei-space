@@ -20,7 +20,7 @@ import { SelectInput } from '../../ui/SelectInput'
 import { FormAlert } from '../../ui/FormAlert'
 import { LoadingTrack } from '@/components/ui/action-bar'
 import PageLoading from '@/components/ui/page-loading'
-import { supabase } from '@/lib/supabase'
+import { enviarArquivoAssinado, ErroUpload } from '@/lib/uploads-cliente'
 import { optimizeImageFile } from '@/lib/client-image-upload'
 import type { InformacoesSectionDTO } from '@/types/championship-setup'
 
@@ -70,23 +70,18 @@ export function InformacoesWizard({ ligaId, embedded = false, etapaInicial = 0 }
     setUploadingImage(true)
     try {
       const optimized = await optimizeImageFile(file, 'imagem-campeonato')
-      const extension = optimized.file.type === 'image/webp' ? 'webp' : 'jpg'
-      const fileName = `campeonatos/${ligaId}/identidade/${Date.now()}.${extension}`
-      const { error: uploadError } = await supabase.storage.from('galeria-campeonato').upload(fileName, optimized.file, {
-        upsert: false,
-        contentType: optimized.file.type,
-        cacheControl: '3600',
-      })
-      if (uploadError) {
-        setImageError(uploadError.message || 'Não foi possível enviar a imagem. Tente novamente.')
+      let publicUrl: string | null
+      try {
+        publicUrl = (await enviarArquivoAssinado({ tipo: 'galeria-campeonato', ligaId, arquivo: optimized.file })).urlPublica
+      } catch (erroEnvio) {
+        setImageError(erroEnvio instanceof ErroUpload ? erroEnvio.message : 'Não foi possível enviar a imagem. Tente novamente.')
         return
       }
-      const { data: uploaded } = supabase.storage.from('galeria-campeonato').getPublicUrl(fileName)
-      if (!uploaded.publicUrl) {
+      if (!publicUrl) {
         setImageError('Não foi possível obter o link da imagem.')
         return
       }
-      updateNow({ logoUrl: uploaded.publicUrl, capaUrl: uploaded.publicUrl })
+      updateNow({ logoUrl: publicUrl, capaUrl: publicUrl })
     } catch (err) {
       setImageError(err instanceof Error ? err.message : 'Não foi possível processar a imagem.')
     } finally {

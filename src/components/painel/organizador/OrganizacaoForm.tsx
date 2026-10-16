@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, ImageIcon, MapPin, Send } from 'lucide-react'
 import { ActionBar, LoadingTrack } from '@/components/ui/action-bar'
-import { supabase } from '@/lib/supabase'
+import { enviarArquivoAssinado, ErroUpload } from '@/lib/uploads-cliente'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
 
 export interface OrganizacaoFormValues {
@@ -45,23 +45,18 @@ export function OrganizacaoForm({ mode, initialValues, onSaved }: OrganizacaoFor
     setUploading(true)
     try {
       const optimized = await optimizeImageFile(file, 'logo-organizacao')
-      const extension = optimized.file.type === 'image/webp' ? 'webp' : 'jpg'
-      const fileName = `logos/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
-      const { error: uploadErr } = await supabase.storage.from('organizador-logos').upload(fileName, optimized.file, {
-        upsert: false,
-        contentType: optimized.file.type,
-        cacheControl: '3600',
-      })
-      if (uploadErr) {
-        setUploadError('Não foi possível enviar o logo. Tente novamente.')
+      let publicUrl: string | null
+      try {
+        publicUrl = (await enviarArquivoAssinado({ tipo: 'organizador-logo', arquivo: optimized.file })).urlPublica
+      } catch (erroEnvio) {
+        setUploadError(erroEnvio instanceof ErroUpload ? erroEnvio.message : 'Não foi possível enviar o logo. Tente novamente.')
         return
       }
-      const { data } = supabase.storage.from('organizador-logos').getPublicUrl(fileName)
-      if (!data.publicUrl) {
+      if (!publicUrl) {
         setUploadError('Não foi possível obter o link público do logo.')
         return
       }
-      setLogoUrl(data.publicUrl)
+      setLogoUrl(publicUrl)
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Não foi possível processar a imagem selecionada.')
     } finally {

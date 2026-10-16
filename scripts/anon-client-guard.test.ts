@@ -18,13 +18,9 @@ const raiz = process.cwd()
 const EXCECOES: Record<string, string> = {
   // Hook de navegador (realtime). Fica enquanto não houver canal servidor -> cliente.
   'src/lib/use-banco-ao-vivo.ts': 'hook de cliente (realtime)',
-  // Uploads diretos do navegador. Saem quando migrarem para /api/uploads/assinar (docs/analise/21).
-  'src/app/cadastro/page.tsx': 'cliente: upload direto',
-  'src/components/candidate/CandidateEditForm.tsx': 'cliente: upload direto',
-  'src/components/galeria/GaleriaOrganizador.tsx': 'cliente: upload direto',
-  'src/components/inscricao-rapida/FormularioInscricaoRapida.tsx': 'cliente: upload direto',
-  'src/components/painel/organizador/OrganizacaoForm.tsx': 'cliente: upload direto',
-  'src/components/parametrizacao/sections/informacoes/InformacoesWizard.tsx': 'cliente: upload direto',
+  // Upload direto do navegador que sobra: rascunho por token, sem rota assinada (decisão de produto,
+  // docs/analise/21-uploads-assinados.md). Os demais já usam /api/uploads/assinar.
+  'src/components/inscricao-rapida/FormularioInscricaoRapida.tsx': 'cliente: upload direto (rascunho por token)',
   // (Páginas que só liam isSupabaseConfigured já usam supabase-config e saíram da lista.)
 }
 
