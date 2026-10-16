@@ -38,20 +38,23 @@ caso('RG-WO-001 / CJ-06(e): recusa no meio do jogo mantém os sets jogados e lan
   assert.deepEqual(r.setsRegistrados, { a: 2, b: 2 }, 'os sets jogados ficam só como registro')
 })
 
-caso('RG-WO-001: em melhor de 3 a vitória por WO é por 2 sets', () => {
+caso('RG-WO-001: em melhor de 3 o presente vence o WO e o ausente fica sem sets', () => {
+  // TODO [M] (CONFIG_ITENS_M.woResultadoOficial, doc 23 seção 2): a pontuação do WO em melhor de 3
+  // (2x0 ou outra) é do regulamento e não tem flag lida pelo motor. Não fixamos o placar de sets.
   const r = resolverWO(configMelhorDe3(), { ausente: 'A' })
-  assert.deepEqual(r.placarPartida, { setsA: 0, setsB: 2 })
-  assert.equal(r.parciaisRegistrados.length, 2)
+  assert.equal(r.vencedor, 'B')
+  assert.equal(r.placarPartida.setsA, 0)
+  assert.ok(r.placarPartida.setsB >= 1)
+  assert.ok(r.parciaisRegistrados.length >= 1)
 })
 
 caso('RG-WO-001: o parcial dos sets lançados como WO segue o alvo configurado da categoria', () => {
+  // Não fixa quantos sets o WO lança em melhor de 3 (item [M]); só que cada um usa o alvo do próprio set.
   const r = resolverWO(configMelhorDe3({ alvoSet: 21, alvoSetDecisivo: 15 }), { ausente: 'B', setsJogados: [{ a: 18, b: 21 }] })
-  assert.deepEqual(r.parciaisRegistrados, [{ a: 18, b: 21 }, { a: 21, b: 0 }, { a: 15, b: 0 }])
-})
-
-caso('RG-WO-001: o parcial dos sets lançados como WO segue o alvo configurado da categoria', () => {
-  const r = resolverWO(configMelhorDe3({ alvoSet: 21, alvoSetDecisivo: 15 }), { ausente: 'B', setsJogados: [{ a: 18, b: 21 }] })
-  assert.deepEqual(r.parciaisRegistrados, [{ a: 18, b: 21 }, { a: 21, b: 0 }, { a: 15, b: 0 }])
+  assert.deepEqual(r.parciaisRegistrados[0], { a: 18, b: 21 })
+  assert.ok(r.parciaisRegistrados.length >= 2)
+  assert.deepEqual(r.parciaisRegistrados[1], { a: 21, b: 0 })
+  for (const parcial of r.parciaisRegistrados.slice(1)) assert.ok(parcial.b === 0 && (parcial.a === 21 || parcial.a === 15))
 })
 
 caso('RG-WO-002: WO por não comparecimento só após a tolerância do regulamento', () => {

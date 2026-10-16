@@ -121,19 +121,26 @@ caso('RG-SET-003: 2x2 leva ao set decisivo aos 15, com troca de lado aos 8 pende
   assert.deepEqual(p.sets[4]?.placar, { a: 15, b: 0 })
 })
 
-caso('RG-SET-004: melhor de 3 com 3º set obrigatório só encerra depois do 3º', () => {
-  const c3 = configMelhorDe3({ terceiroSetObrigatorio: true })
-  const j = new Jogo()
-  j.iniciarSet(1)
-  j.pontos('A', 25)
-  j.iniciarSet(2)
-  j.pontos('A', 25)
-  assert.equal(derivarPlacar(j.log, c3).status, 'EM_ANDAMENTO')
+caso('RG-SET-004: o 3º set obrigatório é configurável (flag lida pelo replay)', () => {
+  const jogarDoisSets = () => {
+    const j = new Jogo()
+    j.iniciarSet(1)
+    j.pontos('A', 25)
+    j.iniciarSet(2)
+    j.pontos('A', 25)
+    return j
+  }
+  const ligado = configMelhorDe3({ terceiroSetObrigatorio: true })
+  const j = jogarDoisSets()
+  assert.equal(derivarPlacar(j.log, ligado).status, 'EM_ANDAMENTO')
   j.iniciarSet(3)
   j.pontos('B', 15)
-  const p = derivarPlacar(j.log, c3)
+  const p = derivarPlacar(j.log, ligado)
   assert.equal(p.status, 'ENCERRADA')
   assert.deepEqual(p.setsGanhos, { a: 2, b: 1 })
+  // flag desligada: o 2x0 já encerra
+  const desligado = configMelhorDe3({ terceiroSetObrigatorio: false })
+  assert.equal(derivarPlacar(jogarDoisSets().log, desligado).status, 'ENCERRADA')
 })
 
 /* ------------------------- reconstrução (event sourcing) ------------------------- */
@@ -297,12 +304,14 @@ caso('RG-ROT-002 / CJ-03: falta de rotação cancela só os pontos da faltosa e 
   assert.deepEqual(derivarPlacar(j.log, c5).setAtual?.placar, { a: 3, b: 3 })
   const falta = j.add('FALTA_ROTACAO', { equipeFaltosa: 'B', momentoSeq: 4 })
   const p = derivarPlacar(j.log, c5)
-  // O placar exato após o cancelamento é item [M] (CJ-03): não é afirmado aqui.
+  // TODO [M] (CONFIG_ITENS_M.faltaRotacaoPontoAdversario, CJ-03, interpretação 5 do doc 23): a partir de
+  // qual ponto cancela (inclusive o do side-out) e o placar final são do Livro de Casos. Não afirmamos
+  // a contagem nem o placar; só que cancela pontos, só da faltosa, e que o adversário passa a sacar.
   assert.equal(p.saca, 'A')
-  assert.equal(p.setAtual?.pontos.filter((x) => !x.cancelado && x.equipe === 'B').length, 0)
   assert.equal(p.houveCancelamentoDePontos, true)
-  assert.equal(p.setAtual?.pontos.filter((x) => x.cancelado).length, 3)
-  assert.ok(p.setAtual?.pontos.filter((x) => x.cancelado).every((x) => x.equipe === 'B'))
+  const cancelados = p.setAtual?.pontos.filter((x) => x.cancelado) ?? []
+  assert.ok(cancelados.length > 0)
+  assert.ok(cancelados.every((x) => x.equipe === 'B'))
   // desfazer a retificação restaura os pontos (tudo auditável no log)
   j.add('DESFAZ', {}, falta)
   assert.deepEqual(derivarPlacar(j.log, c5).setAtual?.placar, { a: 3, b: 3 })
@@ -340,14 +349,16 @@ caso('RG-SAN-002: penalidade vira ponto e saque ao adversário; amarelo não mud
   assert.equal(p.saca, 'B')
 })
 
-caso('RG-SAN-010: penalidade entre sets é lançada no 0x0 do set seguinte', () => {
+caso('RG-SAN-010: penalidade entre sets não altera o set encerrado', () => {
+  // TODO [M] (CONFIG_ITENS_M.saqueEm0x0AposPenalidadeEntreSets, RG-SAN-010): o efeito no set seguinte
+  // (ponto 0x1 ou outro, e quem saca em 0x0) não é afirmado; a constante ainda é decorativa.
   const j = new Jogo()
   j.iniciarSet(1)
   j.pontos('A', 25)
   j.add('SANCAO', { equipe: 'A', membro: 'J:8', categoria: 'GROSSEIRA', sancao: 'PENALIDADE', pontoParaAdversario: true, entreSets: true })
   assert.deepEqual(derivarPlacar(j.log, c5).sets[0]?.placar, { a: 25, b: 0 })
   j.iniciarSet(2)
-  assert.deepEqual(derivarPlacar(j.log, c5).setAtual?.placar, { a: 0, b: 1 })
+  assert.equal(derivarPlacar(j.log, c5).sets[0]?.placar.b, 0)
 })
 
 caso('RG-SET-008 / RG-LIB-005: trocas de líbero não entram na soma de substituições; tempos e subs contam por equipe e set', () => {

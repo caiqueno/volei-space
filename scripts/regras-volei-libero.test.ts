@@ -33,7 +33,19 @@ caso('RG-LIB-006: a troca de líbero exige que quem sai esteja em quadra e quem 
   if (!foraDeQuadra.ok) assert.equal(foraDeQuadra.codigo, 'RG-LIB-006')
   const jaEmQuadra = validarTrocaLibero(novo(), { sai: 5, entra: 6 }, ctx)
   assert.equal(jaEmQuadra.ok, false)
-  if (!jaEmQuadra.ok) assert.equal(jaEmQuadra.codigo, 'RG-LIB-006')
+  if (!jaEmQuadra.ok) {
+    assert.equal(jaEmQuadra.codigo, 'RG-LIB-006')
+    // O caminho sem a guarda também devolve RG-LIB-006 ("precisa envolver um líbero"): a mensagem distingue.
+    assert.match(jaEmQuadra.mensagem, /já está em quadra/)
+  }
+  // Líbero já em quadra como "entra": a guarda vem antes de RG-LIB-002 (um líbero por vez).
+  const comLibero = aplicarTrocaLibero(novo(), { sai: 5, entra: 20 }, ctx).estado
+  const libReentra = validarTrocaLibero(comLibero, { sai: 6, entra: 20 }, ctx)
+  assert.equal(libReentra.ok, false)
+  if (!libReentra.ok) {
+    assert.equal(libReentra.codigo, 'RG-LIB-006')
+    assert.match(libReentra.mensagem, /já está em quadra/)
+  }
 })
 
 caso('RG-LIB-003: líbero só substitui jogador de fundo de quadra', () => {

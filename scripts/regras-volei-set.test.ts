@@ -85,14 +85,16 @@ caso('RG-SET-004: partida acaba na maioria dos sets (melhor de 5 e de 3)', () =>
   assert.equal(partidaEncerrada(1, 1, c3), false)
 })
 
-caso('RG-SET-004: 3º set obrigatório (D2) mantém 2x0 aberto, mas 2x1 e 3x0 fecham', () => {
-  const c3 = configMelhorDe3({ terceiroSetObrigatorio: true })
-  assert.equal(partidaEncerrada(2, 0, c3), false)
-  assert.equal(partidaEncerrada(2, 1, c3), true)
-  assert.equal(partidaEncerrada(3, 0, c3), true)
-  // 2x0 com 3º obrigatório não é set decisivo (sem novo sorteio nem troca aos 8) [M]
-  assert.equal(ehSetDecisivo(c3, 2, 0), false)
-  assert.equal(alvoDoSet(c3, 3), c3.alvoSetDecisivo)
+caso('RG-SET-004: o 3º set obrigatório (D2) é configurável e a flag é lida pelo motor', () => {
+  const ligado = configMelhorDe3({ terceiroSetObrigatorio: true })
+  assert.equal(partidaEncerrada(2, 0, ligado), false)
+  assert.equal(partidaEncerrada(2, 1, ligado), true)
+  assert.equal(partidaEncerrada(3, 0, ligado), true)
+  const desligado = configMelhorDe3({ terceiroSetObrigatorio: false })
+  assert.equal(partidaEncerrada(2, 0, desligado), true)
+  assert.equal(partidaEncerrada(2, 1, desligado), true)
+  // TODO [M] (D2): se o 3º set de um 2x0 obrigatório conta como decisivo (alvo 15, sorteio, troca aos 8)
+  // é do formato do organizador e não tem flag; por isso ehSetDecisivo/alvoDoSet desse caso não são afirmados.
 })
 
 caso('RG-SET-004: sequência de sets não aceita 6º set nem partida incompleta', () => {

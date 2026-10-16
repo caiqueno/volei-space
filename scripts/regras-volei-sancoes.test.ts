@@ -45,12 +45,17 @@ caso('RG-TMP-008 / CJ-04: novo atraso, mesmo em outro set, é penalidade (ponto 
   assert.equal(avaliarOk(h, { equipe: 'B', membro: 'EQUIPE', categoria: 'ATRASO', set: 3 }).sancao, 'ADVERTENCIA_ATRASO')
 })
 
-caso('RG-SAN-001: conduta menor: advertência verbal e depois amarelo, sem consequência', () => {
+caso('RG-SAN-001: conduta menor não tem consequência no placar nem afasta o atleta', () => {
+  // TODO [M] (doc 23, divergência 7, NÃO CONFIRMADO): se a 1ª conduta menor é advertência verbal e a
+  // seguinte amarelo, ou já amarelo, é decisão do regulamento e ainda não tem flag em CONFIG_ITENS_M.
+  // Aqui só vale o que é seguro: nenhuma das duas vira penalidade, ponto ou afastamento.
   const h: SancaoRegistrada[] = []
   const a = avaliarOk(h, { equipe: 'A', membro: j8, categoria: 'MENOR', set: 2 })
-  assert.equal(a.sancao, 'ADVERTENCIA_VERBAL')
+  assert.ok(a.sancao === 'ADVERTENCIA_VERBAL' || a.sancao === 'AMARELO')
+  assert.equal(a.pontoParaAdversario, false)
+  assert.equal(a.afastamento, 'NENHUM')
   const b = avaliarOk(h, { equipe: 'A', membro: j8, categoria: 'MENOR', set: 2 })
-  assert.equal(b.sancao, 'AMARELO')
+  assert.ok(b.sancao === 'ADVERTENCIA_VERBAL' || b.sancao === 'AMARELO')
   assert.equal(b.pontoParaAdversario, false)
   assert.equal(b.afastamento, 'NENHUM')
 })

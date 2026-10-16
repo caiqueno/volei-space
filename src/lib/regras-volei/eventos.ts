@@ -410,7 +410,9 @@ export function derivarPlacar(
   const idDoMembro = (membro: string): number | null => (membro.startsWith('J:') ? Number(membro.slice(2)) : null)
 
   const concedePonto = (set: SetDerivado, seq: number, equipe: Equipe, origem: PontoDerivado['origem']) => {
-    if (eq) {
+    // O ponto de penalidade é administrativo: não houve rally, então não libera outra troca de líbero
+    // (RG-LIB-005) nem um novo pedido de substituição.
+    if (eq && origem !== 'PENALIDADE') {
       eq.A = registrarRallyConcluido(eq.A)
       eq.B = registrarRallyConcluido(eq.B)
     }
