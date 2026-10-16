@@ -48,7 +48,8 @@ body:has(.placar-root.is-transparente) { background: transparent !important; }
   gap: clamp(8px, 2.5vmin, 40px);
 }
 .placar-lado { display: grid; justify-items: center; gap: clamp(4px, 1vmin, 14px); text-align: center; min-width: 0; }
-.placar-logo { zoom: 1.6; display: grid; place-items: center; }
+.placar-logo { display: grid; place-items: center; padding: .6em; }
+.placar-logo > * { transform: scale(1.6); transform-origin: center; }
 .placar-nome {
   font-size: clamp(1.25rem, 4.6vmin, 4rem); line-height: 1.05; font-weight: 800;
   overflow-wrap: anywhere; max-width: 100%;

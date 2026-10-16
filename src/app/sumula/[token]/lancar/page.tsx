@@ -233,6 +233,8 @@ export default function SumulaPage() {
   const [scoreHistory, setScoreHistory] = useState<Array<{ score: { teamA: number; teamB: number }; servingTeamId: TeamId; serverIndexA: number; serverIndexB: number; lineupA: string[]; lineupB: string[]; eventIds: string[]; set?: number }>>([])
   const [matchNumberOverrides, setMatchNumberOverrides] = useState<Record<TeamId, Record<number, string>>>({ teamA: {}, teamB: {} })
   const { avisos, addToast } = useAvisosSumula()
+  // Problemas da escalação ficam na tela até serem corrigidos (toasts somem e o árbitro perde a causa).
+  const [avisoEscalacao, setAvisoEscalacao] = useState('')
   const [pointFlash, setPointFlash] = useState<{ teamId: TeamId; number: string; id: number } | null>(null)
   const [setEndPrompt, setSetEndPrompt] = useState<SetEndPrompt | null>(null)
   const [faixaPonto, setFaixaPonto] = useState<FaixaPonto | null>(null)
@@ -875,13 +877,14 @@ export default function SumulaPage() {
     const lineup = teamId === 'teamA' ? lineupA : lineupB
     const team = teamId === 'teamA' ? teamA : teamB
     const selectedLibero = numeroDeLibero(startingLiberos[currentSet]?.[teamId])
+    setAvisoEscalacao('')
     if (!team || !papeletaCompleta(lineup)) {
-      addToast('Confira os 6 atletas em quadra antes de confirmar a escalação.')
+      setAvisoEscalacao(`Escalação de ${team?.name ?? 'o time'} incompleta: coloque 6 atletas em quadra, um em cada posição, antes de confirmar.`)
       return
     }
 
     if (selectedLibero && lineup.includes(selectedLibero)) {
-      addToast('O libero inicial deve ser escolhido fora dos atletas titulares em quadra.')
+      setAvisoEscalacao('O líbero inicial precisa ser um atleta fora dos 6 titulares em quadra. Escolha outro líbero ou tire este atleta da quadra.')
       return
     }
 
@@ -905,7 +908,7 @@ export default function SumulaPage() {
 
     const resolvido = resolverSaqueInicial(currentSet)
     if (!resolvido.lado) {
-      addToast(resolvido.erro ?? `Defina quem começa sacando no set ${currentSet} antes de liberar a pontuação.`)
+      setAvisoEscalacao(resolvido.erro ?? `Defina quem começa sacando no set ${currentSet} antes de liberar a pontuação.`)
       return
     }
     if (initialServerBySet[currentSet] !== resolvido.lado) {
@@ -926,7 +929,7 @@ export default function SumulaPage() {
     const resolvido = resolverSaqueInicial(currentSet)
     const chosenServer = resolvido.lado
     if (!chosenServer) {
-      addToast(resolvido.erro ?? 'Defina o saque inicial antes de liberar a pontuação.')
+      setAvisoEscalacao(resolvido.erro ?? 'Defina o saque inicial antes de liberar a pontuação.')
       return
     }
     setServingTeamId(chosenServer)
@@ -1045,10 +1048,11 @@ export default function SumulaPage() {
     }
 
     if (atletaRepetidoNaPapeleta(nextLineup, index, number)) {
-      addToast('Este atleta já está em outra posição.')
+      setAvisoEscalacao('Este atleta já está em outra posição da quadra. Escolha outro atleta ou tire-o da posição atual antes.')
       setEditingSlot(null)
       return
     }
+    setAvisoEscalacao('')
 
     nextLineup[index] = number
 
@@ -1949,6 +1953,8 @@ export default function SumulaPage() {
             getMatchNumber={getMatchNumber}
             onMatchNumberChange={updateMatchNumber}
             onAviso={addToast}
+            avisoEscalacao={avisoEscalacao}
+            onFecharAvisoEscalacao={() => setAvisoEscalacao('')}
             vistaQuadra={vistaQuadra}
             sidesInverted={sidesInverted}
             initialServers={initialServerBySet}
@@ -2852,6 +2858,8 @@ function EscalacaoTab(props: {
   getMatchNumber: (teamId: TeamId, number: string) => string
   onMatchNumberChange: (teamId: TeamId, rosterNumber: string, value: string) => void
   onAviso: (mensagem: string) => void
+  avisoEscalacao: string
+  onFecharAvisoEscalacao: () => void
   vistaQuadra: '2d' | '3d'
   sidesInverted: boolean
   initialServers: Record<number, TeamId | null>
@@ -3060,6 +3068,12 @@ function EscalacaoTab(props: {
           <span>Conferência obrigatória</span>
           <strong>Revise a escalação de {team.name}</strong>
           <p>{confirmedCount} de 2 papeletas confirmadas. Confira este time, confirme e avance para o outro. A pontuação só libera quando as duas papeletas estiverem confirmadas.</p>
+        </div>
+      )}
+      {props.avisoEscalacao && (
+        <div role="alert" className="mb-3 flex items-start gap-3 rounded-xl border border-red-400/50 bg-red-500/15 px-4 py-3 text-sm font-bold leading-6 text-red-50">
+          <span className="min-w-0 flex-1">{props.avisoEscalacao}</span>
+          <button type="button" onClick={props.onFecharAvisoEscalacao} aria-label="Fechar aviso" className="min-h-[44px] shrink-0 rounded-full border border-white/25 px-4 text-xs font-black text-white">Entendi</button>
         </div>
       )}
       <div className="official-grid">

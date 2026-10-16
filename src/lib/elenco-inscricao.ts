@@ -7,9 +7,24 @@ export type ResultadoListaColada = { atletas: AtletaColado[]; ignoradas: LinhaIg
 
 const NUMERO_MAXIMO_CAMISA = 99
 
-function limparPrefixo(texto: string) {
-  // "1. Nome", "1) Nome", "- Nome", "* Nome": marcadores de lista, não camisa.
-  return texto.replace(/^\s*(?:\d{1,3}\s*[.)]\s+|[-*•–]\s+)/, '').trim()
+const MARCADOR_NUMERADO = /^\s*(\d{1,3})\s*[.)]\s+/
+
+/**
+ * "1. Nome" é marcador de lista quando as linhas numeradas formam a sequência 1, 2, 3...;
+ * caso contrário ("7. Ana", "10) Bia") o número é a camisa.
+ */
+function numeracaoEhSequencia(linhas: string[]) {
+  const numeros = linhas
+    .map((linha) => linha.match(MARCADOR_NUMERADO))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => Number(m[1]))
+  return numeros.length > 0 && numeros.every((n, i) => n === i + 1)
+}
+
+function limparPrefixo(texto: string, numeracaoEhLista: boolean) {
+  // "- Nome", "* Nome": sempre marcadores. "1. Nome": só quando a lista é sequencial.
+  const semMarcador = texto.replace(/^\s*[-*•–]\s+/, '')
+  return (numeracaoEhLista ? semMarcador.replace(MARCADOR_NUMERADO, '') : semMarcador).trim()
 }
 
 function normalizarNome(nome: string) {
@@ -24,14 +39,15 @@ export function interpretarListaColada(texto: string): ResultadoListaColada {
   const atletas: AtletaColado[] = []
   const ignoradas: LinhaIgnorada[] = []
   const linhas = String(texto ?? '').split(/\r?\n/)
+  const numeracaoEhLista = numeracaoEhSequencia(linhas.map((l) => l.trim()).filter(Boolean))
   linhas.forEach((original, indice) => {
     const bruto = original.trim()
     if (!bruto) return
     const linha = indice + 1
-    const base = limparPrefixo(bruto)
+    const base = limparPrefixo(bruto, numeracaoEhLista)
     let numero = ''
     let nome = base
-    const inicio = base.match(/^#?\s*(\d{1,3})\s*(?:[,;|\t\-–:]\s*|\s+)(.+)$/)
+    const inicio = base.match(/^#?\s*(\d{1,3})\s*(?:[,;|\t\-–:.)]\s*|\s+)(.+)$/)
     const fim = base.match(/^(.+?)\s*(?:[,;|\t\-–:]\s*|\s+)#?\s*(\d{1,3})$/)
     if (inicio) { numero = inicio[1]; nome = inicio[2] }
     else if (fim) { nome = fim[1]; numero = fim[2] }
@@ -93,6 +109,23 @@ export function resumirElenco(total: number, minimo: number | null | undefined, 
   if (min != null) partes.push(`mínimo ${min}`)
   if (max != null) partes.push(`máximo ${max}`)
   return { total, minimo: min, maximo: max, faltam, excedem, situacao, texto: partes.join(' · ') }
+}
+
+/**
+ * Acha o primeiro atleta citado pelos problemas devolvidos ao concluir a inscrição
+ * (comparação sem acento, caixa ou espaços duplicados). Devolve o id do atleta ou null.
+ */
+export function localizarAtletaComProblema(
+  problemas: string[],
+  atletas: Array<{ id?: string | number; nome: string }>,
+): string | number | null {
+  const textos = problemas.map((problema) => normalizarChaveNome(problema))
+  for (const atleta of atletas) {
+    if (atleta.id == null) continue
+    const chave = normalizarChaveNome(atleta.nome)
+    if (chave.length >= 2 && textos.some((texto) => texto.includes(chave))) return atleta.id
+  }
+  return null
 }
 
 export type EntradaMotivoConcluir = {

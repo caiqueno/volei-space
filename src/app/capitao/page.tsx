@@ -415,9 +415,17 @@ export default function CapitaoPage() {
                 : 'Vincule sua equipe a um campeonato para liberar o elenco. Enquanto isso, você pode revisar os dados da equipe.'}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href="/" className="capitain-primary-action inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
+              {approved && (
+                <a href="#elenco" className="capitain-primary-action inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-luva-amber px-6 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300">
+                  Gerenciar elenco
+                  <ArrowRight size={17} />
+                </a>
+              )}
+              <Link href="/" className={approved
+                ? 'capitain-secondary-action inline-flex items-center justify-center gap-2 rounded-full border px-5 py-3 text-sm font-black transition hover:border-luva-amber/70'
+                : 'capitain-primary-action inline-flex items-center justify-center gap-2 rounded-full bg-luva-amber px-5 py-3 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-300'}>
                 Ver página inicial
-                <ArrowRight size={17} />
+                {!approved && <ArrowRight size={17} />}
               </Link>
               <button onClick={logout} className="capitain-secondary-action inline-flex items-center justify-center gap-2 rounded-full border px-5 py-3 text-sm font-black transition hover:border-luva-amber/70">
                 <LogOut size={17} />

@@ -53,6 +53,7 @@ export default function AcessoArbitroPage() {
 
   async function entrar(evento: FormEvent) {
     evento.preventDefault()
+    if (entrando || validado) return
     setEntrando(true)
     setErro('')
     try {
@@ -106,8 +107,18 @@ export default function AcessoArbitroPage() {
               value={codigo}
               onChange={(evento) => setCodigo(evento.target.value)}
               autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              minLength={4}
+              maxLength={32}
+              aria-describedby="codigo-acesso-ajuda"
+              placeholder="Código de 4 a 32 caracteres"
               className="mt-2 w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-base text-white"
             />
+            <p id="codigo-acesso-ajuda" className="mt-2 text-xs font-semibold leading-5 text-white/70">
+              O código foi definido pelo organizador do campeonato e enviado junto com este link (4 a 32 caracteres, maiúsculas e minúsculas contam). Não recebeu? Peça ao organizador.
+            </p>
             {erro ? <p className="mt-3 text-sm font-bold text-red-200">{erro}</p> : null}
             {validado ? <p className="mt-3 text-sm font-black text-emerald-300">Código validado. Abrindo jogo...</p> : null}
             <button type="submit" disabled={entrando || validado} className="mt-5 w-full rounded-full bg-[#ffb331] px-5 py-3 text-sm font-black uppercase tracking-wide text-[#050914] disabled:opacity-60">

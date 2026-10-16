@@ -32,6 +32,7 @@ export default function PlacarOverlay({ partidaId, transparente = false }: { par
   const [partida, setPartida] = useState<Partida | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [instavel, setInstavel] = useState(false)
+  const [naoEncontrada, setNaoEncontrada] = useState(false)
   const recarregar = useRef<() => void>(() => {})
   const numero = Number(partidaId)
   const valido = Number.isInteger(numero) && numero > 0
@@ -42,9 +43,13 @@ export default function PlacarOverlay({ partidaId, transparente = false }: { par
     async function carregar() {
       try {
         const res = await fetch(`/api/partidas/${partidaId}/ao-vivo?t=${Date.now()}`, { cache: 'no-store' })
+        if (res.status === 404) {
+          if (vivo) { setNaoEncontrada(true); setCarregando(false) }
+          return
+        }
         const json = await res.json()
         if (!res.ok) throw new Error('falha')
-        if (vivo) { setPartida(json.data); setInstavel(false); setCarregando(false) }
+        if (vivo) { setPartida(json.data); setInstavel(false); setNaoEncontrada(false); setCarregando(false) }
       } catch {
         // Mantém o último placar na tela; só avisa de forma discreta.
         if (vivo) { setInstavel(true); setCarregando(false) }
@@ -68,7 +73,11 @@ export default function PlacarOverlay({ partidaId, transparente = false }: { par
     return (
       <main className={classe} data-fundo={fundo}>
         <p className="placar-estado" role="status">
-          {carregando ? 'Carregando placar' : valido ? 'Placar indisponível no momento' : 'Partida não encontrada'}
+          {carregando
+            ? 'Carregando placar'
+            : !valido || naoEncontrada
+              ? 'Partida não encontrada'
+              : 'Sem conexão com o placar. Tentando de novo'}
         </p>
       </main>
     )
