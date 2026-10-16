@@ -116,7 +116,8 @@
     "test:migracoes-pendentes": "node scripts/with-ts-node.mjs scripts/migracoes-pendentes.test.ts",
     "test:meu-time-regras": "node scripts/with-ts-node.mjs scripts/meu-time-regras.test.ts",
     "test:meu-time-rotas": "node scripts/with-ts-node.mjs scripts/meu-time-rotas.test.ts",
-    "test:meu-time": "npm run test:meu-time-regras && npm run test:meu-time-rotas"
+    "test:meu-time": "npm run test:meu-time-regras && npm run test:meu-time-rotas",
+    "test:meu-time-ui": "node scripts/with-ts-node.mjs scripts/meu-time-ui.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

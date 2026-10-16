@@ -22,6 +22,11 @@ export function EscolhaInicial() {
           <UsersRound size={22} className="shrink-0 text-luva-amber" />
           <span className="flex-1"><strong className="block text-base font-black">Cadastrar meu time</strong><span className="text-xs font-semibold text-slate-300">Inscrever sua equipe em uma categoria</span></span>
         </button>
+        <Link href="/meu-time" className={botao}>
+          <UsersRound size={22} className="shrink-0 text-luva-amber" />
+          <span className="flex-1"><strong className="block text-base font-black">Ir para o Meu Time</strong><span className="text-xs font-semibold text-slate-300">Atletas, comissão técnica e inscrições do seu time</span></span>
+          <ArrowRight size={18} aria-hidden="true" />
+        </Link>
         <Link href="/seja-membro" className={botao}>
           <Trophy size={22} className="shrink-0 text-luva-amber" />
           <span className="flex-1"><strong className="block text-base font-black">Organizar um campeonato</strong><span className="text-xs font-semibold text-slate-300">Criar campeonato, categorias e convidar equipes</span></span>
