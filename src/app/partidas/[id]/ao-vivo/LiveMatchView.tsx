@@ -14,7 +14,7 @@ import { PlacarJogo } from '@/components/partidas/PlacarJogo'
 import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import { cartazPartida, montarSumulaPublica } from '@/lib/stories-cartaz'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
-import { decidirFalhaAoVivo, esperaNovaTentativaMs, TEXTO_SEM_CONEXAO } from '@/lib/ao-vivo-conexao'
+import { decidirFalhaAoVivo, TEXTO_SEM_CONEXAO } from '@/lib/ao-vivo-conexao'
 
 type LiveMatch = {
   id: number
@@ -71,8 +71,6 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
 
   useEffect(() => {
     let alive = true
-    let tentativas = 0
-    let timer: ReturnType<typeof setTimeout> | null = null
     const demoStorageKey = `luv-live-match-${partidaId}`
     function syncStoredDemo() {
       const stored = readStoredDemoMatch(partidaId)
@@ -88,7 +86,6 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
         const json = await res.json()
         if (!res.ok) throw new Error(json?.error || json?.message || 'Erro ao carregar partida')
         if (alive) {
-          tentativas = 0
           setMatch(readStoredDemoMatch(partidaId) ?? json.data)
           setError('')
           setSemConexao(false)
@@ -99,10 +96,8 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
         // Falha isolada não derruba o placar já carregado: mantém o último e tenta de novo.
         const decisao = decidirFalhaAoVivo(temPartida.current)
         if (decisao.mostrarAvisoSemConexao) {
+          // useBancoAoVivo já refaz a consulta a cada 4 s e ao voltar a conexão.
           setSemConexao(true)
-          tentativas += 1
-          if (timer) clearTimeout(timer)
-          timer = setTimeout(() => { void load() }, esperaNovaTentativaMs(tentativas))
         } else {
           setError(err instanceof Error ? err.message : 'Erro ao carregar acompanhamento')
         }
@@ -117,7 +112,6 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
     window.addEventListener('storage', handleStorage)
     return () => {
       alive = false
-      if (timer) clearTimeout(timer)
       window.removeEventListener('storage', handleStorage)
     }
   }, [partidaId])
