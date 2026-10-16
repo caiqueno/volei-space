@@ -163,9 +163,13 @@
 }
 
 /* Foco visível (WCAG 2.4.7 / 2.4.11) em todos os controles. */
-:where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+:where(a, button, input, select, textarea, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 3px solid var(--vs-focus);
   outline-offset: 2px;
+}
+/* Contêineres com tabindex="-1" só recebem foco por script (ex.: destino de rolagem); sem contorno. */
+[tabindex="-1"]:focus-visible:not(a, button, input, select, textarea, summary) {
+  outline: none;
 }
 
 /* Classes utilitárias de estado, usáveis em avisos e validação de formulário. */
