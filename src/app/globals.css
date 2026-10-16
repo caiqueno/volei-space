@@ -43,6 +43,149 @@
   --dark-muted: var(--vs-muted);
   --dark-soft: var(--vs-muted);
   --dark-gold: var(--vs-gold);
+
+  /* ---- Tokens do sistema visual (ver docs/analise/05-design-system.md) ---- */
+  --vs-border-strong: #5B7197;
+  --vs-focus: #FFD166;
+  --vs-focus-ring: 0 0 0 3px var(--vs-bg), 0 0 0 5px var(--vs-focus);
+
+  /* Estados: erro, aviso, sucesso, informação (fundo, borda, texto) */
+  --vs-error-bg: #2A1216;
+  --vs-error-border: #F87171;
+  --vs-error-fg: #FECACA;
+  --vs-warning-bg: #2B2108;
+  --vs-warning-border: #FFB331;
+  --vs-warning-fg: #FDE68A;
+  --vs-success-bg: #0E2A1B;
+  --vs-success-border: #22C55E;
+  --vs-success-fg: #BBF7D0;
+  --vs-info-bg: #0F2342;
+  --vs-info-border: #3B82F6;
+  --vs-info-fg: #BFDBFE;
+
+  /* Tipografia (rem; respeita o tamanho de fonte do usuário) */
+  --vs-text-min: 0.75rem;
+  --vs-text-xs: 0.75rem;
+  --vs-text-sm: 0.875rem;
+  --vs-text-base: 1rem;
+  --vs-text-lg: 1.125rem;
+  --vs-text-xl: 1.25rem;
+  --vs-text-2xl: 1.5rem;
+  --vs-text-3xl: 2rem;
+  --vs-text-display: clamp(2.5rem, 6vw, 4.5rem);
+  --vs-text-scoreboard: clamp(3.5rem, 20vmin, 18rem);
+  --vs-leading-tight: 1.1;
+  --vs-leading-body: 1.5;
+
+  /* Espaçamento (escala de 4 px) e alvos de toque */
+  --vs-space-1: 0.25rem;
+  --vs-space-2: 0.5rem;
+  --vs-space-3: 0.75rem;
+  --vs-space-4: 1rem;
+  --vs-space-5: 1.5rem;
+  --vs-space-6: 2rem;
+  --vs-space-7: 3rem;
+  --vs-space-8: 4rem;
+  --vs-touch-min: 44px;
+  --vs-touch-comfort: 52px;
+}
+
+/* Tema claro: aplicado com <html data-theme="light">. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --vs-bg: #F6F8FC;
+  --vs-surface: #FFFFFF;
+  --vs-elevated: #EEF2F9;
+  --vs-border: #CBD5E4;
+  --vs-border-strong: #66789A;
+  --vs-text: #0B1426;
+  --vs-muted: #46556F;
+  --vs-gold: #9A5B00;
+  --vs-gold-hover: #7A4800;
+  --vs-on-gold: #FFFFFF;
+  --vs-blue: #1D4ED8;
+  --vs-win: #15803D;
+  --vs-loss: #B91C1C;
+  --vs-live: #BE123C;
+  --vs-focus: #1D4ED8;
+  --vs-error-bg: #FEF2F2;
+  --vs-error-border: #B91C1C;
+  --vs-error-fg: #991B1B;
+  --vs-warning-bg: #FFFBEB;
+  --vs-warning-border: #9A5B00;
+  --vs-warning-fg: #7A4A00;
+  --vs-success-bg: #F0FDF4;
+  --vs-success-border: #15803D;
+  --vs-success-fg: #14532D;
+  --vs-info-bg: #EFF6FF;
+  --vs-info-border: #1D4ED8;
+  --vs-info-fg: #1E3A8A;
+}
+
+/* Alto contraste: <html data-theme="contrast"> ou preferência do sistema (prefers-contrast: more). */
+:root[data-theme="contrast"] {
+  color-scheme: dark;
+  --vs-bg: #000000;
+  --vs-surface: #000000;
+  --vs-elevated: #0A0A0A;
+  --vs-border: #FFFFFF;
+  --vs-border-strong: #FFFFFF;
+  --vs-text: #FFFFFF;
+  --vs-muted: #E6EBF5;
+  --vs-gold: #FFD166;
+  --vs-gold-hover: #FFE08F;
+  --vs-on-gold: #000000;
+  --vs-blue: #8CBBFF;
+  --vs-win: #4ADE80;
+  --vs-loss: #FF8A8A;
+  --vs-live: #FF8FA3;
+  --vs-focus: #FFFF00;
+  --vs-error-bg: #000000;
+  --vs-error-border: #FF8A8A;
+  --vs-error-fg: #FFFFFF;
+  --vs-warning-bg: #000000;
+  --vs-warning-border: #FFD166;
+  --vs-warning-fg: #FFFFFF;
+  --vs-success-bg: #000000;
+  --vs-success-border: #4ADE80;
+  --vs-success-fg: #FFFFFF;
+  --vs-info-bg: #000000;
+  --vs-info-border: #8CBBFF;
+  --vs-info-fg: #FFFFFF;
+}
+@media (prefers-contrast: more) {
+  :root:not([data-theme]) {
+    --vs-border: #FFFFFF;
+    --vs-border-strong: #FFFFFF;
+    --vs-muted: #E6EBF5;
+    --vs-focus: #FFFF00;
+  }
+}
+
+/* Foco visível (WCAG 2.4.7 / 2.4.11) em todos os controles. */
+:where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid var(--vs-focus);
+  outline-offset: 2px;
+}
+
+/* Classes utilitárias de estado, usáveis em avisos e validação de formulário. */
+.vs-state {
+  padding: var(--vs-space-3) var(--vs-space-4);
+  border: 1px solid var(--vs-info-border);
+  border-radius: 10px;
+  background: var(--vs-info-bg);
+  color: var(--vs-info-fg);
+  font-size: var(--vs-text-sm);
+  line-height: var(--vs-leading-body);
+}
+.vs-state.is-error { border-color: var(--vs-error-border); background: var(--vs-error-bg); color: var(--vs-error-fg); }
+.vs-state.is-warning { border-color: var(--vs-warning-border); background: var(--vs-warning-bg); color: var(--vs-warning-fg); }
+.vs-state.is-success { border-color: var(--vs-success-border); background: var(--vs-success-bg); color: var(--vs-success-fg); }
+
+/* Erro de campo: borda + texto (nunca só cor). */
+:where(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--vs-error-border);
+  box-shadow: 0 0 0 1px var(--vs-error-border);
 }
 html,
 body {
@@ -17853,4 +17996,60 @@ html body .official-toque-44::after {
   width: 44px;
   height: 44px;
   transform: translate(-50%, -50%);
+}
+
+/* U7 - Súmula: alvos de toque >= 44 px (--vs-touch-min) e fontes legíveis à distância.
+   Fica no fim do arquivo para vencer as regras compactas anteriores (28 a 38 px, fonte 10 a 11 px).
+   Os botões crescem de fato; a área invisível .official-toque-44::after deixa de ser necessária. */
+html body .official-score-bar .official-compact-icon-action,
+html body .official-score-bar .official-card-icon,
+html body .official-score-bar .official-score-undo,
+html body .official-score-bar .official-compact-timeout-action,
+html body .official-point-action,
+html body .official-player-grid .official-player-card .official-sub-action.is-icon,
+html body .official-player-grid.is-facing .official-player-identity .official-sub-action.is-icon {
+  min-width: var(--vs-touch-min);
+  min-height: var(--vs-touch-min);
+}
+
+html body .official-score-bar .official-card-icon {
+  width: var(--vs-touch-min);
+  height: var(--vs-touch-min);
+}
+
+html body .official-score-bar .official-card-icon img {
+  width: 28px;
+  height: 28px;
+}
+
+html body .official-score-bar .official-card-actions {
+  gap: 8px;
+}
+
+html body .official-score-bar .official-score-undo,
+html body .official-score-bar .official-compact-icon-action.is-ace {
+  min-width: var(--vs-touch-comfort);
+  min-height: var(--vs-touch-comfort);
+}
+
+html body .official-score-bar .official-compact-icon-action {
+  font-size: var(--vs-text-sm);
+}
+
+html body .official-score-bar .official-plus-team,
+html body .official-score-bar-points .official-compact-score-team-name {
+  font-size: var(--vs-text-sm);
+}
+
+html body .official-score-bar-set {
+  font-size: var(--vs-text-base);
+}
+
+html body .official-point-action,
+html body .official-sub-action.is-icon {
+  font-size: var(--vs-text-min);
+}
+
+html body .official-toque-44::after {
+  display: none;
 }
