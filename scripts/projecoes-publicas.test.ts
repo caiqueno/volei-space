@@ -152,6 +152,54 @@ async function main() {
     falso.restaurar()
   }
 
+  // 4. M1: súmula e árbitro leem a partida com colunas explícitas, sem PII nem organizadorId.
+  const arquivosM1 = [
+    ...arquivosTs(path.join(raiz, 'src/app/api/arbitro')),
+    path.join(raiz, 'src/lib/arbitro-access.ts'),
+    path.join(raiz, 'src/lib/sumula-access.ts'),
+    path.join(raiz, 'src/lib/partida-operacao.ts'),
+    path.join(raiz, 'src/app/api/partidas/[id]/sumula-publica/route.ts'),
+  ]
+  for (const arquivo of arquivosM1) {
+    assert.deepEqual(selectsAmplos(fs.readFileSync(arquivo, 'utf8')), [], `select amplo em ${arquivo}`)
+  }
+  const operacao = await import('../src/lib/partida-operacao')
+  const { PARTIDA_CONSULTA_COLUNAS } = await import('../src/lib/sumula-consulta')
+  for (const [nome, selecao] of [
+    ['SELECAO_PARTIDA_OPERACAO', operacao.SELECAO_PARTIDA_OPERACAO],
+    ['SELECAO_PARTIDA_SUMULA', operacao.SELECAO_PARTIDA_SUMULA],
+    ['PARTIDA_CONSULTA_COLUNAS', PARTIDA_CONSULTA_COLUNAS],
+  ] as Array<[string, string]>) {
+    assert.equal(selecao.includes('*'), false, `${nome} usa *`)
+    const colunas = colunasDeConstante(selecao)
+    for (const proibida of proj.COLUNAS_PROIBIDAS) assert.equal(colunas.includes(proibida), false, `${nome} contém ${proibida}`)
+    assert.equal(colunas.includes('qrCodeToken'), false, `${nome} contém qrCodeToken`)
+  }
+  for (const [nome, selecao] of Object.entries(proj)) {
+    if (nome.endsWith('_EMBEDS')) {
+      assert.equal(String(selecao).includes('*'), false, nome)
+      for (const proibida of proj.COLUNAS_PROIBIDAS) assert.equal(colunasDeConstante(String(selecao)).includes(proibida), false, `${nome} contém ${proibida}`)
+    }
+  }
+
+  const tabelasM1: Tabelas = {
+    Liga: [{ id: 7, organizadorId: 'org-A', nome: 'Copa', status: 'ATIVA' }],
+    Partida: [{ id: 5, ligaId: 7, sumulaToken: 'tok_abc_123', status: 'AGENDADA', liga: { id: 7, nome: 'Copa' } }],
+  }
+  const falsoM1 = instalarPostgrestFalso(tabelasM1)
+  try {
+    const leitura = await operacao.lerPartidaSumula({ coluna: 'sumulaToken', valor: 'tok_abc_123' })
+    assert.equal(leitura.partida?.id, 5)
+    const consultaPartida = falsoM1.chamadas.filter((c) => c.tabela === 'Partida').at(-1)
+    assert.ok(consultaPartida)
+    assert.equal(consultaPartida.select.includes('*'), false)
+    assert.match(consultaPartida.search, /sumulaToken=eq\.tok_abc_123/)
+    assert.equal(await operacao.organizadorDaLiga(7), 'org-A')
+    assert.equal(await operacao.organizadorDaLiga(999), null)
+  } finally {
+    falsoM1.restaurar()
+  }
+
   console.log('projecoes-publicas: ok')
 }
 
