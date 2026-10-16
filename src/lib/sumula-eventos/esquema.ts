@@ -23,6 +23,11 @@ export const TIPOS_DE_EVENTO = [
   'WO',
   'EQUIPE_INCOMPLETA',
   'OBSERVACAO',
+  'DISCREPANCIA_PAPELETA',
+  'CAPITAO_EM_JOGO',
+  'PROTESTO_ANUNCIADO',
+  'PROTESTO_REGISTRADO',
+  'PROTESTO_DESISTIDO',
   'DESFAZ',
 ] as const satisfies readonly SumulaEventoTipo[]
 
@@ -44,14 +49,23 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
     liberosB: liberos.optional(),
   }),
   PONTO: z.object({ equipe, sacador: jogador.optional() }),
-  RALLY_REPETIDO: z.object({}),
-  SUBSTITUICAO: z.object({
-    equipe,
-    sai: jogador,
-    entra: jogador,
-    excepcional: z.boolean().optional(),
-    motivo: z.enum(['LESAO', 'DOENCA', 'EXPULSAO', 'DESQUALIFICACAO']).optional(),
-  }),
+  RALLY_REPETIDO: z.object({ motivo: z.enum(['ACIDENTE_COM_BOLA_EM_JOGO', 'INTERFERENCIA_EXTERNA', 'OUTRO']).optional() }),
+  // Uma troca (`sai`/`entra`) OU várias no mesmo pedido (`trocas`, RG-SUB-007), nunca as duas formas.
+  SUBSTITUICAO: z
+    .object({
+      equipe,
+      sai: jogador.optional(),
+      entra: jogador.optional(),
+      trocas: z.array(z.object({ sai: jogador, entra: jogador })).min(1).max(6).optional(),
+      excepcional: z.boolean().optional(),
+      motivo: z.enum(['LESAO', 'DOENCA', 'EXPULSAO', 'DESQUALIFICACAO']).optional(),
+    })
+    .refine((v) => (v.trocas !== undefined) !== (v.sai !== undefined || v.entra !== undefined), {
+      message: 'Informe sai e entra, ou a lista trocas (não as duas).',
+    })
+    .refine((v) => v.trocas !== undefined || (v.sai !== undefined && v.entra !== undefined), {
+      message: 'Informe sai e entra.',
+    }),
   TEMPO: z.object({ equipe }),
   TROCA_LIBERO: z.object({
     equipe,
@@ -84,6 +98,23 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
   WO: z.object({ ausente: z.enum(['A', 'B', 'AMBAS']) }),
   EQUIPE_INCOMPLETA: z.object({ equipe, escopo: z.enum(['SET', 'JOGO']) }),
   OBSERVACAO: z.object({ texto: z.string().trim().min(1).max(500) }),
+  DISCREPANCIA_PAPELETA: z.object({
+    equipe,
+    fase: z.enum(['ANTES_DO_SET', 'DEPOIS_DO_INICIO']),
+    causa: z.enum(['POSICAO', 'JOGADOR_FORA_DA_PAPELETA', 'JOGADOR_NAO_REGISTRADO']),
+    jogador: jogador.optional(),
+    momentoSeq: z.number().int().positive().nullable().optional(),
+    pontoDoRallyDaFaltaSeq: z.number().int().positive().nullable().optional(),
+    formacaoCorrigida: formacao.optional(),
+  }),
+  CAPITAO_EM_JOGO: z.object({ equipe, jogador }),
+  PROTESTO_ANUNCIADO: z.object({ equipe, jogador: jogador.optional(), motivo: z.string().trim().max(300).optional() }),
+  PROTESTO_REGISTRADO: z.object({
+    equipe,
+    relato: z.string().trim().min(1).max(2000),
+    anunciadoSeq: z.number().int().positive().nullable().optional(),
+  }),
+  PROTESTO_DESISTIDO: z.object({ equipe, anunciadoSeq: z.number().int().positive().nullable().optional() }),
   DESFAZ: z.object({}),
 }
 

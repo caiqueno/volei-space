@@ -1,4 +1,5 @@
 import {
+  aplicarSubstituicaoLote,
   aplicarSubstituicaoExcepcional,
   aplicarSubstituicaoRegular,
   caminhoParaJogadorImpedido,
@@ -253,6 +254,50 @@ caso('RG-SUB-009 / CJ-07: substituição ilegal vista após o reinício cancela 
 caso('RG-SUB-009 / CJ-07: vista antes do reinício é só atraso, sem cancelar pontos', () => {
   const r = consequenciaSubstituicaoIlegal({ equipeFaltosa: 'B', descobertaAntesDoReinicio: true, momentoSeq: null, pontosDoSet: [] })
   assert.equal(r.tipo, 'ATRASO')
+})
+
+/* ---------------------- RG-SUB-007: vários jogadores por pedido ---------------------- */
+
+caso('RG-SUB-007: perfil FIVB/CBV aceita 3 trocas num único pedido e conta uma por jogador', () => {
+  const r = aplicarSubstituicaoLote(novo(), [{ sai: 1, entra: 7 }, { sai: 2, entra: 8 }, { sai: 3, entra: 9 }], PERFIL_FIVB_CBV)
+  assert.equal(r.resultado.ok, true)
+  assert.equal(r.estado.regulares, 3)
+  assert.deepEqual(r.estado.emQuadra, [7, 8, 9, 4, 5, 6])
+  assert.equal(r.estado.pedidoNaInterrupcao, true)
+})
+
+caso('RG-SUB-007: perfil FIVB/CBV bloqueia no lote a troca que passa do limite e não aplica nada', () => {
+  let e = novo()
+  for (const [s, n] of [[1, 7], [2, 8], [3, 9], [4, 10]] as Array<[number, number]>) e = sub(e, s, n, PERFIL_FIVB_CBV)
+  const r = aplicarSubstituicaoLote(e, [{ sai: 5, entra: 11 }, { sai: 6, entra: 12 }, { sai: 7, entra: 1 }], PERFIL_FIVB_CBV)
+  assert.equal(r.resultado.ok, false)
+  if (!r.resultado.ok) assert.equal(r.resultado.codigo, 'RG-SUB-001')
+  assert.equal(r.indiceBloqueado, 2)
+  assert.equal(r.estado, e, 'tudo ou nada: estado original')
+})
+
+caso('RG-SUB-007: perfil amador conta cada jogador do lote e alerta acima de 6', () => {
+  let e = novo()
+  for (const [s, n] of [[1, 7], [2, 8], [3, 9], [4, 10]] as Array<[number, number]>) e = sub(e, s, n, PERFIL_AMADOR)
+  const r = aplicarSubstituicaoLote(e, [{ sai: 5, entra: 11 }, { sai: 6, entra: 12 }, { sai: 7, entra: 1 }], PERFIL_AMADOR)
+  assert.equal(r.resultado.ok, true)
+  assert.equal(r.estado.regulares, 7)
+  if (r.resultado.ok) assert.ok(r.resultado.avisos.some((a) => a.codigo === 'RG-SUB-001'))
+})
+
+caso('RG-SUB-007: segundo pedido na mesma interrupção continua indevido, mesmo depois de um lote', () => {
+  const lote = aplicarSubstituicaoLote(novo(), [{ sai: 1, entra: 7 }, { sai: 2, entra: 8 }], PERFIL_FIVB_CBV)
+  const outro = validarSubstituicaoRegular(lote.estado, { sai: 3, entra: 9 }, PERFIL_FIVB_CBV)
+  assert.equal(outro.ok, false)
+  if (!outro.ok) assert.equal(outro.codigo, 'RG-SUB-007')
+  const novoLote = aplicarSubstituicaoLote(lote.estado, [{ sai: 3, entra: 9 }], PERFIL_FIVB_CBV)
+  assert.equal(novoLote.resultado.ok, false)
+})
+
+caso('RG-SUB-007: jogador repetido dentro do mesmo pedido é recusado', () => {
+  const r = aplicarSubstituicaoLote(novo(), [{ sai: 1, entra: 7 }, { sai: 2, entra: 7 }], PERFIL_FIVB_CBV)
+  assert.equal(r.resultado.ok, false)
+  assert.equal(r.indiceBloqueado, 1)
 })
 
 encerrar('regras-volei-substituicoes')

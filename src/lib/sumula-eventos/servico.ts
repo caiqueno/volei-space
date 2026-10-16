@@ -9,7 +9,12 @@
  */
 import {
   anexarEvento,
+  avaliarToleranciaWO,
+  consequenciaDeDiscrepancia,
+  aplicarSubstituicaoLote,
   avaliarSancao,
+  trocasDoPayload,
+  type PayloadPorTipo,
   bloqueio,
   decidirInterrupcao,
   derivarPlacar,
@@ -26,7 +31,6 @@ import {
   validarSacador,
   validarSaqueDoLibero,
   validarSubstituicaoExcepcional,
-  validarSubstituicaoRegular,
   validarTrocaLibero,
   type AvisoRegra,
   type ConfigPartida,
@@ -50,6 +54,9 @@ const CODIGO_ENCERRADA = {
   A_REPETIR: ['RG-INT-005', 'A partida foi marcada para repetição: não aceita novos lances (só desfazer ou observação).'],
   ENCERRADA: ['RG-SET-004', 'A partida já terminou: não aceita novos lances (só desfazer ou observação).'],
 } as const
+
+/** Protesto registrado ou abandonado vale depois do fim da partida (RG-PRO-002/003). */
+const TIPOS_POS_JOGO: readonly string[] = ['PROTESTO_REGISTRADO', 'PROTESTO_DESISTIDO']
 
 function nomeDaEquipe(equipe: Equipe) {
   return `equipe ${equipe}`
@@ -82,6 +89,8 @@ interface Ambiente {
   config: ConfigPartida
   contexto: ContextoDerivacao
   placar: PlacarDerivado
+  /** Horário atual confiável (ISO), informado pelo servidor; habilita a tolerância de WO (RG-WO-002). */
+  agora?: string
 }
 
 type Checagem = { bloqueio: RegraBloqueio } | { avisos: AvisoRegra[]; payload?: Record<string, unknown> }
@@ -111,11 +120,17 @@ function checarSetIniciado(amb: Ambiente, p: Record<string, any>): Checagem {
     if (fora !== undefined) {
       return { bloqueio: bloqueio('RG-FOR-009', `O jogador ${fora} não consta na relação nominal da ${nomeDaEquipe(equipe)}.`) }
     }
+    const maxElenco = config.perfil.maxJogadoresElenco
+    if (!prev && maxElenco !== undefined && elenco.length > maxElenco) {
+      return { bloqueio: bloqueio('RG-ELE-001', `A relação nominal da ${nomeDaEquipe(equipe)} tem ${elenco.length} jogadores; o máximo é ${maxElenco}.`) }
+    }
     const liberosInformados: number[] | undefined = p[`liberos${equipe}`]
     // Os líberos só são lidos no 1º set da partida (depois valem os já registrados).
     const liberos = prev ? prev[equipe].liberos : liberosInformados ?? []
-    if (!prev && liberosInformados) {
-      const reg = validarRegistroDeLiberos(liberosInformados, [...elenco])
+    if (!prev && (liberosInformados || config.perfil.exigeDoisLiberosAcimaDe12)) {
+      const reg = validarRegistroDeLiberos(liberosInformados ?? [], [...elenco], {
+        exigeDoisAcimaDe12: config.perfil.exigeDoisLiberosAcimaDe12 === true,
+      })
       if (!reg.ok) return { bloqueio: reg }
     }
     const libero = formacao.find((j) => liberos.includes(j))
@@ -246,17 +261,29 @@ function checarPorTipo(amb: Ambiente, tipo: NovoEvento['tipo'], p: Record<string
       if (erro) return { bloqueio: erro }
       const estado = estadoOuErro(amb, p.equipe)
       if (ehBloqueio(estado)) return { bloqueio: estado }
+      const trocas = trocasDoPayload(p as PayloadPorTipo['SUBSTITUICAO'])
+      if (trocas.length === 0) {
+        return { bloqueio: bloqueio('RG-SUB-007', 'Informe a troca (sai/entra) ou a lista de trocas do pedido.') }
+      }
       const excepcional = p.excepcional === true
       if (excepcional) {
         if (!p.motivo) {
           return { bloqueio: bloqueio('RG-SUB-011', 'A substituição excepcional exige motivo: lesão, doença, expulsão ou desqualificação.') }
         }
-        const r = validarSubstituicaoExcepcional(estado, { sai: p.sai, entra: p.entra, motivo: p.motivo }, config.perfil)
+        if (trocas.length > 1) {
+          return { bloqueio: bloqueio('RG-SUB-011', 'A substituição excepcional é de um jogador por vez; envie um pedido para cada jogador.') }
+        }
+        const r = validarSubstituicaoExcepcional(estado, { ...trocas[0]!, motivo: p.motivo }, config.perfil)
         return r.ok ? { avisos: r.avisos, payload: { ...p, excepcional: true } } : { bloqueio: r }
       }
-      const r = validarSubstituicaoRegular(estado, { sai: p.sai, entra: p.entra }, config.perfil)
+      // Pedido em lote (RG-SUB-007): simula as trocas em sequência; qualquer falha recusa o pedido todo.
+      const lote = aplicarSubstituicaoLote(estado, trocas, config.perfil)
       const { motivo: _motivo, ...semMotivo } = p
-      return r.ok ? { avisos: r.avisos, payload: { ...semMotivo, excepcional: false } } : { bloqueio: r }
+      if (!lote.resultado.ok) {
+        const quando = trocas.length > 1 && lote.indiceBloqueado !== null ? ` (troca ${lote.indiceBloqueado + 1} do pedido)` : ''
+        return { bloqueio: bloqueio(lote.resultado.codigo, `${lote.resultado.mensagem}${quando}`) }
+      }
+      return { avisos: lote.resultado.avisos, payload: { ...semMotivo, excepcional: false } }
     }
     case 'TROCA_LIBERO': {
       const erro = exigirSetEmAndamento(amb, 'RG-LIB-006', 'A troca de líbero')
@@ -312,7 +339,38 @@ function checarPorTipo(amb: Ambiente, tipo: NovoEvento['tipo'], p: Record<string
       const erro = exigirSetEmAndamento(amb, 'RG-SET-001', 'O rally repetido')
       return erro ? { bloqueio: erro } : { avisos: [] }
     }
-    case 'WO':
+    case 'WO': {
+      // RG-WO-002: antes de qualquer set, com horário previsto e horário atual, vale a tolerância do regulamento.
+      if (amb.agora && amb.contexto.horarioPrevisto && placar.sets.length === 0) {
+        const t = avaliarToleranciaWO(config, { horarioPrevisto: amb.contexto.horarioPrevisto, agora: amb.agora, duplo: p.ausente === 'AMBAS' })
+        if (!t.resultado.ok) return { bloqueio: t.resultado }
+      }
+      return { avisos: [] }
+    }
+    case 'DISCREPANCIA_PAPELETA': {
+      const erro = exigirSetEmAndamento(amb, 'RG-FOR-007', 'A discrepância de papeleta')
+      if (erro) return { bloqueio: erro }
+      if (p.causa === 'JOGADOR_NAO_REGISTRADO' && p.jogador === undefined) {
+        return { bloqueio: bloqueio('RG-FOR-009', 'Informe o jogador não registrado que estava em quadra.') }
+      }
+      if (p.causa === 'JOGADOR_FORA_DA_PAPELETA') {
+        if (p.jogador === undefined) return { bloqueio: bloqueio('RG-FOR-008', 'Informe o jogador que estava em quadra fora da papeleta.') }
+        if (!amb.contexto.elenco[p.equipe as Equipe].includes(p.jogador)) {
+          return { bloqueio: bloqueio('RG-FOR-009', `O jogador ${p.jogador} não consta na relação nominal: use a causa JOGADOR_NAO_REGISTRADO.`) }
+        }
+      }
+      const ef = consequenciaDeDiscrepancia(p.fase, p.causa)
+      return { avisos: [{ codigo: ef.codigo, mensagem: ef.mensagem }] }
+    }
+    case 'CAPITAO_EM_JOGO': {
+      const erro = exigirSetEmAndamento(amb, 'RG-ELE-005', 'A designação do capitão em jogo')
+      return erro ? { bloqueio: erro } : { avisos: [] }
+    }
+    case 'PROTESTO_ANUNCIADO':
+    case 'PROTESTO_REGISTRADO':
+    case 'PROTESTO_DESISTIDO':
+      // As regras de estado (partida em andamento ou terminada, anúncio prévio) são conferidas na derivação.
+      return { avisos: [] }
     case 'OBSERVACAO':
     case 'DESFAZ':
       return { avisos: [] }
@@ -329,6 +387,7 @@ export function validarNovoEvento(
   config: ConfigPartida,
   contexto: ContextoDerivacao,
   recebido: EventoRecebido,
+  agora?: string,
 ): ResultadoValidacao {
   const existente = log.find((e) => e.clientEventId === recebido.clientEventId)
   if (existente) return { ok: true, duplicado: true, evento: existente }
@@ -339,12 +398,12 @@ export function validarNovoEvento(
   if (corrompido) return corrompido
 
   const placar = derivarPlacar(log, config, contexto)
-  if (placar.status in CODIGO_ENCERRADA && recebido.tipo !== 'DESFAZ' && recebido.tipo !== 'OBSERVACAO') {
+  if (placar.status in CODIGO_ENCERRADA && recebido.tipo !== 'DESFAZ' && recebido.tipo !== 'OBSERVACAO' && !TIPOS_POS_JOGO.includes(recebido.tipo)) {
     const [codigo, mensagem] = CODIGO_ENCERRADA[placar.status as keyof typeof CODIGO_ENCERRADA]
     return bloqueio(codigo, mensagem)
   }
 
-  const checagem = checarPorTipo({ log, config, contexto, placar }, recebido.tipo, lido.payload)
+  const checagem = checarPorTipo({ log, config, contexto, placar, ...(agora ? { agora } : {}) }, recebido.tipo, lido.payload)
   if ('bloqueio' in checagem) return checagem.bloqueio
 
   const novo = {

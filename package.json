@@ -126,7 +126,12 @@
     "test:anon-guard": "node scripts/with-ts-node.mjs scripts/anon-client-guard.test.ts",
     "test:uploads": "node scripts/with-ts-node.mjs scripts/uploads-assinados.test.ts",
     "test:inscricao-mascara": "node scripts/with-ts-node.mjs scripts/inscricao-mascara.test.ts",
-    "test:sumula-ui-motor": "node scripts/with-ts-node.mjs scripts/sumula-ui-motor.test.ts"
+    "test:sumula-ui-motor": "node scripts/with-ts-node.mjs scripts/sumula-ui-motor.test.ts",
+    "test:regras-volei-papeleta": "node scripts/with-ts-node.mjs scripts/regras-volei-papeleta.test.ts",
+    "test:regras-volei-elenco": "node scripts/with-ts-node.mjs scripts/regras-volei-elenco.test.ts",
+    "test:regras-volei-protesto": "node scripts/with-ts-node.mjs scripts/regras-volei-protesto.test.ts",
+    "test:regras-volei-fechamento": "node scripts/with-ts-node.mjs scripts/regras-volei-fechamento.test.ts",
+    "test:regras-volei-r3": "npm run test:regras-volei && npm run test:regras-volei-estado-derivado && npm run test:regras-volei-papeleta && npm run test:regras-volei-elenco && npm run test:regras-volei-protesto && npm run test:regras-volei-fechamento && npm run test:sumula-eventos && npm run test:sumula-eventos-rota"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

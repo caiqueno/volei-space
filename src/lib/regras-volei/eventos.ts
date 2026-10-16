@@ -18,10 +18,10 @@ import {
   type EstadoEquipe,
 } from './estado-equipe'
 import { aplicarTrocaLibero, aplicarRedesignacaoLibero, validarSaqueDoLibero, type MomentoDaTroca } from './libero'
-import { aplicarRally, calcularReversaoFaltaRotacao, validarSacador, type PontoLog } from './rotacao'
+import { aplicarRally, calcularReversaoFaltaRotacao, reconstruirRodizio, validarSacador, type PassoReplay, type PontoLog } from './rotacao'
 import { avaliarSancao, registrarSancao, type CategoriaSancao, type SancaoRegistrada } from './sancoes'
 import { alvoDoSet, deveTrocarDeLado, ehSetDecisivo, partidaEncerrada, setEncerrado, validarPedidoDeTempo } from './set-partida'
-import { aplicarSubstituicaoExcepcional, aplicarSubstituicaoRegular, type MotivoExcepcional } from './substituicoes'
+import { aplicarSubstituicaoExcepcional, aplicarSubstituicaoLote, type MotivoExcepcional } from './substituicoes'
 import { decidirInterrupcao, resolverEquipeIncompleta, resolverWO, type ResultadoWO } from './wo-interrupcao'
 import {
   bloqueio,
@@ -32,6 +32,30 @@ import {
   type RegraBloqueio,
 } from './tipos'
 import type { AcaoInterrupcao } from './wo-interrupcao'
+import { capitaoEmJogo, validarDesignacaoDeCapitao } from './elenco'
+import { consequenciaDeDiscrepancia, type CausaDiscrepancia, type FaseDiscrepancia } from './papeleta'
+
+export type MotivoRallyRepetido = 'ACIDENTE_COM_BOLA_EM_JOGO' | 'INTERFERENCIA_EXTERNA' | 'OUTRO'
+
+/** Protestos como eventos (RG-PRO-001..003): o motor só registra; o mérito é do órgão do regulamento. */
+export interface ProtestoDerivado {
+  /** seq do PROTESTO_ANUNCIADO (ou do registro/desistência sem anúncio). */
+  seq: number
+  equipe: Equipe
+  estado: 'ANUNCIADO' | 'REGISTRADO' | 'DESISTIDO'
+  relato: string | null
+  anunciadoEm: number | null
+  resolvidoEm: number | null
+}
+
+export interface DiscrepanciaPapeletaDerivada {
+  seq: number
+  equipe: Equipe
+  fase: FaseDiscrepancia
+  causa: CausaDiscrepancia
+  codigo: CodigoRegra
+  jogador: number | null
+}
 
 /* ------------------------------ tipos do log ------------------------------ */
 
@@ -47,8 +71,17 @@ export interface PayloadPorTipo {
   }
   /** `sacador` (opcional): jogador que sacou o rally; o servidor confere a ordem de saque (RG-ROT-001). */
   PONTO: { equipe: Equipe; sacador?: number }
-  RALLY_REPETIDO: Record<string, never>
-  SUBSTITUICAO: { equipe: Equipe; sai: number; entra: number; excepcional?: boolean; motivo?: string }
+  /** RG-INT-001 (acidente com bola em jogo) / RG-INT-002 (interferência externa): sem ponto, mantém o sacador. */
+  RALLY_REPETIDO: { motivo?: MotivoRallyRepetido }
+  /** Uma troca (`sai`/`entra`) ou várias no mesmo pedido (`trocas`, RG-SUB-007). */
+  SUBSTITUICAO: {
+    equipe: Equipe
+    sai?: number
+    entra?: number
+    trocas?: Array<{ sai: number; entra: number }>
+    excepcional?: boolean
+    motivo?: string
+  }
   TEMPO: { equipe: Equipe }
   TROCA_LIBERO: { equipe: Equipe; sai: number; entra: number; momento?: MomentoDaTroca }
   REDESIGNACAO_LIBERO: { equipe: Equipe; liberoIncapaz: number; novoLibero: number }
@@ -75,6 +108,27 @@ export interface PayloadPorTipo {
   WO: { ausente: Equipe | 'AMBAS' }
   EQUIPE_INCOMPLETA: { equipe: Equipe; escopo: 'SET' | 'JOGO' }
   OBSERVACAO: { texto: string }
+  /**
+   * Papeleta x quadra (RG-FOR-007/008/009). `fase` ANTES_DO_SET: só corrige, sem sanção.
+   * DEPOIS_DO_INICIO: reversão seletiva dos pontos da equipe faltosa desde `momentoSeq`.
+   */
+  DISCREPANCIA_PAPELETA: {
+    equipe: Equipe
+    fase: FaseDiscrepancia
+    causa: CausaDiscrepancia
+    jogador?: number
+    momentoSeq?: number | null
+    pontoDoRallyDaFaltaSeq?: number | null
+    formacaoCorrigida?: number[]
+  }
+  /** RG-ELE-005: designação do capitão em jogo quando o capitão da equipe não está em quadra. */
+  CAPITAO_EM_JOGO: { equipe: Equipe; jogador: number }
+  /** RG-PRO-001: o capitão em jogo anuncia, na hora, que se reserva o direito de protestar. */
+  PROTESTO_ANUNCIADO: { equipe: Equipe; jogador?: number; motivo?: string }
+  /** RG-PRO-002: protesto formalizado ao fim da partida, com o relato. O motor NÃO decide o mérito (RG-PRO-004). */
+  PROTESTO_REGISTRADO: { equipe: Equipe; relato: string; anunciadoSeq?: number | null }
+  /** RG-PRO-003: o capitão decidiu não formalizar o protesto anunciado. */
+  PROTESTO_DESISTIDO: { equipe: Equipe; anunciadoSeq?: number | null }
   DESFAZ: Record<string, never>
 }
 
@@ -181,7 +235,7 @@ export function anexarEvento(log: readonly SumulaEvento[], novo: NovoEvento): Re
 export interface PontoDerivado {
   seq: number
   equipe: Equipe
-  origem: 'RALLY' | 'PENALIDADE' | 'FALTA_POSICAO' | 'FALTA_ROTACAO'
+  origem: 'RALLY' | 'PENALIDADE' | 'FALTA_POSICAO' | 'FALTA_ROTACAO' | 'PAPELETA'
   cancelado: boolean
 }
 
@@ -192,6 +246,8 @@ interface ContadoresEquipe {
   /** Trocas de líbero NÃO entram na soma de substituições (RG-SET-008). */
   trocasLibero: number
   redesignacoes: number
+  /** Sanções recebidas pela equipe no set (qualquer categoria; entre sets conta no set seguinte). */
+  sancoes: number
 }
 
 export interface SetDerivado {
@@ -211,6 +267,22 @@ export interface SetDerivado {
   sacouPrimeiro: Equipe
   /** Placar imposto por equipe incompleta (RG-WO-005). */
   ajusteIncompleta: PlacarSet | null
+  /** seq do SET_INICIADO (pontos com este seq são penalidades lançadas no 0x0). */
+  inicioSeq: number
+  /** Rallies repetidos no set (RG-INT-001/002): não dão ponto, não mudam o sacador nem contam como rally concluído. */
+  rallysRepetidos: number
+  /** Passos que mexem no rodízio, em ordem (pontos e trocas), para o replay (RG-ROT-001/002). */
+  jornal: JornalPasso[]
+}
+
+export type JornalPasso =
+  | { tipo: 'PONTO'; ponto: PontoDerivado }
+  | { tipo: 'TROCA'; equipe: Equipe; sai: number; entra: number }
+
+/** Trocas de um pedido de substituição (uma, ou várias em `trocas`, RG-SUB-007). */
+export function trocasDoPayload(p: PayloadPorTipo['SUBSTITUICAO']): Array<{ sai: number; entra: number }> {
+  if (p.trocas && p.trocas.length > 0) return p.trocas.map((t) => ({ sai: t.sai, entra: t.entra }))
+  return p.sai !== undefined && p.entra !== undefined ? [{ sai: p.sai, entra: p.entra }] : []
 }
 
 export type StatusPartida = 'NAO_INICIADA' | 'EM_ANDAMENTO' | 'ENCERRADA' | 'WO' | 'A_REPETIR'
@@ -224,6 +296,10 @@ export interface InconsistenciaDerivacao {
 /** Relação nominal de cada equipe (ids de jogador, líberos inclusos). Vem do servidor, nunca do cliente. */
 export interface ContextoDerivacao {
   elenco: { A: readonly number[]; B: readonly number[] }
+  /** Capitão de cada equipe (RG-ELE-005). Opcional: sem ele, só a designação em quadra vale. */
+  capitao?: { A?: number | null; B?: number | null }
+  /** Horário previsto do jogo (ISO), para a tolerância de WO (RG-WO-002). */
+  horarioPrevisto?: string
 }
 
 /** Estado completo das duas equipes no set corrente, mais o histórico de sanções da partida. */
@@ -254,13 +330,26 @@ export interface PlacarDerivado {
   inconsistencias: InconsistenciaDerivacao[]
   /** Pontos cancelados por falta de rotação (para a "súmula anexa"). */
   houveCancelamentoDePontos: boolean
+  /** Discrepâncias de papeleta registradas (RG-FOR-007/008/009). */
+  discrepanciasPapeleta: DiscrepanciaPapeletaDerivada[]
+  /** Capitão em jogo de cada equipe agora (RG-ELE-005); null = falta designar ou fora de set. */
+  capitaesEmJogo: { A: number | null; B: number | null }
+  /** Protestos anunciados, registrados e desistidos (RG-PRO-001..003). Sem decisão de mérito. */
+  protestos: ProtestoDerivado[]
   ultimoSeq: number
   /** Só vem preenchido quando `derivarPlacar` recebe o contexto (relação nominal) e já houve um set. */
   estadoEquipes: EstadosDerivados | null
 }
 
 function contadoresVazios(): ContadoresEquipe {
-  return { tempos: 0, substituicoesRegulares: 0, substituicoesExcepcionais: 0, trocasLibero: 0, redesignacoes: 0 }
+  return {
+    tempos: 0,
+    substituicoesRegulares: 0,
+    substituicoesExcepcionais: 0,
+    trocasLibero: 0,
+    redesignacoes: 0,
+    sancoes: 0,
+  }
 }
 
 function recalcular(set: SetDerivado, config: ConfigPartida): void {
@@ -325,12 +414,127 @@ export function derivarPlacar(
       eq.A = registrarRallyConcluido(eq.A)
       eq.B = registrarRallyConcluido(eq.B)
     }
-    set.pontos.push({ seq, equipe, origem, cancelado: false })
+    const novoPonto: PontoDerivado = { seq, equipe, origem, cancelado: false }
+    set.pontos.push(novoPonto)
+    set.jornal.push({ tipo: 'PONTO', ponto: novoPonto })
     if (st.saque) {
       const prox = aplicarRally(st.saque, equipe)
       st.saque = { saca: prox.saca, formacaoA: [...prox.formacaoA], formacaoB: [...prox.formacaoB] }
     }
     recalcular(set, config)
+  }
+
+  /**
+   * Reversão por falta de rotação / papeleta (RG-ROT-001/002, RG-FOR-008/009): cancela os pontos da faltosa,
+   * RECALCULA o rodízio por replay dos pontos vivos e dá ponto e saque ao adversário.
+   * `formacaoCorrigida` (informada pelo árbitro) prevalece sobre o replay para a equipe faltosa.
+   */
+  const reverterEPontuar = (
+    set: SetDerivado,
+    seq: number,
+    equipeFaltosa: Equipe,
+    momentoSeq: number | null,
+    pontoDoRallyDaFaltaSeq: number | null,
+    formacaoCorrigida: number[] | undefined,
+    origem: PontoDerivado['origem'],
+  ) => {
+    const vivos: PontoLog[] = set.pontos.filter((x) => !x.cancelado).map((x) => ({ seq: x.seq, equipe: x.equipe }))
+    const reversao = calcularReversaoFaltaRotacao(vivos, { equipeFaltosa, momentoSeq, pontoDoRallyDaFaltaSeq })
+    for (const ponto of set.pontos) if (reversao.cancelados.includes(ponto.seq)) ponto.cancelado = true
+    if (reversao.cancelados.length > 0) houveCancelamento = true
+    // O set pode ter sido reaberto pela reversão: o ponto do adversário entra normalmente.
+    set.encerrado = false
+    const passos: PassoReplay[] = set.jornal.map((j) =>
+      j.tipo === 'PONTO' ? { tipo: 'PONTO', equipe: j.ponto.equipe, cancelado: j.ponto.cancelado } : j,
+    )
+    const refeito = reconstruirRodizio(
+      { formacaoA: set.formacaoInicialA, formacaoB: set.formacaoInicialB, saca: set.sacouPrimeiro },
+      passos,
+    )
+    st.saque = { saca: refeito.saca, formacaoA: [...refeito.formacaoA], formacaoB: [...refeito.formacaoB] }
+    if (formacaoCorrigida) {
+      st.saque = {
+        ...st.saque,
+        ...(equipeFaltosa === 'A' ? { formacaoA: [...formacaoCorrigida] } : { formacaoB: [...formacaoCorrigida] }),
+      }
+    }
+    concedePonto(set, seq, outraEquipe(equipeFaltosa), origem)
+  }
+
+  const sancoesPendentes: Equipe[] = [] // sanções entre sets: contam no set seguinte
+  const discrepancias: DiscrepanciaPapeletaDerivada[] = []
+  const protestos: ProtestoDerivado[] = []
+  const designados: { A: number | null; B: number | null } = { A: null, B: null }
+  let capitaes: { A: number | null; B: number | null } = { A: null, B: null }
+
+  /** RG-ELE-005: o capitão em jogo muda com as substituições; a designação cai quando o designado sai. */
+  const atualizarCapitaes = () => {
+    if (!st.saque) {
+      capitaes = { A: null, B: null }
+      return
+    }
+    const quadra = { A: st.saque.formacaoA, B: st.saque.formacaoB }
+    for (const q of ['A', 'B'] as const) {
+      if (designados[q] !== null && !quadra[q].includes(designados[q]!)) designados[q] = null
+      capitaes[q] = capitaoEmJogo({ capitao: contexto?.capitao?.[q], designado: designados[q], emQuadra: quadra[q] })
+    }
+  }
+
+  const partidaTerminou = (): boolean => {
+    if (wo || aRepetir || vencedorForcado) return true
+    const g = contarGanhos(sets)
+    return sets.length > 0 && partidaEncerrada(g.a, g.b, config)
+  }
+
+  /** RG-PRO-001..003: protestos viram eventos; o motor registra e NÃO decide o mérito (RG-PRO-004). */
+  const tratarProtesto = (e: Extract<SumulaEvento, { tipo: 'PROTESTO_ANUNCIADO' | 'PROTESTO_REGISTRADO' | 'PROTESTO_DESISTIDO' }>) => {
+    const equipe = e.payload.equipe
+    const aberto = protestos.find((x) => x.equipe === equipe && x.estado === 'ANUNCIADO')
+    if (e.tipo === 'PROTESTO_ANUNCIADO') {
+      if (partidaTerminou() || sets.length === 0) {
+        rejeitar(e.seq, 'RG-PRO-001', 'O protesto é anunciado na hora, com a partida em andamento; depois do fim só se registra ou se desiste.')
+        return
+      }
+      const jogador = e.payload.jogador
+      if (jogador !== undefined && capitaes[equipe] !== null && jogador !== capitaes[equipe]) {
+        rejeitar(e.seq, 'RG-PRO-001', `Só o capitão em jogo (${capitaes[equipe]}) pode anunciar o protesto; o jogador ${jogador} não é.`)
+        return
+      }
+      if (aberto) {
+        rejeitar(e.seq, 'RG-PRO-001', `A equipe ${equipe} já tem um protesto anunciado em aberto.`)
+        return
+      }
+      protestos.push({ seq: e.seq, equipe, estado: 'ANUNCIADO', relato: null, anunciadoEm: e.seq, resolvidoEm: null })
+      return
+    }
+    if (!partidaTerminou()) {
+      rejeitar(e.seq, e.tipo === 'PROTESTO_REGISTRADO' ? 'RG-PRO-002' : 'RG-PRO-003', 'O protesto é registrado (ou abandonado) só ao fim da partida.')
+      return
+    }
+    if (e.tipo === 'PROTESTO_DESISTIDO') {
+      if (!aberto) {
+        rejeitar(e.seq, 'RG-PRO-003', `Não há protesto anunciado pela equipe ${equipe} para desistir.`)
+        return
+      }
+      aberto.estado = 'DESISTIDO'
+      aberto.resolvidoEm = e.seq
+      return
+    }
+    if (!e.payload.relato || e.payload.relato.trim() === '') {
+      rejeitar(e.seq, 'RG-PRO-002', 'O protesto registrado precisa do relato.')
+      return
+    }
+    if (!aberto) {
+      if (config.protestoExigeAnuncio !== false) {
+        rejeitar(e.seq, 'RG-PRO-002', `A equipe ${equipe} não anunciou o protesto na hora; ele não pode ser registrado ao fim.`)
+        return
+      }
+      protestos.push({ seq: e.seq, equipe, estado: 'REGISTRADO', relato: e.payload.relato, anunciadoEm: null, resolvidoEm: e.seq })
+      return
+    }
+    aberto.estado = 'REGISTRADO'
+    aberto.relato = e.payload.relato
+    aberto.resolvidoEm = e.seq
   }
 
   for (const e of efetivos) {
@@ -340,6 +544,10 @@ export function derivarPlacar(
         observacoes.push({ seq: e.seq, texto: e.payload.texto })
         continue
       }
+      if (e.tipo === 'PROTESTO_REGISTRADO' || e.tipo === 'PROTESTO_DESISTIDO') {
+        tratarProtesto(e)
+        continue
+      }
       rejeitar(e.seq, 'RG-WO-001', 'Evento após o encerramento por WO/repetição da partida foi ignorado.')
       continue
     }
@@ -347,6 +555,14 @@ export function derivarPlacar(
       case 'SET_INICIADO': {
         const p = e.payload
         const anterior = atual()
+        if (anterior && !anterior.encerrado && p.numeroSet === anterior.numero) {
+          rejeitar(
+            e.seq,
+            'RG-FOR-006',
+            `A papeleta do ${anterior.numero}º set já foi entregue e não muda; para trocar um jogador use a substituição regular.`,
+          )
+          break
+        }
         if (anterior && !anterior.encerrado) {
           rejeitar(e.seq, 'RG-SET-001', `O ${anterior.numero}º set ainda não terminou; não é possível iniciar outro.`)
           break
@@ -375,7 +591,13 @@ export function derivarPlacar(
           contadores: { A: contadoresVazios(), B: contadoresVazios() },
           sacouPrimeiro: p.saqueInicial,
           ajusteIncompleta: null,
+          inicioSeq: e.seq,
+          rallysRepetidos: 0,
+          jornal: [],
         }
+        for (const eqp of sancoesPendentes.splice(0)) set.contadores[eqp].sancoes += 1
+        designados.A = null
+        designados.B = null
         sets.push(set)
         st.saque = { formacaoA: [...p.formacaoA], formacaoB: [...p.formacaoB], saca: p.saqueInicial }
         if (contexto) {
@@ -449,6 +671,8 @@ export function derivarPlacar(
           )
         }
         historicoSancoes.push(registrarSancao(pedido, avaliada))
+        if (p.entreSets || !set || set.encerrado) sancoesPendentes.push(p.equipe)
+        else set.contadores[p.equipe].sancoes += 1
         if (eq) {
           const jogador = idDoMembro(p.membro)
           if (jogador !== null && avaliada.sancao === 'EXPULSAO' && !p.entreSets && !eq[p.equipe].expulsosNoSet.includes(jogador)) {
@@ -471,23 +695,7 @@ export function derivarPlacar(
           break
         }
         const p = e.payload
-        const vivos: PontoLog[] = set.pontos.filter((x) => !x.cancelado).map((x) => ({ seq: x.seq, equipe: x.equipe }))
-        const reversao = calcularReversaoFaltaRotacao(vivos, {
-          equipeFaltosa: p.equipeFaltosa,
-          momentoSeq: p.momentoSeq,
-          pontoDoRallyDaFaltaSeq: p.pontoDoRallyDaFaltaSeq ?? null,
-        })
-        for (const ponto of set.pontos) if (reversao.cancelados.includes(ponto.seq)) ponto.cancelado = true
-        if (reversao.cancelados.length > 0) houveCancelamento = true
-        // O set pode ter sido reaberto pela reversão: o ponto do adversário entra normalmente.
-        set.encerrado = false
-        if (p.formacaoCorrigida) {
-          st.saque = {
-            ...st.saque,
-            ...(p.equipeFaltosa === 'A' ? { formacaoA: [...p.formacaoCorrigida] } : { formacaoB: [...p.formacaoCorrigida] }),
-          }
-        }
-        concedePonto(set, e.seq, outraEquipe(p.equipeFaltosa), 'FALTA_ROTACAO')
+        reverterEPontuar(set, e.seq, p.equipeFaltosa, p.momentoSeq, p.pontoDoRallyDaFaltaSeq ?? null, p.formacaoCorrigida, 'FALTA_ROTACAO')
         break
       }
       case 'SUBSTITUICAO': {
@@ -497,16 +705,24 @@ export function derivarPlacar(
           break
         }
         const p = e.payload
-        if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.sai, p.entra) }
-        else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.sai, p.entra) }
+        const trocas = trocasDoPayload(p)
+        if (trocas.length === 0) {
+          rejeitar(e.seq, 'RG-SUB-007', 'Substituição sem jogadores (informe sai/entra ou trocas).')
+          break
+        }
+        for (const t of trocas) {
+          if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, t.sai, t.entra) }
+          else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, t.sai, t.entra) }
+          set.jornal.push({ tipo: 'TROCA', equipe: p.equipe, sai: t.sai, entra: t.entra })
+        }
+        // Contagem por jogador que entra: cada troca do pedido conta 1 (RG-SUB-007).
         const c = set.contadores[p.equipe]
-        if (p.excepcional) c.substituicoesExcepcionais += 1
-        else c.substituicoesRegulares += 1
+        if (p.excepcional) c.substituicoesExcepcionais += trocas.length
+        else c.substituicoesRegulares += trocas.length
         if (eq) {
-          const pedido = { sai: p.sai, entra: p.entra }
           const r = p.excepcional
-            ? aplicarSubstituicaoExcepcional(eq[p.equipe], { ...pedido, motivo: p.motivo as MotivoExcepcional }, config.perfil)
-            : aplicarSubstituicaoRegular(eq[p.equipe], pedido, config.perfil)
+            ? aplicarSubstituicaoExcepcional(eq[p.equipe], { ...trocas[0]!, motivo: p.motivo as MotivoExcepcional }, config.perfil)
+            : aplicarSubstituicaoLote(eq[p.equipe], trocas, config.perfil)
           if (r.resultado.ok) eq[p.equipe] = r.estado
           else rejeitar(e.seq, r.resultado.codigo, r.resultado.mensagem)
         }
@@ -521,6 +737,7 @@ export function derivarPlacar(
         const p = e.payload
         if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.sai, p.entra) }
         else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.sai, p.entra) }
+        set.jornal.push({ tipo: 'TROCA', equipe: p.equipe, sai: p.sai, entra: p.entra })
         set.contadores[p.equipe].trocasLibero += 1
         if (eq) {
           const r = aplicarTrocaLibero(eq[p.equipe], { sai: p.sai, entra: p.entra }, { momento: p.momento ?? 'BOLA_FORA' })
@@ -535,6 +752,7 @@ export function derivarPlacar(
         const p = e.payload
         if (p.equipe === 'A') st.saque = { ...st.saque, formacaoA: trocarNaFormacao(st.saque.formacaoA, p.liberoIncapaz, p.novoLibero) }
         else st.saque = { ...st.saque, formacaoB: trocarNaFormacao(st.saque.formacaoB, p.liberoIncapaz, p.novoLibero) }
+        set.jornal.push({ tipo: 'TROCA', equipe: p.equipe, sai: p.liberoIncapaz, entra: p.novoLibero })
         set.contadores[p.equipe].redesignacoes += 1
         if (eq) {
           const pontosEquipe = p.equipe === 'A' ? set.placar.a : set.placar.b
@@ -645,10 +863,77 @@ export function derivarPlacar(
         observacoes.push({ seq: e.seq, texto: e.payload.texto })
         break
       }
-      case 'RALLY_REPETIDO':
+      case 'RALLY_REPETIDO': {
+        // RG-INT-001/002: o rally é repetido SEM ponto, o mesmo sacador volta a sacar e nada gira.
+        // Também não vale como rally concluído (não libera outro pedido de substituição nem nova troca de líbero).
+        const set = atual()
+        const codigo = e.payload.motivo === 'INTERFERENCIA_EXTERNA' ? 'RG-INT-002' : 'RG-INT-001'
+        if (!set || set.encerrado || !st.saque) {
+          rejeitar(e.seq, codigo, 'O rally só é repetido com um set em andamento.')
+          break
+        }
+        set.rallysRepetidos += 1
+        break
+      }
+      case 'DISCREPANCIA_PAPELETA': {
+        const set = atual()
+        const p = e.payload
+        if (!set || set.encerrado || !st.saque) {
+          rejeitar(e.seq, 'RG-FOR-007', 'Discrepância de papeleta sem set em andamento.')
+          break
+        }
+        const jogoIniciado = set.pontos.some((x) => x.seq !== set.inicioSeq)
+        const efeito = consequenciaDeDiscrepancia(p.fase, p.causa)
+        if (p.fase === 'ANTES_DO_SET' && jogoIniciado) {
+          rejeitar(e.seq, 'RG-FOR-008', 'O set já começou: a discrepância é tratada como descoberta depois do início (fase DEPOIS_DO_INICIO).')
+          break
+        }
+        if (p.fase === 'DEPOIS_DO_INICIO' && !jogoIniciado) {
+          rejeitar(e.seq, 'RG-FOR-007', 'O set ainda não começou: use a fase ANTES_DO_SET (sem sanção nem ponto).')
+          break
+        }
+        if (contexto && p.causa === 'JOGADOR_NAO_REGISTRADO' && p.jogador !== undefined && contexto.elenco[p.equipe].includes(p.jogador)) {
+          rejeitar(e.seq, 'RG-FOR-009', `O jogador ${p.jogador} consta na relação nominal; não é jogador não registrado.`)
+          break
+        }
+        discrepancias.push({ seq: e.seq, equipe: p.equipe, fase: p.fase, causa: p.causa, codigo: efeito.codigo, jogador: p.jogador ?? null })
+        if (p.fase === 'DEPOIS_DO_INICIO') {
+          reverterEPontuar(set, e.seq, p.equipe, p.momentoSeq ?? null, p.pontoDoRallyDaFaltaSeq ?? null, p.formacaoCorrigida, 'PAPELETA')
+        } else if (p.formacaoCorrigida) {
+          // Antes do set: as posições voltam à papeleta; a correção só confirma a formação já entregue.
+          const entregue = p.equipe === 'A' ? set.formacaoInicialA : set.formacaoInicialB
+          if (p.formacaoCorrigida.some((j, i) => j !== entregue[i])) {
+            rejeitar(e.seq, 'RG-FOR-006', 'Antes do set a formação volta à papeleta entregue; para mudar um jogador faça uma substituição regular.')
+          }
+        }
+        break
+      }
+      case 'CAPITAO_EM_JOGO': {
+        const set = atual()
+        if (!set || set.encerrado || !st.saque) {
+          rejeitar(e.seq, 'RG-ELE-005', 'O capitão em jogo é designado com um set em andamento.')
+          break
+        }
+        const q = e.payload.equipe
+        const r = validarDesignacaoDeCapitao({
+          capitao: contexto?.capitao?.[q],
+          designado: e.payload.jogador,
+          emQuadra: q === 'A' ? st.saque.formacaoA : st.saque.formacaoB,
+          ...(contexto ? { elenco: contexto.elenco[q] } : {}),
+          ...(eq ? { impedidos: jogadoresImpedidos(eq[q]) } : {}),
+        })
+        if (!r.ok) rejeitar(e.seq, r.codigo, r.mensagem)
+        else designados[q] = e.payload.jogador
+        break
+      }
+      case 'PROTESTO_ANUNCIADO':
+      case 'PROTESTO_REGISTRADO':
+      case 'PROTESTO_DESISTIDO':
+        tratarProtesto(e)
         break
     }
     sincronizarQuadra()
+    atualizarCapitaes()
   }
 
   const ganhos = contarGanhos(sets)
@@ -687,6 +972,9 @@ export function derivarPlacar(
     observacoes,
     inconsistencias,
     houveCancelamentoDePontos: houveCancelamento,
+    discrepanciasPapeleta: discrepancias,
+    capitaesEmJogo: capitaes,
+    protestos,
     ultimoSeq: log.length > 0 ? log[log.length - 1]!.seq : 0,
     estadoEquipes: eq,
   }

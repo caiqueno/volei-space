@@ -40,6 +40,40 @@ export function validarToleranciaDeWO(minutosDeAtraso: number, toleranciaMinutos
   return ok()
 }
 
+export interface AvaliacaoToleranciaWO {
+  resultado: ResultadoRegra
+  /** Minutos entre o horário previsto e agora (0 se ainda não chegou a hora). */
+  minutosDeAtraso: number
+  /** Tolerância aplicada; null quando o regulamento não a configurou. */
+  toleranciaMinutos: number | null
+}
+
+/**
+ * RG-WO-002 com horários: recebe o horário previsto e o atual (ISO ou Date) e a tolerância vinda da
+ * config (`toleranciaWOMinutos`; `toleranciaWODuploMinutos` no WO duplo, se houver). Função pura.
+ * Sem tolerância configurada o WO por atraso não pode ser declarado: o valor é do regulamento.
+ */
+export function avaliarToleranciaWO(
+  config: ConfigPartida,
+  params: { horarioPrevisto: string | Date; agora: string | Date; duplo?: boolean },
+): AvaliacaoToleranciaWO {
+  const previsto = new Date(params.horarioPrevisto).getTime()
+  const agora = new Date(params.agora).getTime()
+  const tolerancia = params.duplo ? (config.toleranciaWODuploMinutos ?? config.toleranciaWOMinutos) : config.toleranciaWOMinutos
+  if (Number.isNaN(previsto) || Number.isNaN(agora)) {
+    return { resultado: bloqueio('RG-WO-002', 'Horário previsto ou atual inválido: não dá para conferir a tolerância do WO.'), minutosDeAtraso: 0, toleranciaMinutos: tolerancia ?? null }
+  }
+  const minutosDeAtraso = Math.max(0, Math.floor((agora - previsto) / 60000))
+  if (tolerancia === undefined || tolerancia === null) {
+    return {
+      resultado: bloqueio('RG-WO-002', 'A tolerância de WO não está configurada para esta competição (ela vem do regulamento); o WO por atraso não pode ser declarado.'),
+      minutosDeAtraso,
+      toleranciaMinutos: null,
+    }
+  }
+  return { resultado: validarToleranciaDeWO(minutosDeAtraso, tolerancia), minutosDeAtraso, toleranciaMinutos: tolerancia }
+}
+
 function contarVencidos(sets: PlacarSet[]): { a: number; b: number } {
   let a = 0
   let b = 0
