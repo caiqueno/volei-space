@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { generateQRToken } from '@/lib/qrcode'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
+import { documentoParaLeitura, normalizarDocumentoEntrada } from '@/lib/uploads/documentos'
 import { mensagemDuplicataNaCategoria } from '@/lib/atleta-duplicado-consulta'
 
 const POSICOES_JOGADOR = ['LV', 'PT', 'OP', 'CT', 'LB'] as const
@@ -22,7 +23,8 @@ const jogadorCapitaoSchema = z.object({
   telefone: z.string().optional().nullable(),
   telefoneEmergencia: z.string().optional().nullable(),
   fotoRostoUrl: z.string().url().optional().nullable().or(z.literal('')),
-  documentosUrls: z.array(z.string().url()).max(8).optional(),
+  // Caminho do bucket privado (preferido) ou URL antiga do mesmo bucket; a posse é conferida no servidor.
+  documentosUrls: z.array(z.string().trim().min(1).max(500)).max(8).optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -57,7 +59,10 @@ export async function POST(req: NextRequest) {
   const parsed = jogadorCapitaoSchema.safeParse(body)
   if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
 
-  const payload = buildPlayerPayload(parsed.data, equipe.id)
+  const jaGravados = parsed.data.id ? await documentosGravados(parsed.data.id, equipe.id) : []
+  const documentos = (parsed.data.documentosUrls ?? []).map((valor) => normalizarDocumentoEntrada(valor, equipe, jaGravados))
+  if (documentos.some((item) => item === null)) return error('Documento inválido: envie o arquivo pela área de documentos do atleta.', 422)
+  const payload = buildPlayerPayload(parsed.data, equipe.id, documentos as string[])
 
   if (parsed.data.id) {
     const owns = await playerBelongsToTeam(parsed.data.id, equipe.id)
@@ -149,6 +154,11 @@ async function getEquipeDoCapitao(candidaturaId: string) {
   return ensureEquipeForCandidatura(candidaturaId)
 }
 
+async function documentosGravados(id: number, equipeId: number): Promise<string[]> {
+  const { data } = await supabase.from('Jogador').select('documentosUrls').eq('id', id).eq('equipeId', equipeId).maybeSingle()
+  return parseJsonArray(data?.documentosUrls).map(documentoParaLeitura).filter((item): item is string => Boolean(item))
+}
+
 async function playerBelongsToTeam(id: number, equipeId: number) {
   const { data } = await supabase
     .from('Jogador')
@@ -221,7 +231,7 @@ async function ensureRosterChangeAllowed(equipeId: number) {
   return null
 }
 
-function buildPlayerPayload(data: z.infer<typeof jogadorCapitaoSchema>, equipeId: number) {
+function buildPlayerPayload(data: z.infer<typeof jogadorCapitaoSchema>, equipeId: number, documentos: string[]) {
   const documentoTipo = data.documentoTipo?.trim() || (data.cpf ? 'CPF' : null)
   const rawDocumento = data.documentoNumero?.trim() || data.cpf?.trim() || null
   const documentoNumero = rawDocumento && documentoTipo === 'CPF' ? rawDocumento.replace(/\D/g, '') : rawDocumento
@@ -239,7 +249,7 @@ function buildPlayerPayload(data: z.infer<typeof jogadorCapitaoSchema>, equipeId
     telefoneEmergencia: data.telefoneEmergencia || null,
     fotoRostoUrl: data.fotoRostoUrl || null,
     fotoUrl: data.fotoRostoUrl || null,
-    documentosUrls: JSON.stringify(data.documentosUrls || []),
+    documentosUrls: JSON.stringify(documentos),
   }
 }
 
@@ -251,7 +261,9 @@ function normalizeJogador(jogador: any) {
     documentoTipo,
     documentoNumero,
     isLibero: String(jogador.posicao || '').toUpperCase() === 'LB',
-    documentosUrls: parseJsonArray(jogador.documentosUrls),
+    documentosUrls: parseJsonArray(jogador.documentosUrls)
+      .map(documentoParaLeitura)
+      .filter((item): item is string => Boolean(item)),
   }
 }
 
