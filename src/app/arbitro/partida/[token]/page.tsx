@@ -66,8 +66,8 @@ export default function OperacaoArbitroPage() {
   }, [token])
 
   useEffect(() => {
-    if (!partida || !jogoJaIniciado(partida.status)) return
-    window.location.replace(`/sumula/${encodeURIComponent(partida.sumulaToken || partida.id)}/lancar`)
+    if (!partida || !partida.sumulaToken || !jogoJaIniciado(partida.status)) return
+    window.location.replace(`/sumula/${encodeURIComponent(partida.sumulaToken)}/lancar`)
   }, [partida])
 
   useEffect(() => {
@@ -401,7 +401,7 @@ export default function OperacaoArbitroPage() {
         setMsg(json.error ?? 'Não foi possível iniciar a partida.')
         return
       }
-      const destino = json.data?.sumulaToken || json.data?.id || partida?.sumulaToken || partida?.id
+      const destino = json.data?.sumulaToken || partida?.sumulaToken
       if (!destino) {
         setMsg('A partida foi iniciada, mas a súmula não abriu. Use Abrir súmula.')
         setPartida((current: any) => ({ ...current, ...json.data }))
@@ -417,7 +417,7 @@ export default function OperacaoArbitroPage() {
 
   if (loading) return <Status title="Carregando operação" text="Buscando partida e equipes." />
   if (!partida) return <Status title="Partida indisponível" text={falha || 'Não foi possível abrir esta partida.'} error onRetry={() => fetchPartida(true)} />
-  if (jogoJaIniciado(partida.status)) return <Status title="Abrindo a súmula" text="Este jogo já começou. O credenciamento não se repete." />
+  if (jogoJaIniciado(partida.status) && partida.sumulaToken) return <Status title="Abrindo a súmula" text="Este jogo já começou. O credenciamento não se repete." />
 
   const janela = partida.janelaValidacao
   const liberada = Boolean(janela?.liberada)
@@ -484,13 +484,14 @@ export default function OperacaoArbitroPage() {
               <ClipboardCheck size={18} />
               Iniciar partida
             </ActionBar>
-            {String(partida.status || '').toUpperCase() === 'EM_ANDAMENTO' ? (
-              <Link href={`/sumula/${partida.sumulaToken || partida.id}/lancar`} className="referee-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition">
+            {String(partida.status || '').toUpperCase() === 'EM_ANDAMENTO' && partida.sumulaToken ? (
+              <Link href={`/sumula/${encodeURIComponent(partida.sumulaToken)}/lancar`} className="referee-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-wide transition">
                 Continuar lançamento
                 <ArrowRight size={18} />
               </Link>
             ) : null}
-            <Link href={`/sumula/${partida.sumulaToken || partida.id}`} className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
+            {/* Sem token (partida legada), /sumula/<id> abre só a consulta pública, sem lançamento. */}
+            <Link href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}className="referee-secondary inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
               Ver súmula
               <ArrowRight size={18} />
             </Link>

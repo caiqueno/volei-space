@@ -419,7 +419,9 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                             <span className="text-xs font-bold text-white/70">A súmula não pode iniciar enquanto os times não estiverem definidos.</span>
                           ) : (
                             <>
-                              <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}/lancar`}>Lançar súmula</a>
+                              {partida.sumulaToken ? (
+                                <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken)}/lancar`}>Lançar súmula</a>
+                              ) : null}
                               <a className="font-bold text-white/80" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
                             </>
                           )}
