@@ -110,7 +110,9 @@
     "test:regras-volei-wo": "node scripts/with-ts-node.mjs scripts/regras-volei-wo-interrupcao.test.ts",
     "test:regras-volei-eventos": "node scripts/with-ts-node.mjs scripts/regras-volei-eventos.test.ts",
     "test:regras-volei": "npm run test:regras-volei-set && npm run test:regras-volei-rotacao && npm run test:regras-volei-substituicoes && npm run test:regras-volei-libero && npm run test:regras-volei-sancoes && npm run test:regras-volei-wo && npm run test:regras-volei-eventos",
-    "test:regras-volei-estado-derivado": "node scripts/with-ts-node.mjs scripts/regras-volei-estado-derivado.test.ts"
+    "test:regras-volei-estado-derivado": "node scripts/with-ts-node.mjs scripts/regras-volei-estado-derivado.test.ts",
+    "test:sumula-eventos": "node scripts/with-ts-node.mjs scripts/sumula-eventos.test.ts",
+    "test:sumula-eventos-rota": "node scripts/with-ts-node.mjs scripts/sumula-eventos-rota.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

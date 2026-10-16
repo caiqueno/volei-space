@@ -333,6 +333,11 @@ export function derivarPlacar(
 
   for (const e of efetivos) {
     if (wo || aRepetir) {
+      // Observação continua valendo depois do fim (ex.: justificativa do WO).
+      if (e.tipo === 'OBSERVACAO') {
+        observacoes.push({ seq: e.seq, texto: e.payload.texto })
+        continue
+      }
       rejeitar(e.seq, 'RG-WO-001', 'Evento após o encerramento por WO/repetição da partida foi ignorado.')
       continue
     }
