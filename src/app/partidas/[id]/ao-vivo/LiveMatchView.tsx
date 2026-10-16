@@ -14,6 +14,7 @@ import { PlacarJogo } from '@/components/partidas/PlacarJogo'
 import { BotaoStoriesInstagram } from '@/components/stories/BotaoStoriesInstagram'
 import { cartazPartida, montarSumulaPublica } from '@/lib/stories-cartaz'
 import { ocorrenciaOperacional } from '@/lib/sumula-sessao'
+import { decidirFalhaAoVivo, esperaNovaTentativaMs, TEXTO_SEM_CONEXAO } from '@/lib/ao-vivo-conexao'
 
 type LiveMatch = {
   id: number
@@ -60,10 +61,18 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const recarregar = useRef<() => void>(() => {})
+  const [semConexao, setSemConexao] = useState(false)
+  const temPartida = useRef(false)
   const partidaNumero = Number(partidaId)
 
   useEffect(() => {
+    temPartida.current = Boolean(match)
+  }, [match])
+
+  useEffect(() => {
     let alive = true
+    let tentativas = 0
+    let timer: ReturnType<typeof setTimeout> | null = null
     const demoStorageKey = `luv-live-match-${partidaId}`
     function syncStoredDemo() {
       const stored = readStoredDemoMatch(partidaId)
@@ -79,15 +88,25 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
         const json = await res.json()
         if (!res.ok) throw new Error(json?.error || json?.message || 'Erro ao carregar partida')
         if (alive) {
+          tentativas = 0
           setMatch(readStoredDemoMatch(partidaId) ?? json.data)
           setError('')
+          setSemConexao(false)
           setLoading(false)
         }
       } catch (err) {
-        if (alive) {
+        if (!alive) return
+        // Falha isolada não derruba o placar já carregado: mantém o último e tenta de novo.
+        const decisao = decidirFalhaAoVivo(temPartida.current)
+        if (decisao.mostrarAvisoSemConexao) {
+          setSemConexao(true)
+          tentativas += 1
+          if (timer) clearTimeout(timer)
+          timer = setTimeout(() => { void load() }, esperaNovaTentativaMs(tentativas))
+        } else {
           setError(err instanceof Error ? err.message : 'Erro ao carregar acompanhamento')
-          setLoading(false)
         }
+        setLoading(false)
       }
     }
     recarregar.current = () => { void load() }
@@ -98,6 +117,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
     window.addEventListener('storage', handleStorage)
     return () => {
       alive = false
+      if (timer) clearTimeout(timer)
       window.removeEventListener('storage', handleStorage)
     }
   }, [partidaId])
@@ -127,7 +147,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
     )
   }
 
-  if (error || !match || !match.equipeA || !match.equipeB) {
+  if (!match || !match.equipeA || !match.equipeB || (error && !temPartida.current)) {
     return (
       <Root className={classe}>
         <section className="live-match-state is-error"><ShieldCheck size={24} /><h1>Partida indisponível</h1><p>{error || 'Não foi possível encontrar esta partida.'}</p></section>
@@ -142,6 +162,7 @@ export default function LiveMatchView({ partidaId, embutido = false }: { partida
 
   return (
     <Root className={classe}>
+      {semConexao && <p role="status" aria-live="polite" data-testid="aviso-sem-conexao" className="mx-auto mb-3 w-fit rounded-full border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-xs font-black text-amber-100">{TEXTO_SEM_CONEXAO}. Mostrando o último placar recebido.</p>}
       <section className="live-match-hero">
         <div>
           <div className="live-match-hero-top">
