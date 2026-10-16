@@ -1,0 +1,134 @@
+# Contrato PROPOSTO (não implementado) da API de eventos da súmula.
+# Formato de resposta do projeto: { data } em sucesso, { error } em falha.
+# Os códigos RG-* vêm de src/lib/regras-volei e do 03-regras-validaveis.md.
+openapi: 3.0.3
+info:
+  title: volei.space - eventos da súmula
+  version: 0.1.0-proposta
+paths:
+  /api/sumula/{token}/eventos:
+    parameters:
+      - { name: token, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Lista o log de eventos e o placar derivado
+      parameters:
+        - { name: apartirDeSeq, in: query, schema: { type: integer, minimum: 0 } }
+      responses:
+        '200':
+          description: Log (append-only) e placar derivado pelo motor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      eventos: { type: array, items: { $ref: '#/components/schemas/SumulaEvento' } }
+                      placar: { $ref: '#/components/schemas/PlacarDerivado' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '404': { $ref: '#/components/responses/Erro' }
+    post:
+      summary: Anexa um evento (validado pelo motor no servidor; idempotente)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipo, payload, clientEventId, seqEsperado]
+              properties:
+                tipo: { $ref: '#/components/schemas/Tipo' }
+                payload: { type: object }
+                clientEventId: { type: string, format: uuid }
+                desfazId: { type: integer, nullable: true, description: 'Obrigatório só em DESFAZ' }
+                seqEsperado: { type: integer, description: 'Último seq conhecido pelo cliente (concorrência otimista)' }
+      responses:
+        '201':
+          description: Evento gravado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      evento: { $ref: '#/components/schemas/SumulaEvento' }
+                      placar: { $ref: '#/components/schemas/PlacarDerivado' }
+                      avisos: { type: array, items: { $ref: '#/components/schemas/Aviso' } }
+        '200':
+          description: Reenvio idempotente (mesmo clientEventId); devolve o evento já gravado
+        '400': { $ref: '#/components/responses/Erro' }
+        '401': { $ref: '#/components/responses/Erro' }
+        '409':
+          description: seqEsperado desatualizado (outro apontador gravou antes) ou conflito de sessão
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroRegra' }
+        '422':
+          description: Regra de jogo violada. error.codigo = RG-XXX-000 e mensagem em português
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroRegra' }
+components:
+  responses:
+    Erro:
+      description: Falha genérica
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErroRegra' }
+  schemas:
+    Tipo:
+      type: string
+      enum:
+        - SET_INICIADO
+        - PONTO
+        - RALLY_REPETIDO
+        - SUBSTITUICAO
+        - TEMPO
+        - TROCA_LIBERO
+        - REDESIGNACAO_LIBERO
+        - SANCAO
+        - FALTA_POSICAO
+        - FALTA_ROTACAO
+        - TROCA_LADO
+        - SET_ANULADO
+        - INTERRUPCAO
+        - WO
+        - EQUIPE_INCOMPLETA
+        - OBSERVACAO
+        - DESFAZ
+    SumulaEvento:
+      type: object
+      required: [seq, tipo, payload, clientEventId, desfazId]
+      properties:
+        seq: { type: integer, minimum: 1 }
+        tipo: { $ref: '#/components/schemas/Tipo' }
+        payload: { type: object }
+        clientEventId: { type: string }
+        desfazId: { type: integer, nullable: true }
+        criadoEm: { type: string, format: date-time }
+    Aviso:
+      type: object
+      properties:
+        codigo: { type: string, example: RG-SUB-001 }
+        mensagem: { type: string }
+    ErroRegra:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            codigo: { type: string, example: RG-SUB-001 }
+            mensagem: { type: string }
+    PlacarDerivado:
+      type: object
+      properties:
+        status: { type: string, enum: [NAO_INICIADA, EM_ANDAMENTO, ENCERRADA, WO, A_REPETIR] }
+        setsGanhos: { type: object, properties: { a: { type: integer }, b: { type: integer } } }
+        saca: { type: string, enum: [A, B], nullable: true }
+        vencedor: { type: string, enum: [A, B], nullable: true }
+        houveCancelamentoDePontos: { type: boolean }
+        ultimoSeq: { type: integer }
+        sets: { type: array, items: { type: object } }

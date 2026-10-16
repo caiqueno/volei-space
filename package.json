@@ -97,10 +97,18 @@
     "test:ida-volta": "node scripts/with-ts-node.mjs scripts/ida-volta.test.ts",
     "test:conflito-agenda": "node scripts/with-ts-node.mjs scripts/conflito-agenda.test.ts",
     "test:contador-troca": "node scripts/with-ts-node.mjs scripts/contador-troca.test.ts",
-    "test:atribuicao-ponto":"node scripts/with-ts-node.mjs scripts/atribuicao-ponto.test.ts",
-    "test:ao-vivo-conexao":"node scripts/with-ts-node.mjs scripts/ao-vivo-conexao.test.ts",
-    "test:elenco-inscricao":"node scripts/with-ts-node.mjs scripts/elenco-inscricao.test.ts",
-    "test:stories-instagram":"node scripts/with-ts-node.mjs scripts/stories-instagram.test.ts"
+    "test:atribuicao-ponto": "node scripts/with-ts-node.mjs scripts/atribuicao-ponto.test.ts",
+    "test:ao-vivo-conexao": "node scripts/with-ts-node.mjs scripts/ao-vivo-conexao.test.ts",
+    "test:elenco-inscricao": "node scripts/with-ts-node.mjs scripts/elenco-inscricao.test.ts",
+    "test:stories-instagram": "node scripts/with-ts-node.mjs scripts/stories-instagram.test.ts",
+    "test:regras-volei-set": "node scripts/with-ts-node.mjs scripts/regras-volei-set.test.ts",
+    "test:regras-volei-rotacao": "node scripts/with-ts-node.mjs scripts/regras-volei-rotacao.test.ts",
+    "test:regras-volei-substituicoes": "node scripts/with-ts-node.mjs scripts/regras-volei-substituicoes.test.ts",
+    "test:regras-volei-libero": "node scripts/with-ts-node.mjs scripts/regras-volei-libero.test.ts",
+    "test:regras-volei-sancoes": "node scripts/with-ts-node.mjs scripts/regras-volei-sancoes.test.ts",
+    "test:regras-volei-wo": "node scripts/with-ts-node.mjs scripts/regras-volei-wo-interrupcao.test.ts",
+    "test:regras-volei-eventos": "node scripts/with-ts-node.mjs scripts/regras-volei-eventos.test.ts",
+    "test:regras-volei": "npm run test:regras-volei-set && npm run test:regras-volei-rotacao && npm run test:regras-volei-substituicoes && npm run test:regras-volei-libero && npm run test:regras-volei-sancoes && npm run test:regras-volei-wo && npm run test:regras-volei-eventos"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
