@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { interpretarListaColada, motivoBloqueioConcluir, resumirElenco, separarNovosAtletas } from '../src/lib/elenco-inscricao'
+import { interpretarListaColada, localizarAtletaComProblema, motivoBloqueioConcluir, resumirElenco, separarNovosAtletas } from '../src/lib/elenco-inscricao'
 
 const lista = interpretarListaColada([
   'Maria Souza, 10',
@@ -21,6 +21,22 @@ assert.equal(lista.ignoradas[0].linha, 9)
 
 const crlf = interpretarListaColada('Ana Lima, 7\r\nBia Souza, 08\r\n')
 assert.deepEqual(crlf.atletas, [{ nome: 'Ana Lima', numero: '7' }, { nome: 'Bia Souza', numero: '8' }])
+
+// "7. Ana" fora de uma lista 1,2,3 é camisa; lista sequencial continua sendo só marcador.
+const camisaComPonto = interpretarListaColada('7. Ana\n10) Bia\n3. Carla')
+assert.deepEqual(camisaComPonto.atletas, [
+  { nome: 'Ana', numero: '7' }, { nome: 'Bia', numero: '10' }, { nome: 'Carla', numero: '3' },
+])
+const sequencial = interpretarListaColada('1. Ana\n2. Bia\n3) Carla')
+assert.deepEqual(sequencial.atletas, [
+  { nome: 'Ana', numero: '' }, { nome: 'Bia', numero: '' }, { nome: 'Carla', numero: '' },
+])
+
+const elencoProblema = [{ id: 1, nome: 'Ana Lima' }, { id: 2, nome: 'Bia Souza' }, { nome: 'Sem Id' }]
+assert.equal(localizarAtletaComProblema(['O atleta bia  souza não tem CPF.'], elencoProblema), 2)
+assert.equal(localizarAtletaComProblema(['Atleta ANA LIMA repetida', 'Bia Souza'], elencoProblema), 1)
+assert.equal(localizarAtletaComProblema(['Elenco abaixo do mínimo'], elencoProblema), null)
+assert.equal(localizarAtletaComProblema(['Sem Id inválido'], elencoProblema), null)
 
 const sep = separarNovosAtletas(
   [{ nome: 'ana  lima', numero: '7' }, { nome: 'Nova', numero: '10' }, { nome: 'Outra', numero: '11' }, { nome: 'Outra', numero: '' }],
