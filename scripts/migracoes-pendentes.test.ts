@@ -29,7 +29,7 @@ function ler(dir: string, nome: string): string {
 
 const pendentes = listarSql(dirPendentes)
 const rollbacks = listarSql(dirRollback)
-assert.ok(pendentes.length >= 31, 'esperava ao menos 31 migrations pendentes')
+assert.ok(pendentes.length >= 32, 'esperava ao menos 32 migrations pendentes')
 
 // 1) Cada migration tem reversão de mesmo nome e vice-versa.
 assert.deepEqual(rollbacks, pendentes, 'cada migration pendente precisa de rollback de mesmo nome')
@@ -188,6 +188,35 @@ assert.ok(!/\bcreate\s+policy\b/i.test(rb31), 'reversão da 0031 não recria pol
 assert.ok(!/visibilidade/i.test(rb31), 'reversão deve devolver as expressões originais, sem visibilidade')
 assert.match(rb31, /'categoria_publica',\s*\$e\$\s*true\s*\$e\$/i)
 assert.match(rb31, /begin;\s*set\s+local\s+lock_timeout/i)
+
+// 5e) Rodada 8: LGPD de menores (0032): consentimento do responsável e auditoria de exclusão.
+const nome32 = '202610170032_lgpd_menores_consentimento.sql'
+assert.ok(pendentes.includes(nome32), 'falta a 0032')
+const bruto32 = ler(dirPendentes, nome32)
+const sql32 = sqlPendente[nome32]
+assert.match(bruto32, /PRÉ-REQUISITOS[\s\S]*202610170025/, 'cabeçalho da 0032 precisa citar a 0025')
+for (const secao of ['OBJETIVO', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+  assert.ok(bruto32.includes(secao), `0032 sem seção ${secao}`)
+}
+assert.match(sql32, /^\s*begin;\s*set\s+local\s+lock_timeout/i)
+assert.match(sql32, /commit;\s*$/i)
+for (const tabela of ['AtletaConsentimento', 'AtletaExclusaoPedido']) {
+  assert.match(sql32, new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\."${tabela}"`, 'i'))
+  assert.ok(sql32.includes(`'${tabela}'`), `0032 sem RLS/revoke no laço para ${tabela}`)
+}
+assert.match(sql32, /enable\s+row\s+level\s+security/i)
+assert.match(sql32, /revoke\s+all\s+on\s+table\s+public\.%I\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql32, /grant\s+select,\s*insert,\s*update,\s*delete\s+on\s+table\s+public\.%I\s+to\s+service_role/i)
+assert.ok(!/\bto\s+(anon|authenticated|public)\b/i.test(sql32), '0032 não pode conceder nada a anon/authenticated')
+assert.match(sql32, /"responsavelContatoCifrado"\s+bytea/i, 'contato do responsável deve ser cifrado (bytea)')
+assert.match(sql32, /"revogadoEm"/)
+assert.match(sql32, /unique\s+index\s+if\s+not\s+exists\s+"AtletaConsentimento_ativo_key"[\s\S]*where\s+"revogadoEm"\s+is\s+null/i)
+assert.match(sql32, /add\s+column\s+if\s+not\s+exists\s+"anonimizadoEm"/i)
+assert.ok(!/\b(update|delete|truncate)\b\s+(from\s+)?public/i.test(sql32), '0032 não altera dados')
+const rb32 = sqlSemComentario(ler(dirRollback, nome32))
+assert.ok(!/\bgrant\b/i.test(rb32), 'reversão da 0032 não concede nada')
+assert.match(rb32, /drop\s+table\s+if\s+exists\s+public\."AtletaConsentimento"/i)
+assert.match(rb32, /begin;\s*set\s+local\s+lock_timeout/i)
 for (const politica of ['luv_public_select_liga', 'luv_public_select_equipe', 'luv_public_select_partida', 'categoria_publica']) {
   assert.ok(sqlOficial.includes(politica), `policy ${politica} não existe em supabase/migrations`)
 }

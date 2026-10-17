@@ -144,7 +144,7 @@ assert.equal(dataNascimentoValida('10/05/2000', HOJE), false)
 assert.equal(resumoProntidao([]).mensagem, 'Seu time ainda não tem atletas. Adicione os primeiros para se inscrever.')
 {
   const lista = [...Array(7).fill({ temDocumento: true }), { temDocumento: false }, { temDocumento: false }]
-  assert.deepEqual(resumoProntidao(lista), { atletas: 9, semDocumento: 2, mensagem: 'Seu time tem 9 atletas. 2 estão sem documento.' })
+  assert.deepEqual(resumoProntidao(lista), { atletas: 9, semDocumento: 2, semAutorizacaoResponsavel: 0, mensagem: 'Seu time tem 9 atletas. 2 estão sem documento.' })
   assert.equal(resumoProntidao([{ temDocumento: false }]).mensagem, 'Seu time tem 1 atleta. 1 está sem documento.')
   assert.equal(resumoProntidao([{ temDocumento: true }]).mensagem, 'Seu time tem 1 atleta. Tudo certo.')
 }

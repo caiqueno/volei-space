@@ -1,5 +1,5 @@
 import { lerCorpo, rotaMeuTime, sucesso, validar } from '@/lib/meu-time/acesso'
-import { exigirEquipe, editarEquipe, listarAtletasDoClube, listarComissaoTolerante, listarMembros, paraAtleta } from '@/lib/meu-time/dados'
+import { exigirEquipe, editarEquipe, listarAtletasPublicos, listarComissaoTolerante, listarMembros } from '@/lib/meu-time/dados'
 import { listarInscricoesDaEquipe } from '@/lib/meu-time/inscricao'
 import { resumoProntidao } from '@/lib/meu-time/regras'
 import { editarEquipeSchema } from '@/lib/meu-time/schemas'
@@ -11,13 +11,12 @@ type Params = { id: string }
 // GET /api/meu-time/equipes/:id: detalhe da equipe (só para quem é membro dela). `comissao` = comissão técnica; `membros` = contas com acesso.
 export const GET = rotaMeuTime<Params>(async ({ usuarioId, params }) => {
   const { equipe, papel } = await exigirEquipe(usuarioId, params.id, 'leitura')
-  const [linhas, comissao, membros, inscricoes] = await Promise.all([
-    listarAtletasDoClube(equipe.clubeId),
+  const [atletas, comissao, membros, inscricoes] = await Promise.all([
+    listarAtletasPublicos(equipe.clubeId),
     listarComissaoTolerante(equipe.id),
     listarMembros(equipe.id),
     listarInscricoesDaEquipe(equipe.id),
   ])
-  const atletas = linhas.map(paraAtleta)
   return sucesso({
     equipe: { id: equipe.id, nome: equipe.nome, cidade: equipe.cidade, naipe: equipe.naipe, escudoUrl: equipe.escudoUrl },
     // Papel de quem está logado nesta equipe: a tela usa para mostrar ou esconder botões de gestão.

@@ -12,6 +12,8 @@ import {
   violacaoUnica,
 } from '@/lib/meu-time/acesso'
 import { chaveAtleta, resumoProntidao, type AtletaDoBanco, type Naipe } from '@/lib/meu-time/regras'
+import { anonimizarAtleta, consentimentosAtivos, registrarConsentimento, type EntradaResponsavel } from '@/lib/lgpd/consentimento'
+import { ehMenorDeIdade } from '@/lib/lgpd/idade'
 
 export type PapelEquipe = 'RESPONSAVEL' | 'TECNICO' | 'ASSISTENTE' | 'CAPITAO'
 export type Permissao = 'leitura' | 'escrita' | 'responsavel'
@@ -40,6 +42,10 @@ export type AtletaPublico = {
   numeroPreferido: number | null
   posicao: string | null
   temDocumento: boolean
+  /** Calculado no servidor pela data de nascimento (menor de 18 anos). */
+  menor: boolean
+  /** Menor sem autorização ativa do responsável legal. Nunca há contato do responsável aqui. */
+  consentimentoPendente: boolean
 }
 
 function paraEquipe(linha: any): EquipeBanco {
@@ -58,7 +64,8 @@ function linhaTemDocumento(linha: any) {
 }
 
 /** Projeção pública: whitelist de campos, nunca espalha a linha do banco. */
-export function paraAtleta(linha: any): AtletaPublico {
+export function paraAtleta(linha: any, comConsentimento: ReadonlySet<string> = new Set()): AtletaPublico {
+  const menor = ehMenorDeIdade(linha.dataNascimento)
   return {
     id: linha.id,
     nome: linha.nome,
@@ -66,16 +73,32 @@ export function paraAtleta(linha: any): AtletaPublico {
     numeroPreferido: linha.numeroPreferido ?? null,
     posicao: linha.posicao ?? null,
     temDocumento: linhaTemDocumento(linha),
+    menor,
+    consentimentoPendente: menor && !comConsentimento.has(linha.id),
   }
 }
 
-export function paraAtletaDoBanco(linha: any): AtletaDoBanco {
+/** Ids dos atletas menores (entre `linhas`) que têm autorização ativa. */
+export async function idsComConsentimento(linhas: any[]): Promise<Set<string>> {
+  const menores = linhas.filter((linha) => ehMenorDeIdade(linha.dataNascimento)).map((linha) => linha.id as string)
+  return new Set(Array.from((await consentimentosAtivos(menores)).keys()))
+}
+
+export async function listarAtletasPublicos(clubeId: string): Promise<AtletaPublico[]> {
+  const linhas = await listarAtletasDoClube(clubeId)
+  const com = await idsComConsentimento(linhas)
+  return linhas.map((linha) => paraAtleta(linha, com))
+}
+
+export function paraAtletaDoBanco(linha: any, comConsentimento: ReadonlySet<string> = new Set()): AtletaDoBanco {
+  const menor = ehMenorDeIdade(linha.dataNascimento)
   return {
     id: linha.id,
     nome: linha.nome,
     dataNascimento: linha.dataNascimento ? String(linha.dataNascimento).slice(0, 10) : null,
     sexo: linha.sexo ?? null,
     temDocumento: linhaTemDocumento(linha),
+    consentimentoPendente: menor && !comConsentimento.has(linha.id),
   }
 }
 
@@ -116,12 +139,12 @@ export async function listarAtletasDoClube(clubeId: string): Promise<any[]> {
 }
 
 export async function resumirEquipes(equipes: EquipeBanco[]) {
-  const porClube = new Map<string, any[]>()
+  const porClube = new Map<string, AtletaPublico[]>()
   for (const clubeId of Array.from(new Set(equipes.map((item) => item.clubeId)))) {
-    porClube.set(clubeId, await listarAtletasDoClube(clubeId))
+    porClube.set(clubeId, await listarAtletasPublicos(clubeId))
   }
   return equipes.map((equipe) => {
-    const atletas = (porClube.get(equipe.clubeId) ?? []).map(paraAtleta)
+    const atletas = porClube.get(equipe.clubeId) ?? []
     return {
       id: equipe.id,
       nome: equipe.nome,
@@ -228,11 +251,22 @@ function chavesDoBanco(atletas: any[]) {
   return new Set(atletas.map((item) => chaveAtleta(item.nome, item.dataNascimento)))
 }
 
+export type AutorizacaoResponsavel = { responsavel?: EntradaResponsavel; aceiteResponsavel?: true }
+
+/** Responsável só se coleta para menor de 18 anos (minimização); para maior, o envio é rejeitado. */
+function exigirResponsavelCoerente(menor: boolean, entrada: AutorizacaoResponsavel) {
+  if (!menor && (entrada.responsavel || entrada.aceiteResponsavel)) {
+    throw new ErroMeuTime('Dados do responsável só são aceitos para atleta menor de 18 anos.', 422, 'RESPONSAVEL_DESNECESSARIO')
+  }
+}
+
 export async function adicionarAtleta(
   usuarioId: string,
   clubeId: string,
-  entrada: { nome: string; dataNascimento: string; numeroPreferido?: number | null; posicao?: string | null },
+  entrada: { nome: string; dataNascimento: string; numeroPreferido?: number | null; posicao?: string | null } & AutorizacaoResponsavel,
 ): Promise<AtletaPublico> {
+  const menor = ehMenorDeIdade(entrada.dataNascimento)
+  exigirResponsavelCoerente(menor, entrada)
   const existentes = await listarAtletasDoClube(clubeId)
   if (chavesDoBanco(existentes).has(chaveAtleta(entrada.nome, entrada.dataNascimento))) {
     throw new ErroMeuTime('Este atleta já está no banco do time (mesmo nome e data de nascimento).', 409, 'ATLETA_DUPLICADO')
@@ -253,7 +287,19 @@ export async function adicionarAtleta(
     await supabase.from('Atleta').delete().eq('id', atleta.id)
     lerDados(vinculo, 'vincular atleta')
   }
-  return paraAtleta(atleta)
+  const com = new Set<string>()
+  if (menor && entrada.responsavel && entrada.aceiteResponsavel) {
+    try {
+      await registrarConsentimento(usuarioId, atleta.id, entrada.responsavel)
+      com.add(atleta.id)
+    } catch (erro) {
+      // Quem pediu o aceite não fica com cadastro pela metade: desfaz o atleta e devolve o erro (ex.: 503 sem chave de cifra).
+      await supabase.from('VinculoAtletaClube').delete().eq('atletaId', atleta.id)
+      await supabase.from('Atleta').delete().eq('id', atleta.id)
+      throw erro
+    }
+  }
+  return paraAtleta(atleta, com)
 }
 
 export type EntradaLote = { nome: string; numero?: number | string | null; dataNascimento?: string | null; posicao?: string | null }
@@ -343,17 +389,20 @@ export async function adicionarLote(usuarioId: string, clubeId: string, entrada:
     await supabase.from('Atleta').delete().in('id', criados.map((item) => item.id))
     lerDados(vinculo, 'vincular atletas')
   }
-  return { criados: criados.map(paraAtleta), ignorados }
+  return { criados: criados.map((linha) => paraAtleta(linha)), ignorados }
 }
 
 export async function editarAtleta(
   clubeId: string,
   atletaId: string,
-  entrada: { nome?: string; dataNascimento?: string; numeroPreferido?: number | null; posicao?: string | null },
+  entrada: { nome?: string; dataNascimento?: string; numeroPreferido?: number | null; posicao?: string | null } & AutorizacaoResponsavel,
+  usuarioId = '',
 ): Promise<AtletaPublico> {
   const atual = await exigirAtletaDoClube(clubeId, atletaId)
   const nome = entrada.nome ?? atual.nome
   const nascimento = entrada.dataNascimento ?? (atual.dataNascimento ? String(atual.dataNascimento).slice(0, 10) : null)
+  const menor = ehMenorDeIdade(nascimento)
+  exigirResponsavelCoerente(menor, entrada)
   const outros = (await listarAtletasDoClube(clubeId)).filter((item) => item.id !== atletaId)
   if (nascimento && chavesDoBanco(outros).has(chaveAtleta(nome, nascimento))) {
     throw new ErroMeuTime('Já existe um atleta com esse nome e data de nascimento no banco do time.', 409, 'ATLETA_DUPLICADO')
@@ -371,21 +420,20 @@ export async function editarAtleta(
   }
   const linha = lerDados(resposta, 'editar atleta')
   if (!linha) throw new ErroMeuTime('Atleta não encontrado.', 404, 'ATLETA_NAO_ENCONTRADO')
-  return paraAtleta(linha)
+  if (menor && entrada.responsavel && entrada.aceiteResponsavel) {
+    await registrarConsentimento(usuarioId, atletaId, entrada.responsavel)
+  }
+  return paraAtleta(linha, await idsComConsentimento([linha]))
 }
 
-/** Remove do banco do time (vínculo INATIVO). O cadastro do atleta e as cópias em inscrições ficam. */
-export async function removerAtleta(clubeId: string, atletaId: string) {
+/**
+ * Pedido de exclusão do atleta: anonimiza a PII (cpf, documento, foto, contato do responsável), registra o
+ * pedido (quem, quando, motivo) e tira o atleta do banco do time. O histórico de jogos e as cópias em
+ * inscrições permanecem (ver src/lib/lgpd/consentimento.ts).
+ */
+export async function removerAtleta(usuarioId: string, clubeId: string, atletaId: string, motivo: string | null = null) {
   await exigirAtletaDoClube(clubeId, atletaId)
-  lerDados(
-    await supabase
-      .from('VinculoAtletaClube')
-      .update({ status: 'INATIVO', ate: new Date().toISOString().slice(0, 10) })
-      .eq('clubeId', clubeId)
-      .eq('atletaId', atletaId)
-      .select('atletaId'),
-    'remover atleta do time',
-  )
+  return anonimizarAtleta(usuarioId, clubeId, atletaId, motivo)
 }
 
 // --- Acesso à equipe (contas) -------------------------------------------------
