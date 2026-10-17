@@ -4,6 +4,7 @@
  */
 import type { ConfigPartida, ContextoDerivacao } from '@/lib/regras-volei'
 import { carregarLinhas, linhasParaLog, sumulaEventosAtivo, type ClienteEventos } from '@/lib/sumula-eventos'
+import type { AcaoScout } from './modelo'
 import { montarResumo, type ResumoScout } from './exportacao'
 
 export const MENSAGEM_EVENTOS_INDISPONIVEIS = 'Eventos da súmula ainda não habilitados neste ambiente.'
@@ -15,7 +16,7 @@ export type ResultadoLeituraScout =
 
 export async function lerResumoScout(
   cliente: ClienteEventos,
-  entrada: { partidaId: number; config: ConfigPartida; contexto?: ContextoDerivacao; geradoEm?: string },
+  entrada: { partidaId: number; config: ConfigPartida; contexto?: ContextoDerivacao; acoes?: readonly AcaoScout[]; geradoEm?: string },
   env: Record<string, string | undefined> = process.env,
 ): Promise<ResultadoLeituraScout> {
   if (!sumulaEventosAtivo(env)) return { tipo: 'INDISPONIVEL', mensagem: MENSAGEM_EVENTOS_INDISPONIVEIS }
@@ -33,6 +34,7 @@ export async function lerResumoScout(
       log,
       config: entrada.config,
       contexto: entrada.contexto,
+      acoes: entrada.acoes,
       geradoEm: entrada.geradoEm,
     }),
   }

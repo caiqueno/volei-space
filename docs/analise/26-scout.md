@@ -1,6 +1,24 @@
 # 26 - Scout (base), Rodada 10
 
-Estado: **implementado como base, atrás de flag, só leitura**. Não há lançamento manual de scout, não há tabela de ações e não há exportação `.dvw`.
+Estado: **base (R10) e lançamento manual (R11) implementados, atrás de flag `SCOUT_ATIVO=1`**. Não há exportação `.dvw`. O lançamento manual depende da tabela `"ScoutAcao"` (migration 0040, a cargo do agente `banco-de-dados`); sem ela as rotas de ações respondem 503 e o resumo segue só com o derivado do log.
+
+## R11: lançamento manual de ações
+
+Código: `src/lib/scout/acoes.ts`, `src/app/api/scout/[token]/acoes/route.ts` (GET, POST) e `acoes/[id]/route.ts` (DELETE). Teste: `npm run test:scout-acoes`.
+
+| Rota | Acesso | Resposta |
+| --- | --- | --- |
+| `POST /api/scout/[token]/acoes` | escrita da súmula (`requireArbitroPartidaAccess`: apontador, árbitro escalado, organizador dono; campeonato finalizado = 409) | 201 `{ data: { acao } }`; repetição do mesmo `clientEventId` = 200 com a mesma ação |
+| `GET /api/scout/[token]/acoes?set=` | leitura da súmula | 200 `{ data: [acao] }` (sem anuladas, ordem de lançamento); `set` fora de 1-5 = 400 |
+| `DELETE /api/scout/[token]/acoes/[id]` | escrita da súmula | 200 `{ data: { acao } }` com `anuladoEm`; anular de novo = 200 (idempotente); id inexistente ou de outra partida = 404 |
+
+Corpo do POST: `clientEventId` (obrigatório, até 100, `[A-Za-z0-9_.:-]`), `setNumero` (1-5), `equipeId`, `jogadorId?`, `fundamento`, `resultado`, `zonaOrigem?`, `zonaDestino?` (1-9), `rotacao?` (1-6), `placarA?`, `placarB?` (placar do set antes da ação). Validado por zod e por `validarAcao`. Erros: 400 dados inválidos; 422 equipe fora da partida ou jogador que não pertence à equipe; 503 `Recurso ainda não habilitado neste ambiente.` (tabela ausente); flag desligada = 404.
+
+Idempotência por `(partidaId, clientEventId)`; reenviar uma ação já anulada devolve a mesma ação anulada (200), não a recria. Placar ausente vira 0 na agregação/exportação (campo é "placar antes").
+
+### Exportação e resumo com ações manuais
+
+`GET /resumo` e `GET /exportar` incluem as ações não anuladas (`agregarAcoes`). Tabela ausente = lista vazia (não derruba o resumo). **Versões novas:** JSON `scout-json-2`, CSV `scout-csv-2`. Mudanças em relação à versão 1: CSV ganha as colunas `acao_id` e `criado_em` (no fim; linhas `ACAO` as preenchem), JSON `acoes[]` ganha `criadoEm`, e as lacunas "sem lançamento manual" e "zonas dependem de scout manual" saem quando há ações (entra a lacuna de cobertura parcial).
 
 Código: `src/lib/scout/` (modelo, derivação, estatísticas, exportação, leitura do servidor), `src/app/api/scout/[token]/{resumo,exportar}/route.ts`. Testes: `npm run test:scout` (`scripts/scout.test.ts`, `scripts/scout-rota.test.ts`).
 
@@ -39,7 +57,7 @@ O log guarda **quem ganhou o rally**, não o que aconteceu nele. Portanto:
 
 ## Modelo e estatísticas (prontos para o scout manual)
 
-`AcaoScout`: set, placar antes, equipe, `jogadorId` (nunca nome), fundamento (SAQUE, RECEPCAO, LEVANTAMENTO, ATAQUE, BLOQUEIO, DEFESA, CONTRA_ATAQUE), resultado (PONTO, ERRO, CONTINUA, NEUTRO), rotação 1-6, posição 1-6, zonas 1-9, origem MANUAL/DERIVADA. `validarAcao` confere os domínios. Hoje a lista de ações é sempre vazia.
+`AcaoScout`: set, placar antes, equipe, `jogadorId` (nunca nome), fundamento (SAQUE, RECEPCAO, LEVANTAMENTO, ATAQUE, BLOQUEIO, DEFESA, CONTRA_ATAQUE), resultado (PONTO, ERRO, CONTINUA, NEUTRO), rotação 1-6, posição 1-6, zonas 1-9, origem MANUAL/DERIVADA. `validarAcao` confere os domínios.
 
 Agregação por jogador, equipe e set (`agregarAcoes`). **Convenções propostas, a validar com o produto:**
 
@@ -51,13 +69,13 @@ Agregação por jogador, equipe e set (`agregarAcoes`). **Convenções propostas
 
 ## Exportação
 
-**JSON** (`scout-json-1`): objeto com `versaoEsquema` como primeira chave, `partidaId`, `geradoEm`, `derivado`, `acoes`, `estatisticas`, `lacunas`. Campo novo compatível mantém a versão; remoção ou mudança de significado exige nova versão. Cabeçalhos `Content-Disposition: attachment` e `X-Scout-Esquema`.
+**JSON** (`scout-json-2`): objeto com `versaoEsquema` como primeira chave, `partidaId`, `geradoEm`, `derivado`, `acoes`, `estatisticas`, `lacunas`. Campo novo compatível mantém a versão; remoção ou mudança de significado exige nova versão. Cabeçalhos `Content-Disposition: attachment` e `X-Scout-Esquema`.
 
-**CSV** (`scout-csv-1`): UTF-8 **com BOM**, separador `;` (Excel/LibreOffice pt-BR abrem direto), fim de linha CRLF, uma tabela só. Colunas fixas, nesta ordem: `versao_esquema, partida_id, tipo_registro, set, seq, equipe, jogador, fundamento, resultado, rotacao, rotacao_adversaria, posicao, zona_origem, zona_destino, placar_a_antes, placar_b_antes, origem, tipo_ponto, sacador_equipe, sacador_jogador, sequencia_atual, sai, entra, detalhe`. `versao_esquema` vai em toda linha. `tipo_registro`: `PONTO`, `TEMPO`, `SUBSTITUICAO`, `ACAO`. Texto iniciado por `= + - @` recebe apóstrofo (injeção de fórmula). Só ids, sem nomes (LGPD, há menores).
+**CSV** (`scout-csv-2`): UTF-8 **com BOM**, separador `;` (Excel/LibreOffice pt-BR abrem direto), fim de linha CRLF, uma tabela só. Colunas fixas, nesta ordem: `versao_esquema, partida_id, tipo_registro, set, seq, equipe, jogador, fundamento, resultado, rotacao, rotacao_adversaria, posicao, zona_origem, zona_destino, placar_a_antes, placar_b_antes, origem, tipo_ponto, sacador_equipe, sacador_jogador, sequencia_atual, sai, entra, detalhe`. `versao_esquema` vai em toda linha. `tipo_registro`: `PONTO`, `TEMPO`, `SUBSTITUICAO`, `ACAO`. Texto iniciado por `= + - @` recebe apóstrofo (injeção de fórmula). Só ids, sem nomes (LGPD, há menores).
 
 ## Lacunas e pendências
 
-- Sem persistência nem lançamento de ações (tabela, rota POST, tela do scout): depende de decisão de produto e do agente `banco-de-dados`.
+- Tela do scout manual não existe (só API). Migration 0040 pendente do agente `banco-de-dados`.
 - Convenções de recepção positiva e de zonas 1-9 não confirmadas.
 - Resumo ainda não passa pelo contexto de elenco para validar jogadores (usa só o log).
 - Eventos de sets anulados são ignorados no scout.

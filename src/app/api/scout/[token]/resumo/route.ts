@@ -4,7 +4,7 @@ import { error, success } from '@/lib/api-response'
 import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-access'
 import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { configDaPartida, contextoDaPartida, type ClienteEventos } from '@/lib/sumula-eventos'
-import { lerResumoScout, scoutAtivo } from '@/lib/scout'
+import { carregarAcoesScout, lerResumoScout, scoutAtivo } from '@/lib/scout'
 
 /**
  * Scout (base), R10. Desligado por padrão: 404 sem `SCOUT_ATIVO=1`.
@@ -12,6 +12,7 @@ import { lerResumoScout, scoutAtivo } from '@/lib/scout'
  */
 export const dynamic = 'force-dynamic'
 
+const partidaDoScout = (p: any) => ({ id: Number(p.id), equipeAId: p.equipeAId ?? null, equipeBId: p.equipeBId ?? null })
 const cliente = supabaseAdmin as unknown as ClienteEventos
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -25,6 +26,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   try {
     const regras = await regrasEfetivasDaPartida(access.partida)
+    const manuais = await carregarAcoesScout(cliente, partidaDoScout(access.partida))
+    if (!manuais.ok) return error(manuais.mensagem, 500)
     const r = await lerResumoScout(cliente, {
       partidaId: Number(access.partida.id),
       config: configDaPartida(regras),

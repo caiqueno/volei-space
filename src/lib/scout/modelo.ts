@@ -2,13 +2,13 @@
  * Modelo de dados do scout (TS puro, sem I/O). Rodada 10.
  *
  * Uma AcaoScout é um toque/lance por fundamento. O log de eventos do motor NÃO traz ações
- * (só quem ganhou o rally), então hoje as ações só existiriam por lançamento manual (fase posterior).
+ * (só quem ganhou o rally), então as ações vêm do lançamento manual (R11, tabela "ScoutAcao", ver `acoes.ts`).
  * O modelo fica pronto para isso; a derivação do log fica em `derivacao.ts`.
  * Ver docs/analise/26-scout.md.
  */
 
-export const VERSAO_ESQUEMA_JSON = 'scout-json-1'
-export const VERSAO_ESQUEMA_CSV = 'scout-csv-1'
+export const VERSAO_ESQUEMA_JSON = 'scout-json-2'
+export const VERSAO_ESQUEMA_CSV = 'scout-csv-2'
 
 export const FUNDAMENTOS = ['SAQUE', 'RECEPCAO', 'LEVANTAMENTO', 'ATAQUE', 'BLOQUEIO', 'DEFESA', 'CONTRA_ATAQUE'] as const
 export type Fundamento = (typeof FUNDAMENTOS)[number]
@@ -41,6 +41,8 @@ export interface AcaoScout {
   zonaDestino: Zona | null
   /** MANUAL = lançada por scout. DERIVADA reservada: hoje a derivação não gera AcaoScout. */
   origem: 'MANUAL' | 'DERIVADA'
+  /** Hora de gravação da ação manual (ISO); ausente em ação derivada. */
+  criadoEm?: string | null
 }
 
 function inteiroEm(valor: unknown, min: number, max: number): valor is number {

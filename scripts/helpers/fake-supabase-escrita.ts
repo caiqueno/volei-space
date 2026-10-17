@@ -13,9 +13,12 @@ export type OpcoesEscrita = {
   padroes?: Record<string, LinhaEscrita>
   /** Colunas que o banco "não conhece": qualquer escrita ou leitura delas dá 42703. */
   colunasAusentes?: Record<string, string[]>
+  /** Tabelas cujo id é inteiro sequencial (bigserial) em vez de uuid. */
+  idsNumericos?: string[]
 }
 
 export function criarBancoEscrita(tabelas: Record<string, LinhaEscrita[]>, opcoes: OpcoesEscrita = {}) {
+  const sequencias: Record<string, number> = {}
   const from = (nome: string) => {
     const filtros: Array<(linha: LinhaEscrita) => boolean> = []
     let operacao: 'select' | 'insert' | 'update' | 'delete' = 'select'
@@ -34,7 +37,7 @@ export function criarBancoEscrita(tabelas: Record<string, LinhaEscrita[]>, opcoe
       if (ausente) return { data: null, error: { code: '42703', message: `column "${ausente}" of relation "${nome}" does not exist` } }
 
       if (operacao === 'insert') {
-        const novas = (Array.isArray(valores) ? valores : [valores]).map((v: any) => ({ id: randomUUID(), ...(opcoes.padroes?.[nome] ?? {}), ...v }))
+        const novas = (Array.isArray(valores) ? valores : [valores]).map((v: any) => ({ id: opcoes.idsNumericos?.includes(nome) ? (sequencias[nome] = (sequencias[nome] ?? tabela.length) + 1) : randomUUID(), ...(opcoes.padroes?.[nome] ?? {}), ...v }))
         for (const regra of opcoes.unicos?.[nome] ?? []) {
           const vistas = new Set(tabela.map((l) => regra.map((c) => String(l[c])).join('|')))
           for (const nova of novas) {
