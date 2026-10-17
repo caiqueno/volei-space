@@ -60,6 +60,8 @@ import { TEXTO_AGUARDANDO_OFICIALIZACAO, confirmarPapeletas, partidaEncerradaNaS
 import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
 import { CaixaRegra, OverrideArbitro } from '@/components/sumula/CaixaRegra'
+import { PedidosBanco } from '@/components/sumula-banco/PedidosBanco'
+import { PapeletasDoSet } from '@/components/sumula-banco/PapeletasDoSet'
 import { PainelCorrecoes } from '@/components/sumula/PainelCorrecoes'
 import { ModalSubstituicao, type MotivoTela, type MotorModal, type OpcaoAtleta } from '@/components/sumula/ModalSubstituicao'
 import { caixaDeBloqueio, type CaixaRegra as DadosCaixaRegra } from '@/lib/sumula-ui/explicacao'
@@ -1342,7 +1344,10 @@ export default function SumulaPage() {
 
   const ROTULO_MOTIVO: Record<MotivoTela, string> = { LESAO: 'lesão', EXPULSAO: 'expulsão', DESQUALIFICACAO: 'desqualificação' }
 
-  function executeSubstitution(modo: ModoTroca, motivo: MotivoTela, inNumber: string, decisao?: DecisaoDoArbitro) {
+  const subModalAtual = subModal
+
+  function executeSubstitution(modo: ModoTroca, motivo: MotivoTela, inNumber: string, decisao?: DecisaoDoArbitro, alvo?: { teamId: TeamId; index: number; outNumber: string; aoRegistrar?: () => void }) {
+    const subModal = alvo ?? subModalAtual
     if (!subModal || !teamA || !teamB) return
     const teamId = subModal.teamId
     const isA = teamId === 'teamA'
@@ -1397,6 +1402,7 @@ export default function SumulaPage() {
     setCaixaRegra(null)
     fecharSubModal()
     addToast(modo === 'excepcional' ? 'Substituição excepcional registrada.' : modo === 'libero' ? 'Troca de líbero registrada.' : 'Substituição registrada.')
+    alvo?.aoRegistrar?.()
   }
 
   function marcarPresentes(teamId: TeamId, ids: number[]) {
@@ -1439,7 +1445,7 @@ export default function SumulaPage() {
     setOverrideDaCaixa({ caixa, executar: (justificativa) => executar({ codigo: caixa.codigo, justificativa }) })
   }
 
-  function requestTimeout(teamId: TeamId, decisao?: DecisaoDoArbitro) {
+  function requestTimeout(teamId: TeamId, decisao?: DecisaoDoArbitro, aoRegistrar?: () => void) {
     if (!teamA || !teamB) return
     const isA = teamId === 'teamA'
     const used = isA ? timeoutsUsedA : timeoutsUsedB
@@ -1448,7 +1454,7 @@ export default function SumulaPage() {
     const avaliacao = avaliarTempo(used, limite, team.name)
     const porDecisao = !avaliacao.ok && decisao && justificativaValida(decisao.justificativa) ? decisao : null
     if (!avaliacao.ok && !porDecisao) {
-      bloquearComSaida(avaliacao.caixa, (d) => acoesRef.current.requestTimeout(teamId, d))
+      bloquearComSaida(avaliacao.caixa, (d) => acoesRef.current.requestTimeout(teamId, d, aoRegistrar))
       return
     }
     setCaixaRegra(null)
@@ -1458,6 +1464,7 @@ export default function SumulaPage() {
     const texto = textoTempo(team.name, used + 1, currentSet, limite)
     const tempoTelaId = addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
     espelhar({ tipo: 'TEMPO', telaId: tempoTelaId, equipe: teamId })
+    aoRegistrar?.()
   }
 
   function requestTempoEquipe(teamId: TeamId, decisao?: DecisaoDoArbitro) {
@@ -2052,6 +2059,70 @@ export default function SumulaPage() {
     setSidebarFixa(proxima === 'fixa')
   }
 
+  // App de banco (NEXT_PUBLIC_BANCO_APP_ATIVO=1): adaptadores finos sobre as funções que a tela já usa.
+  function timePorEquipeId(equipeId: number): { teamId: TeamId; team: Team } | null {
+    if (teamA?.dbId === equipeId) return { teamId: 'teamA', team: teamA }
+    if (teamB?.dbId === equipeId) return { teamId: 'teamB', team: teamB }
+    return null
+  }
+
+  function rotuloJogadorDoBanco(equipeId: number, jogadorId: number): string | null {
+    const achado = timePorEquipeId(equipeId)
+    const jogador = achado ? [...achado.team.players, ...achado.team.reserves].find((p) => p.id === jogadorId) : null
+    return jogador ? rotuloCamisa(getMatchNumber(achado!.teamId, jogador.number)) : null
+  }
+
+  function aceitarTempoDoBanco(equipeId: number, aoRegistrar: () => void) {
+    const achado = timePorEquipeId(equipeId)
+    if (achado) requestTimeout(achado.teamId, undefined, aoRegistrar)
+  }
+
+  function aceitarTrocaDoBanco(equipeId: number, saiId: number, entraId: number, aoRegistrar: () => void) {
+    const achado = timePorEquipeId(equipeId)
+    if (!achado) return
+    const sai = [...achado.team.players, ...achado.team.reserves].find((p) => p.id === saiId)
+    const entra = [...achado.team.players, ...achado.team.reserves].find((p) => p.id === entraId)
+    const index = sai ? (achado.teamId === 'teamA' ? lineupA : lineupB).indexOf(sai.number) : -1
+    if (!sai || !entra || index < 0) {
+      setCaixaRegra(caixaDeBloqueio('RG-FOR-005', 'O atleta que sai não está em quadra na tela. Recuse o pedido ou ajuste a formação.'))
+      return
+    }
+    executeSubstitution(estadoMotor(achado.teamId)?.liberos.includes(saiId) ? 'libero' : 'regular', 'LESAO', entra.number, undefined, { teamId: achado.teamId, index, outNumber: sai.number, aoRegistrar })
+  }
+
+  function escalacaoParaBanco(equipeId: number) {
+    const achado = timePorEquipeId(equipeId)
+    if (!achado) return null
+    const lineup = achado.teamId === 'teamA' ? lineupA : lineupB
+    const confirmada = achado.teamId === 'teamA' ? lineupConfirmedA : lineupConfirmedB
+    const todos = [...achado.team.players, ...achado.team.reserves]
+    const idDe = (numero: string) => todos.find((p) => p.number === numero)?.id ?? null
+    const libero = idDe(startingLiberos[currentSet]?.[achado.teamId] ?? '')
+    return {
+      formacao: lineup.map((numero, i) => { const id = numero ? idDe(numero) : null; return id == null ? null : { posicao: i + 1, jogadorId: id } }),
+      liberoId: libero,
+      confirmada,
+    }
+  }
+
+  function aplicarPapeletaDoBanco(equipeId: number, ids: number[], liberoId: number | null) {
+    const achado = timePorEquipeId(equipeId)
+    if (!achado) return
+    const todos = [...achado.team.players, ...achado.team.reserves]
+    const numeros = ids.map((id) => todos.find((p) => p.id === id)?.number ?? '')
+    if (numeros.some((n) => !n)) {
+      addToast('A papeleta do banco tem atleta que não está no elenco desta partida. Monte a escalação manualmente.')
+      return
+    }
+    const numeroLibero = liberoId != null ? todos.find((p) => p.id === liberoId)?.number ?? '' : ''
+    const { teamId, team } = achado
+    if (teamId === 'teamA') { setLineupA(numeros); setLineupConfirmedA(false); setBenchA(getBenchNumbers(team, numeros, numeroLibero)) }
+    else { setLineupB(numeros); setLineupConfirmedB(false); setBenchB(getBenchNumbers(team, numeros, numeroLibero)) }
+    setStartingLiberos((atual) => ({ ...atual, [currentSet]: { teamA: atual[currentSet]?.teamA ?? '', teamB: atual[currentSet]?.teamB ?? '', [teamId]: numeroLibero } }))
+    setEditingSlot(null)
+    addToast(`Papeleta de ${team.name} aplicada. Confira e confirme a escalação.`)
+  }
+
   return (
     <main className={`official-sumula ${activeTab === 'pontuacao' ? 'has-floating-score' : ''} ${sidebarFixa ? '' : 'is-sidebar-collapsed'}`}>
       <div className="official-mobilebar">
@@ -2210,6 +2281,11 @@ export default function SumulaPage() {
               </button>
             ) : null}
           </div>
+        )}
+
+        <PedidosBanco token={String(token)} partidaEmAndamento={matchStatus === 'live'} nomeEquipe={(id) => timePorEquipeId(id)?.team.name ?? 'Equipe'} rotuloJogador={rotuloJogadorDoBanco} onAceitarTempo={aceitarTempoDoBanco} onAceitarTroca={aceitarTrocaDoBanco} aviso={addToast} />
+        {activeTab === 'escalacao' && teamA && teamB && (
+          <PapeletasDoSet token={String(token)} set={currentSet} equipes={[{ equipeId: teamA.dbId, nome: teamA.name }, { equipeId: teamB.dbId, nome: teamB.name }]} escalacaoDaTela={escalacaoParaBanco} rotuloJogador={rotuloJogadorDoBanco} onAplicar={aplicarPapeletaDoBanco} aviso={addToast} />
         )}
 
         {(activeTab === 'pontuacao' || activeTab === 'anotacoes') && (

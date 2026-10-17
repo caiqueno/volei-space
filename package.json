@@ -159,7 +159,8 @@
     "test:regras-volei-r8": "npm run test:regras-volei-assinaturas && npm run test:regras-volei-nao-registrado && npm run test:regras-volei-pedidos && npm run test:regras-volei-folha-libero && npm run test:regras-volei-intervalo && npm run test:regras-volei-complementos && npm run test:regras-volei-cobertura",
     "test:banco-validacao": "node scripts/with-ts-node.mjs scripts/banco-validacao.test.ts",
     "test:banco-rotas": "node scripts/with-ts-node.mjs scripts/banco-rotas.test.ts",
-    "test:banco-ui": "node scripts/with-ts-node.mjs scripts/banco-ui.test.ts"
+    "test:banco-ui": "node scripts/with-ts-node.mjs scripts/banco-ui.test.ts",
+    "test:sumula-banco-ui": "node scripts/with-ts-node.mjs scripts/sumula-banco-ui.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
