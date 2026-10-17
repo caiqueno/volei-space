@@ -180,7 +180,7 @@ export function Header() {
     }
   }, [])
 
-  if (pathname.startsWith('/banco') || pathname.startsWith('/scout') || pathname.startsWith('/ao-vivo/')) return null
+  if (pathname.startsWith('/banco') || pathname.startsWith('/prototipo') || pathname.startsWith('/scout') || pathname.startsWith('/ao-vivo/')) return null
 
   if (pathname.startsWith('/arbitro') || pathname.startsWith('/sumula')) {
     return (
