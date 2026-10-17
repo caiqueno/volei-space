@@ -6,10 +6,12 @@ import { requirePublicRole } from '@/lib/auth'
 import { ensureEquipeForCandidatura } from '@/lib/team-activation'
 import { respostaEquipeNaoVinculada } from '@/lib/uploads/cadastro-incompleto'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
+import { normalizarLogoEquipeEntrada } from '@/lib/uploads/logo-equipe'
 
 const equipeIdentitySchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome da equipe.').max(120).transform(normalizarNomeEquipe),
-  logoUrl: z.string().trim().url('Logo invalida.').optional().nullable().or(z.literal('')),
+  // A origem é validada em normalizarLogoEquipeEntrada: só o Storage do projeto, da própria equipe.
+  logoUrl: z.string().trim().max(600, 'Logo invalida.').optional().nullable(),
 })
 
 export async function GET(req: NextRequest) {
@@ -33,10 +35,23 @@ export async function PUT(req: NextRequest) {
   const parsed = equipeIdentitySchema.safeParse(body)
   if (!parsed.success) return error('Dados invalidos', 422, parsed.error.flatten())
 
+  // Ausente: preserva o que está gravado. Vazio/null: limpa. Valor: só do Storage da própria equipe.
+  let logoUrl: string | null = equipe.logoUrl ?? null
+  const enviada = parsed.data.logoUrl
+  if (enviada !== undefined) {
+    if (enviada === null || enviada === '') {
+      logoUrl = null
+    } else {
+      const aceita = normalizarLogoEquipeEntrada(enviada, { id: equipe.id, ligaId: equipe.ligaId }, equipe.logoUrl)
+      if (!aceita) return error('Logo invalida. Envie a imagem pelo botao de upload da equipe.', 422)
+      logoUrl = aceita
+    }
+  }
+
   const payload = {
     nome: parsed.data.nome,
-    logoUrl: parsed.data.logoUrl || null,
-    emblemaUrl: parsed.data.logoUrl || null,
+    logoUrl,
+    emblemaUrl: logoUrl,
   }
 
   const { data, error: updateErr } = await supabase
