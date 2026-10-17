@@ -156,7 +156,8 @@
     "test:regras-volei-intervalo": "node scripts/with-ts-node.mjs scripts/regras-volei-intervalo.test.ts",
     "test:regras-volei-complementos": "node scripts/with-ts-node.mjs scripts/regras-volei-complementos.test.ts",
     "test:regras-volei-cobertura": "node scripts/with-ts-node.mjs scripts/regras-volei-cobertura.test.ts",
-    "test:regras-volei-r8": "npm run test:regras-volei-assinaturas && npm run test:regras-volei-nao-registrado && npm run test:regras-volei-pedidos && npm run test:regras-volei-folha-libero && npm run test:regras-volei-intervalo && npm run test:regras-volei-complementos && npm run test:regras-volei-cobertura"
+    "test:regras-volei-r8": "npm run test:regras-volei-assinaturas && npm run test:regras-volei-nao-registrado && npm run test:regras-volei-pedidos && npm run test:regras-volei-folha-libero && npm run test:regras-volei-intervalo && npm run test:regras-volei-complementos && npm run test:regras-volei-cobertura",
+    "test:sumula-banco-ui": "node scripts/with-ts-node.mjs scripts/sumula-banco-ui.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
