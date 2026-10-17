@@ -82,7 +82,10 @@ export function criarClienteFase2(fetchImpl?: Fetch): ClienteFase2 {
     },
     async lerConvitePublico(token) {
       const d = obj(dado(await req('GET', `/api/convite-atleta/${enc(token)}`)))
-      return { equipe: texto(d.equipe, 'o time'), categoria: typeof d.categoria === 'string' ? d.categoria : null, estado: normalizarEstado(d.estado) }
+      const eq = obj(d.equipe)
+      const nomeEquipe = typeof d.equipe === 'string' ? d.equipe : texto(eq.nome, 'o time')
+      const rotulo = typeof d.categoria === 'string' ? d.categoria : typeof eq.naipe === 'string' ? eq.naipe : null
+      return { equipe: nomeEquipe, categoria: rotulo, estado: normalizarEstado(d.estado) }
     },
     async enviarConvitePublico(token, dados) {
       await req('POST', `/api/convite-atleta/${enc(token)}`, dados)
@@ -104,7 +107,13 @@ export function criarClienteFase2(fetchImpl?: Fetch): ClienteFase2 {
       await req('DELETE', `/api/meu-time/importacao/${enc(id)}`)
     },
     async obterClube() {
-      const json = await req('GET', '/api/meu-time/clube')
+      let json: unknown
+      try {
+        json = await req('GET', '/api/meu-time/clube')
+      } catch (e) {
+        if (e instanceof ErroMeuTime && e.falha.codigo === 'CLUBE_NAO_ENCONTRADO') return null
+        throw e
+      }
       const d = extrairData<unknown>(json)
       if (!d) return null
       const o = obj(d)
@@ -123,7 +132,9 @@ export function criarClienteFase2(fetchImpl?: Fetch): ClienteFase2 {
       const d = dado(await req('GET', '/api/meu-time/notificacoes'))
       return (Array.isArray(d) ? d : []).map((i) => {
         const o = obj(i)
-        return { id: texto(o.id), tipo: texto(o.tipo), payload: obj(o.payload), lidaEm: typeof o.lidaEm === 'string' ? o.lidaEm : null, criadoEm: texto(o.criadoEm) }
+        const criadoEm = texto(o.criadoEm, texto(o.criadaEm))
+        const lida = typeof o.lidaEm === 'string' ? o.lidaEm : o.lida === true ? criadoEm : null
+        return { id: texto(o.id), tipo: texto(o.tipo), payload: { ...obj(o.dados), ...obj(o.payload), titulo: texto(o.titulo), mensagem: texto(o.mensagem) }, lidaEm: lida, criadoEm }
       })
     },
     async marcarLida(id) {

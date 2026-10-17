@@ -28,19 +28,18 @@ set local lock_timeout = '5s';
 
 create table if not exists public."ConviteAtleta" (
   id               uuid primary key default gen_random_uuid(),
-  "equipeId"       uuid not null references public."TimeClube"(id) on delete cascade,
+  "timeId"         uuid not null references public."TimeClube"(id) on delete cascade,
   "tokenHash"      text not null check (char_length("tokenHash") between 32 and 256),
-  "contatoCifrado" text,
-  estado           text not null default 'PENDENTE' check (estado in ('PENDENTE', 'ACEITO', 'EXPIRADO', 'REVOGADO')),
+  "contatoCifrado" bytea,
   "criadoPor"      text not null check (char_length("criadoPor") between 1 and 100),
   "criadoEm"       timestamptz not null default now(),
   "expiraEm"       timestamptz not null,
-  "aceitoEm"       timestamptz,
+  "revogadoEm"     timestamptz,
+  "usadoEm"        timestamptz,
   "atletaId"       uuid references public."Atleta"(id) on delete set null,
-  constraint "ConviteAtleta_tokenHash_key" unique ("tokenHash"),
-  constraint "ConviteAtleta_aceite_chk" check (estado <> 'ACEITO' or "aceitoEm" is not null)
+  constraint "ConviteAtleta_tokenHash_key" unique ("tokenHash")
 );
-create index if not exists "ConviteAtleta_equipeId_estado_idx" on public."ConviteAtleta" ("equipeId", estado);
+create index if not exists "ConviteAtleta_timeId_idx" on public."ConviteAtleta" ("timeId");
 
 alter table public."ConviteAtleta" enable row level security;
 revoke all on table public."ConviteAtleta" from public, anon, authenticated;

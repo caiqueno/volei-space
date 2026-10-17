@@ -309,16 +309,16 @@ const sqlConvite = sqlPendente['202610170036_convite_atleta.sql']
 assert.match(sqlConvite, /"tokenHash"\s+text\s+not\s+null/i)
 assert.match(sqlConvite, /"ConviteAtleta_tokenHash_key"\s+unique\s*\("tokenHash"\)/i, 'tokenHash deve ser único')
 assert.ok(!/\btoken\s+text\b/i.test(sqlConvite), 'ConviteAtleta nunca guarda o token em claro')
-assert.match(sqlConvite, /"contatoCifrado"\s+text(?!\s+not\s+null)/i, 'contatoCifrado nullable')
-assert.match(sqlConvite, /estado\s+in\s*\('PENDENTE',\s*'ACEITO',\s*'EXPIRADO',\s*'REVOGADO'\)/i)
-assert.match(sqlConvite, /"equipeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
+assert.match(sqlConvite, /"contatoCifrado"\s+bytea(?!\s+not\s+null)/i, 'contatoCifrado nullable')
+
+assert.match(sqlConvite, /"timeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
 assert.match(sqlConvite, /"atletaId"\s+uuid\s+references\s+public\."Atleta"\(id\)/i)
-for (const col of ['criadoPor', 'criadoEm', 'expiraEm', 'aceitoEm']) assert.ok(sqlConvite.includes(`"${col}"`), `ConviteAtleta sem ${col}`)
+for (const col of ['criadoPor', 'criadoEm', 'expiraEm', 'revogadoEm', 'usadoEm']) assert.ok(sqlConvite.includes(`"${col}"`), `ConviteAtleta sem ${col}`)
 const sqlImp = sqlPendente['202610170037_importacao_atletas.sql']
-assert.match(sqlImp, /estado\s+in\s*\('RASCUNHO',\s*'CONFIRMADA',\s*'DESCARTADA'\)/i)
+assert.match(sqlImp, /status\s+in\s*\('PREVIA',\s*'CONFIRMADA'\)/i)
 assert.match(sqlImp, /linhas\s+jsonb\s+not\s+null/i)
 assert.match(sqlImp, /resumo\s+jsonb/i)
-assert.match(sqlImp, /"equipeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
+assert.match(sqlImp, /"timeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
 const sqlClube = sqlPendente['202610170038_clube_equipe.sql']
 assert.ok(!/create\s+table\s+(?:if\s+not\s+exists\s+)?public\."Clube"\s*\(/i.test(sqlClube), '"Clube" já é criada na 0024: a 0038 não pode recriá-la')
 assert.match(sqlPendente['202610170024_meu_time_organizador_clube.sql'], /create\s+table\s+if\s+not\s+exists\s+public\."Clube"/i)
@@ -329,9 +329,9 @@ const rbClube = sqlSemComentario(ler(dirRollback, '202610170038_clube_equipe.sql
 assert.ok(!/drop\s+table[^;]*"Clube"\s*;/i.test(rbClube), 'reversão da 0038 não pode derrubar "Clube" (pertence à 0024)')
 assert.match(rbClube, /drop\s+column\s+if\s+exists\s+"donoUserId"/i)
 const sqlNotif = sqlPendente['202610170039_notificacao.sql']
-assert.match(sqlNotif, /"destinatarioUserId"\s+text\s+not\s+null/i)
-assert.match(sqlNotif, /payload\s+jsonb\s+not\s+null/i)
-assert.match(sqlNotif, /index\s+if\s+not\s+exists\s+"Notificacao_destinatarioUserId_lidaEm_idx"\s+on\s+public\."Notificacao"\s*\("destinatarioUserId",\s*"lidaEm"\)/i)
+assert.match(sqlNotif, /"usuarioId"\s+text\s+not\s+null/i)
+assert.match(sqlNotif, /titulo\s+text\s+not\s+null/i)
+assert.match(sqlNotif, /index\s+if\s+not\s+exists\s+"Notificacao_usuarioId_lidaEm_idx"\s+on\s+public\."Notificacao"\s*\("usuarioId",\s*"lidaEm"\)/i)
 
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {

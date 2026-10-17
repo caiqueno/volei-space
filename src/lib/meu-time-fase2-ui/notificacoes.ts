@@ -18,14 +18,17 @@ const TITULOS: Record<string, string> = {
   CONVITE_USADO: 'Um atleta preencheu o convite',
   CONVITE_ACEITO: 'Um atleta preencheu o convite',
   IMPORTACAO_CONCLUIDA: 'Sua planilha foi importada',
+  IMPORTACAO_CONFIRMADA: 'Sua planilha foi importada',
+  AJUSTE_PEDIDO: 'Pediram um ajuste na inscrição',
   RESPONSAVEL_CONTATADO: 'O responsável de um atleta foi contatado',
   RESPONSAVEL_AUTORIZOU: 'Um responsável autorizou um atleta',
   CLUBE_EQUIPE_VINCULADA: 'Uma equipe entrou no clube',
 }
 
 export function tituloNotificacao(n: Pick<Notificacao, 'tipo' | 'payload'>): string {
-  const base = TITULOS[n.tipo] ?? 'Novidade no seu time'
   const p = n.payload ?? {}
+  if (typeof p.titulo === 'string' && p.titulo.trim()) return p.titulo
+  const base = TITULOS[n.tipo] ?? 'Novidade no seu time'
   const nome = typeof p.nome === 'string' ? p.nome : typeof p.atleta === 'string' ? p.atleta : ''
   return nome && n.tipo !== 'IMPORTACAO_CONCLUIDA' ? `${base}: ${nome}` : base
 }

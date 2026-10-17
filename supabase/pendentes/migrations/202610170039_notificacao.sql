@@ -4,7 +4,7 @@
 --   "Notificacao": notificações internas por usuário (convite aceito, pendência de inscrição, etc.).
 --   "destinatarioUserId" text sem FK (não existe tabela Usuario; ids legados são texto), "tipo" text,
 --   "payload" jsonb objeto (sem PII em claro: só ids e códigos), "lidaEm" nulo = não lida. Índice por
---   ("destinatarioUserId", "lidaEm") para a contagem de não lidas.
+--   ("usuarioId", "lidaEm") para a contagem de não lidas.
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role; o servidor
 --   filtra sempre pelo usuário autenticado.
 --
@@ -28,13 +28,15 @@ set local lock_timeout = '5s';
 
 create table if not exists public."Notificacao" (
   id                   uuid primary key default gen_random_uuid(),
-  "destinatarioUserId" text not null check (char_length("destinatarioUserId") between 1 and 100),
+  "usuarioId" text not null check (char_length("usuarioId") between 1 and 100),
   tipo                 text not null check (char_length(btrim(tipo)) between 1 and 80),
-  payload              jsonb not null default '{}'::jsonb check (jsonb_typeof(payload) = 'object'),
+  titulo               text not null check (char_length(titulo) between 1 and 200),
+  mensagem             text not null check (char_length(mensagem) between 1 and 1000),
+  dados                jsonb check (dados is null or jsonb_typeof(dados) = 'object'),
   "lidaEm"             timestamptz,
   "criadoEm"           timestamptz not null default now()
 );
-create index if not exists "Notificacao_destinatarioUserId_lidaEm_idx" on public."Notificacao" ("destinatarioUserId", "lidaEm");
+create index if not exists "Notificacao_usuarioId_lidaEm_idx" on public."Notificacao" ("usuarioId", "lidaEm");
 
 alter table public."Notificacao" enable row level security;
 revoke all on table public."Notificacao" from public, anon, authenticated;

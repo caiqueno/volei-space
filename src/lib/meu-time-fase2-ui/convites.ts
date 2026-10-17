@@ -7,6 +7,8 @@ export function normalizarEstado(valor: unknown): EstadoConvite {
   const texto = typeof valor === 'string' ? valor.trim().toLowerCase() : ''
   const mapa: Record<string, EstadoConvite> = {
     pendente: 'ativo',
+    disponivel: 'ativo',
+    indisponivel: 'invalido',
     valido: 'ativo',
     válido: 'ativo',
     aceito: 'usado',

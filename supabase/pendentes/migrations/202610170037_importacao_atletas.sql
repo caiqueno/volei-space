@@ -29,14 +29,16 @@ set local lock_timeout = '5s';
 
 create table if not exists public."ImportacaoAtletas" (
   id          uuid primary key default gen_random_uuid(),
-  "equipeId"  uuid not null references public."TimeClube"(id) on delete cascade,
+  "timeId"    uuid not null references public."TimeClube"(id) on delete cascade,
   "criadoPor" text not null check (char_length("criadoPor") between 1 and 100),
   "criadoEm"  timestamptz not null default now(),
-  estado      text not null default 'RASCUNHO' check (estado in ('RASCUNHO', 'CONFIRMADA', 'DESCARTADA')),
+  status      text not null default 'PREVIA' check (status in ('PREVIA', 'CONFIRMADA')),
   linhas      jsonb not null check (jsonb_typeof(linhas) = 'array'),
-  resumo      jsonb check (resumo is null or jsonb_typeof(resumo) = 'object')
+  resumo      jsonb check (resumo is null or jsonb_typeof(resumo) = 'object'),
+  resultado   jsonb check (resultado is null or jsonb_typeof(resultado) = 'object'),
+  "confirmadoEm" timestamptz
 );
-create index if not exists "ImportacaoAtletas_equipeId_estado_idx" on public."ImportacaoAtletas" ("equipeId", estado);
+create index if not exists "ImportacaoAtletas_timeId_status_idx" on public."ImportacaoAtletas" ("timeId", status);
 
 alter table public."ImportacaoAtletas" enable row level security;
 revoke all on table public."ImportacaoAtletas" from public, anon, authenticated;
