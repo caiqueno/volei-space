@@ -9,7 +9,7 @@ begin
     where tipo in ('SET_INICIADO', 'RALLY_REPETIDO', 'TROCA_LIBERO', 'REDESIGNACAO_LIBERO', 'FALTA_POSICAO',
                    'FALTA_ROTACAO', 'TROCA_LADO', 'SET_ANULADO', 'INTERRUPCAO', 'EQUIPE_INCOMPLETA', 'OBSERVACAO',
                    'DISCREPANCIA_PAPELETA', 'CAPITAO_EM_JOGO', 'PROTESTO_ANUNCIADO', 'PROTESTO_REGISTRADO',
-                   'PROTESTO_DESISTIDO')
+                   'PROTESTO_DESISTIDO', 'PEDIDO_INDEVIDO')
   ) then
     raise exception 'existem eventos dos tipos do motor; reversao recusada' using errcode = '23514';
   end if;

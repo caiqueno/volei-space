@@ -32,7 +32,9 @@ alter table public."SumulaEvento"
     'TROCA_LADO', 'SET_ANULADO', 'INTERRUPCAO', 'WO', 'EQUIPE_INCOMPLETA', 'OBSERVACAO', 'DESAFIO',
     'FIM_SET', 'FIM_PARTIDA', 'DESFAZ', 'SNAPSHOT',
     -- Rodada 3 do motor: papeleta, capitão em jogo e protesto (RG-FOR-006..009, RG-ELE-005, RG-PRO-001..003)
-    'DISCREPANCIA_PAPELETA', 'CAPITAO_EM_JOGO', 'PROTESTO_ANUNCIADO', 'PROTESTO_REGISTRADO', 'PROTESTO_DESISTIDO'));
+    'DISCREPANCIA_PAPELETA', 'CAPITAO_EM_JOGO', 'PROTESTO_ANUNCIADO', 'PROTESTO_REGISTRADO', 'PROTESTO_DESISTIDO',
+    -- Rodada 8: pedido indevido de tempo/substituição (RG-TMP-003/005/006)
+    'PEDIDO_INDEVIDO'));
 
 comment on column public."SumulaEvento".payload is
   'Detalhe do evento (objeto jsonb). Formato por tipo: PayloadPorTipo em src/lib/regras-volei/eventos.ts.';
