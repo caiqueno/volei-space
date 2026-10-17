@@ -22,6 +22,18 @@ import {
 import { hashConteudo, respostaErro, violacaoDeUnicidade } from './base'
 import { formacaoOrdenada, validarPapeletaDoBanco, type EntradaPapeleta } from './papeleta-validacao'
 import { validarPedidoDoBanco } from './pedidos-validacao'
+import {
+  MAX_LINK_VIDEO,
+  MAX_MOTIVO,
+  MENSAGEM_DESAFIO_INDISPONIVEL,
+  MENSAGEM_LIMITE_DESAFIOS,
+  criarDesafio,
+  desafioAtivo,
+  desafioPublico,
+  normalizarMotivo,
+  situacaoDoLimite,
+  validarLinkVideo,
+} from '@/lib/desafio'
 
 const db = supabaseAdmin as any
 
@@ -39,6 +51,9 @@ export const pedidoSchema = z.object({
   tipo: z.enum(['TEMPO', 'SUBSTITUICAO', 'DESAFIO']),
   sai: z.number().int().positive().optional(),
   entra: z.number().int().positive().optional(),
+  /** Só para DESAFIO (R11). */
+  motivo: z.string().max(MAX_MOTIVO).nullish(),
+  linkVideo: z.string().max(MAX_LINK_VIDEO).nullish(),
 })
 
 export const decisaoSchema = z.object({ decisao: z.enum(['ACEITO', 'RECUSADO']) })
@@ -205,14 +220,46 @@ export async function enviarPapeleta(partida: PartidaBanco, equipeId: number, se
 // Pedidos (lado do banco)
 // ---------------------------------------------------------------------------
 
+const desafioIndisponivel = () => respostaErro(MENSAGEM_DESAFIO_INDISPONIVEL, 503, 'DESAFIO_INDISPONIVEL')
+
+/** Pedido de desafio de vídeo do banco: fica PENDENTE; o desafio só nasce quando o apontador aceitar. */
+async function criarPedidoDesafio(partida: PartidaBanco, equipeId: number, dados: z.infer<typeof pedidoSchema>) {
+  const link = validarLinkVideo(dados.linkVideo)
+  if (!link.ok) return respostaErro(link.mensagem, 400, 'DADOS_INVALIDOS')
+  const motivo = normalizarMotivo(dados.motivo)
+  const setNumero = setAtual(await lerSets(partida.id))
+
+  const pedidos = conferir(await db.from('PedidoBanco').select('*').eq('partidaId', partida.id).eq('equipeId', equipeId)) as any[]
+  const pendente = (pedidos ?? []).some((p) => p.tipo === 'DESAFIO' && p.estado === 'PENDENTE' && Number(p.payload?.setNumero) === setNumero)
+  if (pendente) return respostaErro('Já existe um pedido de desafio pendente neste set.', 409, 'DESAFIO_PENDENTE')
+
+  const situacao = await situacaoDoLimite(db, partida.id, equipeId, setNumero)
+  if (situacao.tipo === 'INDISPONIVEL') return desafioIndisponivel()
+  if (situacao.tipo === 'ERRO') throw new Error('erro ao ler os desafios')
+  if (situacao.tipo === 'EXCEDIDO') return respostaErro(MENSAGEM_LIMITE_DESAFIOS(situacao.limite), 422, 'LIMITE_EXCEDIDO')
+
+  const payload = { setNumero, ...(motivo ? { motivo } : {}), ...(link.valor ? { linkVideo: link.valor } : {}) }
+  const criado = await db
+    .from('PedidoBanco')
+    .insert({ partidaId: partida.id, equipeId, tipo: 'DESAFIO', payload, estado: 'PENDENTE' })
+    .select()
+    .maybeSingle()
+  conferir(criado)
+  return success({ pedido: pedidoPublico(criado.data ?? { tipo: 'DESAFIO', estado: 'PENDENTE', payload }) }, 201)
+}
+
 export async function criarPedido(partida: PartidaBanco, equipeId: number, corpo: unknown) {
   const lido = pedidoSchema.safeParse(corpo)
   if (!lido.success) return corpoInvalido(lido.error)
-  if (lido.data.tipo === 'DESAFIO') return respostaErro('Desafio de vídeo é uma fase posterior.', 501, 'NAO_IMPLEMENTADO')
+  // Desafio de vídeo (R11): só com DESAFIO_ATIVO=1; desligado, segue como fase posterior (501).
+  if (lido.data.tipo === 'DESAFIO' && !desafioAtivo()) {
+    return respostaErro('Desafio de vídeo é uma fase posterior.', 501, 'NAO_IMPLEMENTADO')
+  }
   if (STATUS_PARTIDA_ENCERRADA.includes(String(partida.status ?? '').toUpperCase())) {
     return respostaErro('A partida já terminou: não há mais pedidos.', 409, 'PARTIDA_ENCERRADA')
   }
-  const entrada = { tipo: lido.data.tipo, sai: lido.data.sai, entra: lido.data.entra }
+  if (lido.data.tipo === 'DESAFIO') return criarPedidoDesafio(partida, equipeId, lido.data)
+  const entrada = { tipo: lido.data.tipo as 'TEMPO' | 'SUBSTITUICAO', sai: lido.data.sai, entra: lido.data.entra }
 
   const sets = await lerSets(partida.id)
   const setNumero = setAtual(sets)
@@ -285,11 +332,21 @@ export async function decidirPedido(partida: PartidaBanco, usuarioId: string, pe
   const decisao = lido.data.decisao
   const pedido = conferir(await db.from('PedidoBanco').select('*').eq('id', pedidoId).eq('partidaId', partida.id).maybeSingle()) as any
   if (!pedido) return respostaErro('Pedido não encontrado.', 404)
-  if (pedido.estado === decisao) return success({ pedido: pedidoPublico(pedido) })
+  if (pedido.estado === decisao) {
+    // Repetir o aceite de um DESAFIO garante o desafio vinculado (recupera falha entre o aceite e a criação).
+    if (decisao === 'ACEITO' && pedido.tipo === 'DESAFIO') return respostaComDesafio(partida, pedido, pedido)
+    return success({ pedido: pedidoPublico(pedido) })
+  }
   if (pedido.estado !== 'PENDENTE') {
     return respostaErro('Este pedido já foi decidido.', 409, 'PEDIDO_JA_DECIDIDO')
   }
-  if (decisao === 'ACEITO') {
+  if (decisao === 'ACEITO' && pedido.tipo === 'DESAFIO') {
+    if (!desafioAtivo()) return respostaErro('Desafio de vídeo é uma fase posterior.', 501, 'NAO_IMPLEMENTADO')
+    const situacao = await situacaoDoLimite(db, partida.id, Number(pedido.equipeId), Number(pedido.payload?.setNumero ?? 0))
+    if (situacao.tipo === 'INDISPONIVEL') return desafioIndisponivel()
+    if (situacao.tipo === 'ERRO') throw new Error('erro ao ler os desafios')
+    if (situacao.tipo === 'EXCEDIDO') return respostaErro(MENSAGEM_LIMITE_DESAFIOS(situacao.limite), 422, 'LIMITE_EXCEDIDO')
+  } else if (decisao === 'ACEITO') {
     // Reconfere o limite com os pedidos já aceitos (dois pendentes decididos em sequência não passam do limite).
     const limites = await limitesDaPartida(partida)
     const outros = conferir(
@@ -317,10 +374,39 @@ export async function decidirPedido(partida: PartidaBanco, usuarioId: string, pe
   ) as any[]
   if (!linhas || linhas.length === 0) {
     const atual = conferir(await db.from('PedidoBanco').select('*').eq('id', pedido.id).maybeSingle()) as any
-    if (atual?.estado === decisao) return success({ pedido: pedidoPublico(atual) })
+    if (atual?.estado === decisao) {
+      return decisao === 'ACEITO' && atual.tipo === 'DESAFIO' ? respostaComDesafio(partida, atual, atual) : success({ pedido: pedidoPublico(atual) })
+    }
     return respostaErro('Este pedido já foi decidido.', 409, 'PEDIDO_JA_DECIDIDO')
   }
+  if (decisao === 'ACEITO' && pedido.tipo === 'DESAFIO') return respostaComDesafio(partida, linhas[0], linhas[0], true)
   return success({ pedido: pedidoPublico(linhas[0]) })
+}
+
+/**
+ * Pedido de DESAFIO aceito: cria (ou recupera) o DesafioVideo EM_ANALISE vinculado por `pedidoBancoId`.
+ * Se a criação falhar logo após o aceite pela primeira vez (limite estourado em corrida, tabela ausente),
+ * o pedido volta a PENDENTE para o apontador decidir de novo, sem deixar aceite sem desafio.
+ */
+async function respostaComDesafio(partida: PartidaBanco, pedido: any, pedidoAtual: any, reverterSeFalhar = false) {
+  const r = await criarDesafio(
+    db,
+    partida,
+    {
+      setNumero: Number(pedido.payload?.setNumero),
+      equipeId: Number(pedido.equipeId),
+      motivo: pedido.payload?.motivo ?? null,
+      linkVideo: pedido.payload?.linkVideo ?? null,
+    },
+    { estado: 'EM_ANALISE', pedidoBancoId: String(pedido.id) },
+  )
+  if (r.tipo === 'OK') return success({ pedido: pedidoPublico(pedidoAtual), desafio: desafioPublico(r.desafio) })
+  if (reverterSeFalhar) {
+    await db.from('PedidoBanco').update({ estado: 'PENDENTE', decididoEm: null, decididoPor: null }).eq('id', pedido.id).eq('estado', 'ACEITO')
+  }
+  if (r.tipo === 'INDISPONIVEL') return desafioIndisponivel()
+  if (r.tipo === 'INVALIDO') return respostaErro(r.mensagem, r.status === 400 ? 422 : r.status, r.codigo ?? 'DESAFIO_INVALIDO')
+  throw new Error('erro ao criar o desafio')
 }
 
 export async function papeletasDoSet(partida: PartidaBanco, setNumero: number) {

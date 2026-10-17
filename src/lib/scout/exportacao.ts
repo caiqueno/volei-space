@@ -19,7 +19,7 @@ export interface ResumoScout {
   geradoEm: string
   /** O que sai do log do motor, sem scout manual. */
   derivado: DerivacaoScout
-  /** Ações lançadas manualmente (fase posterior): hoje sempre vazio. */
+  /** Ações lançadas manualmente (não anuladas). Vazio quando ninguém lançou scout. */
   acoes: AcaoScout[]
   estatisticas: AgregacaoScout
   /** O que este resumo NÃO cobre, para ninguém ler zero onde há ausência de dado. */
@@ -33,6 +33,11 @@ export const LACUNAS_SCOUT: readonly string[] = [
   'Durações usam o horário de gravação dos eventos (criadoEm), não o horário real do lance.',
   'Formato .dvw (DataVolley) não implementado: o layout ainda não foi confirmado em fonte.',
 ]
+
+/** Lacunas que deixam de valer quando há ações manuais lançadas. */
+const LACUNAS_SUPERADAS_POR_ACOES = [0, 2]
+export const LACUNA_ACOES_PARCIAIS =
+  'As ações manuais cobrem só o que o scout lançou; ausência de ação não significa que o lance não ocorreu.'
 
 export function montarResumo(params: {
   partidaId: number
@@ -50,7 +55,9 @@ export function montarResumo(params: {
     derivado: derivarScoutDoLog(params.log, params.config, params.contexto),
     acoes,
     estatisticas: agregarAcoes(acoes),
-    lacunas: [...LACUNAS_SCOUT],
+    lacunas: acoes.length > 0
+      ? [...LACUNAS_SCOUT.filter((_, i) => !LACUNAS_SUPERADAS_POR_ACOES.includes(i)), LACUNA_ACOES_PARCIAIS]
+      : [...LACUNAS_SCOUT],
   }
 }
 
@@ -62,6 +69,7 @@ export const COLUNAS_CSV = [
   'versao_esquema', 'partida_id', 'tipo_registro', 'set', 'seq', 'equipe', 'jogador', 'fundamento', 'resultado',
   'rotacao', 'rotacao_adversaria', 'posicao', 'zona_origem', 'zona_destino', 'placar_a_antes', 'placar_b_antes',
   'origem', 'tipo_ponto', 'sacador_equipe', 'sacador_jogador', 'sequencia_atual', 'sai', 'entra', 'detalhe',
+  'acao_id', 'criado_em',
 ] as const
 
 type Celula = string | number | null | undefined
@@ -109,6 +117,7 @@ export function exportarCsv(resumo: ResumoScout): string {
       set: a.set, seq: a.id, equipe: a.equipe, jogador: a.jogadorId, fundamento: a.fundamento, resultado: a.resultado,
       rotacao: a.rotacao, posicao: a.posicao, zona_origem: a.zonaOrigem, zona_destino: a.zonaDestino,
       placar_a_antes: a.pontoA, placar_b_antes: a.pontoB, origem: a.origem,
+      acao_id: a.id, criado_em: a.criadoEm ?? null,
     }))
   }
 
