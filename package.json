@@ -161,7 +161,8 @@
     "test:banco-rotas": "node scripts/with-ts-node.mjs scripts/banco-rotas.test.ts",
     "test:banco-ui": "node scripts/with-ts-node.mjs scripts/banco-ui.test.ts",
     "test:sumula-banco-ui": "node scripts/with-ts-node.mjs scripts/sumula-banco-ui.test.ts",
-    "test:sumula-impressa-motor": "node scripts/with-ts-node.mjs scripts/sumula-impressa-motor.test.ts"
+    "test:sumula-impressa-motor": "node scripts/with-ts-node.mjs scripts/sumula-impressa-motor.test.ts",
+    "test:scout": "node scripts/with-ts-node.mjs scripts/scout.test.ts && node scripts/with-ts-node.mjs scripts/scout-rota.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
