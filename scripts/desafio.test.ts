@@ -155,6 +155,19 @@ async function main() {
   assert.equal((await decidir(outrosDaEquipe[1].id, { decisao: 'CANCELADO' })).status, 200)
   assert.equal((await post(D)).status, 201, 'REVERTIDA e CANCELADO não contam')
 
+  // --- INCONCLUSIVA (R7): decisão final que NÃO consome o desafio, como REVERTIDA
+  const daEquipe2 = (await j(await get())).data.find((t: any) => t.equipeId === 2 && t.setNumero === 1 && t.estado === 'SOLICITADO')
+  assert.ok(daEquipe2)
+  const inc = await decidir(daEquipe2.id, { decisao: 'INCONCLUSIVA' })
+  assert.equal(inc.status, 200)
+  assert.equal((await j(inc)).data.desafio.estado, 'INCONCLUSIVA')
+  assert.equal((await decidir(daEquipe2.id, { decisao: 'INCONCLUSIVA' })).status, 200, 'idempotente')
+  assert.equal((await decidir(daEquipe2.id, { decisao: 'MANTIDA' })).status, 409, 'já decidido')
+  assert.equal((await post({ setNumero: 1, equipeId: 2 })).status, 201, 'INCONCLUSIVA não conta no limite')
+  assert.equal((await post({ setNumero: 1, equipeId: 2 })).status, 422)
+  // id malformado ou inexistente: 404, nunca 500
+  assert.equal((await decidir('00000000-0000-4000-8000-0000000000ff', { decisao: 'MANTIDA' })).status, 404)
+
   // --- Desafio de partida encerrada e campeonato finalizado
   dados.Liga![0]!.status = 'FINALIZADO'
   assert.equal((await post({ ...D, setNumero: 3 })).status, 409)
@@ -169,7 +182,7 @@ async function main() {
   assert.equal(off.status, 503)
   assert.equal((await j(off)).error, 'Recurso ainda não habilitado neste ambiente.')
   assert.equal((await get()).status, 503)
-  assert.equal((await decidir('x', { decisao: 'MANTIDA' })).status, 503)
+  assert.equal((await decidir('00000000-0000-4000-8000-0000000000d1', { decisao: 'MANTIDA' })).status, 503)
 
   // --- App de banco: DESAFIO deixa de ser 501 e vira pedido PENDENTE; aceite cria o desafio EM_ANALISE
   const { hashTokenBanco } = await import('../src/lib/banco/base')

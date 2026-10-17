@@ -11,7 +11,7 @@ export const ESTADOS_DESAFIO = ['SOLICITADO', 'EM_ANALISE', 'MANTIDA', 'REVERTID
 export type EstadoDesafio = (typeof ESTADOS_DESAFIO)[number]
 
 /** Decisões que o apontador pode registrar. */
-export const DECISOES_DESAFIO = ['MANTIDA', 'REVERTIDA', 'CANCELADO'] as const
+export const DECISOES_DESAFIO = ['MANTIDA', 'REVERTIDA', 'INCONCLUSIVA', 'CANCELADO'] as const
 export type DecisaoDesafio = (typeof DECISOES_DESAFIO)[number]
 
 /** [M] Padrão não confirmado. Configurável por `DESAFIO_LIMITE_POR_SET` (1 a 10). */
@@ -36,7 +36,7 @@ export function limiteDesafiosPorSet(env: Record<string, string | undefined> = p
 
 /**
  * O desafio consome o limite da equipe? SOLICITADO, EM_ANALISE e MANTIDA contam.
- * REVERTIDA (a equipe tinha razão) devolve o desafio; CANCELADO nunca foi analisado.
+ * REVERTIDA (a equipe tinha razão) e INCONCLUSIVA (o vídeo não permitiu decidir) devolvem o desafio; CANCELADO nunca foi analisado.
  */
 export function contaNoLimite(estado: string): boolean {
   return estado === 'SOLICITADO' || estado === 'EM_ANALISE' || estado === 'MANTIDA'
@@ -47,7 +47,7 @@ export function desafiosUsados(linhas: ReadonlyArray<{ estado?: unknown }>): num
 }
 
 export function estadoFinal(estado: string): boolean {
-  return estado === 'MANTIDA' || estado === 'REVERTIDA' || estado === 'CANCELADO'
+  return estado === 'MANTIDA' || estado === 'REVERTIDA' || estado === 'INCONCLUSIVA' || estado === 'CANCELADO'
 }
 
 /**
