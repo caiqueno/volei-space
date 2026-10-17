@@ -13,9 +13,12 @@ import {
 } from '@/lib/meu-time-ui/respostas'
 import { mensagemSemPermissao, podeFazer, type Acao } from '@/lib/meu-time-ui/permissoes'
 import { POSICOES_CODIGOS } from '@/lib/meu-time-ui/tipos'
+import { ehMenor } from '@/lib/meu-time-ui/responsavel'
 import type {
   Atleta,
   AtletaLote,
+  ConsentimentoAtleta,
+  DadosConsentimento,
   DetalheEquipe,
   EdicaoEquipe,
   Equipe,
@@ -54,6 +57,9 @@ export interface MeuTimeClient {
   adicionarAtletasEmLote(equipeId: string, atletas: AtletaLote[]): Promise<ResultadoLote>
   atualizarAtleta(equipeId: string, atletaId: string, dados: Partial<NovoAtleta>): Promise<Atleta>
   removerAtleta(equipeId: string, atletaId: string): Promise<void>
+  /** Quem é menor e quem ainda não tem autorização do responsável (nunca traz o contato dele). */
+  listarConsentimentos(equipeId: string): Promise<ConsentimentoAtleta[]>
+  registrarConsentimento(equipeId: string, atletaId: string, dados: DadosConsentimento): Promise<void>
   listarComissao(equipeId: string): Promise<MembroComissao[]>
   adicionarMembroComissao(equipeId: string, dados: NovoMembroComissao): Promise<MembroComissao>
   removerMembroComissao(equipeId: string, membroId: string): Promise<void>
@@ -121,6 +127,13 @@ export function criarClienteHttp(fetchImpl?: Fetch, base = '/api/meu-time'): Meu
     async removerAtleta(id, atletaId) {
       await requisitar('DELETE', `${equipe(id)}/atletas/${encodeURIComponent(atletaId)}`)
     },
+    async listarConsentimentos(id) {
+      const data = await lerData<{ atletas?: ConsentimentoAtleta[] }>('GET', `${equipe(id)}/consentimentos`)
+      return Array.isArray(data.atletas) ? data.atletas : []
+    },
+    async registrarConsentimento(id, atletaId, dados) {
+      await requisitar('POST', `${equipe(id)}/atletas/${encodeURIComponent(atletaId)}/consentimento`, dados)
+    },
     listarComissao: (id) => lerData<MembroComissao[]>('GET', `${equipe(id)}/comissao`),
     adicionarMembroComissao: (id, dados) => lerData<MembroComissao>('POST', `${equipe(id)}/comissao`, dados),
     async removerMembroComissao(id, membroId) {
@@ -174,11 +187,12 @@ function falhaMemoria(tipo: Falha['tipo'], status: number, mensagem: string, cod
   return new ErroMeuTime({ tipo, status, mensagem, codigo })
 }
 
-export function mensagemProntidao(total: number, semDocumento: number) {
+export function mensagemProntidao(total: number, semDocumento: number, semAutorizacao = 0) {
   if (total === 0) return 'Seu time ainda não tem atletas.'
   const base = `Seu time tem ${total} ${total === 1 ? 'atleta' : 'atletas'}.`
-  if (semDocumento === 0) return `${base} Tudo certo com os documentos.`
-  return `${base} ${semDocumento} ${semDocumento === 1 ? 'está' : 'estão'} sem documento.`
+  const aut = semAutorizacao > 0 ? ` ${semAutorizacao} ${semAutorizacao === 1 ? 'menor está' : 'menores estão'} sem autorização do responsável.` : ''
+  if (semDocumento === 0) return semAutorizacao > 0 ? `${base}${aut}` : `${base} Tudo certo com os documentos.`
+  return `${base} ${semDocumento} ${semDocumento === 1 ? 'está' : 'estão'} sem documento.${aut}`
 }
 
 export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
@@ -213,7 +227,14 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
   const exigirResponsavel = (e: EquipeMemoria) => exigir(e, 'acesso')
   const prontidao = (e: EquipeMemoria): Prontidao => {
     const semDocumento = e.atletas.filter((a) => !a.temDocumento).length
-    return { atletas: e.atletas.length, semDocumento, mensagem: mensagemProntidao(e.atletas.length, semDocumento) }
+    const semAutorizacao = e.atletas.filter((a) => a.consentimentoPendente === true).length
+    return { atletas: e.atletas.length, semDocumento, semAutorizacao, mensagem: mensagemProntidao(e.atletas.length, semDocumento, semAutorizacao) }
+  }
+  // Como o servidor: o contato do responsável é conferido e descartado; só o estado (pendente ou não) fica visível.
+  const exigirResponsavelLegal = (dados: { responsavel?: { nome?: string; contato?: string }; aceiteResponsavel?: boolean }) => {
+    if (!dados.responsavel?.nome?.trim() || !dados.responsavel.contato?.trim() || dados.aceiteResponsavel !== true) {
+      throw falhaMemoria('validacao', 422, 'Atleta menor de 18 anos precisa do nome, do contato e da autorização do responsável.', 'RESPONSAVEL_OBRIGATORIO')
+    }
   }
   const resumo = (e: EquipeMemoria): EquipeResumo => ({
     id: e.id, nome: e.nome, cidade: e.cidade, naipe: e.naipe, totalAtletas: e.atletas.length, prontidao: prontidao(e),
@@ -264,9 +285,12 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
     async adicionarAtleta(id, dados) {
       const e = achar(id)
       exigir(e, 'atletas')
+      const menor = ehMenor(dados.dataNascimento)
+      if (menor) exigirResponsavelLegal(dados)
       const atleta: Atleta = {
         id: novoId('at'), nome: dados.nome.trim(), dataNascimento: dados.dataNascimento,
         numeroPreferido: dados.numeroPreferido ?? null, posicao: dados.posicao ?? null, temDocumento: false,
+        menor, consentimentoPendente: false,
       }
       e.atletas.push(atleta)
       return atleta
@@ -291,6 +315,8 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
           numeroPreferido: item.numero ?? null,
           posicao: item.posicao && (POSICOES_CODIGOS as readonly string[]).includes(item.posicao) ? item.posicao : null,
           temDocumento: false,
+          // Lote não traz responsável: menor entra pendente e é completado depois.
+          menor: ehMenor(item.dataNascimento), consentimentoPendente: ehMenor(item.dataNascimento),
         }
         e.atletas.push(novo)
         atletasCriados.push(novo)
@@ -303,15 +329,35 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
       const indice = e.atletas.findIndex((a) => a.id === atletaId)
       if (indice < 0) throw falhaMemoria('nao-encontrado', 404, 'Atleta não encontrado.')
       const atual = e.atletas[indice]
+      const dataNascimento = dados.dataNascimento ?? atual.dataNascimento
+      const menor = ehMenor(dataNascimento)
+      const informouResponsavel = dados.responsavel !== undefined || dados.aceiteResponsavel !== undefined
+      if (informouResponsavel) exigirResponsavelLegal(dados)
+      // Virou menor agora (data corrigida) sem responsável: fica pendente. Já autorizado ou maior de idade: segue como estava.
+      const pendente = menor && !informouResponsavel && (atual.menor !== true || atual.consentimentoPendente === true)
       const atualizado: Atleta = {
         ...atual,
         nome: dados.nome?.trim() || atual.nome,
-        dataNascimento: dados.dataNascimento ?? atual.dataNascimento,
+        dataNascimento,
         numeroPreferido: dados.numeroPreferido ?? atual.numeroPreferido,
         posicao: dados.posicao ?? atual.posicao,
+        menor, consentimentoPendente: pendente,
       }
       e.atletas[indice] = atualizado
       return atualizado
+    },
+    async listarConsentimentos(id) {
+      const e = achar(id)
+      return e.atletas.map((a) => ({ atletaId: a.id, nome: a.nome, menor: a.menor === true, consentimentoPendente: a.consentimentoPendente === true }))
+    },
+    async registrarConsentimento(id, atletaId, dados) {
+      const e = achar(id)
+      exigir(e, 'atletas')
+      const indice = e.atletas.findIndex((a) => a.id === atletaId)
+      if (indice < 0) throw falhaMemoria('nao-encontrado', 404, 'Atleta não encontrado.')
+      if (!ehMenor(e.atletas[indice].dataNascimento)) throw falhaMemoria('validacao', 422, 'Esse atleta não é menor de 18 anos.', 'ATLETA_MAIOR')
+      exigirResponsavelLegal(dados)
+      e.atletas[indice] = { ...e.atletas[indice], menor: true, consentimentoPendente: false }
     },
     async removerAtleta(id, atletaId) {
       const e = achar(id)
@@ -372,7 +418,9 @@ export function criarClienteMemoria(opcoes: OpcoesMemoria = {}): MeuTimeClient {
         totalAtletas: dados.atletas.length,
       }
       e.inscricoes.push(inscricao)
-      return { data: inscricao, avisos: [] }
+      const escolhidos = new Set(dados.atletas.map((a) => a.atletaId))
+      const temMenorSemAutorizacao = e.atletas.some((a) => escolhidos.has(a.id) && a.consentimentoPendente === true)
+      return { data: inscricao, avisos: temMenorSemAutorizacao ? ['ATLETA_MENOR_SEM_CONSENTIMENTO'] : [] }
     },
   }
 }
