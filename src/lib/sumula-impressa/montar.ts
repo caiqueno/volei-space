@@ -1,7 +1,9 @@
+import type { SumulaEvento } from '@/lib/regras-volei'
 import { agendaDaPartida } from '@/lib/format-partida'
 import { normalizarNomeEquipe } from '@/lib/nome-equipe'
 import { emOrdemCronologica } from '@/lib/sumula-ui/ordem'
 import { lerOverride } from '@/lib/sumula-ui/override'
+import { configParaImpressao, montarAssinaturas, montarMotorImpresso, nomeNaSumula, type MotorImpresso } from './motor'
 import {
   atletaPeloNumero,
   camisaDe,
@@ -97,6 +99,7 @@ function montarEquipe(
     jogadorId: j.id,
     camisa: camisaDe(j, presencas),
     nome: j.nome,
+    nomeImpresso: nomeNaSumula(j.nome),
     capitao: capitaoJogador?.id === j.id,
     libero: liberos.has(j.id) || /l[ií]bero/i.test(String(j.posicao ?? '')),
   }))
@@ -116,7 +119,7 @@ function rotuloAtleta(equipe: EquipeRegistro, numero: string, presencas: Registr
 }
 
 /** Constrói o modelo da súmula impressa só com o que a leitura da súmula já traz. */
-export function montarSumulaImpressa(registro: RegistroSumula): ModeloImpressao | null {
+export function montarSumulaImpressa(registro: RegistroSumula, eventos?: readonly SumulaEvento[] | null): ModeloImpressao | null {
   const equipeA = registro.equipeA
   const equipeB = registro.equipeB
   if (!equipeA || !equipeB) return null
@@ -165,6 +168,7 @@ export function montarSumulaImpressa(registro: RegistroSumula): ModeloImpressao 
     const horaFim = fimEvento ? partesDaDescricao(fimEvento.descricao).hora || null : null
     const tempos = doSet.filter(ehTempo).map((o) => evento(o, nomeA, nomeB))
     const substituicoes = doSet.filter(ehSubstituicao).map((o) => evento(o, nomeA, nomeB))
+    const trocasLibero = doSet.filter((o) => normalizar(String(o.tipo ?? '')) === 'troca_libero').map((o) => evento(o, nomeA, nomeB))
     const regulares = doSet.filter((o) => ehSubstituicao(o) && normalizar(String(o.tipo ?? '')) !== 'troca_libero').map((o) => evento(o, nomeA, nomeB))
     const pontosA = Number(s.pontosA ?? 0)
     const pontosB = Number(s.pontosB ?? 0)
@@ -183,6 +187,7 @@ export function montarSumulaImpressa(registro: RegistroSumula): ModeloImpressao 
       duracaoMin: duracaoEntre(horaInicio, horaFim),
       tempos,
       substituicoes,
+      trocasLibero,
       tempoA: tempos.filter((t) => t.lado === 'A').length,
       tempoB: tempos.filter((t) => t.lado === 'B').length,
       substA: regulares.filter((t) => t.lado === 'A').length,
@@ -194,6 +199,7 @@ export function montarSumulaImpressa(registro: RegistroSumula): ModeloImpressao 
   const duracaoTotalMin = sets.length && duracoes.every((d) => d != null) ? duracoes.reduce<number>((t, d) => t + (d ?? 0), 0) : null
 
   const agenda = agendaDaPartida(registro)
+  const motor = derivarMotor(registro, eventos)
   const vencedor = registro.vencedorId === equipeA.id ? modeloA.nome : registro.vencedorId === equipeB.id ? modeloB.nome : null
   const mvp = (registro.destaques ?? [])
     .filter((d) => normalizar(String(d.tipo)) === 'mvp')
@@ -223,6 +229,28 @@ export function montarSumulaImpressa(registro: RegistroSumula): ModeloImpressao 
     vencedor,
     mvp,
     encerrada: vencedor != null,
+    motor,
+    assinaturas: montarAssinaturas({
+      nomeA: modeloA.nome,
+      nomeB: modeloB.nome,
+      arbitros: (registro.escala ?? []).filter((e) => e.arbitro?.nome).map((e) => ({ cargo: e.cargo || 'Árbitro', nome: String(e.arbitro?.nome) })),
+      capitaoEmJogo: motor?.capitaoEmJogo,
+    }),
+  }
+}
+
+/** Log do motor presente e legível: deriva o quadro de pontos; qualquer falha deixa só as ocorrências. */
+function derivarMotor(registro: RegistroSumula, eventos?: readonly SumulaEvento[] | null): MotorImpresso | null {
+  if (!eventos || eventos.length === 0) return null
+  try {
+    const config = configParaImpressao(
+      (registro.sets ?? []).map((s) => ({ numero: Number(s.numero), pontosA: Number(s.pontosA ?? 0), pontosB: Number(s.pontosB ?? 0) })),
+      Number(registro.setsPorA ?? 0),
+      Number(registro.setsPorB ?? 0),
+    )
+    return montarMotorImpresso(eventos, config)
+  } catch {
+    return null
   }
 }
 
