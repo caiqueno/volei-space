@@ -2,6 +2,15 @@
 
 Estado: **implementado como API, atrás da flag `DESAFIO_ATIVO=1`** (desligada = 404; no app de banco, desligada mantém o 501 anterior). Depende da tabela `"DesafioVideo"` (migration 0041, a cargo do agente `banco-de-dados`); sem ela responde **503** `Recurso ainda não habilitado neste ambiente.`. Não há tela.
 
+## Escopo do produto (OPCIONAL)
+
+O desafio de vídeo é **OPCIONAL**: só vale em competição que tenha sistema de vídeo. Competição sem vídeo não usa este fluxo (a flag `DESAFIO_ATIVO` fica desligada e nenhum botão aparece). Duas partes do fluxo oficial **NÃO estão implementadas**:
+
+- **janela de 7 segundos** para o capitão pedir o desafio depois do lance: o servidor não cronometra nem recusa pedido tardio;
+- **lista de lances desafiáveis** (o que pode ser contestado: bola dentro/fora, toque na rede, toque no bloqueio, invasão e similares): o desafio guarda só `motivo` livre, sem tipo de lance validado.
+
+Qualquer texto de tela ou de regulamento que prometa essas duas regras como prontas está errado hoje.
+
 Código: `src/lib/desafio/` (regras puras em `modelo.ts`, casos de uso em `servico.ts`), `src/app/api/sumula/[token]/desafios/**`, integração em `src/lib/banco/servico.ts`. Teste: `npm run test:desafio`.
 
 ## Rotas da súmula
@@ -10,7 +19,7 @@ Código: `src/lib/desafio/` (regras puras em `modelo.ts`, casos de uso em `servi
 | --- | --- | --- |
 | `POST /api/sumula/[token]/desafios` `{ setNumero, equipeId, motivo?, linkVideo? }` | escrita da súmula (apontador, árbitro escalado, organizador dono) | 201 `{ data: { desafio } }` estado `SOLICITADO` |
 | `GET /api/sumula/[token]/desafios` | leitura da súmula | 200 `{ data: [desafio] }` |
-| `POST /api/sumula/[token]/desafios/[id]/decidir` `{ decisao: 'MANTIDA' \| 'REVERTIDA' \| 'CANCELADO' }` | escrita da súmula | 200 `{ data: { desafio } }` |
+| `POST /api/sumula/[token]/desafios/[id]/decidir` `{ decisao: 'MANTIDA' \| 'REVERTIDA' \| 'INCONCLUSIVA' \| 'CANCELADO' }` | escrita da súmula | 200 `{ data: { desafio } }` |
 
 Erros: 400 dados inválidos (inclui `linkVideo`); 422 equipe fora da partida ou limite excedido (`codigo: LIMITE_EXCEDIDO`); 409 campeonato finalizado, partida encerrada (criar) ou decisão contrária a uma já tomada (`codigo: DESAFIO_JA_DECIDIDO`); 404 desafio inexistente ou de outra partida.
 
@@ -18,14 +27,15 @@ Decidir é idempotente: repetir a mesma decisão devolve 200; decisão diferente
 
 ## Campos
 
-`desafio`: `id, setNumero, equipeId, estado (SOLICITADO|EM_ANALISE|MANTIDA|REVERTIDA|CANCELADO), motivo, linkVideo, pedidoBancoId, solicitadoEm, decididoEm`. `decididoPor` fica só no banco (auditoria).
+`desafio`: `id, setNumero, equipeId, estado (SOLICITADO|EM_ANALISE|MANTIDA|REVERTIDA|INCONCLUSIVA|CANCELADO), motivo, linkVideo, pedidoBancoId, solicitadoEm, decididoEm`. `decididoPor` fica só no banco (auditoria).
 
 `linkVideo`: opcional; só `http(s)`, sem usuário/senha na URL, sem espaços, até 500 caracteres. `motivo`: até 300.
 
 ## Limite por equipe por set ([M], NÃO CONFIRMADO)
 
 - O limite é **configurável**: `DESAFIO_LIMITE_POR_SET` (inteiro de 1 a 10). Sem a variável vale o padrão **2**, uma suposição de produto, não regra oficial.
-- Convenção de contagem (também não confirmada): contam `SOLICITADO`, `EM_ANALISE` e `MANTIDA`. `REVERTIDA` (a equipe tinha razão) devolve o desafio e não conta; `CANCELADO` não conta.
+- Convenção de contagem (também não confirmada): contam `SOLICITADO`, `EM_ANALISE` e `MANTIDA`. `REVERTIDA` (a equipe tinha razão) devolve o desafio e não conta; `INCONCLUSIVA` (o vídeo não permitiu decidir) também não consome o desafio, como a revertida; `CANCELADO` não conta. A migration 0041 precisa aceitar `'INCONCLUSIVA'` no CHECK do estado (a cargo do agente `banco-de-dados`; até lá, decidir `INCONCLUSIVA` falha no banco).
+- `DesafioVideo.id` é uuid: id malformado em `/decidir` responde 404.
 - Corrida: depois de gravar, o servidor recontagem; se estourou, cancela o próprio registro e responde 422. Em disputa simultânea as duas requisições podem ser recusadas; o cliente tenta de novo.
 - A regra oficial (FIVB/CBV e regulamento de cada competição) precisa ser confirmada antes de tratar isto como regra de negócio fechada.
 
