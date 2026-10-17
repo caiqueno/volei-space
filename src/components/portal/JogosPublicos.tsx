@@ -7,6 +7,7 @@ import { PARTIDA_PUBLICA_COLUNAS } from '@/lib/partida-publica'
 import { ladoExposto } from '@/lib/vaga-a-definir'
 import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 import mi from '@/styles/microinteracoes.module.css'
 
 const TAMANHO = 24
@@ -59,7 +60,8 @@ export async function JogosPublicos({ filtro, pagina, ligaId }: { filtro?: strin
     .select('id,nome,slug,descricao,simulacao,logoUrl')
     .eq('id', ligaId)
     .maybeSingle()
-  if (erroCampeonato || !campeonato || campeonatoDeTeste(campeonato)) {
+  const privadas = erroCampeonato || !campeonato ? new Set<number>() : await idsCompeticoesPrivadas()
+  if (erroCampeonato || !campeonato || campeonatoDeTeste(campeonato) || privadas.has(Number(campeonato.id))) {
     return (
       <Moldura filtro={ativo} pagina={numeroPagina} total={0} ligaId={ligaId}>
         <p className="text-sm font-semibold text-slate-300">Esse campeonato não está na lista pública.</p>

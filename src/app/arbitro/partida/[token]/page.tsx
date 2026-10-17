@@ -496,8 +496,8 @@ export default function OperacaoArbitroPage() {
               Ver súmula
               <ArrowRight size={18} />
             </Link>
-            {linkImprimirSumula(partida) ? (
-              <Link href={linkImprimirSumula(partida) as string} className="referee-secondary inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
+            {linkImprimirSumula({ id: partida.id, sumulaToken: partida.sumulaToken, campeonatoPublicado: partida.campeonatoPublicado === true }) ? (
+              <Link href={linkImprimirSumula({ id: partida.id, sumulaToken: partida.sumulaToken, campeonatoPublicado: partida.campeonatoPublicado === true }) as string}className="referee-secondary inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
                 Imprimir súmula
               </Link>
             ) : null}
