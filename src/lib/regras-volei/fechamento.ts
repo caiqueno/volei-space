@@ -6,6 +6,7 @@
  * Horários só existem se os eventos trouxerem `criadoEm` (o servidor grava na tabela); sem eles ficam null.
  */
 import type { ConfigPartida } from './config'
+import { validarAssinaturasFechamento, type AssinaturaFechamento, type OpcoesAssinaturas } from './assinaturas'
 import { derivarPlacar, type ContextoDerivacao, type StatusPartida, type SumulaEvento } from './eventos'
 import { bloqueio, ok, type Equipe, type PlacarSet, type ResultadoRegra } from './tipos'
 
@@ -150,4 +151,15 @@ export function validarFechamento(f: FechamentoPartida): ResultadoRegra {
     return bloqueio('RG-FEC-004', 'A partida encerrada precisa ter equipe vencedora.')
   }
   return ok()
+}
+
+/** RG-FEC-004 + RG-FEC-002/003: o fechamento só vale com totais coerentes e assinaturas na ordem e completas. */
+export function validarFechamentoComAssinaturas(
+  f: FechamentoPartida,
+  assinaturas: readonly AssinaturaFechamento[],
+  opcoes?: OpcoesAssinaturas,
+): ResultadoRegra {
+  const totais = validarFechamento(f)
+  if (!totais.ok) return totais
+  return validarAssinaturasFechamento(assinaturas, opcoes)
 }
