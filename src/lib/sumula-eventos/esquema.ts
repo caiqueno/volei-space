@@ -12,6 +12,7 @@ export const TIPOS_DE_EVENTO = [
   'RALLY_REPETIDO',
   'SUBSTITUICAO',
   'TEMPO',
+  'PEDIDO_INDEVIDO',
   'TROCA_LIBERO',
   'REDESIGNACAO_LIBERO',
   'SANCAO',
@@ -67,6 +68,11 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
       message: 'Informe sai e entra.',
     }),
   TEMPO: z.object({ equipe }),
+  PEDIDO_INDEVIDO: z.object({
+    equipe,
+    tipo: z.enum(['TEMPO', 'SUBSTITUICAO', 'LIBERO', 'OUTRO']).optional(),
+    atrasaOJogo: z.boolean().optional(),
+  }),
   TROCA_LIBERO: z.object({
     equipe,
     sai: jogador,
