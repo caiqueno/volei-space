@@ -26,9 +26,9 @@ export interface PapeletaBanco {
 
 export interface PedidoBanco {
   id: number | string
-  tipo: TipoPedido
+  tipo: TipoPedido | 'DESAFIO'
   estado: EstadoPedido
-  payload: { sai?: number; entra?: number } | null
+  payload: { sai?: number; entra?: number; motivo?: string } | null
   criadoEm: string
 }
 

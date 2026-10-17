@@ -37,6 +37,7 @@ export function PedidosBanco(props: PedidosBancoProps) {
   const [decididos, setDecididos] = useState<Set<string>>(new Set())
   const [erro, setErro] = useState('')
   const [dica, setDica] = useState('')
+  const [recarga, setRecarga] = useState(0)
   const desligadoRef = useRef(false)
   const avisoRef = useRef(props.aviso)
   avisoRef.current = props.aviso
@@ -78,7 +79,7 @@ export function PedidosBanco(props: PedidosBancoProps) {
       vivo = false
       if (timer) clearTimeout(timer)
     }
-  }, [ativo, token])
+  }, [ativo, token, recarga])
 
   const enviarDecisao = useCallback(async (pedido: PedidoBanco, decisao: 'ACEITO' | 'RECUSADO') => {
     const chave = String(pedido.id)
@@ -93,6 +94,8 @@ export function PedidosBanco(props: PedidosBancoProps) {
       if (lido.tipo === 'ok') {
         setDecididos((atual) => new Set(atual).add(chave))
         setDica('')
+        // Aceitar DESAFIO: o servidor cria o desafio; recarrega a lista de pedidos (o painel de desafios atualiza no próprio polling).
+        if (decisao === 'ACEITO' && pedido.tipo === 'DESAFIO') setRecarga((n) => n + 1)
       } else {
         const mensagem = lido.tipo === 'erro' ? lido.mensagem : 'O banco não está habilitado para esta partida.'
         avisoRef.current?.(
