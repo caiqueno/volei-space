@@ -231,6 +231,7 @@ type PartidaOrganizacao = {
   pontosPorA?: number | null
   pontosPorB?: number | null
   sumulaToken?: string | null
+  campeonatoPublicado?: boolean | null
   equipeA?: { nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null
   equipeB?: { nome?: string | null; vaga?: boolean; corHex?: string | null; logoUrl?: string | null } | null
   liga?: { id?: number; nome?: string | null; simulacao?: boolean | null } | { id?: number; nome?: string | null; simulacao?: boolean | null }[] | null
@@ -424,8 +425,8 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                                 <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken)}/lancar`}>Lançar súmula</a>
                               ) : null}
                               <a className="font-bold text-white/80" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
-                              {linkImprimirSumula(partida) ? (
-                                <a className="inline-flex min-h-[44px] items-center font-bold text-white/80" href={linkImprimirSumula(partida) as string}>Imprimir súmula</a>
+                              {linkImprimirSumula({ id: partida.id, sumulaToken: partida.sumulaToken, campeonatoPublicado: partida.campeonatoPublicado === true }) ? (
+                                <a className="inline-flex min-h-[44px] items-center font-bold text-white/80" href={linkImprimirSumula({ id: partida.id, sumulaToken: partida.sumulaToken, campeonatoPublicado: partida.campeonatoPublicado === true }) as string}>Imprimir súmula</a>
                               ) : null}
                             </>
                           )}

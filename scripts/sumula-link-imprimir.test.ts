@@ -16,6 +16,7 @@ for (const arquivo of ['src/app/arbitro/partida/[token]/page.tsx', 'src/componen
   const texto = readFileSync(arquivo, 'utf8')
   assert.ok(texto.includes('linkImprimirSumula('), `${arquivo} usa a regra compartilhada`)
   assert.ok(texto.includes('Imprimir súmula'), `${arquivo} mostra o rótulo`)
+  assert.ok(texto.includes('campeonatoPublicado: partida.campeonatoPublicado === true'), `${arquivo} repassa campeonatoPublicado do payload`)
 }
 
 console.log('sumula-link-imprimir ok')
