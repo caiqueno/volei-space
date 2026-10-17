@@ -31,6 +31,7 @@ Convenção: `20261017NNNN_nome.sql` em `supabase/migrations/`, reversão de mes
 | 0028 | `202610170028_meu_time_atleta_lote_posicao.sql` | R3: `Atleta.posicao`, `numeroPreferido`, origem `LOTE` | Afrouxa CHECK | Baixo | Não |
 | 0029 | `202610170029_sumula_evento_tipos_motor.sql` | R3: CHECK de tipo de `SumulaEvento` com os tipos do motor | Afrouxa CHECK | Baixo | Não |
 | 0030 | `202610170030_liga_visibilidade.sql` | R6: `Liga.visibilidade` (`PUBLICA` padrão, `PRIVADA`) com CHECK; competição privada só por link e exige convite | Coluna not null com default constante | Baixo | Não |
+| 0031 | `202610170031_rls_visibilidade_publica.sql` | R7: `alter policy` das leituras públicas (`Liga`, `CategoriaCampeonato`, `Equipe`, `Partida` e filhas) e da view `jogador_publico` para excluir `visibilidade = 'PRIVADA'`; sem grant, sem policy nova | Restritiva (só para anon/authenticated) | Médio | Não (o anon só é usado em Realtime e Storage) |
 
 Observação sobre a ordem pedida pelo plano (5.2: M1, M2, M6, M7) e a numeração: M5 (0023) e M3/M4 (0024 a 0026) vêm depois de M7 por serem aditivas e sem urgência de segurança. M5 e M3/M4 não dependem de M6/M7 e podem ser aplicadas antes delas em preview.
 
@@ -208,6 +209,7 @@ Ordem em produção (cada linha só com aprovação explícita, fora de rodada):
 | 11 | 0024, 0025, 0026 (M3, M4) | Ensaio em preview; decisões pendentes da seção 1 respondidas. |
 | 12 | 0027, 0028, 0029 (Rodada 3) | Depois de 0026, 0025 e 0023 respectivamente; conferir os nomes reais dos CHECKs em preview. |
 | 13 | 0030 (Rodada 6) | Qualquer momento fora de rodada; o código tolera a coluna ausente. Decidir à parte se a policy pública de `Liga` passa a filtrar `visibilidade = 'PUBLICA'`. |
+| 14 | 0031 (Rodada 7) | Depois de 0030 e de 0003 (aborta se faltar). Fora de rodada, com o resultado de `pg_policies` e `pg_get_viewdef('public.jogador_publico')` guardado. Ensaiar em preview com uma liga `PRIVADA`: anon não lê `Liga`, `CategoriaCampeonato`, `Partida`; a rota por slug (service_role) segue abrindo. |
 
 Regras de segurança do runner:
 - 0005 a 0017 são **um comando sem transação** (`create index concurrently`). Se a CLI embrulhar o arquivo em transação (a verificar em preview), aplicar cada comando pelo SQL Editor ou `psql` e registrar com `supabase migration repair --status applied <versão>`. Índice que falhou no meio fica `INVALID`: `select indexrelid::regclass from pg_index where not indisvalid;` e `drop index concurrently` antes de refazer.
