@@ -42,5 +42,17 @@ Estado verificado por comando: typecheck e build passam. A suíte tem 4 falhas *
 - `npm run lint` roda sem erros (só avisos antigos de `<img>` e hooks).
 - Arquivos de teste que conferem texto do código-fonte (`tempos-sumula`, `lesao-sumula`, `libero-sumula`) foram atualizados para a tela nova.
 
+## Rodada 5 (correções do QA) — já na branch
+Corrigidos: assistente do Meu Time não bloqueia mais categoria sem `RegraElenco`; telas respeitam o papel (`meuPapel`); flag desligada sem laço; convite (`?convite=`) enviado e exigido quando a categoria tem link; documento de atleta com posse conferida na gravação e na leitura; `POST /membros` com resposta uniforme (202) e limite de taxa; troca excepcional e de líbero fora da cota no servidor; sanções distinguidas pelo marcador `[[SAN:…]]`; ordem do replay/impressão por função única; desfazer de sanção e de troca; "Registrar mesmo assim (decisão do árbitro)" com justificativa (`[[OVR:…]]`); link "Imprimir súmula"; testes do motor que não fixam itens sem confirmação.
+
+Ainda abertos depois da rodada 5 (ver `docs/analise/24-qa-integracao-r3-r4.md`):
+- `src/lib/presenca-oficial.ts` (~linha 124) ainda ordena por id crescente; deve usar `emOrdemCronologica` de `src/lib/sumula-ui/ordem.ts` (cuidado: a rota de presença grava em ordem cronológica, as ocorrências da tela em ordem inversa).
+- Botão "Imprimir súmula" falta no painel do árbitro (`src/app/arbitro/partida/[token]/page.tsx`) e do organizador (`PainelConteudos.tsx`).
+- Falta uma flag de competição **privada** em `Liga` (o convite só é exigido quando existe link na categoria).
+- A suspensão automática entre partidas (`src/lib/sancoes-partida.ts`) ainda trata todo cartão vermelho antigo como expulsão; só importa quando as notas passarem a enviar `jogadorId`.
+- `logoUrl` de `PUT /api/capitao/equipe` ainda aceita URL livre; documento legado de outro dono já gravado no banco exige varredura de dados.
+- Os itens de regra sem confirmação continuam configuráveis e sem teste que os fixe (`docs/analise/23`).
+- A pasta `.claude/worktrees/` guarda as cópias de trabalho dos agentes; pode ser apagada com `git worktree remove` quando você não precisar mais delas (as branches `feat/*` continuam existindo).
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
