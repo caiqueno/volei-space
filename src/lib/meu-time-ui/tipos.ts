@@ -5,7 +5,8 @@ export type Naipe = 'FEMININO' | 'MASCULINO' | 'MISTO'
 export type Prontidao = {
   atletas: number
   semDocumento: number
-  /** Menores sem autorização do responsável. Opcional: servidor antigo não manda. */
+  /** Menores sem autorização do responsável. O servidor manda `semAutorizacaoResponsavel`; o nome curto é aceito por compatibilidade. */
+  semAutorizacaoResponsavel?: number
   semAutorizacao?: number
   mensagem: string
 }

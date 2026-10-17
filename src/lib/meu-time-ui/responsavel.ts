@@ -67,8 +67,11 @@ export function contarSemAutorizacao(atletas: Array<Pick<Atleta, 'consentimentoP
 }
 
 /** Quantos sem autorização: usa o número da prontidão do servidor; se faltar, conta pela lista. */
-export function totalSemAutorizacao(prontidao: { semAutorizacao?: number } | undefined, atletas: Array<Pick<Atleta, 'consentimentoPendente'>>): number {
-  const doServidor = prontidao?.semAutorizacao
+export function totalSemAutorizacao(
+  prontidao: { semAutorizacao?: number; semAutorizacaoResponsavel?: number } | undefined,
+  atletas: Array<Pick<Atleta, 'consentimentoPendente'>>,
+): number {
+  const doServidor = prontidao?.semAutorizacaoResponsavel ?? prontidao?.semAutorizacao
   return typeof doServidor === 'number' && Number.isFinite(doServidor) ? Math.max(0, doServidor) : contarSemAutorizacao(atletas)
 }
 
