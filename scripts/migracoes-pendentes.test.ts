@@ -149,6 +149,14 @@ assert.match(experimental, /EXPERIMENTAL/)
 assert.match(experimental, /revoke\s+all\s+on\s+function\s+public\.registrar_inscricao_meu_time\(jsonb\)\s+from\s+public,\s*anon,\s*authenticated/i)
 assert.ok(!/grant\s+execute[^;]*\sto\s+[^;]*\b(anon|authenticated|public)\b/i.test(sqlSemComentario(experimental)), 'função experimental não pode ter execute para anon/authenticated')
 
+// 5c) Rodada 6: Liga.visibilidade (competição privada).
+const sqlVisibilidade = sqlPendente['202610170030_liga_visibilidade.sql']
+assert.match(sqlVisibilidade, /add\s+column\s+if\s+not\s+exists\s+"visibilidade"\s+text\s+not\s+null\s+default\s+'PUBLICA'/i)
+assert.match(sqlVisibilidade, /"visibilidade"\s+in\s*\('PUBLICA',\s*'PRIVADA'\)/i)
+assert.ok(!/\bgrant\b/i.test(sqlVisibilidade), 'visibilidade não pode conceder nada a anon')
+assert.ok(!/\bupdate\s+public\."Liga"/i.test(sqlVisibilidade), 'sem UPDATE em Liga (triggers de campeonato finalizado)')
+assert.match(sqlSemComentario(ler(dirRollback, '202610170030_liga_visibilidade.sql')), /drop\s+column\s+if\s+exists\s+"visibilidade"/i)
+
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {
   const sql = sqlPendente[arquivo]

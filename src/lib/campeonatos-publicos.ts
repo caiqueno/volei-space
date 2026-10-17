@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 
 export type CampeonatoCapa = {
   id: number
@@ -18,7 +19,8 @@ let campeonatosOcultos: { ids: number[]; expira: number } | null = null
 export async function idsForaDaVitrine() {
   if (campeonatosOcultos && campeonatosOcultos.expira > Date.now()) return campeonatosOcultos.ids
   const { data } = await supabaseAdmin.from('Liga').select('id,nome,slug,descricao,simulacao')
-  const ids = (data ?? []).filter((liga) => campeonatoDeTeste(liga)).map((liga) => liga.id)
+  const privadas = await idsCompeticoesPrivadas({ semCache: true })
+  const ids = (data ?? []).filter((liga) => campeonatoDeTeste(liga) || privadas.has(Number(liga.id))).map((liga) => liga.id)
   campeonatosOcultos = { ids, expira: Date.now() + 60_000 }
   return ids
 }
@@ -34,6 +36,7 @@ export async function listarCampeonatosPublicos(opcoes?: { busca?: string; offse
     .order('criadoEm', { ascending: false })
   if (busca) consulta = consulta.ilike('nome', `%${busca.replace(/[%_]/g, '')}%`)
 
+  const privadas = await idsCompeticoesPrivadas()
   const { data, error } = await consulta.range(offset, offset + 39)
   if (error) return { campeonatos: [] as CampeonatoCapa[], temMais: false, proximoOffset: offset, erro: true }
   const linhas = data ?? []
@@ -41,7 +44,7 @@ export async function listarCampeonatosPublicos(opcoes?: { busca?: string; offse
   let proximoOffset = offset + linhas.length
   for (let indice = 0; indice < linhas.length; indice += 1) {
     const liga = linhas[indice]
-    if (campeonatoDeTeste(liga)) continue
+    if (campeonatoDeTeste(liga) || privadas.has(Number(liga.id))) continue
     if (campeonatos.length === limite) {
       proximoOffset = offset + indice
       break

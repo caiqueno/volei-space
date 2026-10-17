@@ -1,5 +1,6 @@
 import { success, error } from '@/lib/api-response'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
@@ -17,7 +18,8 @@ export async function GET() {
 
   if (ligasErr) return error('Não foi possível carregar os campeonatos ativos.', 500)
 
-  const ligas = (data ?? []).filter((liga) => !campeonatoDeTeste(liga))
+  const privadas = await idsCompeticoesPrivadas()
+  const ligas = (data ?? []).filter((liga) => !campeonatoDeTeste(liga) && !privadas.has(Number(liga.id)))
   const ids = ligas.map((liga) => liga.id)
   const localPorLiga = new Map<number, string>()
 

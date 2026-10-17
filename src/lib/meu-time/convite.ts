@@ -8,7 +8,9 @@
 //    CONVITE_OBRIGATORIO; convite que não confere: 403 CONVITE_INVALIDO.
 //  - Nos demais casos (sem link nenhum e competição não privada) o campo `convite` é opcional e
 //    ignorado: a categoria é aberta.
-// Hoje o schema não tem coluna de "campeonato privado"; `privada` fica pronto para quando existir.
+// `privada` vem de Liga.visibilidade = 'PRIVADA' (migration pendente 202610170030). Sem a coluna,
+// a visibilidade chega indefinida e o comportamento é o de sempre. Competição privada sem nenhum
+// token emitido não aceita inscrição (CONVITE_INVALIDO) até o organizador gerar o link.
 import { timingSafeEqual } from 'node:crypto'
 
 export type LinkCampeonato = {
@@ -22,6 +24,8 @@ export type EstadoConvite = {
   tokenCategoria: string | null
   linkCampeonato: LinkCampeonato | null
   privada?: boolean
+  /** Liga.visibilidade crua; 'PRIVADA' equivale a privada. Ausente/nula = pública. */
+  visibilidade?: string | null
 }
 
 export type DecisaoConvite =
@@ -47,7 +51,8 @@ export function avaliarConvite(convite: string | undefined | null, estado: Estad
   const aceitos: string[] = []
   if (estado.tokenCategoria) aceitos.push(estado.tokenCategoria)
   if (linkVigente(estado.linkCampeonato, agora)) aceitos.push(estado.linkCampeonato.token)
-  const exigido = Boolean(estado.privada) || aceitos.length > 0
+  const privada = Boolean(estado.privada) || String(estado.visibilidade ?? '').trim().toUpperCase() === 'PRIVADA'
+  const exigido = privada || aceitos.length > 0
   if (!exigido) return { ok: true, exigido: false }
 
   const informado = (convite ?? '').trim()
