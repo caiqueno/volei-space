@@ -29,7 +29,7 @@ function ler(dir: string, nome: string): string {
 
 const pendentes = listarSql(dirPendentes)
 const rollbacks = listarSql(dirRollback)
-assert.ok(pendentes.length >= 32, 'esperava ao menos 32 migrations pendentes')
+assert.ok(pendentes.length >= 34, 'esperava ao menos 34 migrations pendentes')
 
 // 1) Cada migration tem reversão de mesmo nome e vice-versa.
 assert.deepEqual(rollbacks, pendentes, 'cada migration pendente precisa de rollback de mesmo nome')
@@ -332,6 +332,59 @@ const sqlNotif = sqlPendente['202610170039_notificacao.sql']
 assert.match(sqlNotif, /"usuarioId"\s+text\s+not\s+null/i)
 assert.match(sqlNotif, /titulo\s+text\s+not\s+null/i)
 assert.match(sqlNotif, /index\s+if\s+not\s+exists\s+"Notificacao_usuarioId_lidaEm_idx"\s+on\s+public\."Notificacao"\s*\("usuarioId",\s*"lidaEm"\)/i)
+
+// 5h) Rodada 11 (scout de quadra): 0040 ScoutAcao, 0041 DesafioVideo.
+const r11 = {
+  '202610170040_scout_acao.sql': 'ScoutAcao',
+  '202610170041_desafio_video.sql': 'DesafioVideo',
+} as const
+for (const [nome, tabela] of Object.entries(r11)) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(bruto, /"Partida"[\s\S]*"Equipe"/, `${nome}: cabeçalho deve citar Partida e Equipe`)
+  assert.match(sql, /^\s*begin;\s*set\s+local\s+lock_timeout/i, `${nome}: begin + lock_timeout`)
+  assert.match(sql, /commit;\s*$/i)
+  assert.match(sql, new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\."${tabela}"`, 'i'))
+  assert.match(sql, new RegExp(`alter\\s+table\\s+public\\."${tabela}"\\s+enable\\s+row\\s+level\\s+security`, 'i'))
+  assert.match(sql, new RegExp(`revoke\\s+all\\s+on\\s+table\\s+public\\."${tabela}"\\s+from\\s+public,\\s*anon,\\s*authenticated`, 'i'))
+  assert.match(sql, new RegExp(`grant\\s+[a-z, ]+\\s+on\\s+table\\s+public\\."${tabela}"\\s+to\\s+service_role`, 'i'))
+  assert.ok(!/\bto\s+(anon|authenticated|public)\b/i.test(sql), `${nome}: sem grant para anon/authenticated`)
+  assert.ok(!/\bcreate\s+policy\b/i.test(sql), `${nome}: sem policy (acesso só por service_role)`)
+  assert.ok(!/\b(update|delete)\s+(from\s+)?public\./i.test(sql), `${nome}: não altera dados`)
+  assert.ok(!/praia/i.test(bruto), `${nome}: produto é só vôlei de quadra`)
+  assert.match(sql, /id\s+uuid\s+primary\s+key/i)
+  assert.match(sql, /"partidaId"\s+integer\s+not\s+null\s+references\s+public\."Partida"\(id\)/i)
+  assert.match(sql, /"setNumero"\s+integer\s+not\s+null/i)
+  assert.match(sql, /"equipeId"\s+integer\s+not\s+null\s+references\s+public\."Equipe"\(id\)/i)
+  const rb = sqlSemComentario(ler(dirRollback, nome))
+  assert.match(rb, new RegExp(`drop\\s+table\\s+if\\s+exists\\s+public\\."${tabela}"`, 'i'), `${nome}: reversão sem drop da tabela`)
+  assert.match(rb, /begin;\s*set\s+local\s+lock_timeout/i)
+  assert.ok(!/\bgrant\b/i.test(rb), `${nome}: reversão não concede nada`)
+}
+const sqlScout = sqlPendente['202610170040_scout_acao.sql']
+assert.match(sqlScout, /"jogadorId"\s+integer\s+references\s+public\."Jogador"\(id\)\s+on\s+delete\s+set\s+null/i, 'jogadorId nullable')
+assert.match(sqlScout, /fundamento\s+text\s+not\s+null\s+check\s*\(fundamento\s+in\s*\('SAQUE',\s*'RECEPCAO',\s*'LEVANTAMENTO',\s*'ATAQUE',\s*'BLOQUEIO',\s*'DEFESA',\s*'CONTRA_ATAQUE'\)\)/i)
+assert.match(sqlScout, /resultado\s+text\s+not\s+null\s+check\s*\(resultado\s+in\s*\('PONTO',\s*'ERRO',\s*'CONTINUA',\s*'NEUTRO'\)\)/i)
+assert.match(sqlScout, /"zonaOrigem"\s+smallint\s+check\s*\("zonaOrigem"\s+between\s+1\s+and\s+9\)/i)
+assert.match(sqlScout, /"zonaDestino"\s+smallint\s+check\s*\("zonaDestino"\s+between\s+1\s+and\s+9\)/i)
+assert.match(sqlScout, /rotacao\s+smallint\s+check\s*\(rotacao\s+between\s+1\s+and\s+6\)/i)
+assert.match(sqlScout, /"clientEventId"\s+text\s+not\s+null/i)
+assert.match(sqlScout, /unique\s*\("partidaId",\s*"clientEventId"\)/i, 'idempotência por partida + clientEventId')
+assert.match(sqlScout, /"anuladoEm"\s+timestamptz\s*,/i, 'anuladoEm nullable')
+assert.match(sqlScout, /index\s+if\s+not\s+exists\s+"ScoutAcao_partidaId_setNumero_idx"\s+on\s+public\."ScoutAcao"\s*\("partidaId",\s*"setNumero"\)/i)
+const sqlDes = sqlPendente['202610170041_desafio_video.sql']
+assert.match(sqlDes, /estado\s+text\s+not\s+null\s+default\s+'SOLICITADO'\s+check\s*\(estado\s+in\s*\('SOLICITADO',\s*'EM_ANALISE',\s*'MANTIDA',\s*'REVERTIDA',\s*'CANCELADO'\)\)/i)
+assert.match(sqlDes, /motivo\s+text\s+check\s*\(motivo\s+is\s+null\s+or\s+char_length\(motivo\)\s*<=\s*500\)/i)
+assert.match(sqlDes, /"linkVideo"\s+text\s+check\s*\("linkVideo"\s+is\s+null\s+or\s+char_length\("linkVideo"\)\s*<=\s*500\)/i)
+assert.match(sqlDes, /"pedidoBancoId"\s+uuid\s+references\s+public\."PedidoBanco"\(id\)\s+on\s+delete\s+set\s+null/i)
+assert.match(sqlDes, /check\s*\(estado\s+not\s+in\s*\('MANTIDA',\s*'REVERTIDA',\s*'CANCELADO'\)\s+or\s+"decididoEm"\s+is\s+not\s+null\)/i)
+assert.match(sqlDes, /index\s+if\s+not\s+exists\s+"DesafioVideo_partidaId_setNumero_equipeId_idx"\s+on\s+public\."DesafioVideo"\s*\("partidaId",\s*"setNumero",\s*"equipeId"\)/i)
+assert.ok(versoes.indexOf('202610170035') < versoes.indexOf('202610170041'), '0041 deve vir depois da 0035 (PedidoBanco)')
+assert.match(ler(dirPendentes, '202610170041_desafio_video.sql'), /PRÉ-REQUISITOS[\s\S]*202610170035/, 'cabeçalho da 0041 deve citar a 0035')
 
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {
