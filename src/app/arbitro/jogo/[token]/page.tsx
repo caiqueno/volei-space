@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useRef, useState, type FormEvent } from 'react'
+import { textoAtualizado } from '@/lib/banco-ui/polling'
+import { usePolling } from '@/lib/banco-ui/use-polling'
 import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { formatarDataPartida } from '@/lib/format-partida'
 import { useParams, useRouter } from 'next/navigation'
@@ -24,32 +26,38 @@ export default function AcessoArbitroPage() {
   const [entrando, setEntrando] = useState(false)
   const [validado, setValidado] = useState(false)
 
-  useEffect(() => {
-    let ativo = true
-    fetch(`/api/arbitro/jogo/${token}`)
-      .then(async (resposta) => {
-        const json = await resposta.json().catch(() => ({}))
-        if (!ativo) return
-        if (resposta.status === 410) {
-          setRevogado(true)
-          return
-        }
-        if (!resposta.ok) {
-          setErro(json.error ?? 'Link de acesso inválido.')
-          return
-        }
+  // Consulta ao vivo: a cada 3 s (recuo em falha), pausa com a aba oculta e retoma ao voltar. Só troca o estado
+  // quando o conteúdo muda, para a tela (e o que o árbitro está digitando) ficar exatamente onde estava.
+  const ultimoJogo = useRef('')
+  const consultarJogo = useCallback(async (): Promise<'parar' | void> => {
+    try {
+      const resposta = await fetch(`/api/arbitro/jogo/${token}`, { cache: 'no-store' })
+      const json = await resposta.json().catch(() => ({}))
+      if (resposta.status === 410) {
+        setRevogado(true)
+        setCarregando(false)
+        return 'parar'
+      }
+      if (!resposta.ok) {
+        // Erro 4xx (link inválido): avisa e para; 5xx: mantém o último jogo e tenta de novo com recuo.
+        if (resposta.status >= 500) throw new Error('indisponivel')
+        setErro(json.error ?? 'Link de acesso inválido.')
+        setCarregando(false)
+        return 'parar'
+      }
+      const texto = JSON.stringify(json.data.jogo)
+      if (texto !== ultimoJogo.current) {
+        ultimoJogo.current = texto
         setJogo(json.data.jogo)
-      })
-      .catch(() => {
-        if (ativo) setErro('Link de acesso inválido.')
-      })
-      .finally(() => {
-        if (ativo) setCarregando(false)
-      })
-    return () => {
-      ativo = false
+      }
+      setCarregando(false)
+    } catch {
+      if (!ultimoJogo.current) setErro('Não foi possível carregar o jogo agora. Tentando de novo.')
+      setCarregando((atual) => (ultimoJogo.current ? atual : false))
+      throw new Error('falha')
     }
   }, [token])
+  const { semConexao, ultimaAtualizacao } = usePolling(consultarJogo, !validado)
 
   async function entrar(evento: FormEvent) {
     evento.preventDefault()
@@ -101,6 +109,9 @@ export default function AcessoArbitroPage() {
             </h1>
             <p className="mt-2 text-sm font-semibold text-white/70">{quando}</p>
             <p className="text-sm font-semibold text-white/70">{jogo.localNome || 'Quadra a definir'}</p>
+            <p role="status" className="mt-1 text-xs font-semibold text-white/70">
+              {semConexao ? `Sem conexão. Mostrando dados ${ultimaAtualizacao ? textoAtualizado(ultimaAtualizacao) : 'anteriores'}.` : textoAtualizado(ultimaAtualizacao)}
+            </p>
             <label className="mt-6 block text-sm font-black" htmlFor="codigo-acesso">Digite o código de acesso</label>
             <input
               id="codigo-acesso"
