@@ -17,6 +17,13 @@ import {
   type RascunhoAssistente,
 } from '@/lib/meu-time-ui/rascunho'
 import { lerConvite } from '@/lib/meu-time-ui/navegacao'
+import {
+  atletasEscolhidosSemAutorizacao,
+  avisoAutorizacaoInscricao,
+  CODIGO_AVISO_MENOR_SEM_CONSENTIMENTO,
+  EXPLICACAO_AUTORIZACAO,
+  traduzirAvisoInscricao,
+} from '@/lib/meu-time-ui/responsavel'
 import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import { descreverStatusInscricao, type Falha } from '@/lib/meu-time-ui/respostas'
 import { avisosDeEnvio, lerRegras, montarInscricao, problemasDeEnvio, regrasDeCategoria, type RegrasInscricao } from '@/lib/meu-time-ui/selecao'
@@ -132,6 +139,8 @@ function Assistente({ api, equipeId, categoria, convite, detalhe, regras }: Prop
 
   const problemas = problemasDeEnvio(rascunho.escolhas, atletas, regras, rascunho.comissao.length)
   const avisos = avisosDeEnvio(rascunho.escolhas, atletas, regras)
+  const semAutorizacao = atletasEscolhidosSemAutorizacao(rascunho.escolhas, atletas)
+  const avisoAutorizacao = avisoAutorizacaoInscricao(semAutorizacao)
   const nomePor = useMemo(() => new Map(atletas.map((a) => [a.id, a.nome])), [atletas])
 
   const irPara = (passo: RascunhoAssistente['passo']) => setRascunho((r) => ({ ...r, passo }))
@@ -163,7 +172,10 @@ function Assistente({ api, equipeId, categoria, convite, detalhe, regras }: Prop
         {enviada.avisos.length > 0 && (
           <Aviso tom="is-warning">
             <strong className="block">O que ainda merece atenção:</strong>
-            <ul className="list-disc pl-5">{enviada.avisos.map((a) => <li key={a}>{a}</li>)}</ul>
+            <ul className="list-disc pl-5">{enviada.avisos.map((a) => <li key={a}>{traduzirAvisoInscricao(a)}</li>)}</ul>
+            {enviada.avisos.some((a) => a.includes(CODIGO_AVISO_MENOR_SEM_CONSENTIMENTO)) && (
+              <Link href={`/meu-time/${encodeURIComponent(equipeId)}?pendencia=autorizacao`} className="mt-1 inline-flex min-h-[44px] items-center font-black underline">Completar a autorização agora</Link>
+            )}
           </Aviso>
         )}
         <Link href={`/meu-time/${encodeURIComponent(equipeId)}`} className={botaoPrimario}>Ver meu time</Link>
@@ -204,6 +216,14 @@ function Assistente({ api, equipeId, categoria, convite, detalhe, regras }: Prop
           )}
           <button type="button" onClick={() => irPara(2)} className={botaoPrimario}>É esse time, continuar</button>
         </div>
+      )}
+
+      {(passo === 2 || passo === 4) && avisoAutorizacao && (
+        <Aviso tom="is-warning">
+          <strong className="block">{avisoAutorizacao}</strong>
+          {EXPLICACAO_AUTORIZACAO} Isso não impede o envio.
+          <Link href={`${voltar.href}?pendencia=autorizacao`} className="mt-1 flex min-h-[44px] items-center font-black underline">Completar autorização no cadastro do time</Link>
+        </Aviso>
       )}
 
       {passo === 2 && (
