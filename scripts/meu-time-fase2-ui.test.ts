@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { faseDoisAtiva } from '../src/lib/meu-time-fase2-ui/flag'
-import { MODELO_CSV, podeConfirmar, resumoEmFrase, textoCsvValido, textoDeErroLinha, validarArquivoCsv } from '../src/lib/meu-time-fase2-ui/csv'
+import { EXPLICACAO_IGNORADA, LEGENDA_POSICOES, linhaSeraIgnorada, textoDeAvisoLinha, MODELO_CSV, podeConfirmar, resumoEmFrase, textoCsvValido, textoDeErroLinha, validarArquivoCsv } from '../src/lib/meu-time-fase2-ui/csv'
 import { EXPLICACAO_PUBLICA, ehMenorDeIdade, idadeEm, linkWhatsApp, normalizarEstado, podeRevogar, validarFormAtleta } from '../src/lib/meu-time-fase2-ui/convites'
 import { contarNaoLidas, rotuloSino, textoContador, tituloNotificacao } from '../src/lib/meu-time-fase2-ui/notificacoes'
 import { itemAtual, itensVisiveis, ITENS_NAV } from '../src/lib/meu-time-fase2-ui/navegacao'
@@ -29,6 +29,19 @@ async function main() {
   assert.equal(resumoEmFrase({ validas: 1, comAviso: 0, invalidas: 2 }), '1 linha pronta, 0 com avisos, 2 com erros.')
   assert.equal(podeConfirmar({ validas: 0, comAviso: 0 }), false)
   assert.equal(podeConfirmar({ validas: 0, comAviso: 1 }), true)
+  // modelo usa os códigos aceitos pelo servidor
+  const posicoesModelo = MODELO_CSV.trim().split('\n').slice(1).map((l) => l.split(',')[3])
+  assert.deepEqual(posicoesModelo, ['PT', 'LB'])
+  assert.ok(posicoesModelo.every((p) => ['LV', 'PT', 'OP', 'CT', 'LB'].includes(p!)))
+  assert.match(LEGENDA_POSICOES, /LV = Levantador/)
+  assert.match(LEGENDA_POSICOES, /LB = Líbero/)
+  // avisos do servidor e duplicata
+  assert.equal(textoDeAvisoLinha('Camisa 10 repetida (também na linha 2).'), 'Camisa 10 repetida (também na linha 2).')
+  assert.equal(linhaSeraIgnorada(['Já existe no banco do time (mesmo nome e nascimento); esta linha será ignorada.']), true)
+  assert.equal(linhaSeraIgnorada(['Posição "xx" desconhecida; será ignorada (use LV, PT, OP, CT ou LB).']), false)
+  assert.equal(linhaSeraIgnorada([]), false)
+  assert.match(EXPLICACAO_IGNORADA, /Será ignorada/)
+  assert.equal(textoDeErroLinha('CSV_VAZIO'), 'A planilha está vazia.')
 
   // convites
   assert.equal(normalizarEstado('ATIVO'), 'ativo')

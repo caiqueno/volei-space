@@ -1,7 +1,16 @@
 import type { StatusLinha } from './tipos'
 
 export const CABECALHO_MODELO = ['nome', 'data_nascimento', 'camisa', 'posicao'] as const
-export const MODELO_CSV = `${CABECALHO_MODELO.join(',')}\nMaria da Silva,2005-03-14,10,Ponteira\nJoana Souza,2001-11-02,7,Líbero\n`
+/** Códigos de posição aceitos pelo servidor. */
+export const POSICOES_MODELO = [
+  { codigo: 'LV', rotulo: 'Levantador(a)' },
+  { codigo: 'PT', rotulo: 'Ponteiro(a)' },
+  { codigo: 'OP', rotulo: 'Oposto(a)' },
+  { codigo: 'CT', rotulo: 'Central' },
+  { codigo: 'LB', rotulo: 'Líbero' },
+] as const
+export const LEGENDA_POSICOES = POSICOES_MODELO.map((p) => `${p.codigo} = ${p.rotulo}`).join(', ')
+export const MODELO_CSV = `${CABECALHO_MODELO.join(',')}\nMaria da Silva,2005-03-14,10,PT\nJoana Souza,2001-11-02,7,LB\n`
 export const NOME_ARQUIVO_MODELO = 'modelo-atletas.csv'
 export const LIMITE_BYTES_CSV = 512 * 1024
 
@@ -35,6 +44,10 @@ const TEXTOS_ERRO: Record<string, string> = {
   ATLETA_DUPLICADO: 'Este atleta já está no time ou repetido na planilha.',
   MENOR_DE_IDADE: 'Atleta menor de idade: o responsável será contatado.',
   COLUNAS_FALTANDO: 'Faltam colunas nesta linha.',
+  CSV_VAZIO: 'A planilha está vazia.',
+  CSV_SEM_CABECALHO: 'Não encontramos o cabeçalho (nome, data_nascimento, camisa, posicao).',
+  CSV_LIMITE_LINHAS: 'A planilha tem linhas demais. Envie em partes menores.',
+  ATLETA_MENOR_SEM_CONSENTIMENTO: 'Atleta menor de idade: o responsável precisa autorizar.',
 }
 
 /** Traduz um código (ou texto) de erro de linha em português simples. */
@@ -46,6 +59,18 @@ export function textoDeErroLinha(erro: unknown): string {
   if (/\s/.test(chave) && !/^[A-Z_ ]+$/.test(chave)) return chave
   return 'Esta linha tem um problema. Confira os dados.'
 }
+
+/** Aviso por linha vindo do servidor (texto pronto ou código). Texto com espaços passa direto. */
+export function textoDeAvisoLinha(aviso: unknown): string {
+  return textoDeErroLinha(aviso)
+}
+
+/** Linhas cujo aviso diz que a linha não será criada (duplicata na planilha ou já no time). */
+export function linhaSeraIgnorada(avisos: readonly string[]): boolean {
+  return avisos.some((a) => /linha será ignorada|ATLETA_DUPLICADO/i.test(a))
+}
+
+export const EXPLICACAO_IGNORADA = 'Será ignorada: o atleta já está no time ou repetido na planilha, então esta linha não cria um novo cadastro.'
 
 export const ROTULO_STATUS: Record<StatusLinha, string> = { OK: 'Pronta', AVISO: 'Com aviso', ERRO: 'Com erro' }
 
