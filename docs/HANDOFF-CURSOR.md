@@ -118,5 +118,20 @@ Abertos depois da rodada 10:
 - Telas da fase 2 sem teste de renderização nem conferência no navegador; o item "Atletas" da navegação é só atalho para a lista de times.
 - Fora do escopo por decisão do dono: vôlei de praia (o produto é só vôlei de quadra).
 
+## Rodada 11 — scout manual, desafio de vídeo, ao vivo e offline-first (já na branch)
+Feito (tudo atrás de flag, desligado por padrão):
+- **Offline-first** (`NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1`): a fila local vira o caminho principal de gravação por eventos (`POST /api/sumula/[token]/eventos`), com indicador Salvo/N pendentes/Sem conexão/Conflito, reconciliação de conflito de `seqEsperado`, e bloqueio do fechamento da súmula com pendências. O PUT legado continua em paralelo. O estado da tela continua derivado localmente; ler o estado do log só depois de o modo sombra provar equivalência.
+- **Placar ao vivo** (`AO_VIVO_ATIVO=1` no servidor, `NEXT_PUBLIC_AO_VIVO_ATIVO=1` na tela): `/ao-vivo/[partidaId]` em tela cheia, API pública sem PII (`/api/ao-vivo/[partidaId]`, cache de 2 s, 120 req/min por IP em memória, privadas dão 404). `/arbitro/partida/[token]` atualiza a cada 3 s.
+- **Scout manual** (`SCOUT_ATIVO=1`, `NEXT_PUBLIC_SCOUT_ATIVO=1`): tela `/scout/[token]` com lançamento por toque e fila local; API `/api/scout/[token]/acoes` (idempotente por `clientEventId`, anulação por DELETE); resumo e exportação agora em `scout-json-2`/`scout-csv-2`. A mini-quadra de zonas (5-6-7 / 4-3-8 / 1-2-9) é convenção provisória.
+- **Desafio de vídeo** (`DESAFIO_ATIVO=1`, `NEXT_PUBLIC_DESAFIO_ATIVO=1`): banco pede desafio (cria `PedidoBanco` PENDENTE; aceitar cria o `DesafioVideo` EM_ANALISE), `PainelDesafios` no `lancar` registra e decide (mantida/revertida/cancelada). Limite por equipe por set é CONFIGURÁVEL (`DESAFIO_LIMITE_POR_SET`, padrão 2, [M], NÃO confirmado em fonte). Docs 27 e 28.
+- **Migrations pendentes 0040–0041** (`ScoutAcao` com id bigint, `DesafioVideo`); nunca rodaram num Postgres.
+
+Abertos depois da rodada 11:
+- O desafio não gera o evento `DESAFIO` no log do motor; o scout manual não preenche rotação/placar na tela; scout sem edição de ação.
+- Duas requisições simultâneas de desafio podem ser recusadas as duas (recontagem no servidor); rate limit do ao vivo em memória por instância.
+- Telas de scout, desafio, ao vivo e o banner de conflito do offline-first sem teste de renderização e sem conferência no navegador.
+- Ações descartadas na tradução da tela para a fila (atleta desconhecido, formação incompleta) não bloqueiam o fechamento.
+- Formato .dvw continua não confirmado (nada implementado).
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.

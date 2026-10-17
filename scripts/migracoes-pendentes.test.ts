@@ -356,7 +356,8 @@ for (const [nome, tabela] of Object.entries(r11)) {
   assert.ok(!/\bcreate\s+policy\b/i.test(sql), `${nome}: sem policy (acesso só por service_role)`)
   assert.ok(!/\b(update|delete)\s+(from\s+)?public\./i.test(sql), `${nome}: não altera dados`)
   assert.ok(!/praia/i.test(bruto), `${nome}: produto é só vôlei de quadra`)
-  assert.match(sql, /id\s+uuid\s+primary\s+key/i)
+  // ScoutAcao usa bigint identity (o backend trata o id como número); DesafioVideo usa uuid.
+  assert.match(sql, tabela === 'ScoutAcao' ? /id\s+bigint\s+generated\s+always\s+as\s+identity\s+primary\s+key/i : /id\s+uuid\s+primary\s+key/i)
   assert.match(sql, /"partidaId"\s+integer\s+not\s+null\s+references\s+public\."Partida"\(id\)/i)
   assert.match(sql, /"setNumero"\s+integer\s+not\s+null/i)
   assert.match(sql, /"equipeId"\s+integer\s+not\s+null\s+references\s+public\."Equipe"\(id\)/i)
