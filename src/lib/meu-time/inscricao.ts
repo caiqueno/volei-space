@@ -98,7 +98,10 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
     .eq('ligaId', categoria.ligaId)
     .maybeSingle()
   if (resposta.error && !tabelaAusente(resposta.error)) lerDados(resposta, 'link de inscrição do campeonato')
+  // Visibilidade em consulta própria: se a coluna ainda não existe, o erro é ignorado (pública).
+  const visibilidade = await supabase.from('Liga').select('visibilidade').eq('id', categoria.ligaId).maybeSingle()
   const decisao = avaliarConvite(pedido.convite, {
+    visibilidade: visibilidade.error ? null : ((visibilidade.data as { visibilidade?: string | null } | null)?.visibilidade ?? null),
     tokenCategoria: categoria.tokenInscricao,
     linkCampeonato: resposta.error ? null : (resposta.data as LinkCampeonato | null),
   })

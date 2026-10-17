@@ -9,6 +9,7 @@ import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 import { comCachePublico, semCacheCompartilhado } from '@/lib/cache-publico'
 import { STATUS_CAMPEONATO_PUBLICO } from '@/lib/campeonato-publico'
+import { idsCompeticoesPrivadas, semIdsPrivados } from '@/lib/visibilidade-competicao'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -42,11 +43,14 @@ export async function GET(req: NextRequest) {
     query = query.or(`nome.ilike.%${safeBusca}%,subtitulo.ilike.%${safeBusca}%,descricao.ilike.%${safeBusca}%`)
   }
 
-  const { data, error: err } = await query
+  const { data: bruto, error: err } = await query
   if (err) {
     console.error('[ligas] erro ao buscar', err)
     return semCacheCompartilhado(error('Erro ao buscar campeonatos', 500))
   }
+  // Lista pública não mostra competição privada (só por link/código). A lista do próprio
+  // organizador (já autenticada acima) mostra tudo dele.
+  const data = organizadorId ? bruto : semIdsPrivados(bruto as Array<{ id: number }> | null, await idsCompeticoesPrivadas())
 
   // Só para a listagem do próprio organizador (usada no carrossel da home):
   // anexa local principal e categorias reais em 2 queries em lote (não 1 por

@@ -140,7 +140,10 @@
     "test:sumula-r5-qa": "node scripts/with-ts-node.mjs scripts/sumula-r5-qa.test.ts",
     "test:sumula-link-imprimir": "node scripts/with-ts-node.mjs scripts/sumula-link-imprimir.test.ts",
     "test:sumula-fila-adaptador": "node scripts/with-ts-node.mjs scripts/sumula-fila-adaptador.test.ts",
-    "test:sumula-fila-desfaz": "node scripts/with-ts-node.mjs scripts/sumula-fila-desfaz.test.ts"
+    "test:sumula-fila-desfaz": "node scripts/with-ts-node.mjs scripts/sumula-fila-desfaz.test.ts",
+    "test:visibilidade-competicao": "node scripts/with-ts-node.mjs scripts/visibilidade-competicao.test.ts",
+    "test:sancoes-partida": "node scripts/with-ts-node.mjs scripts/sancoes-partida.test.ts",
+    "test:capitao-logo": "node scripts/with-ts-node.mjs scripts/capitao-logo.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

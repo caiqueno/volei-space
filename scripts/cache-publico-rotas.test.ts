@@ -27,6 +27,10 @@ function instalarFetch(modo: 'ok' | 'erro') {
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = urlDe(input)
     const method = (init?.method || (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET')).toUpperCase()
+    // Consulta auxiliar de competições privadas (nenhuma privada aqui); não conta como leitura da lista.
+    if (modo === 'ok' && url.includes('visibilidade=eq.PRIVADA')) {
+      return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
+    }
     chamadas.push({ url, method })
     if (!url.startsWith(HOST)) throw new Error(`fetch fora do teste: ${method} ${url}`)
     if (modo === 'erro') {

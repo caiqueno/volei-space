@@ -1,8 +1,25 @@
 import { lerTodasAsLinhas } from '@/lib/leitura-paginada'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
-import { suspensaoAutomatica, type JogoDoAtleta } from '@/lib/sancoes'
+import { suspensaoAutomatica, tipoSancaoDaOcorrencia, type JogoDoAtleta } from '@/lib/sancoes'
 
 type Presenca = { jogadorId?: number | null; presente?: boolean | null }
+type OcorrenciaHistorico = { jogadorId?: number | null; tipo?: string | null; descricao?: string | null }
+type JogoHistorico = { id: number; dataHora?: string | null; ocorrencias?: OcorrenciaHistorico[] | null }
+
+/**
+ * Histórico de sanções de um atleta nos jogos anteriores. O tipo vem de tipoSancaoDaOcorrencia: o
+ * marcador [[SAN:...]] da descrição distingue penalidade, expulsão e desqualificação, que a tela
+ * grava todas como CARTAO_VERMELHO. Nota antiga sem marcador continua valendo como expulsão.
+ */
+export function historicoDeSancoes(anteriores: JogoHistorico[], jogadorId: number): JogoDoAtleta[] {
+  return anteriores.map((jogo) => ({
+    id: Number(jogo.id),
+    sancoes: (jogo.ocorrencias ?? [])
+      .filter((item) => Number(item.jogadorId) === jogadorId)
+      .map((item) => tipoSancaoDaOcorrencia(item))
+      .filter((tipo): tipo is NonNullable<typeof tipo> => tipo != null),
+  })).filter((jogo) => jogo.sancoes.length > 0)
+}
 
 /** Recusa atleta suspenso que a súmula marca como presente. Falha de leitura não bloqueia a partida. */
 export async function mensagemDeSuspensao(partida: { id?: number; categoriaCampeonatoId?: string | null }, presencas?: Presenca[] | null) {
@@ -10,11 +27,11 @@ export async function mensagemDeSuspensao(partida: { id?: number; categoriaCampe
   const presentes = (presencas ?? []).filter((item) => item.presente && item.jogadorId != null).map((item) => Number(item.jogadorId))
   if (!Number.isInteger(partidaId) || presentes.length === 0 || !partida.categoriaCampeonatoId) return null
 
-  let jogos: Array<{ id: number; dataHora?: string | null; ocorrencias?: Array<{ jogadorId?: number | null; tipo?: string | null }> | null }>
+  let jogos: JogoHistorico[]
   try {
     jogos = await lerTodasAsLinhas(() => supabase
       .from('Partida')
-      .select('id,dataHora,ocorrencias:OcorrenciaPartida(jogadorId,tipo)')
+      .select('id,dataHora,ocorrencias:OcorrenciaPartida(jogadorId,tipo,descricao)')
       .eq('categoriaCampeonatoId', partida.categoriaCampeonatoId))
   } catch (error) {
     console.error('[sancoes] histórico não consultado', error)
@@ -26,12 +43,7 @@ export async function mensagemDeSuspensao(partida: { id?: number; categoriaCampe
   const anteriores = indiceAtual >= 0 ? ordenados.slice(0, indiceAtual) : ordenados.filter((jogo) => Number(jogo.id) !== partidaId)
 
   for (const jogadorId of presentes) {
-    const historico: JogoDoAtleta[] = anteriores.map((jogo) => ({
-      id: Number(jogo.id),
-      sancoes: (jogo.ocorrencias ?? [])
-        .filter((item: { jogadorId?: number | null }) => Number(item.jogadorId) === jogadorId)
-        .map((item: { tipo?: string | null }) => String(item.tipo ?? '')),
-    })).filter((jogo) => jogo.sancoes.length > 0)
+    const historico = historicoDeSancoes(anteriores, jogadorId)
     const suspensao = suspensaoAutomatica(historico)
     if (suspensao.suspenso) return suspensao.motivo
   }

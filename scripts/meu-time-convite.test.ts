@@ -46,4 +46,15 @@ assert.equal(privada.ok, false)
 assert.equal(!privada.ok && privada.codigo, 'CONVITE_INVALIDO')
 assert.equal(!avaliarConvite(undefined, { tokenCategoria: null, linkCampeonato: null, privada: true }, agora).ok, true)
 
+// Liga.visibilidade = 'PRIVADA' exige convite; PUBLICA, nula ou coluna ausente seguem como hoje.
+const vazio = { tokenCategoria: null, linkCampeonato: null }
+const semConv = avaliarConvite(undefined, { ...vazio, visibilidade: 'PRIVADA' }, agora)
+assert.equal(!semConv.ok && semConv.codigo, 'CONVITE_OBRIGATORIO')
+assert.equal(avaliarConvite(undefined, { ...vazio, visibilidade: ' privada ' }, agora).ok, false, 'caixa e espaços')
+assert.equal(avaliarConvite('link-liga', { tokenCategoria: null, linkCampeonato: link, visibilidade: 'PRIVADA' }, agora).ok, true, 'privada com convite válido')
+assert.equal(avaliarConvite('errado', { tokenCategoria: null, linkCampeonato: link, visibilidade: 'PRIVADA' }, agora).ok, false)
+for (const visibilidade of ['PUBLICA', null, undefined, '']) {
+  assert.deepEqual(avaliarConvite(undefined, { ...vazio, visibilidade }, agora), { ok: true, exigido: false })
+}
+
 console.log('meu-time-convite: ok')
