@@ -10,6 +10,7 @@ import { TeamIdentity } from '@/components/equipes/TeamIdentity'
 import { numeroNaPartida, presencaFoiDecidida, proximoAtletaNoElenco, validarTrocaNumeroCamisa } from '@/lib/numero-camisa-partida'
 import { presencaNaTela, validarNovoAtleta } from '@/lib/presenca-herdada'
 import { jogoJaIniciado } from '@/lib/arbitro-responsavel'
+import { linkImprimirSumula } from '@/lib/sumula-ui/link-imprimir'
 import { formatarDataPartida } from '@/lib/format-partida'
 
 export default function OperacaoArbitroPage() {
@@ -495,6 +496,11 @@ export default function OperacaoArbitroPage() {
               Ver súmula
               <ArrowRight size={18} />
             </Link>
+            {linkImprimirSumula(partida) ? (
+              <Link href={linkImprimirSumula(partida) as string} className="referee-secondary inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border px-5 py-4 text-sm font-black uppercase tracking-wide transition">
+                Imprimir súmula
+              </Link>
+            ) : null}
           </div>
         </div>
       </section>
