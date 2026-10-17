@@ -33,6 +33,7 @@ import {
 } from './tipos'
 import type { AcaoInterrupcao } from './wo-interrupcao'
 import { capitaoEmJogo, validarDesignacaoDeCapitao } from './elenco'
+import { calcularPerdaPorNaoRegistrado } from './nao-registrado'
 import { consequenciaDeDiscrepancia, type CausaDiscrepancia, type FaseDiscrepancia } from './papeleta'
 
 export type MotivoRallyRepetido = 'ACIDENTE_COM_BOLA_EM_JOGO' | 'INTERFERENCIA_EXTERNA' | 'OUTRO'
@@ -117,9 +118,15 @@ export interface PayloadPorTipo {
     fase: FaseDiscrepancia
     causa: CausaDiscrepancia
     jogador?: number
+    /** Com `setEntrada`: seq, dentro desse set, do primeiro ponto da faltosa a cancelar. */
     momentoSeq?: number | null
     pontoDoRallyDaFaltaSeq?: number | null
     formacaoCorrigida?: number[]
+    /**
+     * RG-FOR-009 completo: set (anterior ao corrente) em que o jogador não registrado entrou. Só vale com
+     * causa JOGADOR_NAO_REGISTRADO e fase DEPOIS_DO_INICIO; omitido ou igual ao set corrente = só o set corrente.
+     */
+    setEntrada?: number
   }
   /** RG-ELE-005: designação do capitão em jogo quando o capitão da equipe não está em quadra. */
   CAPITAO_EM_JOGO: { equipe: Equipe; jogador: number }
@@ -898,9 +905,56 @@ export function derivarPlacar(
           rejeitar(e.seq, 'RG-FOR-009', `O jogador ${p.jogador} consta na relação nominal; não é jogador não registrado.`)
           break
         }
+        // RG-FOR-009 completo: o não registrado entrou em set ANTERIOR; os sets desde a entrada são reabertos.
+        const retroativo = p.setEntrada !== undefined && p.setEntrada !== set.numero
+        if (retroativo) {
+          if (p.causa !== 'JOGADOR_NAO_REGISTRADO' || p.fase !== 'DEPOIS_DO_INICIO') {
+            rejeitar(e.seq, 'RG-FOR-009', 'O set de entrada só se informa para jogador não registrado descoberto depois do início do set.')
+            break
+          }
+          if (p.setEntrada! > set.numero || p.setEntrada! < 1) {
+            rejeitar(e.seq, 'RG-FOR-009', `O ${p.setEntrada}º set não é anterior ao set corrente (${set.numero}º).`)
+            break
+          }
+          const perda = calcularPerdaPorNaoRegistrado({
+            faltosa: p.equipe,
+            setEntrada: p.setEntrada!,
+            momentoSeq: p.momentoSeq ?? null,
+            setsAnteriores: sets
+              .filter((x) => x !== set && x.encerrado)
+              .map((x) => ({
+                numero: x.numero,
+                alvo: x.alvo,
+                encerrado: x.encerrado,
+                vencedor: x.vencedor,
+                placar: { ...x.placar },
+                pontos: x.pontos.map((pt) => ({ seq: pt.seq, equipe: pt.equipe, cancelado: pt.cancelado })),
+              })),
+            opcoes: { margem: config.margem, zerarSetsJaPerdidos: config.naoRegistradoZeraSetsJaPerdidos === true },
+          })
+          if (!perda.ok) {
+            rejeitar(e.seq, perda.codigo, perda.mensagem)
+            break
+          }
+          for (const pd of perda.perdas) {
+            const alvoSet = sets.find((x) => x.numero === pd.numero)
+            if (!alvoSet) continue
+            for (const pt of alvoSet.pontos) if (pd.cancelados.includes(pt.seq)) pt.cancelado = true
+            if (pd.cancelados.length > 0) houveCancelamento = true
+            if (pd.sobrescreve) alvoSet.ajusteIncompleta = pd.placar
+            recalcular(alvoSet, config)
+          }
+          observacoes.push({
+            seq: e.seq,
+            texto: `JOGADOR NÃO REGISTRADO (EQUIPE ${p.equipe}) DESDE O ${p.setEntrada}º SET: ${perda.perdas
+              .map((pd) => `${pd.numero}º SET ${pd.placarOriginal.a}X${pd.placarOriginal.b} PASSA A ${pd.placar.a}X${pd.placar.b}`)
+              .join('; ')}`,
+          })
+        }
         discrepancias.push({ seq: e.seq, equipe: p.equipe, fase: p.fase, causa: p.causa, codigo: efeito.codigo, jogador: p.jogador ?? null })
         if (p.fase === 'DEPOIS_DO_INICIO') {
-          reverterEPontuar(set, e.seq, p.equipe, p.momentoSeq ?? null, p.pontoDoRallyDaFaltaSeq ?? null, p.formacaoCorrigida, 'PAPELETA')
+          // Retroativo: o jogador está em quadra desde o início do set corrente, então todos os pontos da faltosa nele caem.
+          reverterEPontuar(set, e.seq, p.equipe, retroativo ? set.inicioSeq : (p.momentoSeq ?? null), p.pontoDoRallyDaFaltaSeq ?? null, p.formacaoCorrigida, 'PAPELETA')
         } else if (p.formacaoCorrigida) {
           // Antes do set: as posições voltam à papeleta; a correção só confirma a formação já entregue.
           const entregue = p.equipe === 'A' ? set.formacaoInicialA : set.formacaoInicialB

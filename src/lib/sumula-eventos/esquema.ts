@@ -106,6 +106,7 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
     momentoSeq: z.number().int().positive().nullable().optional(),
     pontoDoRallyDaFaltaSeq: z.number().int().positive().nullable().optional(),
     formacaoCorrigida: formacao.optional(),
+    setEntrada: z.number().int().min(1).max(5).optional(),
   }),
   CAPITAO_EM_JOGO: z.object({ equipe, jogador }),
   PROTESTO_ANUNCIADO: z.object({ equipe, jogador: jogador.optional(), motivo: z.string().trim().max(300).optional() }),
