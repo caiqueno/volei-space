@@ -54,5 +54,14 @@ Ainda abertos depois da rodada 5 (ver `docs/analise/24-qa-integracao-r3-r4.md`):
 - Os itens de regra sem confirmação continuam configuráveis e sem teste que os fixe (`docs/analise/23`).
 - A pasta `.claude/worktrees/` guarda as cópias de trabalho dos agentes; pode ser apagada com `git worktree remove` quando você não precisar mais delas (as branches `feat/*` continuam existindo).
 
+## Rodada 6 — já na branch
+Feito: `presenca-oficial` ordena pelo instante gravado no registro (e pela ordem explícita quando falta); link "Imprimir súmula" nos painéis do árbitro e do organizador (só com `sumulaToken`; partida sem token não mostra o link porque os payloads não dizem se o campeonato é público); competição **privada** (`Liga.visibilidade`, migration pendente 0030 — sem a coluna tudo segue público) com convite obrigatório e fora das listas públicas (`/api/ligas`, portal, vitrine, sitemap, ao vivo); suspensão automática entre partidas lê o marcador de sanção; `logoUrl` do capitão só aceita o Storage da própria equipe; **fila offline ligada à tela em modo sombra**, atrás de `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1` (desligada = comportamento idêntico ao de antes; o `PUT` segue sendo o oficial).
+
+Abertos depois da rodada 6:
+- `src/app/campeonatos/page.tsx`, `JogosPublicos.tsx`, `agenda-publica.ts`, `/api/equipes` e `/api/partidas` ainda consultam `Liga` direto e podem listar competição privada; as policies RLS públicas de `Liga` e `CategoriaCampeonato` também não filtram por visibilidade (decisão do banco).
+- Não há tela nem rota para o organizador marcar a liga como PRIVADA nem gerar o link (`ligaSchema` não tem o campo); privada sem link emitido recusa tudo.
+- Os payloads do árbitro/organizador não dizem se o campeonato está publicado (necessário para o link de impressão em partida sem token).
+- Para ligar de verdade a fila + eventos: `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1` no build, `SUMULA_EVENTOS_ATIVO=1` no servidor e as migrations 0023 e 0029 aplicadas; antes disso comparar o log com o `PUT` em jogos reais.
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
