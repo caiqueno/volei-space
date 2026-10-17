@@ -17,6 +17,7 @@ import {
 import { formatEliminatoryPhase } from '@/lib/eliminatorias'
 import { categoryIdFromRequest } from '@/lib/category-setup-delegate'
 import { CategoryScopeError, getCategoryConfiguration } from '@/lib/category-scope'
+import { lerVisibilidadeDaLiga } from '@/lib/visibilidade-competicao'
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ligaId = Number(id)
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return success({
     ligaId,
     nome: liga.nome,
+    visibilidade: await lerVisibilidadeDaLiga(ligaId),
     // Com o campeonato em andamento, decisões estruturais ficam travadas —
     // regra que antes só existia no modal de /painel e que a Central precisa
     // reproduzir (a API também barra, ver rejectLockedFields).

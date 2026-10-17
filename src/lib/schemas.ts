@@ -396,7 +396,10 @@ export const setupInscricoesSchema = ligaSchema.pick({
   genero: true,
   idadeMinima: true,
   idadeMaxima: true,
-}).partial()
+}).partial().extend({
+  // Competição privada. Opcional no PATCH: omitido não altera; a leitura devolve PUBLICA por padrão.
+  visibilidade: z.enum(['PUBLICA', 'PRIVADA']).optional(),
+})
 
 export const inscricaoCampeonatoSchema = z.object({
   candidaturaId: z.string().min(1),

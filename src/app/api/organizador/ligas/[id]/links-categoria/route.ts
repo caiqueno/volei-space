@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
 import { ligaDoOrganizador, novoTokenInscricao } from '@/lib/link-inscricao-campeonato'
+import { lerVisibilidadeDaLiga } from '@/lib/visibilidade-competicao'
+import { MENSAGEM_PRIVADA_SEM_LINK } from '@/lib/meu-time/convite'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,12 +19,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .order('ordem', { ascending: true })
 
   if (falha) return error('Não foi possível ler as categorias.', 500)
-  return success((data ?? []).map((item) => ({
-    id: item.id,
-    nome: item.nome,
-    codigo: item.codigo,
-    caminho: item.tokenInscricao ? `/inscricao/categoria/${item.tokenInscricao}` : null,
-  })))
+  const privada = (await lerVisibilidadeDaLiga(ligaId)) === 'PRIVADA'
+  return success((data ?? []).map((item) => {
+    const caminho = item.tokenInscricao ? `/inscricao/categoria/${item.tokenInscricao}` : null
+    return {
+      id: item.id,
+      nome: item.nome,
+      codigo: item.codigo,
+      caminho,
+      privada,
+      // Competição privada sem link emitido não aceita nenhuma inscrição: o organizador precisa gerar.
+      semLink: privada && !caminho,
+      mensagem: privada && !caminho ? MENSAGEM_PRIVADA_SEM_LINK : null,
+    }
+  }))
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

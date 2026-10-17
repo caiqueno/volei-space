@@ -9,12 +9,15 @@ import { validateChampionshipSetup } from '@/lib/championship-setup-engine'
 import { SECTION_ORDER, computeAllEffectiveStatuses, computeSetupProgress, type SetupSection } from '@/lib/championship-setup-status'
 import { calculateChampionshipPrice, estimateMatchCount } from '@/lib/pricing'
 import { pagamentoHabilitado } from '@/lib/pagamento-config'
+import { competicaoPrivada } from '@/lib/visibilidade-competicao'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ligaId = Number(id)
   const liga = await requireOwnedLigaForSetup(req, ligaId, '*')
   if (liga instanceof Response) return liga
+
+  const visibilidadeLida = competicaoPrivada(liga as { visibilidade?: unknown }) ? 'PRIVADA' : 'PUBLICA'
 
   const [{ data: grupos }, { data: locais }, { count: aprovadasCount }, { count: partidasGeradas }, validation, stored] = await Promise.all([
     supabase.from('GrupoCampeonato').select('id,nome,ordem,classificados').eq('ligaId', ligaId).order('ordem', { ascending: true }),
@@ -59,6 +62,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       logoUrl: liga.logoUrl,
       capaUrl: liga.capaUrl,
       status: liga.status,
+      // Coluna ausente (migration pendente) = pública, como antes.
+      visibilidade: visibilidadeLida,
     },
     structure: {
       quantidadeEquipes: liga.quantidadeEquipes,
@@ -108,6 +113,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       elencoQuantidadeMinima: liga.elencoQuantidadeMinima,
       elencoQuantidadeMaxima: liga.elencoQuantidadeMaxima,
       qrCodeEnabled: liga.qrCodeEnabled,
+      visibilidade: visibilidadeLida,
       formularioInscricaoConfig: liga.formularioInscricaoConfig,
     },
     recursos: {
