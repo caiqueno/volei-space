@@ -221,6 +221,62 @@ for (const politica of ['luv_public_select_liga', 'luv_public_select_equipe', 'l
   assert.ok(sqlOficial.includes(politica), `policy ${politica} não existe em supabase/migrations`)
 }
 
+// 5f) Rodada 9: app de banco e papeleta digital (0033 BancoAcesso, 0034 Papeleta, 0035 PedidoBanco).
+const r9 = {
+  '202610170033_banco_acesso.sql': 'BancoAcesso',
+  '202610170034_papeleta.sql': 'Papeleta',
+  '202610170035_pedido_banco.sql': 'PedidoBanco',
+} as const
+for (const [nome, tabela] of Object.entries(r9)) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(bruto, /"Partida"[\s\S]*"Equipe"/, `${nome}: cabeçalho deve citar Partida e Equipe como pré-requisito`)
+  assert.match(bruto, /Nenhuma/, `${nome}: QUEBRA DE ROTAS deve declarar nenhuma`)
+  assert.match(sql, /^\s*begin;\s*set\s+local\s+lock_timeout/i, `${nome}: begin + lock_timeout`)
+  assert.match(sql, /commit;\s*$/i)
+  assert.match(sql, new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\."${tabela}"`, 'i'))
+  assert.match(sql, new RegExp(`alter\\s+table\\s+public\\."${tabela}"\\s+enable\\s+row\\s+level\\s+security`, 'i'))
+  assert.match(sql, new RegExp(`revoke\\s+all\\s+on\\s+table\\s+public\\."${tabela}"\\s+from\\s+public,\\s*anon,\\s*authenticated`, 'i'))
+  assert.match(sql, new RegExp(`grant\\s+[a-z, ]+\\s+on\\s+table\\s+public\\."${tabela}"\\s+to\\s+service_role`, 'i'))
+  assert.ok(!/\bto\s+(anon|authenticated|public)\b/i.test(sql), `${nome}: sem grant para anon/authenticated`)
+  assert.ok(!/\bcreate\s+policy\b/i.test(sql), `${nome}: sem policy (acesso só por service_role)`)
+  assert.match(sql, /"partidaId"\s+integer\s+not\s+null\s+references\s+public\."Partida"\(id\)/i)
+  assert.match(sql, /"equipeId"\s+integer\s+not\s+null\s+references\s+public\."Equipe"\(id\)/i)
+  assert.match(sql, /id\s+uuid\s+primary\s+key/i)
+  const rb = sqlSemComentario(ler(dirRollback, nome))
+  assert.match(rb, new RegExp(`drop\\s+table\\s+if\\s+exists\\s+public\\."${tabela}"`, 'i'), `${nome}: reversão sem drop da tabela`)
+  assert.ok(!/\bgrant\b/i.test(rb), `${nome}: reversão não concede nada`)
+}
+const sqlBanco = sqlPendente['202610170033_banco_acesso.sql']
+assert.match(sqlBanco, /"tokenHash"\s+text\s+not\s+null/i)
+assert.match(sqlBanco, /"BancoAcesso_tokenHash_key"\s+unique\s*\("tokenHash"\)/i, 'tokenHash deve ser único')
+assert.ok(!/\btoken\s+text\b/i.test(sqlBanco), 'BancoAcesso nunca guarda o token em claro')
+for (const col of ['expiraEm', 'revogadoEm', 'criadoPor']) assert.ok(sqlBanco.includes(`"${col}"`), `BancoAcesso sem ${col}`)
+const sqlPap = sqlPendente['202610170034_papeleta.sql']
+assert.match(sqlPap, /formacao\s+jsonb\s+not\s+null/i)
+assert.match(sqlPap, /jsonb_array_length\(formacao\)\s*=\s*6/i)
+assert.match(sqlPap, /estado\s+in\s*\('RASCUNHO',\s*'ENVIADA',\s*'ACEITA'\)/i)
+assert.match(sqlPap, /unique\s*\("partidaId",\s*"equipeId",\s*"setNumero"\)/i)
+assert.match(sqlPap, /create\s+trigger\s+papeleta_imutavel_trg\s+before\s+update\s+or\s+delete\s+on\s+public\."Papeleta"/i, 'trigger de imutabilidade ausente')
+const fnPap = /create\s+or\s+replace\s+function\s+public\.papeleta_imutavel\(\)[\s\S]*?\$fn\$;/i.exec(sqlPap)
+assert.ok(fnPap, 'função papeleta_imutavel ausente')
+for (const campo of ['formacao', '"liberoId"', '"capitaoId"']) {
+  assert.ok(new RegExp(`new\\.${campo}\\s+is\\s+distinct\\s+from\\s+old\\.${campo}`, 'i').test(fnPap![0]), `trigger não protege ${campo}`)
+}
+assert.match(fnPap![0], /old\.estado\s+in\s*\('ENVIADA',\s*'ACEITA'\)/i)
+assert.match(fnPap![0], /raise\s+exception/i)
+assert.match(sqlPap, /revoke\s+all\s+on\s+function\s+public\.papeleta_imutavel\(\)\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sqlSemComentario(ler(dirRollback, '202610170034_papeleta.sql')), /drop\s+trigger\s+if\s+exists\s+papeleta_imutavel_trg/i)
+const sqlPed = sqlPendente['202610170035_pedido_banco.sql']
+assert.match(sqlPed, /tipo\s+in\s*\('TEMPO',\s*'SUBSTITUICAO',\s*'DESAFIO'\)/i)
+assert.match(sqlPed, /estado\s+in\s*\('PENDENTE',\s*'ACEITO',\s*'RECUSADO',\s*'CANCELADO'\)/i)
+assert.match(sqlPed, /payload\s+jsonb\s+not\s+null\s+default\s+'\{\}'/i)
+assert.match(sqlPed, /index\s+if\s+not\s+exists\s+"PedidoBanco_partidaId_estado_idx"\s+on\s+public\."PedidoBanco"\s*\("partidaId",\s*estado\)/i)
+
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {
   const sql = sqlPendente[arquivo]
