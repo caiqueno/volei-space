@@ -1,5 +1,6 @@
 import { numeroNaPartida } from '@/lib/numero-camisa-partida'
 import { numerosDaTroca } from '@/lib/sumula-regras'
+import { emOrdemCronologica } from '@/lib/sumula-ui/ordem'
 
 export const MENSAGEM_MINIMO_ATLETAS = 'A súmula oficial exige pelo menos 6 atletas validados por equipe.'
 
@@ -114,20 +115,42 @@ export function presenteNoPayload(jogadorId: number, validados: readonly number[
   return null
 }
 
-/** A ausência explícita é o registro da rota de presença. False sem esse texto não é ausência. */
+/**
+ * Instante gravado no texto do registro da rota de presença ("... em 2026-10-11T12:00:00.000Z: ...").
+ * É a única âncora cronológica explícita: o id do banco não serve, porque a tela grava a lista do mais
+ * novo ao mais antigo e a rota de presença grava em ordem cronológica.
+ */
+function instanteDoRegistro(descricao: string): number | null {
+  const m = descricao.match(/\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\b/)
+  if (!m) return null
+  const t = Date.parse(m[1])
+  return Number.isFinite(t) ? t : null
+}
+
+/**
+ * A ausência explícita é o registro da rota de presença. False sem esse texto não é ausência.
+ * A ordem vem do instante gravado no próprio registro (estável nas duas fontes e no caso misto); sem
+ * instante em algum registro, cai em `emOrdemCronologica` (sentido detectado, padrão da tela).
+ */
 export function ausenteExplicito(
   jogadorId: number,
   ocorrencias: Array<{ id?: number | null; descricao?: string | null }>,
 ) {
   const marca = new RegExp(`atleta ${Number(jogadorId)} (confirmado|ausente)\\b`)
-  let ultimo: 'ausente' | 'confirmado' | null = null
-  const ordenadas = [...ocorrencias].sort((a, b) => Number(a.id ?? 0) - Number(b.id ?? 0))
-  for (const item of ordenadas) {
-    const achou = String(item.descricao ?? '').match(marca)
-    if (!achou) continue
-    ultimo = achou[1] === 'ausente' ? 'ausente' : 'confirmado'
+  const relevantes = ocorrencias.filter((item) => marca.test(String(item.descricao ?? '')))
+  if (!relevantes.length) return false
+  const instantes = relevantes.map((item) => instanteDoRegistro(String(item.descricao ?? '')))
+  let ordenadas: typeof relevantes
+  if (instantes.every((t) => t != null)) {
+    ordenadas = relevantes
+      .map((item, indice) => ({ item, indice, t: instantes[indice] as number }))
+      .sort((x, y) => x.t - y.t || x.indice - y.indice)
+      .map((x) => x.item)
+  } else {
+    ordenadas = emOrdemCronologica(relevantes)
   }
-  return ultimo === 'ausente'
+  const achou = String(ordenadas[ordenadas.length - 1].descricao ?? '').match(marca)
+  return achou?.[1] === 'ausente'
 }
 
 function idDeQuemEntrou(

@@ -271,6 +271,37 @@ async function main() {
   ]), false)
   assert.equal(ausenteExplicito(4, [{ id: 3, descricao: 'Registro de número de camisa: atleta 4 passou de 4 para 8' }]), false)
 
+  // Ordem das ocorrências: o instante do registro manda, não o id nem a posição.
+  const reg = (id: number, hora: string, estado: 'ausente' | 'confirmado') => ({
+    id,
+    descricao: `Registro de presença pelo árbitro 2 em 2026-10-11T${hora}.000Z: atleta 4 ${estado}`,
+  })
+  const ausenteReg = reg(1, '12:00:00', 'ausente')
+  const confirmadoReg = reg(2, '12:05:00', 'confirmado')
+  // lista cronológica (rota de presença)
+  assert.equal(ausenteExplicito(4, [ausenteReg, confirmadoReg]), false)
+  assert.equal(ausenteExplicito(4, [confirmadoReg, ausenteReg]), false)
+  // lista do mais novo ao mais antigo (formato gravado pela tela): ids crescem do novo ao antigo
+  assert.equal(ausenteExplicito(4, [{ ...confirmadoReg, id: 10 }, { ...ausenteReg, id: 11 }]), false)
+  assert.equal(ausenteExplicito(4, [{ ...ausenteReg, id: 10 }, { ...confirmadoReg, id: 11 }].reverse()), false)
+  // o último é ausenteReg, nas duas ordens de id
+  const ausenteDepois = reg(5, '12:10:00', 'ausente')
+  assert.equal(ausenteExplicito(4, [{ ...ausenteDepois, id: 1 }, { ...confirmadoReg, id: 2 }]), true)
+  assert.equal(ausenteExplicito(4, [{ ...confirmadoReg, id: 1 }, { ...ausenteDepois, id: 2 }]), true)
+  // caso misto: bloco da tela (novo primeiro) seguido de registro novo da rota (id maior, mais recente)
+  assert.equal(ausenteExplicito(4, [
+    { ...confirmadoReg, id: 20 }, { ...ausenteReg, id: 21 },
+    reg(30, '12:20:00', 'ausente'),
+  ]), true)
+  assert.equal(ausenteExplicito(4, [
+    { ...ausenteReg, id: 20 }, { descricao: 'Registro de número de camisa: atleta 4 passou de 4 para 8', id: 21 },
+    reg(30, '12:20:00', 'confirmado'),
+  ]), false)
+  // sem instante no texto: cai na ordem cronológica compartilhada (padrão da tela, novo primeiro)
+  assert.equal(ausenteExplicito(4, [
+    { id: 1, descricao: 'atleta 4 confirmado' }, { id: 2, descricao: 'atleta 4 ausente' },
+  ]), false)
+
   console.log('sumula-presenca ok')
 }
 

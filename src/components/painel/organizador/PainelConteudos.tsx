@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { GaleriaOrganizador } from '@/components/galeria/GaleriaOrganizador'
 import { ChampionshipTableSection } from '@/components/classificacao/ChampionshipTableSection'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
+import { linkImprimirSumula } from '@/lib/sumula-ui/link-imprimir'
 import { CollapseBar } from '@/components/ui/collapse-bar'
 import { AcessoArbitroJogo, type LinkDoJuiz } from './AcessoArbitroJogo'
 import { LinksCategoria } from './LinksCategoria'
@@ -423,6 +424,9 @@ export function PainelJogos({ ligas, campeonatoId, onSelect, ativo = true }: { l
                                 <a className="font-black text-[#ffb331]" href={`/sumula/${encodeURIComponent(partida.sumulaToken)}/lancar`}>Lançar súmula</a>
                               ) : null}
                               <a className="font-bold text-white/80" href={`/sumula/${encodeURIComponent(partida.sumulaToken || String(partida.id))}`}>Abrir súmula</a>
+                              {linkImprimirSumula(partida) ? (
+                                <a className="inline-flex min-h-[44px] items-center font-bold text-white/80" href={linkImprimirSumula(partida) as string}>Imprimir súmula</a>
+                              ) : null}
                             </>
                           )}
                           <a className="font-bold text-white/80" href={`/partidas/${partida.id}/ao-vivo`}>Link público</a>
