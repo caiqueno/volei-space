@@ -7,7 +7,7 @@ import { InstagramIcon } from '@/components/landing/InstagramIcon'
 
 export function Footer() {
   const pathname = usePathname()
-  if (pathname.startsWith('/admin') || pathname.startsWith('/cadastro') || pathname.startsWith('/inscricao') || pathname.startsWith('/sumula') || pathname.startsWith('/arbitro')) return null
+  if (pathname.startsWith('/admin') || pathname.startsWith('/cadastro') || pathname.startsWith('/inscricao') || pathname.startsWith('/sumula') || pathname.startsWith('/arbitro') || pathname.startsWith('/banco')) return null
 
   if (pathname === '/') {
     return (

@@ -62,6 +62,7 @@ import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
 import { CaixaRegra, OverrideArbitro } from '@/components/sumula/CaixaRegra'
 import { PedidosBanco } from '@/components/sumula-banco/PedidosBanco'
 import { PapeletasDoSet } from '@/components/sumula-banco/PapeletasDoSet'
+import { LinkBanco } from '@/components/sumula-banco/LinkBanco'
 import { PainelCorrecoes } from '@/components/sumula/PainelCorrecoes'
 import { ModalSubstituicao, type MotivoTela, type MotorModal, type OpcaoAtleta } from '@/components/sumula/ModalSubstituicao'
 import { caixaDeBloqueio, type CaixaRegra as DadosCaixaRegra } from '@/lib/sumula-ui/explicacao'
@@ -2284,6 +2285,9 @@ export default function SumulaPage() {
         )}
 
         <PedidosBanco token={String(token)} partidaEmAndamento={matchStatus === 'live'} nomeEquipe={(id) => timePorEquipeId(id)?.team.name ?? 'Equipe'} rotuloJogador={rotuloJogadorDoBanco} onAceitarTempo={aceitarTempoDoBanco} onAceitarTroca={aceitarTrocaDoBanco} aviso={addToast} />
+        {activeTab === 'escalacao' && teamA && teamB && partida?.id ? (
+          <LinkBanco partidaId={Number(partida.id)} equipes={[{ equipeId: teamA.dbId, nome: teamA.name }, { equipeId: teamB.dbId, nome: teamB.name }]} />
+        ) : null}
         {activeTab === 'escalacao' && teamA && teamB && (
           <PapeletasDoSet token={String(token)} set={currentSet} equipes={[{ equipeId: teamA.dbId, nome: teamA.name }, { equipeId: teamB.dbId, nome: teamB.name }]} escalacaoDaTela={escalacaoParaBanco} rotuloJogador={rotuloJogadorDoBanco} onAplicar={aplicarPapeletaDoBanco} aviso={addToast} />
         )}

@@ -180,6 +180,8 @@ export function Header() {
     }
   }, [])
 
+  if (pathname.startsWith('/banco')) return null
+
   if (pathname.startsWith('/arbitro') || pathname.startsWith('/sumula')) {
     return (
       <div className="sticky top-0 z-50 flex justify-end border-b border-white/10 bg-[#061426]/92 px-4 py-2">

@@ -64,16 +64,7 @@ export function botaoPedido(params: {
   if (partidaEncerrada(visao.partida.status)) return barrado('A partida já terminou.')
   if (params.semConexao) return barrado('Sem conexão. Aguarde voltar para pedir.')
   if (params.enviando) return barrado('Enviando o pedido...')
-  const uso = usoDeLimites(visao.pedidos)
-  const usado = tipo === 'TEMPO' ? uso.tempos : uso.substituicoes
-  const limite = tipo === 'TEMPO' ? visao.limites.tempos : visao.limites.substituicoes
-  if (Number.isFinite(limite) && usado >= limite) {
-    return barrado(
-      tipo === 'TEMPO'
-        ? `Os ${limite} tempos desta partida já foram usados ou pedidos.`
-        : `As ${limite} substituições desta partida já foram usadas ou pedidas.`,
-    )
-  }
+  // O limite é por set e quem confere é o servidor (422 LIMITE_EXCEDIDO); a tela só barra pedido pendente repetido.
   const pendentes = visao.pedidos.filter((p) => p.estado === 'PENDENTE')
   if (pendentes.some((p) => p.tipo === tipo)) {
     return barrado(tipo === 'TEMPO' ? 'Já existe um pedido de tempo aguardando o apontador.' : 'Já existe um pedido de substituição aguardando o apontador.')
