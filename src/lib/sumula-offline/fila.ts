@@ -18,6 +18,8 @@ import type {
   StatusConexao,
 } from './tipos'
 
+import { contarEventosExternos, lerLinhasDoLog, type LinhaLog } from './politica'
+
 const TAMANHO_LOTE_PADRAO = 50
 
 interface AceitoServidor {
@@ -356,7 +358,9 @@ export class FilaSumula {
       if (status === 409) {
         const det = corpo?.details ?? {}
         const seqAtual = Number(det.seqAtual ?? det.estado?.ultimoSeq ?? this.dados.seqServidor)
-        await this.reconciliar(lote, det.aceitos ?? [], det.estado ?? null, seqAtual)
+        const seqAnterior = this.dados.seqServidor
+        const logRebuscado = await this.rebuscarLog(doFetch, seqAnterior)
+        await this.reconciliar(lote, det.aceitos ?? [], det.estado ?? null, seqAtual, seqAnterior, logRebuscado)
         conflitos++
         if (conflitos > this.o.maxConflitosPorCiclo) {
           this.erro = 'A súmula mudou em outro aparelho. Confira o placar.'
@@ -477,15 +481,66 @@ export class FilaSumula {
   }
 
   /** 409: o servidor tem eventos que não conhecemos. Absorve o que ele aceitou e reenvia com o seq novo. */
-  private async reconciliar(lote: ItemFila[], aceitos: AceitoServidor[], estado: EstadoSumula | null, seqAtual: number) {
+  private async reconciliar(
+    lote: ItemFila[],
+    aceitos: AceitoServidor[],
+    estado: EstadoSumula | null,
+    seqAtual: number,
+    seqAnterior: number,
+    log: LinhaLog[] | null
+  ) {
     const ids = new Set(aceitos.map((a) => a.clientEventId))
     this.guardarSeqs(aceitos)
     this.dados.itens = this.dados.itens.filter((i) => !ids.has(i.clientEventId))
     this.dados.seqServidor = Number.isFinite(seqAtual) ? seqAtual : this.dados.seqServidor
     if (estado) this.estadoServidor = estado
-    const conflito: ConflitoRegistrado = { em: new Date((this.o.agora ?? Date.now)()).toISOString(), seqAtual: this.dados.seqServidor }
+    // Eventos do log que já são nossos (aceitos antes, resposta perdida) guardam o seq para o DESFAZ por referência.
+    if (log) this.guardarSeqs(log.filter((l) => this.conhecemos(l.clientEventId, lote)))
+    const idsNossos = new Set<string>(Object.keys(this.dados.seqs ?? {}))
+    ids.forEach((id) => idsNossos.add(id))
+    lote.forEach((i) => idsNossos.add(i.clientEventId))
+    this.dados.itens.forEach((i) => idsNossos.add(i.clientEventId))
+    const externos = contarEventosExternos({ seqAnterior, seqAtual: this.dados.seqServidor, idsNossos, aceitosNossos: aceitos.length, log })
+    const conflito: ConflitoRegistrado = {
+      em: new Date((this.o.agora ?? Date.now)()).toISOString(),
+      seqAtual: this.dados.seqServidor,
+      externos,
+      // Só avisa o apontador quando outro aparelho realmente lançou algo; reenvio dos nossos é silencioso.
+      reconhecido: externos === 0,
+    }
     this.dados.ultimoConflito = conflito
     await this.registrarTentativa(lote.filter((i) => !ids.has(i.clientEventId)), false)
+    await this.persistir()
+    this.atualizar()
+  }
+
+  private conhecemos(clientEventId: string, lote: ItemFila[]): boolean {
+    return lote.some((i) => i.clientEventId === clientEventId) || this.dados.itens.some((i) => i.clientEventId === clientEventId)
+  }
+
+  /**
+   * Rebusca o log do servidor a partir do último seq conhecido (GET /eventos?apartirDeSeq=). Melhor esforço:
+   * qualquer falha devolve null e a reconciliação usa só os números do 409.
+   */
+  private async rebuscarLog(doFetch: typeof fetch, aPartirDeSeq: number): Promise<LinhaLog[] | null> {
+    try {
+      const resposta = await doFetch(`${this.o.url}?apartirDeSeq=${Math.max(0, Math.floor(aPartirDeSeq))}`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+      })
+      if (resposta.status !== 200) return null
+      return lerLinhasDoLog(await this.lerJson(resposta))
+    } catch {
+      return null
+    }
+  }
+
+  /** O apontador viu o aviso de conflito (botão "Entendi"). */
+  async reconhecerConflito() {
+    await this.iniciar()
+    if (!this.dados.ultimoConflito || this.dados.ultimoConflito.reconhecido) return
+    this.dados.ultimoConflito = { ...this.dados.ultimoConflito, reconhecido: true }
     await this.persistir()
     this.atualizar()
   }
@@ -596,6 +651,7 @@ export class FilaSumula {
       seqServidor: this.dados.seqServidor,
       estadoServidor: this.estadoServidor,
       ultimoConflito: this.dados.ultimoConflito,
+      conflitoAberto: !!this.dados.ultimoConflito && (this.dados.ultimoConflito.externos ?? 0) > 0 && this.dados.ultimoConflito.reconhecido !== true,
       erro: this.erro,
       proximaTentativaEm: this.proximaTentativaEm,
     }

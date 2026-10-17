@@ -3,10 +3,12 @@
 /**
  * Hook da fila offline da súmula.
  *
- * INTEGRAÇÃO (rodada 6, modo sombra): src/app/sumula/[token]/lancar/page.tsx renderiza <EspelhoFilaSumula>
- * (src/components/sumula-offline) só com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1; ele usa este hook e recebe as ocorrências
- * traduzidas por src/lib/sumula-ui/fila-adaptador.ts. A tela continua gravando por PUT /api/sumula/[token]; a fila só
- * sincroniza com a rota /eventos, que responde 404 sem SUMULA_EVENTOS_ATIVO=1 (a fila permanece local, sem erro).
+ * INTEGRAÇÃO (rodada 11, offline-first): com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1 a tela (lancar/page.tsx) renderiza
+ * <EspelhoFilaSumula> (src/components/sumula-offline), que usa este hook e recebe as ocorrências traduzidas por
+ * src/lib/sumula-ui/fila-adaptador.ts. Cada ocorrência vira evento na fila persistida e é enviada a
+ * POST /api/sumula/[token]/eventos (clientEventId + seqEsperado), com indicador fixo, reenvio com recuo, conflito
+ * reconciliado e bloqueio de fechamento. O PUT legado segue em paralelo até o modo sombra provar equivalência;
+ * se a rota responder 404/503 a fila fica local (modoLocal) e o fluxo legado continua sozinho.
  * Ver docs/analise/06-arquitetura-frontend.md, seção 4.1.
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
@@ -41,6 +43,7 @@ export function useFilaSumula(token: string, opcoes: Partial<Omit<OpcoesFila, 't
     retomar: () => fila.retomar(),
     resolverPendencia: (id: string) => fila.resolverPendencia(id),
     limpar: () => fila.limpar(),
+    reconhecerConflito: () => fila.reconhecerConflito(),
     fila,
   }
 }
