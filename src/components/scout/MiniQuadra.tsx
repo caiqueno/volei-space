@@ -1,18 +1,15 @@
 'use client'
 
-/** Disposição visual das zonas 1 a 9 (3 colunas x 3 linhas); a numeração exata ainda aguarda confirmação do produto. */
-const GRADE = [
-  [5, 6, 7],
-  [4, 3, 8],
-  [1, 2, 9],
-] as const
+import { GRADE_ZONAS, LEGENDA_QUADRA } from '@/lib/scout-ui/zonas'
 
+/** Zonas 1 a 6 seguem a convenção da rede; zonas 7–9 (fundo) a confirmar com a COBRAV. */
 export function MiniQuadra({ titulo, valor, onChange }: { titulo: string; valor: number | null; onChange: (z: number | null) => void }) {
   return (
     <fieldset>
       <legend className="mb-1 text-sm font-bold text-vs-muted">{titulo}</legend>
+      <p className="mb-1 text-xs text-vs-muted">{LEGENDA_QUADRA}</p>
       <div className="grid max-w-[220px] grid-cols-3 gap-1.5">
-        {GRADE.flat().map((z) => (
+        {GRADE_ZONAS.flat().map((z) => (
           <button
             key={z}
             type="button"

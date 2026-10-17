@@ -16,6 +16,7 @@ import {
   registrarFalha,
   registrarMinha,
   remover,
+  textoPausaFila,
   textoPendentes,
   type Armazenamento,
   type ItemFila,
@@ -47,6 +48,7 @@ import {
 } from '@/lib/scout-ui/tipos'
 import { CarregandoScout, EstadoScout } from './EstadoScout'
 import { MiniQuadra } from './MiniQuadra'
+import { NOTA_ZONAS_COBRAV } from '@/lib/scout-ui/zonas'
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
 const BTN = `min-h-[48px] rounded-xl border px-3 text-base font-bold ${FOCO} disabled:cursor-not-allowed disabled:opacity-50`
@@ -69,6 +71,9 @@ export function ScoutApp({ token }: { token: string }) {
   const [fila, setFila] = useState<ItemFila[]>([])
   const [, setMinhas] = useState<MinhaAcao[]>([])
   const [carregou, setCarregou] = useState(false)
+  const [resumoOk, setResumoOk] = useState(true)
+  const [pausa, setPausa] = useState<string | null>(null)
+  const pausadaRef = useRef(false)
 
   const [setNumero, setSetNumero] = useState(1)
   const [equipeId, setEquipeId] = useState<number | null>(null)
@@ -117,7 +122,7 @@ export function ScoutApp({ token }: { token: string }) {
 
   /** Esvazia a fila em ordem; para na primeira falha para não furar a ordem de lançamento. */
   const enviarFila = useCallback(async () => {
-    if (enviando.current) return
+    if (enviando.current || pausadaRef.current) return
     enviando.current = true
     try {
       for (;;) {
@@ -125,8 +130,14 @@ export function ScoutApp({ token }: { token: string }) {
         if (!item) break
         const r = await chamarApi(caminhoScout(token, '/acoes'), 'POST', item.payload)
         const destino = destinoDaResposta(r.status)
+        if (destino === 'pausar') {
+          // Sessão/link: mantém todos os itens e para de enviar até o apontador tentar de novo.
+          pausadaRef.current = true
+          setPausa(textoPausaFila(r.status))
+          break
+        }
         if (destino === 'tentar-de-novo') {
-          if (r.status === 404 || r.status === 503) setTela(classificarFalhaScout(r.status))
+          if (r.status === 503) setTela(classificarFalhaScout(r.status))
           salvarFila(registrarFalha(filaRef.current, item.payload.clientEventId, Date.now()))
           break
         }
@@ -134,7 +145,7 @@ export function ScoutApp({ token }: { token: string }) {
           const acao = acaoDaResposta(r.json)
           if (acao) salvarMinhas(registrarMinha(minhasRef.current, { id: acao.id, clientEventId: item.payload.clientEventId }))
         } else {
-          setAviso('Uma ação foi recusada pelo servidor e saiu da fila.')
+          setAviso('Uma ação foi recusada pelo servidor (dados inválidos) e saiu da fila.')
         }
         salvarFila(remover(filaRef.current, item.payload.clientEventId))
       }
@@ -144,21 +155,15 @@ export function ScoutApp({ token }: { token: string }) {
   }, [token, salvarFila, salvarMinhas])
 
   const tarefa = useCallback(async (): Promise<'parar' | void> => {
-    const rResumo = await chamarApi(caminhoScout(token, '/resumo'), 'GET')
-    if (!rResumo.ok) {
-      const t = classificarFalhaScout(rResumo.status)
-      if (falhaDefinitiva(t)) {
-        setTela(t)
-        return 'parar'
-      }
-      if (!temDados.current) setTela(t)
-      throw new Error(t)
-    }
-    setResumo(rResumo.json)
     if (equipes.length === 0) {
       const rPartida = await chamarApi(caminhoSumula(token), 'GET')
       if (!rPartida.ok) {
         const t = classificarFalhaScout(rPartida.status)
+        if (falhaDefinitiva(t)) {
+          if (filaRef.current.length > 0) setPausa(textoPausaFila(rPartida.status))
+          setTela(t)
+          return 'parar'
+        }
         if (!temDados.current) setTela(t)
         throw new Error(t)
       }
@@ -169,12 +174,27 @@ export function ScoutApp({ token }: { token: string }) {
       }
       setEquipes(lista)
     }
+    // O resumo é opcional: se falhar (503, erro), o painel de lançamento continua disponível.
+    const rResumo = await chamarApi(caminhoScout(token, '/resumo'), 'GET')
+    if (rResumo.ok) {
+      setResumo(rResumo.json)
+      setResumoOk(true)
+    } else {
+      setResumoOk(false)
+    }
     const rAcoes = await chamarApi(caminhoScout(token, '/acoes'), 'GET')
     if (rAcoes.ok) setAcoes(acoesDaResposta(rAcoes.json))
+    else if (rAcoes.status === 401 || rAcoes.status === 403) setPausa(textoPausaFila(rAcoes.status))
     temDados.current = true
     setTela(null)
     await enviarFila()
   }, [token, equipes.length, enviarFila])
+
+  function retomarFila() {
+    pausadaRef.current = false
+    setPausa(null)
+    void enviarFila().then(() => atualizarAgora())
+  }
 
   const { semConexao, ultimaAtualizacao, atualizarAgora } = usePolling(tarefa, carregou)
 
@@ -241,8 +261,8 @@ export function ScoutApp({ token }: { token: string }) {
 
   const visiveis = useMemo(() => filtrarAcoes(acoes, { set: filtroSet, equipeId: filtroEquipe }), [acoes, filtroSet, filtroEquipe])
 
-  if (tela && !temDados.current) return <EstadoScout tela={tela} onTentar={atualizarAgora} />
-  if (tela && temDados.current && falhaDefinitiva(tela)) return <EstadoScout tela={tela} />
+  if (tela && !temDados.current) return <EstadoScout tela={tela} onTentar={atualizarAgora} aviso={pausa} />
+  if (tela && temDados.current && falhaDefinitiva(tela)) return <EstadoScout tela={tela} aviso={pausa} />
   if (!carregou || equipes.length === 0) return <CarregandoScout />
 
   const pendentes = fila.length
@@ -269,6 +289,15 @@ export function ScoutApp({ token }: { token: string }) {
           </p>
         </div>
       </header>
+
+      {pausa ? (
+        <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-red-400 bg-red-950/60 p-3 text-base font-semibold text-red-100">
+          <p>{pausa}</p>
+          <button type="button" onClick={retomarFila} className={`${BTN} ${OFF}`}>
+            Tentar de novo
+          </button>
+        </div>
+      ) : null}
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <section aria-label="Lançar ação" className="space-y-3 rounded-3xl border border-vs-border bg-vs-surface p-4">
@@ -339,6 +368,7 @@ export function ScoutApp({ token }: { token: string }) {
 
           <details className="rounded-2xl border border-vs-border p-3">
             <summary className="min-h-[44px] cursor-pointer text-base font-bold leading-[44px]">Zona (opcional)</summary>
+            <p className="text-xs text-vs-muted">{NOTA_ZONAS_COBRAV}</p>
             <div className="mt-2 grid gap-4 sm:grid-cols-2">
               <MiniQuadra titulo="Zona de origem" valor={zonaOrigem} onChange={setZonaOrigem} />
               <MiniQuadra titulo="Zona de destino" valor={zonaDestino} onChange={setZonaDestino} />
@@ -362,6 +392,7 @@ export function ScoutApp({ token }: { token: string }) {
         <aside className="space-y-3">
           <section aria-label="Resumo" className="rounded-3xl border border-vs-border bg-vs-surface p-4">
             <h2 className="font-display text-xl font-bold">Resumo</h2>
+            {!resumoOk ? <p className="mt-1 text-sm font-semibold text-vs-gold">Resumo indisponível no momento.</p> : null}
             {equipes.map((e) => (
               <div key={e.id} className="mt-2">
                 <h3 className="text-sm font-bold text-vs-gold">{e.nome}</h3>
