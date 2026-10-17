@@ -61,6 +61,38 @@ export function validarSacador(estado: EstadoSaque, jogadorQueSacou: number): Re
   return ok()
 }
 
+/** RG-SAQ-003 (12.4.4, 12.4.5): o saque sai até 8 segundos depois do apito. */
+export const SEGUNDOS_MAX_SAQUE = 8
+
+export interface AvaliacaoSaque {
+  situacao: 'VALIDO' | 'REPETIR' | 'FALTA'
+  codigo: 'RG-SAQ-003' | 'RG-ROT-001'
+  mensagem: string
+}
+
+/**
+ * RG-SAQ-003: o sacador é o jogador da posição I e saca dentro de 8 segundos do apito. Saque ANTES do apito é cancelado e
+ * repetido (sem ponto). Passar dos 8 segundos é falta de saque (ponto ao adversário). A súmula só registra o ponto: a
+ * falta de 8 s não é uma ocorrência separada.
+ */
+export function avaliarExecucaoDoSaque(params: {
+  /** O jogador que sacou é o da posição I (a ordem em si é conferida por `validarSacador`). */
+  sacadorNaPosicaoI: boolean
+  golpeAntesDoApito: boolean
+  segundosAposApito?: number
+}): AvaliacaoSaque {
+  if (params.golpeAntesDoApito) {
+    return { situacao: 'REPETIR', codigo: 'RG-SAQ-003', mensagem: 'Saque antes do apito: o saque é cancelado e repetido, sem ponto.' }
+  }
+  if (!params.sacadorNaPosicaoI) {
+    return { situacao: 'FALTA', codigo: 'RG-ROT-001', mensagem: 'O saque precisa ser dado pelo jogador da posição I: saque fora da ordem, ponto e saque ao adversário.' }
+  }
+  if ((params.segundosAposApito ?? 0) > SEGUNDOS_MAX_SAQUE) {
+    return { situacao: 'FALTA', codigo: 'RG-SAQ-003', mensagem: `O saque saiu depois de ${SEGUNDOS_MAX_SAQUE} segundos do apito: falta, ponto ao adversário.` }
+  }
+  return { situacao: 'VALIDO', codigo: 'RG-SAQ-003', mensagem: 'Saque dentro do prazo e na ordem.' }
+}
+
 export interface ConsequenciaFalta {
   pontoParaAdversario: number
   saqueParaAdversario: boolean

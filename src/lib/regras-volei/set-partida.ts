@@ -3,7 +3,7 @@
  * saque inicial e tempos. RG-SET-*, RG-FOR-002/003, RG-TMP-001/002/005.
  */
 import type { ConfigPartida } from './config'
-import { bloqueio, ok, outraEquipe, type Equipe, type PlacarSet, type ResultadoRegra } from './tipos'
+import { aviso, bloqueio, ok, outraEquipe, type Equipe, type PlacarSet, type RegraBloqueio, type ResultadoRegra } from './tipos'
 
 /** Sets necessários para vencer (maioria). RG-SET-004. */
 export function setsParaVencer(melhorDe: number): number {
@@ -127,6 +127,70 @@ export function saqueInicialDoSet(params: {
   return outraEquipe(params.sacouPrimeiroNoSetAnterior)
 }
 
+export type EscolhaDoSorteio = { tipo: 'SAQUE' } | { tipo: 'RECEPCAO' } | { tipo: 'LADO'; lado: 'ESQUERDA' | 'DIREITA' }
+
+export interface ResultadoSorteio {
+  /** Quem saca primeiro; null enquanto o saque/recepção não foi escolhido. */
+  primeiroSaque: Equipe | null
+  /** Lado de cada equipe; null enquanto o lado não foi escolhido. */
+  lado: { A: 'ESQUERDA' | 'DIREITA'; B: 'ESQUERDA' | 'DIREITA' } | null
+  /** Equipe que ainda precisa fazer a sua escolha (o perdedor do sorteio). */
+  escolhaPendente: Equipe | null
+}
+
+/**
+ * RG-FOR-001 (7.1): o vencedor do sorteio escolhe saque/recepção OU o lado da quadra; o perdedor fica com a outra
+ * escolha. Sem `escolhaPerdedor` o resultado devolve o que falta decidir.
+ */
+export function resolverSorteio(params: {
+  vencedor: Equipe
+  escolhaVencedor: EscolhaDoSorteio
+  escolhaPerdedor?: EscolhaDoSorteio
+}): ResultadoSorteio | RegraBloqueio {
+  const { vencedor, escolhaVencedor, escolhaPerdedor } = params
+  const perdedor = outraEquipe(vencedor)
+  const venceuNoSaque = escolhaVencedor.tipo !== 'LADO'
+  if (escolhaPerdedor && (escolhaPerdedor.tipo !== 'LADO') === venceuNoSaque) {
+    return bloqueio('RG-FOR-001', 'O vencedor do sorteio escolhe saque/recepção OU o lado; o perdedor fica com a outra escolha, não com a mesma.')
+  }
+  let primeiroSaque: Equipe | null = null
+  let ladoDoVencedor: 'ESQUERDA' | 'DIREITA' | null = null
+  if (escolhaVencedor.tipo === 'LADO') ladoDoVencedor = escolhaVencedor.lado
+  else primeiroSaque = escolhaVencedor.tipo === 'SAQUE' ? vencedor : perdedor
+  if (escolhaPerdedor) {
+    if (escolhaPerdedor.tipo === 'LADO') {
+      const ladoDoPerdedor = escolhaPerdedor.lado
+      ladoDoVencedor = ladoDoPerdedor === 'ESQUERDA' ? 'DIREITA' : 'ESQUERDA'
+    } else {
+      primeiroSaque = escolhaPerdedor.tipo === 'SAQUE' ? perdedor : vencedor
+    }
+  }
+  const lado =
+    ladoDoVencedor === null
+      ? null
+      : vencedor === 'A'
+        ? { A: ladoDoVencedor, B: ladoDoVencedor === 'ESQUERDA' ? ('DIREITA' as const) : ('ESQUERDA' as const) }
+        : { B: ladoDoVencedor, A: ladoDoVencedor === 'ESQUERDA' ? ('DIREITA' as const) : ('ESQUERDA' as const) }
+  return { primeiroSaque, lado, escolhaPendente: primeiroSaque !== null && lado !== null ? null : perdedor }
+}
+
+export type FaltaDoRally = { equipe: Equipe; instante: number }
+
+/**
+ * RG-PTO-002 (6.1.2): de duas ou mais faltas sucessivas só a primeira conta (o adversário dela marca o ponto); faltas
+ * simultâneas de adversários são falta dupla e o rally se repete, sem ponto.
+ */
+export function decidirFaltasDoRally(
+  faltas: readonly FaltaDoRally[],
+): { resultado: 'PONTO'; pontoParaEquipe: Equipe; faltaQueConta: FaltaDoRally } | { resultado: 'FALTA_DUPLA' } | { resultado: 'SEM_FALTA' } {
+  if (faltas.length === 0) return { resultado: 'SEM_FALTA' }
+  const ordenadas = [...faltas].sort((x, y) => x.instante - y.instante)
+  const primeira = ordenadas[0]!
+  const simultaneaDoAdversario = ordenadas.some((f) => f !== primeira && f.instante === primeira.instante && f.equipe !== primeira.equipe)
+  if (simultaneaDoAdversario) return { resultado: 'FALTA_DUPLA' }
+  return { resultado: 'PONTO', pontoParaEquipe: outraEquipe(primeira.equipe), faltaQueConta: primeira }
+}
+
 /** RG-TMP-001/002/005: pedido de tempo (2 por set, bola fora e antes do apito). */
 export function validarPedidoDeTempo(params: {
   temposUsados: number
@@ -139,6 +203,70 @@ export function validarPedidoDeTempo(params: {
   }
   if (params.temposUsados >= params.limite) {
     return bloqueio('RG-TMP-001', `A equipe já usou os ${params.limite} tempos do set. O pedido é indevido (o primeiro indevido é só registrado; os seguintes são atraso).`)
+  }
+  return ok()
+}
+
+/* ------------------------------------------------------------------ */
+/* RG-SET-005: intervalo entre sets                                    */
+/* ------------------------------------------------------------------ */
+
+/** RG-SET-005 (18.1): intervalo padrão entre sets. */
+export const INTERVALO_PADRAO_MINUTOS = 3
+/** RG-SET-005 (18.1): o intervalo entre o 2º e o 3º sets pode chegar a 10 minutos a pedido do organizador. */
+export const INTERVALO_LONGO_MAX_MINUTOS = 10
+
+export interface IntervaloEntreSets {
+  /** Duração permitida em minutos. */
+  minutos: number
+  /** É o intervalo longo (entre o 2º e o 3º sets) configurado pelo organizador. */
+  longo: boolean
+  /** No intervalo as equipes trocam de quadra e entregam as papeletas do set seguinte (18.1). */
+  trocamDeQuadra: true
+  entregamPapeletas: true
+}
+
+/**
+ * RG-SET-005: duração do intervalo depois do set `setQueTerminou`. `null` quando não há set seguinte possível
+ * (depois do último set da partida não há intervalo).
+ */
+export function duracaoDoIntervalo(config: ConfigPartida, setQueTerminou: number): IntervaloEntreSets | null {
+  if (setQueTerminou >= config.melhorDe) return null
+  const longo = setQueTerminou === 2 && config.intervaloLongoEntre2e3Minutos !== undefined
+  return {
+    minutos: longo ? config.intervaloLongoEntre2e3Minutos! : INTERVALO_PADRAO_MINUTOS,
+    longo,
+    trocamDeQuadra: true,
+    entregamPapeletas: true,
+  }
+}
+
+/** RG-SET-005: o intervalo longo configurado precisa estar entre 3 e 10 minutos. */
+export function validarConfigIntervalo(config: ConfigPartida): ResultadoRegra {
+  const v = config.intervaloLongoEntre2e3Minutos
+  if (v === undefined) return ok()
+  if (!Number.isFinite(v) || v < INTERVALO_PADRAO_MINUTOS || v > INTERVALO_LONGO_MAX_MINUTOS) {
+    return bloqueio('RG-SET-005', `O intervalo longo entre o 2º e o 3º sets vai de ${INTERVALO_PADRAO_MINUTOS} a ${INTERVALO_LONGO_MAX_MINUTOS} minutos.`)
+  }
+  return ok()
+}
+
+/**
+ * RG-SET-005: compara o intervalo realmente decorrido com o permitido. Passar do limite não invalida a súmula
+ * (é um fato da quadra): devolve um aviso para o apontador lançar o horário real no quadro de observações.
+ */
+export function conferirIntervalo(config: ConfigPartida, setQueTerminou: number, minutosDecorridos: number): ResultadoRegra {
+  const configValida = validarConfigIntervalo(config)
+  if (!configValida.ok) return configValida
+  const previsto = duracaoDoIntervalo(config, setQueTerminou)
+  if (previsto === null) return bloqueio('RG-SET-005', `Não há intervalo depois do ${setQueTerminou}º set: a partida acaba nele.`)
+  if (minutosDecorridos > previsto.minutos) {
+    return ok([
+      aviso(
+        'RG-SET-005',
+        `O intervalo durou ${minutosDecorridos} min e o previsto é de ${previsto.minutos} min${previsto.longo ? ' (intervalo longo pedido pelo organizador)' : ''}: lance o horário real nas observações.`,
+      ),
+    ])
   }
   return ok()
 }

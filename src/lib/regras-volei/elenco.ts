@@ -78,6 +78,27 @@ export function validarElenco(jogadores: readonly JogadorElenco[], liberos: read
 }
 
 /**
+ * RG-ELE-002 (4.1.3): depois que técnico e capitão assinam a relação nominal, os jogadores registrados não mudam
+ * e só eles podem entrar em quadra. Se o produto vai travar a escalação já na assinatura é decisão de produto
+ * (03, RG-ELE-002): aqui a trava é o parâmetro `assinada`.
+ */
+export function validarAlteracaoDeRelacao(params: { assinada: boolean; acao: 'INCLUIR' | 'REMOVER' | 'TROCAR' }): ResultadoRegra {
+  if (!params.assinada) return ok()
+  return bloqueio(
+    'RG-ELE-002',
+    'A relação nominal já foi assinada pelo técnico e pelo capitão: os jogadores registrados não podem mais ser alterados.',
+  )
+}
+
+/** RG-ELE-002: só jogador registrado na relação nominal assinada pode entrar em quadra. */
+export function validarEntradaEmQuadra(params: { relacao: readonly number[]; jogador: number }): ResultadoRegra {
+  if (!params.relacao.includes(params.jogador)) {
+    return bloqueio('RG-ELE-002', `O jogador ${params.jogador} não consta na relação nominal assinada: só os registrados podem entrar em quadra.`)
+  }
+  return ok()
+}
+
+/**
  * RG-ELE-005: o capitão em jogo é o capitão da equipe se estiver em quadra; senão, o jogador em quadra
  * designado pelo técnico/capitão, até ele ser substituído, o capitão voltar ou o set acabar.
  * Devolve quem é o capitão em jogo agora (null = falta designar).

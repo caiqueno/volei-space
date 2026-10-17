@@ -83,6 +83,17 @@ export interface ConfigPartida {
    * registrado ao fim. Ausente = exige (a regra pede aviso "em tempo devido"); false = só registra.
    */
   protestoExigeAnuncio?: boolean
+  /**
+   * RG-SET-005 (18.1): intervalo mais longo entre o 2º e o 3º sets, a pedido do organizador (3 a 10 minutos).
+   * Ausente = todos os intervalos têm 3 minutos.
+   */
+  intervaloLongoEntre2e3Minutos?: number
+  /**
+   * RG-FOR-009 [M quanto a este ponto]: jogador não registrado que entrou em set anterior. O artigo manda a faltosa
+   * perder "pontos e/ou sets (0x25 se necessário)"; se os sets que ela já tinha PERDIDO também têm os pontos zerados
+   * é decisão do regulamento. Ausente/false = esses sets mantêm o parcial real.
+   */
+  naoRegistradoZeraSetsJaPerdidos?: boolean
 }
 
 export const CONFIG_FIVB_MELHOR_DE_5: ConfigPartida = {

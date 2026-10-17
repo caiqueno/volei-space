@@ -148,7 +148,15 @@
     "test:portal-privada-fonte": "node scripts/with-ts-node.mjs scripts/portal-privada-fonte.test.ts",
     "test:competicao-privada-r7": "node scripts/with-ts-node.mjs scripts/competicao-privada-r7.test.ts",
     "test:sumula-servidor-sombra": "node scripts/with-ts-node.mjs scripts/sumula-servidor-sombra.test.ts",
-    "test:lgpd-menores": "node scripts/with-ts-node.mjs scripts/lgpd-menores.test.ts"
+    "test:lgpd-menores": "node scripts/with-ts-node.mjs scripts/lgpd-menores.test.ts",
+    "test:regras-volei-assinaturas": "node scripts/with-ts-node.mjs scripts/regras-volei-assinaturas.test.ts",
+    "test:regras-volei-nao-registrado": "node scripts/with-ts-node.mjs scripts/regras-volei-nao-registrado.test.ts",
+    "test:regras-volei-pedidos": "node scripts/with-ts-node.mjs scripts/regras-volei-pedidos.test.ts",
+    "test:regras-volei-folha-libero": "node scripts/with-ts-node.mjs scripts/regras-volei-folha-libero.test.ts",
+    "test:regras-volei-intervalo": "node scripts/with-ts-node.mjs scripts/regras-volei-intervalo.test.ts",
+    "test:regras-volei-complementos": "node scripts/with-ts-node.mjs scripts/regras-volei-complementos.test.ts",
+    "test:regras-volei-cobertura": "node scripts/with-ts-node.mjs scripts/regras-volei-cobertura.test.ts",
+    "test:regras-volei-r8": "npm run test:regras-volei-assinaturas && npm run test:regras-volei-nao-registrado && npm run test:regras-volei-pedidos && npm run test:regras-volei-folha-libero && npm run test:regras-volei-intervalo && npm run test:regras-volei-complementos && npm run test:regras-volei-cobertura"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

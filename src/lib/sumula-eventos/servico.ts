@@ -16,6 +16,7 @@ import {
   trocasDoPayload,
   type PayloadPorTipo,
   bloqueio,
+  classificarPedidoIndevido,
   decidirInterrupcao,
   derivarPlacar,
   ehSetDecisivo,
@@ -307,6 +308,18 @@ function checarPorTipo(amb: Ambiente, tipo: NovoEvento['tipo'], p: Record<string
       const usados = placar.setAtual!.contadores[p.equipe as Equipe].tempos
       const r = validarPedidoDeTempo({ temposUsados: usados, limite: config.perfil.temposPorSet, bolaForaDeJogo: true, antesDoApito: true })
       return r.ok ? { avisos: r.avisos } : { bloqueio: r }
+    }
+    case 'PEDIDO_INDEVIDO': {
+      const erro = exigirSetEmAndamento(amb, 'RG-TMP-005', 'O registro de pedido indevido')
+      if (erro) return { bloqueio: erro }
+      // RG-TMP-005: o servidor classifica (registro sem sanção ou atraso) e sugere a sanção; o apontador a lança à parte.
+      const equipe = p.equipe as Equipe
+      const c = classificarPedidoIndevido({
+        indevidosAnterioresSemAtraso: placar.pedidosIndevidos.filter((x) => x.equipe === equipe && x.consequencia === 'REGISTRO_SEM_SANCAO').length,
+        atrasosAnteriores: (placar.estadoEquipes?.sancoes ?? []).filter((s) => s.equipe === equipe && s.categoria === 'ATRASO').length,
+        atrasaOJogo: p.atrasaOJogo === true,
+      })
+      return { avisos: [{ codigo: c.codigo, mensagem: c.mensagem }] }
     }
     case 'SANCAO':
       return checarSancao(amb, p)

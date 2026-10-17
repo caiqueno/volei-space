@@ -74,6 +74,53 @@ export function avaliarToleranciaWO(
   return { resultado: validarToleranciaDeWO(minutosDeAtraso, tolerancia), minutosDeAtraso, toleranciaMinutos: tolerancia }
 }
 
+/** RG-WO-003: a arbitragem confere se a equipe vencedora tem ao menos 6 jogadores presentes. */
+export const MIN_JOGADORES_PRESENTES_NO_WO = 6
+
+export function validarPresencaDaVencedoraNoWO(presentesDaVencedora: number): ResultadoRegra {
+  if (!Number.isInteger(presentesDaVencedora) || presentesDaVencedora < MIN_JOGADORES_PRESENTES_NO_WO) {
+    return bloqueio(
+      'RG-WO-003',
+      `Para o WO valer a equipe presente precisa ter ao menos ${MIN_JOGADORES_PRESENTES_NO_WO} jogadores (há ${presentesDaVencedora}); sem eles ela também é incompleta.`,
+    )
+  }
+  return ok()
+}
+
+export interface LinhaQuadroResultadosWO {
+  numeroSet: number
+  /** P: pontos de cada equipe no set. */
+  pontos: { a: number; b: number }
+  /** V: vitória de set (1 para quem venceu, 0 para o outro). */
+  vitorias: { a: number; b: number }
+  /** O set foi lançado como WO (sem jogo): tempos, substituições e duração zerados. */
+  lancadoComoWO: boolean
+  /** Zeros no set de WO; null nos sets realmente jogados (vêm do fechamento). */
+  tempos: { a: number; b: number } | null
+  substituicoes: { a: number; b: number } | null
+  duracaoMinutos: number | null
+}
+
+/**
+ * RG-WO-003 (Guia p.87-93): Quadro de Resultados do WO. Sets lançados como WO: P = alvo do set para a presente e 0 para a
+ * ausente, V = 1 para a presente, e tempos, substituições e duração em zero. O WO duplo não tem vencedor (RG-WO-004).
+ */
+export function quadroResultadosWO(wo: ResultadoWO): LinhaQuadroResultadosWO[] {
+  const primeiroDoWO = wo.parciaisRegistrados.length - wo.setsLancadosComoWO
+  return wo.parciaisRegistrados.map((p, i) => {
+    const lancadoComoWO = i >= primeiroDoWO
+    return {
+      numeroSet: i + 1,
+      pontos: { a: p.a, b: p.b },
+      vitorias: { a: p.a > p.b ? 1 : 0, b: p.b > p.a ? 1 : 0 },
+      lancadoComoWO,
+      tempos: lancadoComoWO ? { a: 0, b: 0 } : null,
+      substituicoes: lancadoComoWO ? { a: 0, b: 0 } : null,
+      duracaoMinutos: lancadoComoWO ? 0 : null,
+    }
+  })
+}
+
 function contarVencidos(sets: PlacarSet[]): { a: number; b: number } {
   let a = 0
   let b = 0

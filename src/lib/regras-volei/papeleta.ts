@@ -22,6 +22,35 @@ export function validarMudancaDeFormacao(params: {
   )
 }
 
+/**
+ * RG-FOR-004 / RG-FOR-005 (5.2.3.1, 7.3.2): antes de cada set o técnico entrega ao 2º árbitro/apontador a papeleta
+ * preenchida e assinada (ou a envia eletronicamente, que vale como oficial). Exatamente 6 jogadores distintos da
+ * relação nominal.
+ */
+export function validarEntregaDaPapeleta(params: {
+  formacao: Formacao
+  relacao: readonly number[]
+  /** Assinada pelo técnico (papel) ou enviada pelo canal eletrônico oficial (vale como assinada). */
+  assinada: boolean
+  /** A entrega ainda é anterior ao início do set (depois dele, só pelas regras de discrepância). */
+  antesDoSet: boolean
+}): ResultadoRegra {
+  if (!params.antesDoSet) {
+    return bloqueio('RG-FOR-004', 'A papeleta é entregue antes do início do set; depois dele só valem a substituição regular e as regras de discrepância.')
+  }
+  if (!params.assinada) {
+    return bloqueio('RG-FOR-004', 'A papeleta precisa estar assinada pelo técnico (ou ser enviada eletronicamente pelo canal oficial).')
+  }
+  if (params.formacao.length !== 6 || new Set(params.formacao).size !== 6) {
+    return bloqueio('RG-FOR-005', 'A papeleta precisa ter exatamente 6 jogadores distintos nas posições I a VI.')
+  }
+  const fora = params.formacao.find((j) => !params.relacao.includes(j))
+  if (fora !== undefined) {
+    return bloqueio('RG-FOR-009', `O jogador ${fora} da papeleta não consta na relação nominal da súmula.`)
+  }
+  return ok()
+}
+
 export interface DiscrepanciaDetectada {
   causa: CausaDiscrepancia
   /** Índice da posição (0 = I). */

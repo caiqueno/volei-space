@@ -12,6 +12,7 @@ export const TIPOS_DE_EVENTO = [
   'RALLY_REPETIDO',
   'SUBSTITUICAO',
   'TEMPO',
+  'PEDIDO_INDEVIDO',
   'TROCA_LIBERO',
   'REDESIGNACAO_LIBERO',
   'SANCAO',
@@ -49,7 +50,7 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
     liberosB: liberos.optional(),
   }),
   PONTO: z.object({ equipe, sacador: jogador.optional() }),
-  RALLY_REPETIDO: z.object({ motivo: z.enum(['ACIDENTE_COM_BOLA_EM_JOGO', 'INTERFERENCIA_EXTERNA', 'OUTRO']).optional() }),
+  RALLY_REPETIDO: z.object({ motivo: z.enum(['ACIDENTE_COM_BOLA_EM_JOGO', 'INTERFERENCIA_EXTERNA', 'FALTA_DUPLA', 'OUTRO']).optional() }),
   // Uma troca (`sai`/`entra`) OU várias no mesmo pedido (`trocas`, RG-SUB-007), nunca as duas formas.
   SUBSTITUICAO: z
     .object({
@@ -67,6 +68,11 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
       message: 'Informe sai e entra.',
     }),
   TEMPO: z.object({ equipe }),
+  PEDIDO_INDEVIDO: z.object({
+    equipe,
+    tipo: z.enum(['TEMPO', 'SUBSTITUICAO', 'LIBERO', 'OUTRO']).optional(),
+    atrasaOJogo: z.boolean().optional(),
+  }),
   TROCA_LIBERO: z.object({
     equipe,
     sai: jogador,
@@ -106,6 +112,7 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
     momentoSeq: z.number().int().positive().nullable().optional(),
     pontoDoRallyDaFaltaSeq: z.number().int().positive().nullable().optional(),
     formacaoCorrigida: formacao.optional(),
+    setEntrada: z.number().int().min(1).max(5).optional(),
   }),
   CAPITAO_EM_JOGO: z.object({ equipe, jogador }),
   PROTESTO_ANUNCIADO: z.object({ equipe, jogador: jogador.optional(), motivo: z.string().trim().max(300).optional() }),
