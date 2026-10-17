@@ -167,7 +167,8 @@
     "test:meu-time-fase2-ui": "node scripts/with-ts-node.mjs scripts/meu-time-fase2-ui.test.ts",
     "test:scout": "node scripts/with-ts-node.mjs scripts/scout.test.ts && node scripts/with-ts-node.mjs scripts/scout-rota.test.ts",
     "test:scout-acoes": "node scripts/with-ts-node.mjs scripts/scout-acoes.test.ts",
-    "test:desafio": "node scripts/with-ts-node.mjs scripts/desafio.test.ts"
+    "test:desafio": "node scripts/with-ts-node.mjs scripts/desafio.test.ts",
+    "test:ao-vivo": "node scripts/with-ts-node.mjs scripts/ao-vivo.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

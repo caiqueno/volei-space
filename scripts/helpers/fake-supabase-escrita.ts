@@ -80,6 +80,7 @@ export function criarBancoEscrita(tabelas: Record<string, LinhaEscrita[]>, opcoe
       update(v: any) { operacao = 'update'; valores = v; return b },
       delete() { operacao = 'delete'; return b },
       eq(c: string, v: unknown) { filtros.push((l) => l[c] === v); return b },
+      gt(c: string, v: unknown) { filtros.push((l) => Number(l[c]) > Number(v)); return b },
       neq(c: string, v: unknown) { filtros.push((l) => l[c] !== v); return b },
       in(c: string, v: unknown[]) { filtros.push((l) => v.includes(l[c])); return b },
       is(c: string, v: unknown) { filtros.push((l) => (v === null ? l[c] == null : l[c] === v)); return b },
