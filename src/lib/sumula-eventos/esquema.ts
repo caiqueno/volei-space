@@ -50,7 +50,7 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
     liberosB: liberos.optional(),
   }),
   PONTO: z.object({ equipe, sacador: jogador.optional() }),
-  RALLY_REPETIDO: z.object({ motivo: z.enum(['ACIDENTE_COM_BOLA_EM_JOGO', 'INTERFERENCIA_EXTERNA', 'OUTRO']).optional() }),
+  RALLY_REPETIDO: z.object({ motivo: z.enum(['ACIDENTE_COM_BOLA_EM_JOGO', 'INTERFERENCIA_EXTERNA', 'FALTA_DUPLA', 'OUTRO']).optional() }),
   // Uma troca (`sai`/`entra`) OU várias no mesmo pedido (`trocas`, RG-SUB-007), nunca as duas formas.
   SUBSTITUICAO: z
     .object({

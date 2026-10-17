@@ -44,7 +44,8 @@ import {
 } from './pedidos'
 import { consequenciaDeDiscrepancia, type CausaDiscrepancia, type FaseDiscrepancia } from './papeleta'
 
-export type MotivoRallyRepetido = 'ACIDENTE_COM_BOLA_EM_JOGO' | 'INTERFERENCIA_EXTERNA' | 'OUTRO'
+/** `FALTA_DUPLA` (RG-PTO-002): faltas simultâneas de adversários; o rally se repete sem ponto. */
+export type MotivoRallyRepetido = 'ACIDENTE_COM_BOLA_EM_JOGO' | 'INTERFERENCIA_EXTERNA' | 'FALTA_DUPLA' | 'OUTRO'
 
 /** Protestos como eventos (RG-PRO-001..003): o motor só registra; o mérito é do órgão do regulamento. */
 export interface ProtestoDerivado {
@@ -946,7 +947,7 @@ export function derivarPlacar(
         // RG-INT-001/002: o rally é repetido SEM ponto, o mesmo sacador volta a sacar e nada gira.
         // Também não vale como rally concluído (não libera outro pedido de substituição nem nova troca de líbero).
         const set = atual()
-        const codigo = e.payload.motivo === 'INTERFERENCIA_EXTERNA' ? 'RG-INT-002' : 'RG-INT-001'
+        const codigo = e.payload.motivo === 'FALTA_DUPLA' ? 'RG-PTO-002' : e.payload.motivo === 'INTERFERENCIA_EXTERNA' ? 'RG-INT-002' : 'RG-INT-001'
         if (!set || set.encerrado || !st.saque) {
           rejeitar(e.seq, codigo, 'O rally só é repetido com um set em andamento.')
           break

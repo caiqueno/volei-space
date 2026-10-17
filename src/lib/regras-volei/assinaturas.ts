@@ -125,3 +125,57 @@ export function validarAssinaturasFechamento(
   }
   return ok(avisos)
 }
+
+/* ------------------------------------------------------------------ */
+/* Abertura (RG-FEC-001) e depois do fechamento (RG-FEC-005)           */
+/* ------------------------------------------------------------------ */
+
+export type SituacaoAssinaturaAbertura = 'ASSINOU' | 'PENDENTE' | 'SEM_TECNICO'
+
+export interface AssinaturasDeAbertura {
+  /** Técnico de cada equipe depois de conferir a relação nominal. SEM_TECNICO: equipe sem técnico (o capitão responde). */
+  tecnico: { A: SituacaoAssinaturaAbertura; B: SituacaoAssinaturaAbertura }
+  /** Capitães assinam o quadro de equipes. */
+  capitao: { A: boolean; B: boolean }
+  /** Os capitães assinam de novo no sorteio. */
+  sorteio: { A: boolean; B: boolean }
+}
+
+/**
+ * RG-FEC-001 (5.1.1, 5.2.2, 27.2.1.1; Guia p.27): antes do jogo, com a relação nominal pronta, assinam os técnicos e os
+ * capitães (no quadro de equipes), e os capitães assinam também no sorteio. O técnico confere a relação antes de assinar.
+ */
+export function validarAssinaturasDeAbertura(a: AssinaturasDeAbertura): ResultadoRegra {
+  for (const equipe of ['A', 'B'] as const) {
+    if (a.tecnico[equipe] === 'PENDENTE') {
+      return bloqueio('RG-FEC-001', `O técnico da equipe ${equipe} ainda não conferiu e assinou a relação nominal.`)
+    }
+    if (!a.capitao[equipe]) {
+      return bloqueio('RG-FEC-001', `O capitão da equipe ${equipe} ainda não assinou o quadro de equipes.`)
+    }
+    if (!a.sorteio[equipe]) {
+      return bloqueio('RG-FEC-001', `O capitão da equipe ${equipe} ainda não assinou o sorteio.`)
+    }
+  }
+  return ok()
+}
+
+/**
+ * RG-FEC-005 (5.1.3.1): com as assinaturas apostas a assinatura ratifica o resultado; a regra não prevê alteração posterior
+ * pela equipe. Correção depois da oficialização é ato administrativo do organizador, com motivo registrado (trilha de
+ * auditoria). A janela de correção por link do produto (D6) é regra de produto, não está aqui.
+ */
+export function validarAlteracaoDeResultado(params: {
+  oficializada: boolean
+  autor: 'EQUIPE' | 'ORGANIZADOR'
+  motivo?: string
+}): ResultadoRegra {
+  if (!params.oficializada) return ok()
+  if (params.autor === 'EQUIPE') {
+    return bloqueio('RG-FEC-005', 'Com as assinaturas apostas o resultado está ratificado: a equipe não altera a súmula; a correção é ato administrativo do organizador.')
+  }
+  if ((params.motivo ?? '').trim() === '') {
+    return bloqueio('RG-FEC-005', 'A correção de uma súmula oficializada exige o motivo registrado pelo organizador.')
+  }
+  return ok()
+}

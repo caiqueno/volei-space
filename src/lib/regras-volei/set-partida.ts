@@ -3,7 +3,7 @@
  * saque inicial e tempos. RG-SET-*, RG-FOR-002/003, RG-TMP-001/002/005.
  */
 import type { ConfigPartida } from './config'
-import { aviso, bloqueio, ok, outraEquipe, type Equipe, type PlacarSet, type ResultadoRegra } from './tipos'
+import { aviso, bloqueio, ok, outraEquipe, type Equipe, type PlacarSet, type RegraBloqueio, type ResultadoRegra } from './tipos'
 
 /** Sets necessários para vencer (maioria). RG-SET-004. */
 export function setsParaVencer(melhorDe: number): number {
@@ -125,6 +125,70 @@ export function saqueInicialDoSet(params: {
 }): Equipe | 'SORTEIO' {
   if (params.decisivo || params.sacouPrimeiroNoSetAnterior === null) return 'SORTEIO'
   return outraEquipe(params.sacouPrimeiroNoSetAnterior)
+}
+
+export type EscolhaDoSorteio = { tipo: 'SAQUE' } | { tipo: 'RECEPCAO' } | { tipo: 'LADO'; lado: 'ESQUERDA' | 'DIREITA' }
+
+export interface ResultadoSorteio {
+  /** Quem saca primeiro; null enquanto o saque/recepção não foi escolhido. */
+  primeiroSaque: Equipe | null
+  /** Lado de cada equipe; null enquanto o lado não foi escolhido. */
+  lado: { A: 'ESQUERDA' | 'DIREITA'; B: 'ESQUERDA' | 'DIREITA' } | null
+  /** Equipe que ainda precisa fazer a sua escolha (o perdedor do sorteio). */
+  escolhaPendente: Equipe | null
+}
+
+/**
+ * RG-FOR-001 (7.1): o vencedor do sorteio escolhe saque/recepção OU o lado da quadra; o perdedor fica com a outra
+ * escolha. Sem `escolhaPerdedor` o resultado devolve o que falta decidir.
+ */
+export function resolverSorteio(params: {
+  vencedor: Equipe
+  escolhaVencedor: EscolhaDoSorteio
+  escolhaPerdedor?: EscolhaDoSorteio
+}): ResultadoSorteio | RegraBloqueio {
+  const { vencedor, escolhaVencedor, escolhaPerdedor } = params
+  const perdedor = outraEquipe(vencedor)
+  const venceuNoSaque = escolhaVencedor.tipo !== 'LADO'
+  if (escolhaPerdedor && (escolhaPerdedor.tipo !== 'LADO') === venceuNoSaque) {
+    return bloqueio('RG-FOR-001', 'O vencedor do sorteio escolhe saque/recepção OU o lado; o perdedor fica com a outra escolha, não com a mesma.')
+  }
+  let primeiroSaque: Equipe | null = null
+  let ladoDoVencedor: 'ESQUERDA' | 'DIREITA' | null = null
+  if (escolhaVencedor.tipo === 'LADO') ladoDoVencedor = escolhaVencedor.lado
+  else primeiroSaque = escolhaVencedor.tipo === 'SAQUE' ? vencedor : perdedor
+  if (escolhaPerdedor) {
+    if (escolhaPerdedor.tipo === 'LADO') {
+      const ladoDoPerdedor = escolhaPerdedor.lado
+      ladoDoVencedor = ladoDoPerdedor === 'ESQUERDA' ? 'DIREITA' : 'ESQUERDA'
+    } else {
+      primeiroSaque = escolhaPerdedor.tipo === 'SAQUE' ? perdedor : vencedor
+    }
+  }
+  const lado =
+    ladoDoVencedor === null
+      ? null
+      : vencedor === 'A'
+        ? { A: ladoDoVencedor, B: ladoDoVencedor === 'ESQUERDA' ? ('DIREITA' as const) : ('ESQUERDA' as const) }
+        : { B: ladoDoVencedor, A: ladoDoVencedor === 'ESQUERDA' ? ('DIREITA' as const) : ('ESQUERDA' as const) }
+  return { primeiroSaque, lado, escolhaPendente: primeiroSaque !== null && lado !== null ? null : perdedor }
+}
+
+export type FaltaDoRally = { equipe: Equipe; instante: number }
+
+/**
+ * RG-PTO-002 (6.1.2): de duas ou mais faltas sucessivas só a primeira conta (o adversário dela marca o ponto); faltas
+ * simultâneas de adversários são falta dupla e o rally se repete, sem ponto.
+ */
+export function decidirFaltasDoRally(
+  faltas: readonly FaltaDoRally[],
+): { resultado: 'PONTO'; pontoParaEquipe: Equipe; faltaQueConta: FaltaDoRally } | { resultado: 'FALTA_DUPLA' } | { resultado: 'SEM_FALTA' } {
+  if (faltas.length === 0) return { resultado: 'SEM_FALTA' }
+  const ordenadas = [...faltas].sort((x, y) => x.instante - y.instante)
+  const primeira = ordenadas[0]!
+  const simultaneaDoAdversario = ordenadas.some((f) => f !== primeira && f.instante === primeira.instante && f.equipe !== primeira.equipe)
+  if (simultaneaDoAdversario) return { resultado: 'FALTA_DUPLA' }
+  return { resultado: 'PONTO', pontoParaEquipe: outraEquipe(primeira.equipe), faltaQueConta: primeira }
 }
 
 /** RG-TMP-001/002/005: pedido de tempo (2 por set, bola fora e antes do apito). */
