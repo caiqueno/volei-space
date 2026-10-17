@@ -113,3 +113,47 @@ Agregador: `npm run test:regras-volei-r3`.
 ### Fora desta rodada
 
 Ordem de assinatura (RG-FEC-002) e capitão ausente (RG-FEC-003); perda de sets anteriores no RG-FOR-009; passar `agora` e `horarioPrevisto` da partida a partir da rota; ampliar o CHECK de `tipo` na tabela; praia (RG-PRA); PDF e súmula anexa; RG-TMP-003/005/006; RG-LIB-014; os itens [M] acima.
+
+## Rodada 8: revalidação no servidor em MODO SOMBRA (branch `feat/r8-servidor-sombra`)
+
+Status: implementado, DESLIGADO por padrão. Não bloqueia nada.
+
+### O que faz
+
+Com `SUMULA_SERVIDOR_SOMBRA=1`, o `PUT /api/sumula/[token]` grava exatamente como antes e, só depois de gravar, revalida as ocorrências recebidas com o motor. A resposta ganha campos ADITIVOS; status HTTP e dados gravados não mudam. Sem a flag (ou com qualquer valor diferente de `1`) a resposta é idêntica à anterior e nenhuma computação extra acontece.
+
+Fluxo (`src/lib/sumula-servidor/`): `interpretar.ts` lê o texto que a tela grava (`<hora> | <placar> | <texto>`, mais novo primeiro, marcadores `[[ROT]]`, `[[SAQUE]]`, `[[SAN]]`, `[[EXC]]`, `[[OVR]]`) e põe em ordem cronológica (`emOrdemCronologica`); `sombra.ts` traduz com `traduzirOcorrencia` (adaptador da tela), valida cada evento com `validarNovoEvento` contra o log acumulado, deriva o placar com `derivarPlacar` e compara com os sets gravados. O que o motor recusaria entra no log mesmo assim (a derivação o ignora), para o placar comparado refletir o que a tela registrou. Falha interna vira o aviso `SOMBRA-ERRO-INTERNO` (info) e o PUT segue.
+
+### Como ler a resposta
+
+```
+{ salva: true, oficial: false, status: 'EM_ANDAMENTO',
+  avisosMotor: [{ codigo, mensagem, severidade }],   // [] quando tudo confere
+  divergenciaPlacar?: { sets: [{ numero, gravado:{a,b}, derivado:{a,b}|null }] } }
+```
+
+| severidade | significado |
+| --- | --- |
+| `erro` | o motor recusaria o lance se a regra já bloqueasse (código RG-*). Candidato a bloqueio. |
+| `aviso` | o servidor não conseguiu provar a consistência: `SOMBRA-PLACAR-DIVERGENTE` ou `SOMBRA-SANCAO-SEM-MARCADOR`. |
+| `info` | ressalvas do motor, itens [M]/NÃO CONFIRMADOS (RG-SAN-001/003/004/005), bloqueio já justificado por `[[OVR:<código>]]` do árbitro, ocorrência fora do que a sombra traduz (`SOMBRA-NAO-TRADUZIDA`) e `SOMBRA-ERRO-INTERNO`. Nunca viram bloqueio. |
+
+Cada PUT com a sombra ligada escreve uma linha `console.info('[sumula-sombra] {...}')` com `partidaId`, total de avisos, erros, nº de sets divergentes e contagem por código. Sem nomes, camisas, textos nem ids de atletas.
+
+### Limites conhecidos (não bloqueiam a medição, mas contam como ruído)
+
+- Redesignação de líbero (`[[LIBRED]]`), protesto, discrepância de papeleta e capitão não são traduzidos; sanção sem `[[SAN]]` gera aviso.
+- O sacador não é enviado ao motor (ele deriva o saque pelo rodízio); a camisa é resolvida pela presença da súmula e, depois, pelo cadastro.
+- Súmulas iniciadas antes do `set_start` com formação (ou sem `[[ROT]]`) geram `SOMBRA-NAO-TRADUZIDA` e, em seguida, erros de "set não iniciado" nos lances: não são falha de regra.
+- O motor recusa substituição excepcional enquanto houver substituição regular possível (RG-SUB-011); a tela pode estar aceitando por decisão do árbitro.
+
+### Quando é seguro passar da sombra para o bloqueio
+
+Critérios sugeridos (decisão do produto, não automática):
+1. Pelo menos 2 semanas de partidas reais com a sombra ligada e uma amostra mínima combinada (por exemplo 300 PUTs, 20 partidas encerradas).
+2. `SOMBRA-PLACAR-DIVERGENTE` em menos de 1% dos PUTs, e as divergências restantes explicadas (causa conhecida e corrigida), não ruído de tradução.
+3. `erro` por código: os códigos que forem bloquear precisam ter taxa de falso positivo próxima de zero (cada `erro` revisado em amostra). Começar pelos mais objetivos (RG-SUB limite, RG-TMP-001, RG-SET); deixar sanção e itens [M] por último e nunca bloquear NÃO CONFIRMADO.
+4. Zero `SOMBRA-ERRO-INTERNO` recorrente e `SOMBRA-NAO-TRADUZIDA` residual baixo, para o motor enxergar a partida inteira.
+5. O bloqueio precisa manter a saída do árbitro (override `[[OVR]]`) e ser ligado por flag própria, por código e, de preferência, por campeonato, com rollback imediato.
+
+Teste: `npm run test:sumula-servidor-sombra` (partida consistente, 7ª troca regular, sanção com e sem marcador, penalidade sem dupla contagem, ponto divergente, excepcional/override, flag desligada e erro interno).
