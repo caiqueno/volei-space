@@ -36,7 +36,7 @@ export function chaveDaFila(token: string) {
 }
 
 function dadosVazios(): DadosPersistidos {
-  return { versao: 1, proximoSeqLocal: 1, seqServidor: 0, itens: [], pendencias: [], ultimoConflito: null }
+  return { versao: 1, proximoSeqLocal: 1, seqServidor: 0, itens: [], pendencias: [], ultimoConflito: null, seqs: {} }
 }
 
 function gerarUuidPadrao(): string {
@@ -72,8 +72,11 @@ function dadosValidos(bruto: unknown): DadosPersistidos | null {
     itens,
     pendencias: d.pendencias,
     ultimoConflito: d.ultimoConflito ?? null,
+    seqs: d.seqs && typeof d.seqs === 'object' ? d.seqs : {},
   }
 }
+
+const MAX_SEQS_GUARDADOS = 1000
 
 export class FilaSumula {
   private readonly o: Required<Pick<OpcoesFila, 'recuoBaseMs' | 'recuoMaxMs' | 'recuoModoLocalMs' | 'tamanhoLote' | 'maxConflitosPorCiclo' | 'url'>> & OpcoesFila
@@ -178,6 +181,32 @@ export class FilaSumula {
     this.ouvintes.clear()
   }
 
+  /** Desfaz o `destruir()` quando o efeito do React roda de novo (StrictMode) com a mesma fila. */
+  reativar() {
+    this.parada = false
+  }
+
+  /**
+   * Apaga tudo da partida (fila, pendências e armazenamento) e para a fila. Usado ao encerrar/aprovar a súmula:
+   * depois disso a chave desta partida não deixa resto no aparelho.
+   */
+  async limpar() {
+    this.parada = true
+    this.cancelarTimer()
+    await this.gravacao.catch(() => {})
+    this.dados = dadosVazios()
+    this.estadoServidor = null
+    this.erro = null
+    this.proximaTentativaEm = null
+    this.pronto = Promise.resolve()
+    try {
+      await this.o.armazenamento.remover(chaveDaFila(this.o.token))
+    } catch {
+      // Sem permissão: nada a fazer, a fila já está vazia em memória.
+    }
+    this.atualizar()
+  }
+
   /** Chamado pelos eventos online/offline (ou pelo teste). */
   definirOnline(online: boolean) {
     if (this.online === online) {
@@ -216,6 +245,7 @@ export class FilaSumula {
       tipo: evento.tipo,
       payload: evento.payload ?? {},
       ...(evento.desfazId !== undefined ? { desfazId: evento.desfazId } : {}),
+      ...(evento.desfazClientEventId !== undefined ? { desfazClientEventId: evento.desfazClientEventId } : {}),
       ocorridoEm: new Date((this.o.agora ?? Date.now)()).toISOString(),
       tentativas: 0,
     }
@@ -273,7 +303,8 @@ export class FilaSumula {
     if (!doFetch) return
 
     while (this.dados.itens.length > 0 && !this.parada) {
-      const lote = this.dados.itens.slice(0, this.tamanhoLoteAtual)
+      const lote = await this.prepararLote()
+      if (lote.length === 0) continue
       this.enviando = lote.length
       this.atualizar()
       let resposta: Response
@@ -372,8 +403,58 @@ export class FilaSumula {
     }
   }
 
+  /**
+   * Monta o próximo lote resolvendo os DESFAZ por referência: usa o seq que o servidor já devolveu para o alvo;
+   * se o alvo está neste mesmo lote (ou ainda na fila), corta o lote antes do DESFAZ (o seq só existe depois da
+   * resposta); se o alvo nunca chegou ao servidor, o DESFAZ não tem o que desfazer e sai da fila junto com a
+   * pendência do alvo. Devolve lote vazio quando só descartou itens (o laço chama de novo).
+   */
+  private async prepararLote(): Promise<ItemFila[]> {
+    const seqs = this.dados.seqs ?? (this.dados.seqs = {})
+    const candidatos = this.dados.itens.slice(0, this.tamanhoLoteAtual)
+    const lote: ItemFila[] = []
+    let mudou = false
+    for (const item of candidatos) {
+      const alvo = item.desfazClientEventId
+      if (!alvo || item.desfazId != null) {
+        lote.push(item)
+        continue
+      }
+      const seq = seqs[alvo]
+      if (typeof seq === 'number') {
+        item.desfazId = seq
+        mudou = true
+        lote.push(item)
+        continue
+      }
+      if (this.dados.itens.some((i) => i.clientEventId === alvo)) break // alvo ainda não foi respondido: espera
+      // Alvo nunca aceito (rejeitado ou desconhecido): descarta o DESFAZ e a pendência do alvo.
+      this.dados.itens = this.dados.itens.filter((i) => i.clientEventId !== item.clientEventId)
+      this.dados.pendencias = this.dados.pendencias.filter((p) => p.clientEventId !== alvo)
+      await this.persistir()
+      this.atualizar()
+      if (lote.length === 0) return []
+      break
+    }
+    if (mudou) await this.persistir()
+    return lote
+  }
+
+  private guardarSeqs(aceitos: AceitoServidor[]) {
+    const seqs = this.dados.seqs ?? (this.dados.seqs = {})
+    for (const a of aceitos) if (typeof a.seq === 'number' && typeof a.clientEventId === 'string') seqs[a.clientEventId] = a.seq
+    const chaves = Object.keys(seqs)
+    if (chaves.length > MAX_SEQS_GUARDADOS) {
+      chaves
+        .sort((x, y) => seqs[x] - seqs[y])
+        .slice(0, chaves.length - MAX_SEQS_GUARDADOS / 2)
+        .forEach((k) => delete seqs[k])
+    }
+  }
+
   private async aplicarProcessado(lote: ItemFila[], aceitos: AceitoServidor[], rejeitados: RejeitadoServidor[], estado: EstadoSumula | null): Promise<boolean> {
     const idsAceitos = new Set(aceitos.map((a) => a.clientEventId))
+    this.guardarSeqs(aceitos)
     let maiorSeq = this.dados.seqServidor
     for (const a of aceitos) if (typeof a.seq === 'number') maiorSeq = Math.max(maiorSeq, a.seq)
     const porId = new Map(lote.map((i) => [i.clientEventId, i]))
@@ -398,6 +479,7 @@ export class FilaSumula {
   /** 409: o servidor tem eventos que não conhecemos. Absorve o que ele aceitou e reenvia com o seq novo. */
   private async reconciliar(lote: ItemFila[], aceitos: AceitoServidor[], estado: EstadoSumula | null, seqAtual: number) {
     const ids = new Set(aceitos.map((a) => a.clientEventId))
+    this.guardarSeqs(aceitos)
     this.dados.itens = this.dados.itens.filter((i) => !ids.has(i.clientEventId))
     this.dados.seqServidor = Number.isFinite(seqAtual) ? seqAtual : this.dados.seqServidor
     if (estado) this.estadoServidor = estado
