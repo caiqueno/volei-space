@@ -105,5 +105,18 @@ Abertos depois da rodada 9:
 - `src/lib/arbitro-access.ts` tem `/^d+$/` sem barra (token numérico nunca filtra por id). NÃO corrigir sem decidir: faria o id da partida valer como credencial.
 - Ainda não feitos do PROMPT: scout/.dvw, desafio por vídeo, offline-first ligado de verdade, notificações, convite ao atleta/importação por planilha, clube com várias equipes, protótipo navegável.
 
+## Rodada 10 — Meu Time fase 2 e base do scout (já na branch)
+Feito:
+- **Meu Time fase 2** (flags `MEU_TIME_FASE2_ATIVO=1` no servidor e `NEXT_PUBLIC_MEU_TIME_FASE2_ATIVO=1` na tela, além de `MEU_TIME_ATIVO`): convite ao atleta por link (só o hash do token fica no banco; página pública `/convite-atleta/[token]`, resposta uniforme, uso único), importação de planilha CSV com prévia por linha antes de gravar (limite 60 linhas, idempotente), clube com várias equipes (usa `Clube`/`TimeClube` existentes), notificações com sino e navegação global do Meu Time (`src/app/meu-time/layout.tsx`).
+- **Scout base** (`SCOUT_ATIVO=1`): `/api/scout/[token]/resumo` e `/exportar?formato=csv|json`, derivados do log da súmula (sacador, rotação, séries, side-out, pontos por set, tempos/substituições). Esquemas `scout-json-1` e `scout-csv-1`. Detalhes em `docs/analise/26-scout.md`.
+- **Migrations pendentes 0036–0039** (`ConviteAtleta`, `ImportacaoAtletas`, `ClubeEquipe`+`Clube.donoUserId`, `Notificacao`). A 0038 (`ClubeEquipe`) ficou SEM USO: o backend usa o vínculo `TimeClube.clubeId`; recomenda-se não aplicá-la.
+
+Abertos depois da rodada 10:
+- Scout: ace e erro de saque não saem do log; ataque, bloqueio, defesa, levantamento, zonas e qualidade de recepção exigem lançamento manual (não existe tabela nem rota). **Formato .dvw não confirmado em fonte: nada foi implementado.**
+- Contato do responsável da planilha (`responsavel_contato`) não é guardado (contato não é consentimento). Vincular equipe a outro clube move a equipe e responde 409 se o clube de origem tiver outras equipes: regra de produto a confirmar.
+- Nenhuma rota chama a notificação `AJUSTE_PEDIDO` (o pedido de ajuste de inscrição está fora do que foi editado); rate limit dos convites/importação é em memória por instância; sem retenção definida para `ImportacaoAtletas.linhas`.
+- Telas da fase 2 sem teste de renderização nem conferência no navegador; o item "Atletas" da navegação é só atalho para a lista de times.
+- Fora do escopo por decisão do dono: vôlei de praia (o produto é só vôlei de quadra).
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
