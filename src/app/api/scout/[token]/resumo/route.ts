@@ -32,8 +32,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       partidaId: Number(access.partida.id),
       config: configDaPartida(regras),
       contexto: contextoDaPartida(access.partida),
+      // Ações lançadas na tela: sem isso o resumo, o JSON e o CSV ignoravam o scout manual.
+      acoes: manuais.acoes,
     })
-    if (r.tipo === 'INDISPONIVEL') return error(r.mensagem, 503)
     if (r.tipo === 'ERRO') return error(r.mensagem, 500)
     return success(r.resumo)
   } catch {

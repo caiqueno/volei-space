@@ -35,8 +35,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       partidaId: Number(access.partida.id),
       config: configDaPartida(regras),
       contexto: contextoDaPartida(access.partida),
+      acoes: manuais.acoes,
     })
-    if (r.tipo === 'INDISPONIVEL') return error(r.mensagem, 503)
     if (r.tipo === 'ERRO') return error(r.mensagem, 500)
 
     const nome = `scout-partida-${r.resumo.partidaId}`

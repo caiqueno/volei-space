@@ -157,7 +157,44 @@ async function main() {
   }
   const ausente = await carregarAcoesScout(criarBancoEscrita({}) as any, { id: 100, equipeAId: 1, equipeBId: 2 })
   assert.deepEqual(ausente, { ok: true, acoes: [] }, 'tabela ausente não derruba o resumo')
-  void resumo
+
+  // --- B1 (rodada 12): resumo, JSON e CSV levam as ações manuais; resumo não depende de SUMULA_EVENTOS_ATIVO
+  const exportar = await import('../src/app/api/scout/[token]/exportar/route')
+  const getResumo = () => resumo.GET(req('GET', '/api/scout/tk/resumo'), ctx({ token: 'tk' }))
+  const getExport = (formato: string) => exportar.GET(req('GET', `/api/scout/tk/exportar?formato=${formato}`), ctx({ token: 'tk' }))
+  delete process.env.SUMULA_EVENTOS_ATIVO
+  preparar()
+  await post({ ...BASE, clientEventId: 'r-1', fundamento: 'ATAQUE', resultado: 'PONTO', jogadorId: 11 })
+  await post({ ...BASE, clientEventId: 'r-2', fundamento: 'BLOQUEIO', resultado: 'PONTO', jogadorId: 11 })
+  const comAcoes = await getResumo()
+  assert.equal(comAcoes.status, 200, 'sem SUMULA_EVENTOS_ATIVO o resumo não responde 503')
+  const resumoJson = (await j(comAcoes)).data
+  assert.equal(resumoJson.acoes.length, 2, 'ação manual aparece no resumo')
+  assert.equal(resumoJson.estatisticas.porEquipe.find((e: any) => e.equipe === 'A').ataque.pontos, 1)
+  assert.deepEqual(resumoJson.derivado.pontos, [], 'seção derivada vazia sem o log')
+  assert.ok(resumoJson.lacunas.some((l: string) => /Log de eventos da súmula indisponível/.test(l)), 'aviso explícito')
+  const json = await getExport('json')
+  assert.equal(json.status, 200)
+  assert.equal(JSON.parse(await json.text()).acoes.length, 2, 'ação manual no JSON exportado')
+  const csv = await getExport('csv')
+  assert.equal(csv.status, 200)
+  const linhasCsv = (await csv.text()).split('\r\n').filter((l) => l.split(';')[2] === 'ACAO')
+  assert.equal(linhasCsv.length, 2, 'ação manual no CSV exportado')
+  // ação anulada sai do resumo
+  const idAnulada = (await j(await get())).data[0].id
+  await del(String(idAnulada))
+  assert.equal((await j(await getResumo())).data.acoes.length, 1)
+  // com a flag ligada e a tabela de eventos ausente continua igual (aviso, sem 503)
+  process.env.SUMULA_EVENTOS_ATIVO = '1'
+  const ligada = await getResumo()
+  assert.equal(ligada.status, 200)
+  assert.equal((await j(ligada)).data.acoes.length, 1)
+  // com a tabela presente e vazia: sem aviso de log ausente
+  dados.SumulaEvento = []
+  const comLog = (await j(await getResumo())).data
+  assert.equal(comLog.acoes.length, 1)
+  assert.ok(!comLog.lacunas.some((l: string) => /Log de eventos da súmula indisponível/.test(l)))
+  delete process.env.SUMULA_EVENTOS_ATIVO
 
   console.log('scout-acoes.test.ts: ok.')
 }

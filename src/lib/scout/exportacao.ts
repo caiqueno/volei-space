@@ -46,8 +46,11 @@ export function montarResumo(params: {
   contexto?: ContextoDerivacao
   acoes?: readonly AcaoScout[]
   geradoEm?: string
+  /** Avisos extras (ex.: log indisponível); entram no fim de `lacunas`. */
+  avisos?: readonly string[]
 }): ResumoScout {
   const acoes = [...(params.acoes ?? [])]
+  const avisos = [...(params.avisos ?? [])]
   return {
     versaoEsquema: VERSAO_ESQUEMA_JSON,
     partidaId: params.partidaId,
@@ -55,9 +58,12 @@ export function montarResumo(params: {
     derivado: derivarScoutDoLog(params.log, params.config, params.contexto),
     acoes,
     estatisticas: agregarAcoes(acoes),
-    lacunas: acoes.length > 0
-      ? [...LACUNAS_SCOUT.filter((_, i) => !LACUNAS_SUPERADAS_POR_ACOES.includes(i)), LACUNA_ACOES_PARCIAIS]
-      : [...LACUNAS_SCOUT],
+    lacunas: [
+      ...(acoes.length > 0
+        ? [...LACUNAS_SCOUT.filter((_, i) => !LACUNAS_SUPERADAS_POR_ACOES.includes(i)), LACUNA_ACOES_PARCIAIS]
+        : [...LACUNAS_SCOUT]),
+      ...avisos,
+    ],
   }
 }
 
