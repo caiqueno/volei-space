@@ -3,11 +3,11 @@
 /**
  * Hook da fila offline da súmula.
  *
- * PONTO DE INTEGRAÇÃO (rodada seguinte): em src/app/sumula/[token]/lancar/page.tsx, chamar
- * `const fila = useFilaSumula(token)`, trocar o envio direto de cada toque por `fila.enfileirar({ tipo, payload })`
- * (o placar da tela vem do estado local; a fila só sincroniza) e renderizar <IndicadorConexao snapshot={fila.snapshot} />.
- * Hoje a tela usa PUT /api/sumula/[token]; a fila só funciona com SUMULA_EVENTOS_ATIVO=1 (senão a rota responde 404
- * e a fila permanece local, sem erro).
+ * INTEGRAÇÃO (rodada 6, modo sombra): src/app/sumula/[token]/lancar/page.tsx renderiza <EspelhoFilaSumula>
+ * (src/components/sumula-offline) só com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1; ele usa este hook e recebe as ocorrências
+ * traduzidas por src/lib/sumula-ui/fila-adaptador.ts. A tela continua gravando por PUT /api/sumula/[token]; a fila só
+ * sincroniza com a rota /eventos, que responde 404 sem SUMULA_EVENTOS_ATIVO=1 (a fila permanece local, sem erro).
+ * Ver docs/analise/06-arquitetura-frontend.md, seção 4.1.
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { escolherArmazenamento } from './armazenamento'
@@ -23,6 +23,7 @@ export function useFilaSumula(token: string, opcoes: Partial<Omit<OpcoesFila, 't
   )
 
   useEffect(() => {
+    fila.reativar()
     void fila.iniciar()
     const desligar = fila.conectarEventosDoNavegador()
     return () => {
@@ -39,6 +40,7 @@ export function useFilaSumula(token: string, opcoes: Partial<Omit<OpcoesFila, 't
     sincronizar: () => fila.sincronizar(),
     retomar: () => fila.retomar(),
     resolverPendencia: (id: string) => fila.resolverPendencia(id),
+    limpar: () => fila.limpar(),
     fila,
   }
 }

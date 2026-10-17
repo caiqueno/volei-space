@@ -74,6 +74,8 @@ import { avaliarTempo, limiteDeTemposDaTela, textoTempo } from '@/lib/sumula-ui/
 import type { CategoriaSancao, EstadoEquipe } from '@/lib/regras-volei'
 import { atribuirPontoAoEvento, opcoesDeOrigem, type FaixaPonto } from '@/lib/atribuicao-ponto'
 import { VolleyballBurst } from '@/components/ui/VolleyballBurst'
+import { EspelhoFilaSumula, type EspelhoApi } from '@/components/sumula-offline/EspelhoFilaSumula'
+import { filaAtivaNoBuild, type Ocorrencia } from '@/lib/sumula-ui/fila-adaptador'
 import './sumula-micro.css'
 
 type TeamId = 'teamA' | 'teamB'
@@ -289,6 +291,17 @@ export default function SumulaPage() {
   const rascunhoRef = useRef<RascunhoAndamento | null>(null)
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
+  // Modo sombra da fila offline: só existe com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1. Desligada, o ref fica nulo e nada roda.
+  const filaAtiva = filaAtivaNoBuild()
+  const espelhoRef = useRef<EspelhoApi | null>(null)
+  function espelhar(ocorrencia: Ocorrencia) {
+    if (!filaAtiva) return
+    try {
+      espelhoRef.current?.espelhar(ocorrencia)
+    } catch {
+      // A fila nunca pode quebrar a súmula: o PUT é a fonte da gravação.
+    }
+  }
 
   useEffect(() => {
     setSidebarFixa(lerSidebarSumula(window.localStorage) === 'fixa')
@@ -597,6 +610,7 @@ export default function SumulaPage() {
   function toggleSidesInverted() {
     setSidesInverted((current) => !current)
     addMatchEvent('anotacao', 'Equipes inverteram os lados da quadra.')
+    espelhar({ tipo: 'TROCA_LADO' })
   }
 
   function handleSkipSetup() {
@@ -670,6 +684,12 @@ export default function SumulaPage() {
       next,
       player?.id,
     )
+    if (filaAtiva) {
+      const timeSacando = servingTeamId === 'teamA' ? teamA : teamB
+      const filaSacando = servingTeamId === 'teamA' ? lineupA : lineupB
+      const indiceSacando = servingTeamId === 'teamA' ? serverIndexA : serverIndexB
+      espelhar({ tipo: 'PONTO', telaId: eventId, equipe: teamId, sacadorId: getPlayer(timeSacando, filaSacando[indiceSacando] ?? '')?.id })
+    }
     if (origem) addToast(`${ROTULO_PONTO[origem]} — ${playerName}`)
     else addToast('+1 — Sem jogador')
     if (origem) setFaixaPonto(null)
@@ -772,6 +792,7 @@ export default function SumulaPage() {
       setScoreHistory((current) => current.slice(0, indice))
       setSetEndPrompt(null)
     })
+    espelhar({ tipo: 'DESFAZ', telaIds: idsRemovidos })
     void enfileirarSalvamento(false).catch(() => undefined)
     addToast(trocasDepois.length > 0
       ? `Último ponto corrigido. ${trocasDepois.length === 1 ? 'A troca feita depois dele' : `As ${trocasDepois.length} trocas feitas depois dele`} também ${trocasDepois.length === 1 ? 'foi desfeita' : 'foram desfeitas'}.`
@@ -814,6 +835,7 @@ export default function SumulaPage() {
       setScoreHistory((current) => current.slice(0, targetIndex))
       setSetEndPrompt(null)
     })
+    espelhar({ tipo: 'DESFAZ', telaIds: removedEventIds })
     void enfileirarSalvamento(false).catch(() => undefined)
     if (trocasDepois.length > 0) addToast(`${trocasDepois.length === 1 ? 'A troca feita depois desse ponto também foi desfeita' : `As ${trocasDepois.length} trocas feitas depois desse ponto também foram desfeitas`}.`)
     if (collateral > 0) {
@@ -910,6 +932,7 @@ export default function SumulaPage() {
         setAnotacoes((current) => semAnotacoesDosEventos(current, [pedido.id]))
         setFormacaoVersao((atual) => atual + 1)
       })
+      espelhar({ tipo: 'DESFAZ', telaIds: [pedido.id] })
       addToast('Troca desfeita: a formação voltou ao que era antes dela.')
       return
     }
@@ -918,6 +941,7 @@ export default function SumulaPage() {
       setAnotacoes((current) => semAnotacoesDosEventos(current, [pedido.id]))
       setSancaoPendente(null)
     })
+    espelhar({ tipo: 'DESFAZ', telaIds: [pedido.id] })
     void enfileirarSalvamento(false).catch(() => undefined)
     addToast('Sanção desfeita: ela deixa de contar nas próximas.')
   }
@@ -1072,7 +1096,21 @@ export default function SumulaPage() {
       : modoSaque === 'sorteio'
         ? ` Sorteio do set ${currentSet} definiu o saque deste set.`
         : ''
-    addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} ${textoLiberoInicial(startingLiberos[currentSet]?.teamA)} e ${teamB?.name ?? 'Equipe B'} ${textoLiberoInicial(startingLiberos[currentSet]?.teamB)}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
+    const setStartId = addMatchEvent('set_start', `Papeleta do set ${currentSet} confirmada para os dois times. Líberos iniciais: ${teamA?.name ?? 'Equipe A'} ${textoLiberoInicial(startingLiberos[currentSet]?.teamA)} e ${teamB?.name ?? 'Equipe B'} ${textoLiberoInicial(startingLiberos[currentSet]?.teamB)}. Saque inicial: ${starterName ?? 'Equipe'} começa sacando.${motivo} ${marcarSaqueInicial(chosenServer)}${encodeRotationMarker(chosenServer, lineupA, lineupB)}`)
+    if (filaAtiva && teamA && teamB) {
+      const ids = (time: Team, fila: string[]) => fila.map((numero) => getPlayer(time, numero)?.id)
+      const liberoDe = (time: Team, lado: TeamId) => [getPlayer(time, numeroDeLibero(startingLiberos[currentSet]?.[lado]))?.id]
+      espelhar({
+        tipo: 'SET_INICIADO',
+        telaId: setStartId,
+        numeroSet: currentSet,
+        formacaoA: ids(teamA, lineupA),
+        formacaoB: ids(teamB, lineupB),
+        saqueInicial: chosenServer,
+        liberosA: liberoDe(teamA, 'teamA'),
+        liberosB: liberoDe(teamB, 'teamB'),
+      })
+    }
     if (currentSet === 1 && String(partida?.status || '').toUpperCase() !== 'EM_ANDAMENTO') {
       if (tokenDeDemonstracao(String(token))) {
         setPartida((current: any) => current ? { ...current, status: 'EM_ANDAMENTO' } : current)
@@ -1348,11 +1386,13 @@ export default function SumulaPage() {
         ? `Troca de líbero ${team.name}: ${troco}`
         : `Substituição ${team.name}: ${troco}`
     const textoComDecisao = !avaliacao.ok && decisao ? anexarOverride(texto, decisao) : texto
-    addMatchEvent(
+    const trocaTelaId = addMatchEvent(
       modo === 'excepcional' ? 'injury_substitution' : modo === 'libero' ? 'libero_exchange' : 'substitution',
       `${textoComDecisao}${encodeRotationMarker(servingTeamId, formacaoA, formacaoB)}`,
       teamId,
     )
+    if (modo === 'libero') espelhar({ tipo: 'TROCA_LIBERO', telaId: trocaTelaId, equipe: teamId, saiId: outPlayer.id, entraId: inPlayer.id })
+    else espelhar({ tipo: 'SUBSTITUICAO', telaId: trocaTelaId, equipe: teamId, saiId: outPlayer.id, entraId: inPlayer.id, ...(modo === 'excepcional' ? { excepcional: true, motivo: motivo as 'LESAO' | 'EXPULSAO' | 'DESQUALIFICACAO' } : {}) })
     marcarPresentes(teamId, [outPlayer.id, inPlayer.id])
     setCaixaRegra(null)
     fecharSubModal()
@@ -1416,7 +1456,8 @@ export default function SumulaPage() {
     if (isA) setTimeoutsUsedA(used + 1)
     else setTimeoutsUsedB(used + 1)
     const texto = textoTempo(team.name, used + 1, currentSet, limite)
-    addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
+    const tempoTelaId = addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
+    espelhar({ tipo: 'TEMPO', telaId: tempoTelaId, equipe: teamId })
   }
 
   function requestTempoEquipe(teamId: TeamId, decisao?: DecisaoDoArbitro) {
@@ -1435,7 +1476,8 @@ export default function SumulaPage() {
     if (isA) setTemposEquipeA(used + 1)
     else setTemposEquipeB(used + 1)
     const texto = textoTempoEquipe(team.name, used + 1, currentSet, limite)
-    addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
+    const tempoTelaId = addMatchEvent('timeout', porDecisao ? anexarOverride(texto, porDecisao) : texto, teamId)
+    espelhar({ tipo: 'TEMPO', telaId: tempoTelaId, equipe: teamId })
   }
 
   // A saída do bloqueio roda a versão MAIS RECENTE da ação (os contadores podem ter mudado desde o aviso).
@@ -1557,6 +1599,7 @@ export default function SumulaPage() {
     let marcador = ''
     let aplicarPonto: ((eventosAnteriores: string[]) => void) | null = null
     let afastarDaQuadra: { numero: string; motivo: 'EXPULSAO' | 'DESQUALIFICACAO' } | null = null
+    let espelhoSancao: { categoria: CategoriaSancao; jogadorId?: number; membro: 'TECNICO' | 'EQUIPE' } | null = null
 
     if (categoria && penalizedTeamId) {
       const penalizedTeam = penalizedTeamId === 'teamA' ? teamA : teamB
@@ -1581,6 +1624,7 @@ export default function SumulaPage() {
       setAlternativaDaCaixa(null)
       const { avaliada, registro } = avaliado
       tipoDaAnotacao = tipoDaNota(avaliada.sancao)
+      espelhoSancao = { categoria, jogadorId: categoria !== 'ATRASO' ? jogador?.id : undefined, membro: payload.membro === 'TECNICO' ? 'TECNICO' : 'EQUIPE' }
       descricaoFinal = `${payload.descricao} ${descreverEfeito(avaliada, adversario.name)}`.trim()
       marcador = marcadorSancao(equipeDoMotor(penalizedTeamId), registro)
       if (avaliado.decisao) {
@@ -1621,6 +1665,8 @@ export default function SumulaPage() {
       addToast('MVP da equipe vencedora gravado na súmula.')
     }
     addMatchEvent('anotacao', textoDaNota, penalizedTeamId, undefined, undefined, noteEventId)
+    if (espelhoSancao && penalizedTeamId) espelhar({ tipo: 'SANCAO', telaId: noteEventId, equipe: penalizedTeamId, ...espelhoSancao })
+    else if (payload.tipo === 'W.O.' && penalizedTeamId) espelhar({ tipo: 'WO', telaId: noteEventId, ausente: penalizedTeamId })
     if (aplicarPonto) {
       aplicarPonto([noteEventId])
       addToast('Penalidade registrada: ponto e saque para o adversário.')
@@ -1900,6 +1946,7 @@ export default function SumulaPage() {
       }
       setPartida((current: any) => current ? { ...current, status: 'ENCERRADA', sumulaAprovadaEm: current.sumulaAprovadaEm || new Date().toISOString() } : current)
       setLinkPublico(publico)
+      if (filaAtiva) void espelhoRef.current?.encerrar().catch(() => undefined)
       addToast('Súmula oficializada. O resultado público já pode ser visto.')
       setSubmitted(true)
       return true
@@ -2440,6 +2487,7 @@ export default function SumulaPage() {
         </div>
       )}
 
+      {filaAtiva && <EspelhoFilaSumula key={String(token)} token={String(token)} apiRef={espelhoRef} />}
       <AvisosSumula avisos={avisos} />
     </main>
   )

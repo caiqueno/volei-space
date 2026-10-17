@@ -11,6 +11,11 @@ export interface EventoNovo {
   tipo: SumulaEventoTipo
   payload?: Record<string, unknown>
   desfazId?: number | null
+  /**
+   * DESFAZ por referência: clientEventId do evento a desfazer. A fila troca pelo `seq` do servidor na hora de enviar
+   * (a tela não conhece o seq). Se o alvo nunca chegou ao servidor, o DESFAZ é descartado (não há o que desfazer).
+   */
+  desfazClientEventId?: string
 }
 
 export interface ItemFila {
@@ -20,6 +25,7 @@ export interface ItemFila {
   tipo: SumulaEventoTipo
   payload: Record<string, unknown>
   desfazId?: number | null
+  desfazClientEventId?: string
   /** Hora do aparelho: só informativa para o servidor, nunca usada para ordenar. */
   ocorridoEm: string
   tentativas: number
@@ -49,6 +55,8 @@ export interface DadosPersistidos {
   itens: ItemFila[]
   pendencias: Pendencia[]
   ultimoConflito: ConflitoRegistrado | null
+  /** seq do servidor por clientEventId aceito (resolve DESFAZ por referência). Opcional em dados antigos. */
+  seqs?: Record<string, number>
 }
 
 export type StatusConexao = 'online' | 'sincronizando' | 'pendente' | 'offline' | 'erro'
