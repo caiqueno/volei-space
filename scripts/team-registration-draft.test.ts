@@ -160,8 +160,10 @@ function testFotoAtletaOpcional() {
   assert.match(form, /handleJogadorFotoUpload/)
   assert.doesNotMatch(form, /fotoRequired/)
   assert.match(capitao, /Foto do atleta \(opcional\)/)
-  assert.match(capitaoApi, /fotoRostoUrl: z\.string\(\)\.url\(\)\.optional\(\)\.nullable\(\)/)
-  assert.match(capitaoApi, /fotoUrl: data\.fotoRostoUrl \|\| null/)
+  // A foto continua opcional (vazia vira null); a validação de origem é feita por normalizarFotoRostoEntrada.
+  assert.match(capitaoApi, /fotoRostoUrl: z\.string\(\)\.trim\(\)\.max\(500\)\.optional\(\)\.nullable\(\)/)
+  assert.match(capitaoApi, /fotoEnviada \? normalizarFotoRostoEntrada\(/)
+  assert.match(capitaoApi, /fotoUrl: fotoRostoUrl/)
   assert.match(sql, /create or replace function public\.finalizar_inscricao_equipe_rascunho/)
   assert.match(sql, /create or replace function public\.validar_jogador_formulario_categoria/)
   assert.doesNotMatch(sql, /Foto do jogador e obrigatoria/)
