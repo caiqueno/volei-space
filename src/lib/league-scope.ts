@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 
 export type LeagueScopeParams = {
   organizador?: string
@@ -32,8 +33,12 @@ export async function getCreatorLeagueScope(params: LeagueScopeParams) {
 
   if (error) throw error
 
-  const ligas = (data ?? []).filter((liga: { simulacao?: boolean | null }) => liga.simulacao !== true)
   const requestedId = Number(params.ligaId)
+  // A página do organizador é pública: a privada não entra na lista, só quando o link pede o id dela.
+  const privadas = await idsCompeticoesPrivadas()
+  const ligas = (data ?? []).filter((liga: { id?: number; simulacao?: boolean | null }) => (
+    liga.simulacao !== true && (!privadas.has(Number(liga.id)) || Number(liga.id) === requestedId)
+  ))
   const selectedLiga = ligas.find((liga: any) => liga.id === requestedId) ?? ligas[0] ?? null
 
   return { organizadorId, ligas, selectedLiga }

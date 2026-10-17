@@ -143,7 +143,8 @@
     "test:sumula-fila-desfaz": "node scripts/with-ts-node.mjs scripts/sumula-fila-desfaz.test.ts",
     "test:visibilidade-competicao": "node scripts/with-ts-node.mjs scripts/visibilidade-competicao.test.ts",
     "test:sancoes-partida": "node scripts/with-ts-node.mjs scripts/sancoes-partida.test.ts",
-    "test:capitao-logo": "node scripts/with-ts-node.mjs scripts/capitao-logo.test.ts"
+    "test:capitao-logo": "node scripts/with-ts-node.mjs scripts/capitao-logo.test.ts",
+    "test:competicao-privada-r7": "node scripts/with-ts-node.mjs scripts/competicao-privada-r7.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

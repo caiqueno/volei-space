@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
-import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
+import { idsCompeticoesPrivadas, semIdsPrivados } from '@/lib/visibilidade-competicao'
+import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
 
 export type CampeonatoCapa = {
   id: number
@@ -23,6 +24,29 @@ export async function idsForaDaVitrine() {
   const ids = (data ?? []).filter((liga) => campeonatoDeTeste(liga) || privadas.has(Number(liga.id))).map((liga) => liga.id)
   campeonatosOcultos = { ids, expira: Date.now() + 60_000 }
   return ids
+}
+
+/**
+ * Catálogo da página /campeonatos: mesmas colunas públicas e filtros (status e busca) de antes,
+ * sem competição privada (que só abre por link/slug). A tela chama esta função em vez de
+ * consultar `Liga` direto.
+ */
+export async function listarCatalogoCampeonatos(opcoes?: { status?: string; busca?: string }) {
+  const status = opcoes?.status?.trim() ?? ''
+  const busca = opcoes?.busca?.trim().slice(0, 60) ?? ''
+  let consulta = supabaseAdmin
+    .from('Liga')
+    .select(LIGA_COLUNAS_PUBLICAS as '*')
+    .eq('simulacao', false)
+    .order('criadoEm', { ascending: false })
+  if (status) consulta = consulta.eq('status', status)
+  if (busca) {
+    const segura = busca.replace(/[%_,]/g, ' ')
+    consulta = consulta.or(`nome.ilike.%${segura}%,subtitulo.ilike.%${segura}%,descricao.ilike.%${segura}%`)
+  }
+  const [{ data, error }, privadas] = await Promise.all([consulta, idsCompeticoesPrivadas()])
+  if (error) return { campeonatos: [] as any[], erro: true }
+  return { campeonatos: semIdsPrivados(data as unknown as Array<{ id: number }> | null, privadas) as any[], erro: false }
 }
 
 export async function listarCampeonatosPublicos(opcoes?: { busca?: string; offset?: number; limite?: number }) {

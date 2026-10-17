@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { success, error } from '@/lib/api-response'
-import { exigirOrganizadorOuAdminDaLiga } from '@/lib/organizador-isolamento'
+import { exigirOrganizadorOuAdminDaLiga, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
+import { verifyToken } from '@/lib/auth'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 import { idInteiroPositivoSchema, partidaSchema } from '@/lib/schemas'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { PARTIDA_PUBLICA_COLUNAS, normalizarPartidaPublica } from '@/lib/partida-publica'
@@ -38,6 +40,18 @@ export async function GET(req: NextRequest) {
     const { data: simuladas } = await supabase.from('Liga').select('id').eq('simulacao', true)
     const simulacaoIds = (simuladas ?? []).map((liga) => liga.id)
 
+    // Lista sem campeonato escolhido nunca traz competição privada para visitante (ela só abre
+    // pelo link, com ligaId). Admin vê todas; organizador, as próprias.
+    let privadasOcultas: number[] = []
+    if (!ligaId.valor) {
+      const [privadas, admin, proprias] = await Promise.all([
+        idsCompeticoesPrivadas(),
+        verifyToken(req),
+        ligasVisiveisAoOrganizador(req),
+      ])
+      if (!admin) privadasOcultas = Array.from(privadas).filter((id) => !proprias?.includes(id))
+    }
+
     const colunas = `${PARTIDA_PUBLICA_COLUNAS},liga:Liga!Partida_ligaId_fkey(id,nome,simulacao)`
     const { data, error: err } = await consultarComVaga(colunas, (select) => {
       let q = supabase
@@ -48,7 +62,8 @@ export async function GET(req: NextRequest) {
         .order('id', { ascending: true })
 
       if (ligaId.valor) q = q.eq('ligaId', ligaId.valor)
-      if (simulacaoIds.length) q = q.not('ligaId', 'in', `(${simulacaoIds.join(',')})`)
+      const ocultas = [...simulacaoIds, ...privadasOcultas]
+      if (ocultas.length) q = q.not('ligaId', 'in', `(${ocultas.join(',')})`)
       if (categoriaCampeonatoId) q = q.eq('categoriaCampeonatoId', categoriaCampeonatoId)
       if (categoria) q = q.eq('categoria', categoria)
       if (rodada.valor) q = q.eq('rodada', rodada.valor)
