@@ -4,7 +4,10 @@ import { useRef, useState, type FormEvent } from 'react'
 import { ErroMeuTime, type MeuTimeClient } from './cliente'
 import { Aviso, botaoPrimario, botaoSecundario, Campo, campoEstilo, descreve, falhaDe } from './ui'
 import { POSICOES } from './rotulos'
-import { validarNovoAtleta } from '@/lib/meu-time-ui/formularios'
+import { CamposResponsavel, RESPONSAVEL_VAZIO } from './CamposResponsavel'
+import { validarAtletaComResponsavel, validarNovoAtleta, type CampoAtletaComResponsavel } from '@/lib/meu-time-ui/formularios'
+import { ehMenor, type EntradaResponsavel } from '@/lib/meu-time-ui/responsavel'
+import { dataNascimentoValida } from '@/lib/meu-time-ui/selecao'
 import type { Atleta } from '@/lib/meu-time-ui/tipos'
 
 type Props = {
@@ -21,7 +24,11 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
   const [nascimento, setNascimento] = useState(atleta?.dataNascimento?.slice(0, 10) ?? '')
   const [numero, setNumero] = useState(atleta?.numeroPreferido != null ? String(atleta.numeroPreferido) : '')
   const [posicao, setPosicao] = useState(atleta?.posicao ?? '')
-  const [erros, setErros] = useState<Partial<Record<'nome' | 'dataNascimento' | 'numero' | 'posicao', string>>>({})
+  const [erros, setErros] = useState<Partial<Record<CampoAtletaComResponsavel, string>>>({})
+  const [responsavel, setResponsavel] = useState<EntradaResponsavel>(RESPONSAVEL_VAZIO)
+  const respNomeRef = useRef<HTMLInputElement>(null)
+  // Pede o responsável quando a data torna a pessoa menor e ainda não há autorização registrada.
+  const pedeResponsavel = dataNascimentoValida(nascimento) && ehMenor(nascimento) && (!atleta || atleta.consentimentoPendente === true || atleta.menor !== true)
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const nomeRef = useRef<HTMLInputElement>(null)
@@ -31,11 +38,13 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
   async function enviar(evento: FormEvent) {
     evento.preventDefault()
     if (salvando) return
-    const resultado = validarNovoAtleta({ nome, dataNascimento: nascimento, numero, posicao })
+    const entrada = { nome, dataNascimento: nascimento, numero, posicao }
+    const resultado = pedeResponsavel ? validarAtletaComResponsavel(entrada, responsavel) : validarNovoAtleta(entrada)
     setErros(resultado.erros)
     setMensagem(null)
     if (!resultado.valido) {
-      const alvo = resultado.erros.nome ? nomeRef : resultado.erros.dataNascimento ? nascimentoRef : numeroRef
+      const e = resultado.erros as Partial<Record<CampoAtletaComResponsavel, string>>
+      const alvo = e.nome ? nomeRef : e.dataNascimento ? nascimentoRef : e.numero ? numeroRef : respNomeRef
       alvo.current?.focus()
       return
     }
@@ -43,6 +52,8 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
     try {
       if (atleta) await cliente.atualizarAtleta(equipeId, atleta.id, resultado.dados)
       else await cliente.adicionarAtleta(equipeId, resultado.dados)
+      // O contato do responsável sai da memória da tela assim que foi enviado.
+      setResponsavel(RESPONSAVEL_VAZIO)
       aoSalvar()
     } catch (erro) {
       setMensagem(erro instanceof ErroMeuTime ? erro.falha.mensagem : falhaDe(erro).mensagem)
@@ -64,6 +75,12 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
           {...descreve('atleta-nascimento', 'Sem ela não dá para saber se a pessoa pode jogar na categoria.', erros.dataNascimento)}
         />
       </Campo>
+      {pedeResponsavel && (
+        <CamposResponsavel
+          ref={respNomeRef} prefixo="atleta" valor={responsavel} aoMudar={setResponsavel} nomeAtleta={nome.trim() || undefined}
+          erros={{ nome: erros.respNome, contato: erros.respContato, aceite: erros.respAceite }}
+        />
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Campo id="atleta-numero" rotulo="Camisa (opcional)" erro={erros.numero}>
           <input ref={numeroRef} id="atleta-numero" inputMode="numeric" pattern="[0-9]*" maxLength={2} value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ''))} className={campoEstilo} {...descreve('atleta-numero', undefined, erros.numero)} />
