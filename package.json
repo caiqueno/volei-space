@@ -146,7 +146,8 @@
     "test:capitao-logo": "node scripts/with-ts-node.mjs scripts/capitao-logo.test.ts",
     "test:visibilidade-ui": "node scripts/with-ts-node.mjs scripts/visibilidade-ui.test.ts",
     "test:portal-privada-fonte": "node scripts/with-ts-node.mjs scripts/portal-privada-fonte.test.ts",
-    "test:competicao-privada-r7": "node scripts/with-ts-node.mjs scripts/competicao-privada-r7.test.ts"
+    "test:competicao-privada-r7": "node scripts/with-ts-node.mjs scripts/competicao-privada-r7.test.ts",
+    "test:sumula-servidor-sombra": "node scripts/with-ts-node.mjs scripts/sumula-servidor-sombra.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

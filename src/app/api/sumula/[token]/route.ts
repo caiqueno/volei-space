@@ -21,6 +21,7 @@ import { demoSumulaLiberado } from '@/lib/sumula-demo'
 import { sumulaParaConsulta } from '@/lib/sumula-consulta'
 import { MENSAGEM_SUMULA_SEM_TIMES, timesDefinidos } from '@/lib/vaga-a-definir'
 import { sincronizarVagasDaPartida } from '@/lib/preencher-vagas'
+import { revalidarEmSombra } from '@/lib/sumula-servidor/sombra'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -212,7 +213,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
         console.error('[sumula] andamento gravado; classificação não recalculada', err)
       }
     }
-    return success({ salva: true, oficial: false, status: 'EM_ANDAMENTO' })
+    // Modo sombra (SUMULA_SERVIDOR_SOMBRA=1): só informa, nunca bloqueia nem altera o que foi gravado.
+    const sombra = revalidarEmSombra(() => ({
+      equipeAId: Number(partida.equipeAId),
+      equipeBId: Number(partida.equipeBId),
+      equipeA: { nome: String(valorUnico(partida.equipeA)?.nome ?? ''), jogadores: valorUnico(partida.equipeA)?.jogadores ?? [] },
+      equipeB: { nome: String(valorUnico(partida.equipeB)?.nome ?? ''), jogadores: valorUnico(partida.equipeB)?.jogadores ?? [] },
+      presencas,
+      ocorrencias: ocorrencias ?? [],
+      sets,
+      regras: regraAndamento,
+    }), { partidaId: Number(partida.id) })
+    return success({ salva: true, oficial: false, status: 'EM_ANDAMENTO', ...(sombra ?? {}) })
   } catch (err) {
     if (err instanceof AndamentoSuperado || err instanceof SumulaJaOficializada) return error(err.message, 409)
     console.error('[sumula] erro ao salvar andamento', err)
