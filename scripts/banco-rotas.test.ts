@@ -35,6 +35,7 @@ function tabelas(): Record<string, LinhaEscrita[]> {
       cpf: '111.222.333-44', telefone: '(11) 99999-0000', dataNascimento: '2000-01-01',
     }))
   return {
+    Liga: [{ id: 1, status: 'ATIVA' }],
     Partida: [{ id: 100, ligaId: 1, equipeAId: 1, equipeBId: 2, status: 'AGENDADA', sumulaToken: 'sumula-token-100', dataHora: null, setsPorA: 0, setsPorB: 0 }],
     Equipe: [{ id: 1, nome: 'Alfa' }, { id: 2, nome: 'Beta' }],
     SetPartida: [],
@@ -150,7 +151,10 @@ async function main() {
   assert.ok((await corpo(outra)).violacoes.some((x: any) => x.codigo === 'RG-FOR-009'))
   // líbero entre titulares / capitão fora de quadra
   assert.ok((await corpo(await put(T1, '1', { ...VALIDA, liberoId: 12 }))).violacoes.some((x: any) => x.codigo === 'RG-LIB-002'))
-  assert.ok((await corpo(await put(T1, '1', { ...VALIDA, capitaoId: 20 }))).violacoes.some((x: any) => x.codigo === 'RG-ELE-005'))
+  const capForaDaRelacao = (await corpo(await put(T1, '1', { ...VALIDA, capitaoId: 99 }))).violacoes
+  assert.ok(capForaDaRelacao.some((x: any) => x.codigo === 'RG-FOR-009' && x.categoria === 'FORMACAO'))
+  assert.ok((await corpo(await put(T1, '1', { ...VALIDA, liberoId: 12 }))).violacoes.every((x: any) => x.categoria === 'ELENCO' || x.categoria === 'FORMACAO'))
+  assert.equal(dados.Papeleta.length, 0)
   // corpo malformado e set inválido
   assert.equal((await put(T1, '1', { formacao: [] })).status, 400)
   assert.equal((await put(T1, '9', VALIDA)).status, 400)
@@ -250,9 +254,9 @@ async function main() {
   // pedido já decidido não pode ser cancelado pelo banco
   assert.equal((await pedido.DELETE(req('DELETE', '/x'), ctx({ token: T1, id: idSub }))).status, 409)
   // tempo aceito além do limite (corrida): recusa a aceitação
-  dados.PedidoBanco.push({ id: 'p-extra', partidaId: 100, equipeId: 1, tipo: 'TEMPO', estado: 'PENDENTE', payload: { setNumero: 1 } })
-  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'ACEITO' }), ctx({ token: SUM, id: 'p-extra' }))).status, 422)
-  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'RECUSADO' }), ctx({ token: SUM, id: 'p-extra' }))).status, 200)
+  dados.PedidoBanco.push({ id: '00000000-0000-4000-8000-0000000000e1', partidaId: 100, equipeId: 1, tipo: 'TEMPO', estado: 'PENDENTE', payload: { setNumero: 1 } })
+  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'ACEITO' }), ctx({ token: SUM, id: '00000000-0000-4000-8000-0000000000e1' }))).status, 422)
+  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'RECUSADO' }), ctx({ token: SUM, id: '00000000-0000-4000-8000-0000000000e1' }))).status, 200)
 
   // 12. Papeletas no apontador
   const duas = await corpo(await papeletasSumula.GET(req('GET', '/x'), ctx({ token: SUM, set: '1' })))
@@ -272,7 +276,13 @@ async function main() {
   // 13. Geração e revogação de links
   const gerar = (c: unknown) => links.POST(req('POST', '/api/banco/links', c))
   apontador.modo = 'negado'
-  assert.equal((await gerar({ partidaId: 100, equipeId: 1 })).status, 403)
+  const negado = await gerar({ partidaId: 100, equipeId: 1 })
+  assert.equal(negado.status, 404, 'sem permissão = mesma 404 de partida inexistente')
+  const inexistente = await gerar({ partidaId: 999, equipeId: 1 })
+  assert.deepEqual(await corpo(negado), await corpo(inexistente))
+  const listaNegada = await links.GET(req('GET', '/api/banco/links?partidaId=100'))
+  assert.equal(listaNegada.status, 404)
+  assert.equal((await links.DELETE(req('DELETE', '/api/banco/links?acessoId=a1'))).status, 404, 'id que não é uuid')
   apontador.modo = 'ok'
   assert.equal((await gerar({ partidaId: 100 })).status, 400)
   assert.equal((await gerar({ partidaId: 999, equipeId: 1 })).status, 404)
@@ -280,25 +290,64 @@ async function main() {
   const antes = dados.BancoAcesso.length
   const criado = await gerar({ partidaId: 100, equipeId: 2 })
   assert.equal(criado.status, 201)
-  const { url, expiraEm } = (await corpo(criado)).data
+  const { url, expiraEm, acessoId } = (await corpo(criado)).data
   assert.ok(expiraEm && url.includes('/banco/'))
   const tokenNovo = url.split('/banco/')[1] as string
   assert.equal(dados.BancoAcesso.length, antes + 1)
   const linha = dados.BancoAcesso[dados.BancoAcesso.length - 1]!
   assert.ok(!JSON.stringify(linha).includes(tokenNovo), 'o token não é gravado, só o hash')
   assert.equal(linha.criadoPor, 'apontador-1')
+  assert.equal(acessoId, linha.id, 'POST devolve o acessoId')
+  // Listagem: sem token, com acessoId e datas; partidaId inválido = 400
+  const listada = await links.GET(req('GET', '/api/banco/links?partidaId=100'))
+  assert.equal(listada.status, 200)
+  const itens = (await corpo(listada)).data as any[]
+  assert.ok(itens.some((i) => i.acessoId === acessoId && i.equipeId === 2 && i.expiraEm && i.revogadoEm === null))
+  assert.deepEqual(Object.keys(itens[0]).sort(), ['acessoId', 'criadoEm', 'equipeId', 'expiraEm', 'revogadoEm'])
+  assert.ok(!JSON.stringify(itens).includes(tokenNovo) && !JSON.stringify(itens).includes('tokenHash'))
+  assert.equal((await links.GET(req('GET', '/api/banco/links?partidaId=abc'))).status, 400)
+  assert.equal((await links.GET(req('GET', '/api/banco/links?partidaId=999'))).status, 404)
   assert.equal((await get(tokenNovo)).status, 200)
   const revogar = await links.DELETE(req('DELETE', `/api/banco/links?acessoId=${linha.id}`))
   assert.equal(revogar.status, 200)
   assert.equal((await get(tokenNovo)).status, 410)
   assert.equal((await links.DELETE(req('DELETE', '/api/banco/links?acessoId=nao-existe'))).status, 404)
+  assert.equal((await links.DELETE(req('DELETE', '/api/banco/links?acessoId=00000000-0000-4000-8000-0000000000aa'))).status, 404)
+  // DELETE também tem rate limit
+  reiniciarCotas()
+  let ultimoDel = 404
+  for (let i = 0; i < 35; i += 1) ultimoDel = (await links.DELETE(req('DELETE', '/api/banco/links?acessoId=00000000-0000-4000-8000-0000000000aa', undefined, '10.7.7.7'))).status
+  assert.equal(ultimoDel, 429)
+  // Pedido com id malformado: 404, não 500
+  assert.equal((await pedido.DELETE(req('DELETE', '/x'), ctx({ token: T1, id: 'p;drop' }))).status, 404)
+  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'ACEITO' }), ctx({ token: SUM, id: 'nao-uuid' }))).status, 404)
+
+  // 13b. Campeonato finalizado: decidir pedido e aceitar papeleta recusam (409), como eventos, scout e desafios
+  dados.Liga![0]!.status = 'FINALIZADO'
+  const pendenteFinal = '00000000-0000-4000-8000-0000000000e2'
+  dados.PedidoBanco.push({ id: pendenteFinal, partidaId: 100, equipeId: 1, tipo: 'TEMPO', estado: 'PENDENTE', payload: { setNumero: 1 } })
+  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'RECUSADO' }), ctx({ token: SUM, id: pendenteFinal }))).status, 409)
+  assert.equal(dados.PedidoBanco.find((p) => p.id === pendenteFinal)!.estado, 'PENDENTE')
+  assert.equal((await aceitar.POST(req('POST', '/x'), ctx({ token: SUM, set: '1', equipeId: '1' }))).status, 409)
+  dados.Liga![0]!.status = 'ATIVA'
+  assert.equal((await decidir.POST(req('POST', '/x', { decisao: 'RECUSADO' }), ctx({ token: SUM, id: pendenteFinal }))).status, 200)
 
   // 14. Rate limit por IP
   reiniciarCotas()
-  let ultima = 200
-  for (let i = 0; i < 130; i += 1) ultima = (await get(T1, '10.9.9.9')).status
-  assert.equal(ultima, 429)
+  // O IP é consumido UMA vez por requisição: 120 requisições (60 por token) passam, a 121ª é 429.
+  for (let i = 0; i < 120; i += 1) assert.equal((await get(i % 2 ? T1 : T2, '10.9.9.9')).status, 200, `requisição ${i + 1}`)
+  assert.equal((await get(T1, '10.9.9.9')).status, 429)
   assert.equal((await get(T1, '10.8.8.8')).status, 200, 'outro IP segue livre')
+  // Token malformado não cria balde por token, mas continua limitado por IP
+  assert.equal((await get('curto', '10.8.8.8')).status, 404)
+
+  // IP: cabeçalhos da infraestrutura vencem o x-forwarded-for (que o cliente consegue preencher)
+  const { ipDaRequisicao } = await import('../src/lib/rate-limit')
+  const h = (o: Record<string, string>) => ({ headers: new Headers(o) })
+  assert.equal(ipDaRequisicao(h({ 'x-forwarded-for': '6.6.6.6', 'x-real-ip': '1.1.1.1' })), '1.1.1.1')
+  assert.equal(ipDaRequisicao(h({ 'x-forwarded-for': '6.6.6.6', 'x-real-ip': '1.1.1.1', 'x-vercel-forwarded-for': '2.2.2.2' })), '2.2.2.2')
+  assert.equal(ipDaRequisicao(h({ 'x-forwarded-for': '6.6.6.6, 7.7.7.7' })), '6.6.6.6')
+  assert.equal(ipDaRequisicao(h({})), 'desconhecido')
 
   console.log('banco-rotas: ok')
 }

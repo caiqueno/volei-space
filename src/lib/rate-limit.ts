@@ -33,10 +33,16 @@ export function consumirLimite(chave: string, limite: number, janelaMs: number, 
   return { ok: cota.permitido, retryAfterSeconds: cota.retryAfterSeconds }
 }
 
+/**
+ * IP do cliente para limites. Prefere os cabeçalhos definidos pela infraestrutura
+ * (`x-vercel-forwarded-for`, `x-real-ip`), que o cliente não consegue forjar atrás do proxy,
+ * e só então o primeiro item de `x-forwarded-for` (que o cliente pode preencher).
+ */
 export function ipDaRequisicao(req: { headers: { get(nome: string): string | null } }) {
-  const encaminhado = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const vercel = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
   const real = req.headers.get('x-real-ip')?.trim()
-  return (encaminhado || real || 'desconhecido').slice(0, 80)
+  const encaminhado = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  return (vercel || real || encaminhado || 'desconhecido').slice(0, 80)
 }
 
 export function reiniciarCotas() {

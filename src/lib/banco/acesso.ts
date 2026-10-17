@@ -30,24 +30,32 @@ export type AcessoBanco = {
   equipeId: number
 }
 
-function limitado(req: NextRequest, chaveToken: string | null): NextResponse | null {
+/**
+ * Limite por IP: consome UMA vez por requisição (antes o balde do IP era gasto duas vezes).
+ * O store é em memória por instância (ver rate-limit.ts); o store persistente do Supabase
+ * (SupabaseRateLimitStore, assíncrono) fica como evolução e exige tornar este caminho assíncrono.
+ */
+function limitadoPorIp(req: NextRequest): NextResponse | null {
   const ip = consumirLimite(`banco:ip:${ipDaRequisicao(req)}`, 120, 60_000)
   if (!ip.ok) return respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: ip.retryAfterSeconds })
-  if (chaveToken) {
-    const t = consumirLimite(`banco:tk:${chaveToken}`, 90, 60_000)
-    if (!t.ok) return respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: t.retryAfterSeconds })
-  }
+  return null
+}
+
+/** Balde por token: só depois de validar o formato (token malformado não cria balde). */
+function limitadoPorToken(chaveToken: string): NextResponse | null {
+  const t = consumirLimite(`banco:tk:${chaveToken}`, 90, 60_000)
+  if (!t.ok) return respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: t.retryAfterSeconds })
   return null
 }
 
 /** Resolve o link do banco. Devolve a resposta de erro pronta quando o acesso não vale. */
 export async function resolverAcessoBanco(req: NextRequest, token: string): Promise<AcessoBanco | NextResponse> {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitado(req, null)
+  const bloqueado = limitadoPorIp(req)
   if (bloqueado) return bloqueado
   if (!tokenBancoValido(token)) return respostaErro('Link inválido.', 404, 'LINK_INVALIDO')
   const hash = hashTokenBanco(token)
-  const porToken = limitado(req, hash.slice(0, 24))
+  const porToken = limitadoPorToken(hash.slice(0, 24))
   if (porToken) return porToken
 
   try {
@@ -78,7 +86,7 @@ export type AcessoApontador = {
 /** Apontador/árbitro/organizador da partida, pela mesma autenticação da súmula. */
 export async function resolverApontador(req: NextRequest, sumulaToken: string): Promise<AcessoApontador | NextResponse> {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitado(req, null)
+  const bloqueado = limitadoPorIp(req)
   if (bloqueado) return bloqueado
   const base = await requireSumulaTokenAccess(sumulaToken)
   if (base instanceof Response) return base as NextResponse

@@ -15,13 +15,16 @@ import {
   pedidoPublico,
   MAX_SET,
   STATUS_PARTIDA_ENCERRADA,
-  setAtual,
+  perfilDaPartidaBanco,
+  setAtualDaPartida,
   setJaIniciado,
+  usoDoLogDaSumula,
   type PartidaBanco,
 } from './dados'
 import { hashConteudo, respostaErro, violacaoDeUnicidade } from './base'
-import { formacaoOrdenada, validarPapeletaDoBanco, type EntradaPapeleta } from './papeleta-validacao'
-import { validarPedidoDoBanco } from './pedidos-validacao'
+import { avisosDaPapeleta, formacaoOrdenada, validarPapeletaDoBanco, type EntradaPapeleta } from './papeleta-validacao'
+import { usoDoSet, validarPedidoDoBanco } from './pedidos-validacao'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import {
   MAX_LINK_VIDEO,
   MAX_MOTIVO,
@@ -44,6 +47,8 @@ const db = supabaseAdmin as any
 export const papeletaSchema = z.object({
   formacao: z.array(z.object({ posicao: z.number().int(), jogadorId: z.number().int().positive() })).length(6),
   liberoId: z.number().int().positive().nullish(),
+  /** Segundo líbero: validado, mas ainda não gravado (a tabela só tem liberoId; coluna em migration futura). */
+  libero2Id: z.number().int().positive().nullish(),
   capitaoId: z.number().int().positive().nullish(),
 })
 
@@ -72,9 +77,14 @@ export function numeroDoSet(valor: string): number | null {
   return n >= 1 && n <= MAX_SET ? n : null
 }
 
-export function idDeRecurso(valor: string): string | null {
-  return /^[A-Za-z0-9_-]{1,64}$/.test(valor) ? valor : null
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Id uuid (PedidoBanco.id, BancoAcesso.id, DesafioVideo.id). Malformado = null (a rota responde 404, nunca 500 por 22P02). */
+export function idUuid(valor: string): string | null {
+  return UUID.test(valor) ? valor.toLowerCase() : null
 }
+
+export const idDeRecurso = idUuid
 
 function corpoInvalido(e: z.ZodError) {
   return respostaErro('Dados inválidos.', 400, 'DADOS_INVALIDOS', { details: e.flatten().fieldErrors })
@@ -99,6 +109,7 @@ export async function visaoDoBanco(partida: PartidaBanco, equipeId: number) {
     lerElenco(partida.id, equipeId),
     limitesDaPartida(partida),
   ])
+  const setEmDisputa = await setAtualDaPartida(partida, sets)
   const papeletas = conferir(await db.from('Papeleta').select('*').eq('partidaId', partida.id).eq('equipeId', equipeId)) as any[]
   const pedidos = conferir(await db.from('PedidoBanco').select('*').eq('partidaId', partida.id).eq('equipeId', equipeId)) as any[]
   return {
@@ -112,7 +123,7 @@ export async function visaoDoBanco(partida: PartidaBanco, equipeId: number) {
         setsB: partida.setsPorB ?? 0,
         sets: sets.sort((x, y) => x.numero - y.numero),
       },
-      setAtual: setAtual(sets),
+      setAtual: setEmDisputa,
     },
     equipe,
     elenco,
@@ -149,10 +160,11 @@ export async function salvarRascunho(partida: PartidaBanco, equipeId: number, se
   if (fechado) return fechado
 
   const elenco = await lerElenco(partida.id, equipeId)
-  const violacoes = validarPapeletaDoBanco(entrada, elenco)
+  const violacoes = validarPapeletaDoBanco(entrada, elenco, { perfil: await perfilDaPartidaBanco(partida) })
   if (violacoes.length > 0) {
     return respostaErro('A papeleta tem violações das regras do vôlei.', 422, 'PAPELETA_INVALIDA', { violacoes })
   }
+  const avisos = avisosDoRascunho(entrada)
 
   const valores = {
     formacao: formacaoOrdenada(entrada.formacao),
@@ -163,7 +175,7 @@ export async function salvarRascunho(partida: PartidaBanco, equipeId: number, se
   if (existente) {
     const linhas = conferir(await db.from('Papeleta').update(valores).eq('id', existente.id).eq('estado', 'RASCUNHO').select()) as any[]
     if (!linhas || linhas.length === 0) return travada()
-    return success({ papeleta: papeletaPublica(linhas[0]), violacoes: [] })
+    return success({ papeleta: papeletaPublica(linhas[0]), violacoes: [], avisos })
   }
   const criada = await db.from('Papeleta').insert({ partidaId: partida.id, equipeId, setNumero, ...valores }).select().maybeSingle()
   if (criada.error) {
@@ -172,7 +184,20 @@ export async function salvarRascunho(partida: PartidaBanco, equipeId: number, se
     }
     conferir(criada)
   }
-  return success({ papeleta: papeletaPublica(criada.data ?? { setNumero, ...valores }), violacoes: [] }, 200)
+  return success({ papeleta: papeletaPublica(criada.data ?? { setNumero, ...valores }), violacoes: [], avisos }, 200)
+}
+
+/** Avisos que não bloqueiam: capitão fora dos titulares e segundo líbero ainda não gravado. */
+function avisosDoRascunho(entrada: EntradaPapeleta) {
+  const avisos = avisosDaPapeleta(entrada)
+  if (entrada.libero2Id != null) {
+    avisos.push({
+      codigo: 'LIBERO2_NAO_PERSISTIDO',
+      mensagem: 'O segundo líbero foi conferido, mas ainda não é gravado na papeleta; informe-o ao apontador.',
+      categoria: 'ELENCO',
+    })
+  }
+  return avisos
 }
 
 export async function enviarPapeleta(partida: PartidaBanco, equipeId: number, setNumero: number) {
@@ -189,7 +214,7 @@ export async function enviarPapeleta(partida: PartidaBanco, equipeId: number, se
     liberoId: existente.liberoId ?? null,
     capitaoId: existente.capitaoId ?? null,
   }
-  const violacoes = validarPapeletaDoBanco(entrada, elenco)
+  const violacoes = validarPapeletaDoBanco(entrada, elenco, { perfil: await perfilDaPartidaBanco(partida) })
   if (violacoes.length > 0) {
     return respostaErro('A papeleta tem violações das regras do vôlei e não pode ser enviada.', 422, 'PAPELETA_INVALIDA', { violacoes })
   }
@@ -227,7 +252,7 @@ async function criarPedidoDesafio(partida: PartidaBanco, equipeId: number, dados
   const link = validarLinkVideo(dados.linkVideo)
   if (!link.ok) return respostaErro(link.mensagem, 400, 'DADOS_INVALIDOS')
   const motivo = normalizarMotivo(dados.motivo)
-  const setNumero = setAtual(await lerSets(partida.id))
+  const setNumero = await setAtualDaPartida(partida, await lerSets(partida.id))
 
   const pedidos = conferir(await db.from('PedidoBanco').select('*').eq('partidaId', partida.id).eq('equipeId', equipeId)) as any[]
   const pendente = (pedidos ?? []).some((p) => p.tipo === 'DESAFIO' && p.estado === 'PENDENTE' && Number(p.payload?.setNumero) === setNumero)
@@ -262,11 +287,12 @@ export async function criarPedido(partida: PartidaBanco, equipeId: number, corpo
   const entrada = { tipo: lido.data.tipo as 'TEMPO' | 'SUBSTITUICAO', sai: lido.data.sai, entra: lido.data.entra }
 
   const sets = await lerSets(partida.id)
-  const setNumero = setAtual(sets)
-  const [elenco, limites, existentes] = await Promise.all([
+  const setNumero = await setAtualDaPartida(partida, sets)
+  const [elenco, limites, existentes, logDoSet] = await Promise.all([
     lerElenco(partida.id, equipeId),
     limitesDaPartida(partida),
     db.from('PedidoBanco').select('*').eq('partidaId', partida.id).eq('equipeId', equipeId),
+    usoDoLogDaSumula(partida, equipeId, setNumero),
   ])
   const pedidos = conferir(existentes) as any[]
   const papeleta = await lerPapeleta(partida.id, equipeId, setNumero)
@@ -279,6 +305,8 @@ export async function criarPedido(partida: PartidaBanco, equipeId: number, corpo
     elenco,
     titulares: enviada && Array.isArray(papeleta.formacao) ? papeleta.formacao.map((f: any) => Number(f.jogadorId)) : null,
     liberoId: enviada ? papeleta.liberoId ?? null : null,
+    // Limite pelo log efetivo da súmula (quando houver) + pedidos aceitos ainda não lançados.
+    uso: usoDoSet({ pedidos: pedidos ?? [], setNumero, log: logDoSet }),
   })
   if (violacoes.length > 0) {
     return respostaErro('O pedido não respeita as regras do vôlei.', 422, 'PEDIDO_INVALIDO', { violacoes })
@@ -330,6 +358,9 @@ export async function decidirPedido(partida: PartidaBanco, usuarioId: string, pe
   const lido = decisaoSchema.safeParse(corpo)
   if (!lido.success) return corpoInvalido(lido.error)
   const decisao = lido.data.decisao
+  // Campeonato finalizado não aceita mais decisões (mesma regra de eventos, scout e desafios).
+  const finalizado = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
+  if (finalizado) return finalizado
   const pedido = conferir(await db.from('PedidoBanco').select('*').eq('id', pedidoId).eq('partidaId', partida.id).maybeSingle()) as any
   if (!pedido) return respostaErro('Pedido não encontrado.', 404)
   if (pedido.estado === decisao) {
@@ -347,13 +378,15 @@ export async function decidirPedido(partida: PartidaBanco, usuarioId: string, pe
     if (situacao.tipo === 'ERRO') throw new Error('erro ao ler os desafios')
     if (situacao.tipo === 'EXCEDIDO') return respostaErro(MENSAGEM_LIMITE_DESAFIOS(situacao.limite), 422, 'LIMITE_EXCEDIDO')
   } else if (decisao === 'ACEITO') {
-    // Reconfere o limite com os pedidos já aceitos (dois pendentes decididos em sequência não passam do limite).
+    // Reconfere o limite pelo log efetivo da súmula + pedidos já aceitos e ainda não lançados
+    // (dois pendentes decididos em sequência não passam do limite).
     const limites = await limitesDaPartida(partida)
     const outros = conferir(
       await db.from('PedidoBanco').select('*').eq('partidaId', partida.id).eq('equipeId', pedido.equipeId).eq('estado', 'ACEITO'),
     ) as any[]
     const setNumero = Number(pedido.payload?.setNumero ?? 0)
-    const doSet = (outros ?? []).filter((o) => o.tipo === pedido.tipo && Number(o.payload?.setNumero) === setNumero).length
+    const uso = usoDoSet({ pedidos: outros ?? [], setNumero, log: await usoDoLogDaSumula(partida, Number(pedido.equipeId), setNumero) })
+    const doSet = pedido.tipo === 'TEMPO' ? uso.tempos : uso.substituicoes
     const limite = pedido.tipo === 'TEMPO' ? limites.tempos : limites.substituicoes
     if (doSet >= limite) {
       return respostaErro(
@@ -430,6 +463,8 @@ export async function papeletasDoSet(partida: PartidaBanco, setNumero: number) {
 }
 
 export async function aceitarPapeleta(partida: PartidaBanco, usuarioId: string, setNumero: number, equipeId: number) {
+  const finalizado = await rejectIfCampeonatoFinalizado(Number(partida.ligaId))
+  if (finalizado) return finalizado
   if (equipeId !== partida.equipeAId && equipeId !== partida.equipeBId) return respostaErro('Equipe não pertence a esta partida.', 404)
   const papeleta = await lerPapeleta(partida.id, equipeId, setNumero)
   if (!papeleta) return respostaErro('Papeleta não encontrada.', 404)
