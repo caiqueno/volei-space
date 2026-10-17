@@ -150,7 +150,8 @@
     "test:regras-volei-assinaturas": "node scripts/with-ts-node.mjs scripts/regras-volei-assinaturas.test.ts",
     "test:regras-volei-nao-registrado": "node scripts/with-ts-node.mjs scripts/regras-volei-nao-registrado.test.ts",
     "test:regras-volei-pedidos": "node scripts/with-ts-node.mjs scripts/regras-volei-pedidos.test.ts",
-    "test:regras-volei-folha-libero": "node scripts/with-ts-node.mjs scripts/regras-volei-folha-libero.test.ts"
+    "test:regras-volei-folha-libero": "node scripts/with-ts-node.mjs scripts/regras-volei-folha-libero.test.ts",
+    "test:regras-volei-intervalo": "node scripts/with-ts-node.mjs scripts/regras-volei-intervalo.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
