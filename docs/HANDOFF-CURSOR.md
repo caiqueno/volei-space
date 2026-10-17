@@ -31,7 +31,7 @@ Estado verificado por comando: typecheck e build passam. A suíte tem 4 falhas *
 2. **Banco (Supabase de desenvolvimento):** rodar as consultas de leitura Q1 a Q13 (`docs/analise/16`), conferir os nomes reais dos CHECKs (`Atleta_origem_check`, `SumulaEvento_tipo_check`), ensaiar as migrations pendentes em preview, gerar a baseline (`docs/analise/22`). **Ordem de publicação:** primeiro o código desta branch, depois as migrations M1 e M2 (fechar leitura pública e bucket privado), fora de rodada e com backup.
 3. **Conta/segredos:** trocar a senha do administrador legado (a antiga continua no histórico do git), definir `ADMIN_EMAIL`, conferir `DATABASE_URL`/`DIRECT_URL` na Vercel (a nova validação recusa configuração de outro projeto), rodar o gitleaks no histórico.
 4. **GitHub/Vercel:** proteção de branches, secret scanning, Dependabot; a `main` publica direto, então qualquer merge nela exige aprovação.
-5. **Decisões de produto abertas:** vôlei de praia entra? foto e documento do atleta bloqueiam a inscrição ou viram pendência? rascunho de inscrição por token (upload sem rota assinada)? itens de regra sem confirmação (WO em melhor de 3, WO duplo, sanções mistas, saque em 0x0 após penalidade entre sets, placar do CJ-03) precisam de um árbitro da COBRAV (`docs/analise/23`).
+5. **Decisões de produto abertas:** (decidido: só vôlei de quadra, praia fora do escopo) foto e documento do atleta bloqueiam a inscrição ou viram pendência? rascunho de inscrição por token (upload sem rota assinada)? itens de regra sem confirmação (WO em melhor de 3, WO duplo, sanções mistas, saque em 0x0 após penalidade entre sets, placar do CJ-03) precisam de um árbitro da COBRAV (`docs/analise/23`).
 
 ## Pendências técnicas conhecidas
 - Ligar a fila offline e a rota de eventos à tela da súmula; falta endpoint de lote real em produção e a decisão de quando ligar `SUMULA_EVENTOS_ATIVO`.
@@ -103,7 +103,7 @@ Abertos depois da rodada 9:
 - Rota pública de súmula não traz o log; o PDF com rodízio exige a rota `/eventos`. Config da partida na impressão é inferida dos sets. Sem hora por ponto. RG-PTO-003 (ampulheta) e RG-INT-007 (log de edição) só parciais. Sem impressão da súmula em branco.
 - Tela do banco e componentes do apontador sem teste de renderização nem conferência no navegador; sem auditoria WCAG automática.
 - `src/lib/arbitro-access.ts` tem `/^d+$/` sem barra (token numérico nunca filtra por id). NÃO corrigir sem decidir: faria o id da partida valer como credencial.
-- Ainda não feitos do PROMPT: scout/.dvw, desafio por vídeo, vôlei de praia, offline-first ligado de verdade, notificações, convite ao atleta/importação por planilha, clube com várias equipes, protótipo navegável.
+- Ainda não feitos do PROMPT: scout/.dvw, desafio por vídeo, offline-first ligado de verdade, notificações, convite ao atleta/importação por planilha, clube com várias equipes, protótipo navegável.
 
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
