@@ -7,6 +7,8 @@
 --   ("usuarioId", "lidaEm") para a contagem de não lidas.
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role; o servidor
 --   filtra sempre pelo usuário autenticado.
+--   RETENÇÃO: definir com o jurídico por quanto tempo guardar notificações (lidas e não lidas) antes de
+--   apagar. Enquanto não houver prazo, nada é apagado automaticamente.
 --
 -- PRÉ-REQUISITOS
 --   Nenhum (tabela independente).

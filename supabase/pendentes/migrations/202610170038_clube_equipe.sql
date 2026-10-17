@@ -1,5 +1,8 @@
 -- 202610170038_clube_equipe.sql   (Rodada 10, Meu Time)
 --
+-- NÃO APLICAR: redundante com TimeClube.clubeId; mantida só como referência.
+--   O backend não usa "ClubeEquipe" nem "Clube"."donoUserId". Fica fora da ordem de aplicação em preview.
+--
 -- OBJETIVO
 --   Clube com várias equipes. "Clube" JÁ É CRIADA na 202610170024 (nome, criadoPor, criadoEm, ...), então
 --   esta migration NÃO a recria: só acrescenta a coluna "donoUserId" text (nullable, sem FK, dono do clube;

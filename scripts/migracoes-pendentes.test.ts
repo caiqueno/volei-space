@@ -319,6 +319,12 @@ assert.match(sqlImp, /status\s+in\s*\('PREVIA',\s*'CONFIRMADA'\)/i)
 assert.match(sqlImp, /linhas\s+jsonb\s+not\s+null/i)
 assert.match(sqlImp, /resumo\s+jsonb/i)
 assert.match(sqlImp, /"timeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
+assert.match(sqlImp, /"expiraEm"\s+timestamptz\s+not\s+null\s+default\s+now\(\)\s*\+\s*interval\s+'72 hours'/i, 'prévia expira em 72 h')
+assert.match(sqlImp, /index\s+if\s+not\s+exists\s+"ImportacaoAtletas_expiraEm_idx"\s+on\s+public\."ImportacaoAtletas"\s*\("expiraEm"\)/i)
+assert.match(ler(dirPendentes, '202610170037_importacao_atletas.sql'), /RETENÇÃO[\s\S]*72 h/, 'cabeçalho da 0037 deve citar a retenção de 72 h')
+assert.match(ler(dirPendentes, '202610170039_notificacao.sql'), /RETENÇÃO[\s\S]*jurídico/, 'cabeçalho da 0039 deve citar a retenção')
+assert.match(ler(dirPendentes, '202610170036_convite_atleta.sql'), /USO DE "contatoCifrado"[\s\S]*NENHUMA rota/, 'cabeçalho da 0036 deve explicar contatoCifrado')
+assert.match(ler(dirPendentes, '202610170038_clube_equipe.sql'), /NÃO APLICAR: redundante com TimeClube\.clubeId; mantida só como referência/, 'cabeçalho da 0038 deve marcar NÃO APLICAR')
 const sqlClube = sqlPendente['202610170038_clube_equipe.sql']
 assert.ok(!/create\s+table\s+(?:if\s+not\s+exists\s+)?public\."Clube"\s*\(/i.test(sqlClube), '"Clube" já é criada na 0024: a 0038 não pode recriá-la')
 assert.match(sqlPendente['202610170024_meu_time_organizador_clube.sql'], /create\s+table\s+if\s+not\s+exists\s+public\."Clube"/i)
@@ -378,14 +384,22 @@ assert.match(sqlScout, /unique\s*\("partidaId",\s*"clientEventId"\)/i, 'idempot�
 assert.match(sqlScout, /"anuladoEm"\s+timestamptz\s*,/i, 'anuladoEm nullable')
 assert.match(sqlScout, /index\s+if\s+not\s+exists\s+"ScoutAcao_partidaId_setNumero_idx"\s+on\s+public\."ScoutAcao"\s*\("partidaId",\s*"setNumero"\)/i)
 const sqlDes = sqlPendente['202610170041_desafio_video.sql']
-assert.match(sqlDes, /estado\s+text\s+not\s+null\s+default\s+'SOLICITADO'\s+check\s*\(estado\s+in\s*\('SOLICITADO',\s*'EM_ANALISE',\s*'MANTIDA',\s*'REVERTIDA',\s*'CANCELADO'\)\)/i)
+assert.match(sqlDes, /estado\s+text\s+not\s+null\s+default\s+'SOLICITADO'\s+check\s*\(estado\s+in\s*\('SOLICITADO',\s*'EM_ANALISE',\s*'MANTIDA',\s*'REVERTIDA',\s*'INCONCLUSIVA',\s*'CANCELADO'\)\)/i)
 assert.match(sqlDes, /motivo\s+text\s+check\s*\(motivo\s+is\s+null\s+or\s+char_length\(motivo\)\s*<=\s*500\)/i)
 assert.match(sqlDes, /"linkVideo"\s+text\s+check\s*\("linkVideo"\s+is\s+null\s+or\s+char_length\("linkVideo"\)\s*<=\s*500\)/i)
 assert.match(sqlDes, /"pedidoBancoId"\s+uuid\s+references\s+public\."PedidoBanco"\(id\)\s+on\s+delete\s+set\s+null/i)
-assert.match(sqlDes, /check\s*\(estado\s+not\s+in\s*\('MANTIDA',\s*'REVERTIDA',\s*'CANCELADO'\)\s+or\s+"decididoEm"\s+is\s+not\s+null\)/i)
+assert.match(sqlDes, /check\s*\(estado\s+not\s+in\s*\('MANTIDA',\s*'REVERTIDA',\s*'INCONCLUSIVA',\s*'CANCELADO'\)\s+or\s+"decididoEm"\s+is\s+not\s+null\)/i)
 assert.match(sqlDes, /index\s+if\s+not\s+exists\s+"DesafioVideo_partidaId_setNumero_equipeId_idx"\s+on\s+public\."DesafioVideo"\s*\("partidaId",\s*"setNumero",\s*"equipeId"\)/i)
 assert.ok(versoes.indexOf('202610170035') < versoes.indexOf('202610170041'), '0041 deve vir depois da 0035 (PedidoBanco)')
 assert.match(ler(dirPendentes, '202610170041_desafio_video.sql'), /PRÉ-REQUISITOS[\s\S]*202610170035/, 'cabeçalho da 0041 deve citar a 0035')
+
+// 5i) .env.example documenta as flags das rodadas 9 a 12, comentadas (desligadas) e sem segredo.
+const envExemplo = fs.readFileSync(path.join(raiz, '.env.example'), 'utf8')
+for (const flag of ['BANCO_APP_ATIVO', 'SCOUT_ATIVO', 'DESAFIO_ATIVO', 'DESAFIO_LIMITE_POR_SET', 'AO_VIVO_ATIVO', 'MEU_TIME_ATIVO', 'MEU_TIME_FASE2_ATIVO', 'SUMULA_EVENTOS_ATIVO', 'SUMULA_SERVIDOR_SOMBRA', 'LGPD_CHAVE_CIFRA', 'NEXT_PUBLIC_BANCO_APP_ATIVO', 'NEXT_PUBLIC_SCOUT_ATIVO', 'NEXT_PUBLIC_DESAFIO_ATIVO', 'NEXT_PUBLIC_AO_VIVO_ATIVO', 'NEXT_PUBLIC_MEU_TIME_FASE2_ATIVO', 'NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO', 'NEXT_PUBLIC_PROTOTIPO_ATIVO']) {
+  assert.match(envExemplo, new RegExp(`^# ${flag}=`, 'm'), `.env.example: ${flag} deve estar documentada e comentada`)
+  assert.ok(!new RegExp(`^${flag}=`, 'm').test(envExemplo), `.env.example: ${flag} deve vir desligada (comentada)`)
+}
+assert.ok(!/^\s*#?\s*NEXT_PUBLIC_LGPD/m.test(envExemplo), 'chave de cifra nunca usa NEXT_PUBLIC_')
 
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {

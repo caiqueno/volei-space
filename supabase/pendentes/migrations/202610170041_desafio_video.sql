@@ -2,8 +2,8 @@
 --
 -- OBJETIVO
 --   "DesafioVideo": pedido de revisão por vídeo de uma equipe em um set de uma partida de vôlei de quadra.
---   Estados: SOLICITADO (padrão), EM_ANALISE, MANTIDA, REVERTIDA, CANCELADO. Estados finais (MANTIDA, REVERTIDA,
---   CANCELADO) exigem "decididoEm" (CHECK "DesafioVideo_decisao_chk"). "motivo" e "linkVideo" são opcionais, até 500 caracteres.
+--   Estados: SOLICITADO (padrão), EM_ANALISE, MANTIDA, REVERTIDA, INCONCLUSIVA, CANCELADO. Estados finais (MANTIDA, REVERTIDA,
+--   INCONCLUSIVA, CANCELADO) exigem "decididoEm" (CHECK "DesafioVideo_decisao_chk"). "motivo" e "linkVideo" são opcionais, até 500 caracteres.
 --   "pedidoBancoId" liga o desafio ao pedido feito pelo banco (0035); se o pedido for apagado, vira null.
 --   As regras (quantos desafios por set, quem decide) ficam no servidor; o banco só garante forma e consistência.
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role.
@@ -32,14 +32,14 @@ create table if not exists public."DesafioVideo" (
   "partidaId"     integer not null references public."Partida"(id) on delete cascade,
   "setNumero"     integer not null check ("setNumero" between 1 and 5),
   "equipeId"      integer not null references public."Equipe"(id) on delete cascade,
-  estado          text not null default 'SOLICITADO' check (estado in ('SOLICITADO', 'EM_ANALISE', 'MANTIDA', 'REVERTIDA', 'CANCELADO')),
+  estado          text not null default 'SOLICITADO' check (estado in ('SOLICITADO', 'EM_ANALISE', 'MANTIDA', 'REVERTIDA', 'INCONCLUSIVA', 'CANCELADO')),
   motivo          text check (motivo is null or char_length(motivo) <= 500),
   "linkVideo"     text check ("linkVideo" is null or char_length("linkVideo") <= 500),
   "pedidoBancoId" uuid references public."PedidoBanco"(id) on delete set null,
   "solicitadoEm"  timestamptz not null default now(),
   "decididoEm"    timestamptz,
   "decididoPor"   text,
-  constraint "DesafioVideo_decisao_chk" check (estado not in ('MANTIDA', 'REVERTIDA', 'CANCELADO') or "decididoEm" is not null)
+  constraint "DesafioVideo_decisao_chk" check (estado not in ('MANTIDA', 'REVERTIDA', 'INCONCLUSIVA', 'CANCELADO') or "decididoEm" is not null)
 );
 create index if not exists "DesafioVideo_partidaId_setNumero_equipeId_idx" on public."DesafioVideo" ("partidaId", "setNumero", "equipeId");
 
