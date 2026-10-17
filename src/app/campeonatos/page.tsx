@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/lib/supabase-config'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { createPageMetadata } from '@/lib/seo'
 import { LIGA_COLUNAS_PUBLICAS } from '@/lib/liga-colunas'
+import { idsCompeticoesPrivadas, semIdsPrivados } from '@/lib/visibilidade-competicao'
 import mi from '@/styles/microinteracoes.module.css'
 
 export const metadata = createPageMetadata({
@@ -48,7 +49,7 @@ export default async function CampeonatosPage({ searchParams }: PageProps) {
       query = query.or(`nome.ilike.%${safeBusca}%,subtitulo.ilike.%${safeBusca}%,descricao.ilike.%${safeBusca}%`)
     }
     const { data } = await query
-    campeonatos = data ?? []
+    campeonatos = semIdsPrivados(data ?? [], await idsCompeticoesPrivadas())
   }
 
   function statusHref(value: string) {
