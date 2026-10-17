@@ -7,7 +7,17 @@ import { ColarLista } from './ColarLista'
 import { FormAtleta } from './FormAtleta'
 import { CompletarNascimento } from './CompletarNascimento'
 import { formatarData, rotuloPosicao } from './rotulos'
+import { CompletarAutorizacao } from './CompletarAutorizacao'
 import { contarSemNascimento, faltaNascimento } from '@/lib/meu-time-ui/selecao'
+import {
+  contarSemAutorizacao,
+  EXPLICACAO_AUTORIZACAO,
+  faltaAutorizacao,
+  perguntaRemoverAtleta,
+  TEXTO_REMOVER_ATLETA,
+  TEXTO_SEM_AUTORIZACAO,
+  textoResumoAutorizacao,
+} from '@/lib/meu-time-ui/responsavel'
 import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import type { Atleta, PapelAcesso } from '@/lib/meu-time-ui/tipos'
 
@@ -19,12 +29,15 @@ type Props = {
   atletas: Atleta[]
   somenteSemDocumento: boolean
   aoMudarFiltro: (valor: boolean) => void
+  /** Filtro "só quem falta autorização do responsável" (menores). Controlado pela tela para o cartão de prontidão poder ligá-lo. */
+  somenteSemAutorizacao?: boolean
+  aoMudarFiltroAutorizacao?: (valor: boolean) => void
   /** Papel de quem está logado. ASSISTENTE e CAPITAO só olham: o servidor recusa a escrita deles (403). */
   meuPapel?: PapelAcesso
   aoAtualizar: () => Promise<void>
 }
 
-export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, aoMudarFiltro, meuPapel, aoAtualizar }: Props) {
+export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, aoMudarFiltro, somenteSemAutorizacao = false, aoMudarFiltroAutorizacao, meuPapel, aoAtualizar }: Props) {
   const podeEditar = podeFazer(meuPapel, 'atletas')
   const [modo, setModo] = useState<Modo>({ tipo: 'lista' })
   const [confirmando, setConfirmando] = useState<string | null>(null)
@@ -34,8 +47,12 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
   const [somenteSemNascimento, setSomenteSemNascimento] = useState(false)
   const semNascimento = contarSemNascimento(atletas)
   const filtroNascimento = somenteSemNascimento && semNascimento > 0
+  const [completando, setCompletando] = useState<string | null>(null)
+  const semAutorizacao = contarSemAutorizacao(atletas)
+  const filtroAutorizacao = somenteSemAutorizacao && semAutorizacao > 0
   const visiveis = atletas
     .filter((a) => (somenteSemDocumento ? !a.temDocumento : true))
+    .filter((a) => (filtroAutorizacao ? faltaAutorizacao(a) : true))
     .filter((a) => (filtroNascimento ? faltaNascimento(a) : true))
 
   async function concluir() {
@@ -88,6 +105,19 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
         </label>
       )}
 
+      {semAutorizacao > 0 && (
+        <Aviso tom="is-warning">
+          <strong className="block">{textoResumoAutorizacao(semAutorizacao)}</strong>
+          {EXPLICACAO_AUTORIZACAO}
+          {aoMudarFiltroAutorizacao && (
+            <label className="mt-2 flex min-h-[44px] items-center gap-3 font-bold">
+              <input type="checkbox" checked={somenteSemAutorizacao} onChange={(e) => aoMudarFiltroAutorizacao(e.target.checked)} className="h-5 w-5 accent-[var(--vs-gold)]" />
+              Mostrar só quem falta autorização
+            </label>
+          )}
+        </Aviso>
+      )}
+
       {semNascimento > 0 && (
         <Aviso tom="is-warning">
           <strong className="block">{semNascimento} {semNascimento === 1 ? 'atleta está' : 'atletas estão'} sem data de nascimento.</strong>
@@ -111,16 +141,34 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
                   {[atleta.numeroPreferido != null ? `camisa ${atleta.numeroPreferido}` : 'sem camisa', rotuloPosicao(atleta.posicao), atleta.dataNascimento ? formatarData(atleta.dataNascimento) : null].filter(Boolean).join(' · ')}
                 </p>
               </div>
-              <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${atleta.temDocumento ? 'vs-state is-success' : 'vs-state is-warning'}`}>
-                {atleta.temDocumento ? 'Com documento' : 'Sem documento'}
-              </span>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className={`rounded-full px-2 py-1 text-xs font-bold ${atleta.temDocumento ? 'vs-state is-success' : 'vs-state is-warning'}`}>
+                  {atleta.temDocumento ? 'Com documento' : 'Sem documento'}
+                </span>
+                {faltaAutorizacao(atleta) && <span className="vs-state is-warning rounded-full px-2 py-1 text-xs font-bold">{TEXTO_SEM_AUTORIZACAO}</span>}
+              </div>
             </div>
+            {podeEditar && faltaAutorizacao(atleta) && (
+              completando === atleta.id ? (
+                <CompletarAutorizacao
+                  cliente={cliente} equipeId={equipeId} atleta={atleta} aoCancelar={() => setCompletando(null)}
+                  aoSalvar={async () => { setCompletando(null); await aoAtualizar() }}
+                />
+              ) : (
+                <button type="button" onClick={() => setCompletando(atleta.id)} aria-label={`Completar autorização do responsável de ${atleta.nome}`} className="min-h-[44px] self-start rounded-xl bg-[var(--vs-gold)] px-4 text-sm font-black text-[var(--vs-on-gold)]">
+                  Completar agora
+                </button>
+              )
+            )}
             {podeEditar && faltaNascimento(atleta) && <CompletarNascimento cliente={cliente} equipeId={equipeId} atleta={atleta} aoSalvar={aoAtualizar} />}
             {!podeEditar ? null : confirmando === atleta.id ? (
-              <div role="group" aria-label={`Remover ${atleta.nome}?`} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <p className="text-sm font-bold">Remover {atleta.nome} do time?</p>
-                <button type="button" disabled={removendo} onClick={() => remover(atleta)} className={botaoPerigo}>{removendo ? 'Removendo…' : 'Remover'}</button>
-                <button type="button" onClick={() => setConfirmando(null)} className="min-h-[44px] rounded-xl px-4 text-sm font-bold underline">Cancelar</button>
+              <div role="group" aria-label={perguntaRemoverAtleta(atleta.nome)} aria-describedby={`remover-${atleta.id}`} className="flex flex-col gap-2">
+                <p className="text-sm font-bold">{perguntaRemoverAtleta(atleta.nome)}</p>
+                <p id={`remover-${atleta.id}`} className="text-sm text-[var(--vs-muted)]">{TEXTO_REMOVER_ATLETA}</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={removendo} onClick={() => remover(atleta)} className={botaoPerigo}>{removendo ? 'Removendo…' : 'Sim, remover e apagar os dados'}</button>
+                  <button type="button" onClick={() => setConfirmando(null)} className="min-h-[44px] rounded-xl px-4 text-sm font-bold underline">Cancelar</button>
+                </div>
               </div>
             ) : (
               <div className="flex gap-2">

@@ -1,5 +1,6 @@
 // Validação de formulário só para dar retorno rápido; o servidor valida tudo de novo.
 import { dataNascimentoValida } from './selecao'
+import { ehMenor, validarResponsavel, type EntradaResponsavel } from './responsavel'
 import { FUNCOES_COMISSAO_CODIGOS, POSICOES_CODIGOS, type EdicaoEquipe, type FuncaoComissao, type Naipe, type NovaEquipe, type NovoAcesso, type NovoAtleta, type NovoMembroComissao, type PosicaoCodigo } from './tipos'
 
 export type Resultado<D, C extends string> = { valido: true; dados: D; erros: Partial<Record<C, string>> } | { valido: false; erros: Partial<Record<C, string>> }
@@ -37,6 +38,32 @@ export function validarNovoAtleta(
   const dados: NovoAtleta = { nome, dataNascimento: entrada.dataNascimento }
   if (numeroTexto) dados.numeroPreferido = Number(numeroTexto)
   if (entrada.posicao) dados.posicao = entrada.posicao
+  return { valido: true, dados, erros }
+}
+
+export type CampoAtletaComResponsavel = 'nome' | 'dataNascimento' | 'numero' | 'posicao' | 'respNome' | 'respContato' | 'respAceite'
+
+/**
+ * Atleta + responsável legal: se a data de nascimento torna a pessoa menor de 18 anos, exige nome, contato e aceite.
+ * Para maior de idade, o responsável é ignorado e nada dele vai ao servidor.
+ */
+export function validarAtletaComResponsavel(
+  entrada: { nome: string; dataNascimento: string; numero: string; posicao: string },
+  responsavel: EntradaResponsavel,
+  hoje: Date = new Date(),
+): Resultado<NovoAtleta, CampoAtletaComResponsavel> {
+  const base = validarNovoAtleta(entrada, hoje)
+  const erros: Partial<Record<CampoAtletaComResponsavel, string>> = { ...base.erros }
+  let dados: NovoAtleta | null = base.valido ? base.dados : null
+  if (dataNascimentoValida(entrada.dataNascimento, hoje) && ehMenor(entrada.dataNascimento, hoje)) {
+    const r = validarResponsavel(responsavel)
+    if (r.erros.nome) erros.respNome = r.erros.nome
+    if (r.erros.contato) erros.respContato = r.erros.contato
+    if (r.erros.aceite) erros.respAceite = r.erros.aceite
+    if (r.valido && dados) dados = { ...dados, ...r.dados }
+    else dados = null
+  }
+  if (!dados || Object.keys(erros).length > 0) return { valido: false, erros }
   return { valido: true, dados, erros }
 }
 

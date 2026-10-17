@@ -33,6 +33,23 @@ import { hrefInscricao, lerConvite } from '../src/lib/meu-time-ui/navegacao'
 import { mensagemSemPermissao, podeFazer } from '../src/lib/meu-time-ui/permissoes'
 import { descreverIgnoradoDoLote, prepararLista } from '../src/lib/meu-time-ui/lista-colada'
 import type { Atleta } from '../src/lib/meu-time-ui/tipos'
+import {
+  atletasEscolhidosSemAutorizacao,
+  avisoAutorizacaoInscricao,
+  calcularIdade,
+  contarSemAutorizacao,
+  contatoValido,
+  ehMenor,
+  faltaAutorizacao,
+  telefoneValido,
+  TEXTO_REMOVER_ATLETA,
+  textoResumoAutorizacao,
+  totalSemAutorizacao,
+  traduzirAvisoInscricao,
+  validarResponsavel,
+} from '../src/lib/meu-time-ui/responsavel'
+import { validarAtletaComResponsavel } from '../src/lib/meu-time-ui/formularios'
+import { TERMO_RESPONSAVEL } from '../src/lib/meu-time-ui/termo-responsavel'
 
 const atleta = (id: string, nome: string, extra: Partial<Atleta> = {}): Atleta => ({
   id, nome, dataNascimento: '2000-05-10', numeroPreferido: null, posicao: null, temDocumento: true, ...extra,
@@ -410,6 +427,96 @@ async function main() {
   assert.equal(podeFazer(undefined, 'dados'), true)
   assert.match(mensagemSemPermissao('dados'), /Só o responsável/)
   assert.match(mensagemSemPermissao('atletas'), /responsável ou o técnico/)
+
+  // --- R8 LGPD de menores
+  const hoje = new Date(2026, 9, 17)
+  assert.equal(calcularIdade('2008-10-17', hoje), 18)
+  assert.equal(calcularIdade('2008-10-18', hoje), 17)
+  assert.equal(calcularIdade('2030-01-01', hoje), null)
+  assert.equal(calcularIdade(null, hoje), null)
+  assert.equal(ehMenor('2010-03-01', hoje), true)
+  assert.equal(ehMenor('2008-10-17', hoje), false)
+  assert.equal(ehMenor('', hoje), false)
+
+  assert.equal(telefoneValido('(11) 91234-5678'), true)
+  assert.equal(telefoneValido('+55 11 91234-5678'), true)
+  assert.equal(telefoneValido('1134567890'), true)
+  assert.equal(telefoneValido('12345'), false)
+  assert.equal(contatoValido('mae@exemplo.com'), true)
+  assert.equal(contatoValido('mae@exemplo'), false)
+
+  assert.equal(validarResponsavel({ nome: 'Ana', contato: '', aceite: false }).valido, false)
+  const rv = validarResponsavel({ nome: '  Ana   Souza ', contato: '(11) 91234-5678', aceite: true })
+  assert.equal(rv.valido, true)
+  if (rv.valido) assert.deepEqual(rv.dados, { responsavel: { nome: 'Ana Souza', contato: '11912345678' }, aceiteResponsavel: true })
+  const rm = validarResponsavel({ nome: 'Ana Souza', contato: 'Ana@Exemplo.com', aceite: true })
+  if (rm.valido) assert.equal(rm.dados.responsavel.contato, 'ana@exemplo.com')
+  const rinv = validarResponsavel({ nome: 'Ana Souza', contato: 'abc', aceite: false })
+  assert.match(rinv.erros.contato ?? '', /telefone com DDD/)
+  assert.match(rinv.erros.aceite ?? '', /Marque/)
+  assert.match(TERMO_RESPONSAVEL, /responsável legal/)
+
+  const entradaMenor = { nome: 'Bia Lima', dataNascimento: '2012-04-02', numero: '', posicao: '' }
+  const semResp = validarAtletaComResponsavel(entradaMenor, { nome: '', contato: '', aceite: false }, hoje)
+  assert.equal(semResp.valido, false)
+  assert.ok(semResp.erros.respNome && semResp.erros.respContato && semResp.erros.respAceite)
+  const comResp = validarAtletaComResponsavel(entradaMenor, { nome: 'Rita Lima', contato: 'rita@exemplo.com', aceite: true }, hoje)
+  assert.equal(comResp.valido, true)
+  if (comResp.valido) assert.equal(comResp.dados.aceiteResponsavel, true)
+  const maior = validarAtletaComResponsavel({ ...entradaMenor, dataNascimento: '1995-04-02' }, { nome: 'x', contato: 'x', aceite: true }, hoje)
+  assert.equal(maior.valido, true)
+  if (maior.valido) assert.equal('responsavel' in maior.dados, false)
+
+  const lista = [atleta('m1', 'M1', { consentimentoPendente: true }), atleta('m2', 'M2', { consentimentoPendente: false }), atleta('m3', 'M3')]
+  assert.equal(contarSemAutorizacao(lista), 1)
+  assert.deepEqual(lista.filter(faltaAutorizacao).map((a) => a.id), ['m1'])
+  assert.equal(totalSemAutorizacao({ semAutorizacao: 4 }, lista), 4)
+  assert.equal(totalSemAutorizacao({}, lista), 1)
+  assert.equal(textoResumoAutorizacao(1), '1 atleta menor está sem autorização do responsável.')
+  assert.match(textoResumoAutorizacao(3), /^3 atletas menores/)
+  assert.match(traduzirAvisoInscricao('ATLETA_MENOR_SEM_CONSENTIMENTO'), /autorização do responsável/)
+  assert.equal(traduzirAvisoInscricao('Outro aviso'), 'Outro aviso')
+  assert.equal(atletasEscolhidosSemAutorizacao([{ atletaId: 'm1' }, { atletaId: 'm2' }], lista).length, 1)
+  assert.equal(avisoAutorizacaoInscricao([]), null)
+  assert.match(avisoAutorizacaoInscricao([lista[0]]) ?? '', /M1 é menor de 18 anos/)
+  assert.match(TEXTO_REMOVER_ATLETA, /apagados ou anonimizados/)
+  assert.match(TEXTO_REMOVER_ATLETA, /histórico de jogos é mantido/)
+
+  // cliente em memória: menor exige responsável, fica pendente no lote, completa depois; contato nunca volta
+  {
+    const mem = criarClienteMemoria({ equipes: [{ id: 'e1', nome: 'Time', cidade: null, naipe: 'MISTO' }] })
+    const ano = new Date().getFullYear() - 12
+    await assert.rejects(() => mem.adicionarAtleta('e1', { nome: 'Bia Lima', dataNascimento: `${ano}-01-01` }), (e: unknown) => e instanceof ErroMeuTime && e.falha.codigo === 'RESPONSAVEL_OBRIGATORIO')
+    const ok = await mem.adicionarAtleta('e1', { nome: 'Bia Lima', dataNascimento: `${ano}-01-01`, responsavel: { nome: 'Rita Lima', contato: 'rita@exemplo.com' }, aceiteResponsavel: true })
+    assert.equal(ok.menor, true)
+    assert.equal(ok.consentimentoPendente, false)
+    assert.equal(JSON.stringify(await mem.obterEquipe('e1')).includes('rita@exemplo.com'), false)
+    const lote = await mem.adicionarAtletasEmLote('e1', [{ nome: 'Caio Dias', dataNascimento: `${ano}-02-02` }])
+    assert.equal(lote.atletasCriados[0].consentimentoPendente, true)
+    assert.equal((await mem.obterProntidao('e1')).semAutorizacao, 1)
+    assert.equal((await mem.listarConsentimentos('e1')).filter((c) => c.consentimentoPendente).length, 1)
+    const ins = await mem.inscrever('e1', { categoriaCampeonatoId: 'c', atletas: [{ atletaId: lote.atletasCriados[0].id, numero: 7 }] })
+    assert.deepEqual(ins.avisos, ['ATLETA_MENOR_SEM_CONSENTIMENTO'])
+    await assert.rejects(() => mem.registrarConsentimento('e1', lote.atletasCriados[0].id, { responsavel: { nome: '', contato: '' }, aceiteResponsavel: true }))
+    await mem.registrarConsentimento('e1', lote.atletasCriados[0].id, { responsavel: { nome: 'Paulo Dias', contato: '11912345678' }, aceiteResponsavel: true })
+    assert.equal((await mem.obterProntidao('e1')).semAutorizacao, 0)
+  }
+
+  // cliente HTTP: rotas novas
+  {
+    const chamadas: Array<{ url: string; metodo?: string; corpo?: string }> = []
+    const falso = (async (url: string, init?: RequestInit) => {
+      chamadas.push({ url, metodo: init?.method, corpo: init?.body as string | undefined })
+      const corpo = url.endsWith('/consentimentos') ? { data: { atletas: [{ atletaId: 'a', nome: 'A', menor: true, consentimentoPendente: true }] } } : { data: { ok: true } }
+      return new Response(JSON.stringify(corpo), { status: 200 })
+    }) as unknown as typeof fetch
+    const http = criarClienteHttp(falso)
+    assert.equal((await http.listarConsentimentos('e1'))[0].consentimentoPendente, true)
+    await http.registrarConsentimento('e1', 'a b', { responsavel: { nome: 'Rita Lima', contato: 'r@e.com' }, aceiteResponsavel: true })
+    assert.equal(chamadas[1].url, '/api/meu-time/equipes/e1/atletas/a%20b/consentimento')
+    assert.equal(chamadas[1].metodo, 'POST')
+    assert.equal(JSON.parse(chamadas[1].corpo ?? '{}').aceiteResponsavel, true)
+  }
 
   console.log('meu-time-ui: ok')
 }

@@ -12,6 +12,7 @@ import { Aviso, Carregando, FalhaTela, Pagina, useCarregar } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
 import { hrefInscricao } from '@/lib/meu-time-ui/navegacao'
 import { podeFazer } from '@/lib/meu-time-ui/permissoes'
+import { totalSemAutorizacao } from '@/lib/meu-time-ui/responsavel'
 
 const ABAS = [
   { id: 'atletas', rotulo: 'Atletas' },
@@ -27,6 +28,8 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
   const { carga, recarregar, tentarDeNovo } = useCarregar(() => api.obterEquipe(equipeId))
   const [aba, setAba] = useState<IdAba>('atletas')
   const [semDocumento, setSemDocumento] = useState(false)
+  // `?pendencia=autorizacao` (link do assistente de inscrição) já abre a lista só com quem falta autorização.
+  const [filtroAutorizacao, setSemAutorizacao] = useState(params.get('pendencia') === 'autorizacao')
   const botoes = useRef<Array<HTMLButtonElement | null>>([])
 
   function teclado(evento: KeyboardEvent, indice: number) {
@@ -43,6 +46,7 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
 
   const { equipe, atletas, comissao, inscricoes, prontidao, meuPapel } = carga.dados
   const podeInscrever = podeFazer(meuPapel, 'inscricao')
+  const semAutorizacao = totalSemAutorizacao(prontidao, atletas)
   // Quem não pode inscrever não vê o atalho do convite (o servidor recusaria com 403).
   const hrefAssistente = podeInscrever ? hrefInscricao(equipeId, (chave) => params.get(chave)) : undefined
   const atualizar = async () => { await recarregar() }
@@ -55,6 +59,8 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
         prontidao={prontidao}
         hrefInscricao={hrefAssistente}
         aoVerPendencias={() => { setAba('atletas'); setSemDocumento(true) }}
+        semAutorizacao={semAutorizacao}
+        aoCompletarAutorizacao={podeFazer(meuPapel, 'atletas') ? () => { setAba('atletas'); setSemAutorizacao(true) } : undefined}
       />
 
       <div role="tablist" aria-label="Seções do time" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
@@ -72,7 +78,7 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
 
       <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} tabIndex={0} className="outline-offset-4">
         {aba === 'atletas' && (
-          <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} meuPapel={meuPapel} aoAtualizar={atualizar} />
+          <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} somenteSemAutorizacao={filtroAutorizacao} aoMudarFiltroAutorizacao={setSemAutorizacao} meuPapel={meuPapel} aoAtualizar={atualizar} />
         )}
         {aba === 'comissao' && <AbaComissao cliente={api} equipeId={equipeId} comissao={comissao} meuPapel={meuPapel} aoAtualizar={atualizar} />}
         {aba === 'dados' && <AbaDados cliente={api} equipe={equipe} meuPapel={meuPapel} aoAtualizar={atualizar} />}

@@ -2,7 +2,13 @@
 
 export type Naipe = 'FEMININO' | 'MASCULINO' | 'MISTO'
 
-export type Prontidao = { atletas: number; semDocumento: number; mensagem: string }
+export type Prontidao = {
+  atletas: number
+  semDocumento: number
+  /** Menores sem autorização do responsável. Opcional: servidor antigo não manda. */
+  semAutorizacao?: number
+  mensagem: string
+}
 
 export type EquipeResumo = {
   id: string
@@ -28,7 +34,18 @@ export type Atleta = {
   numeroPreferido: number | null
   posicao: string | null
   temDocumento: boolean
+  /** Menor de 18 anos. Opcional por tolerância a servidor antigo. */
+  menor?: boolean
+  /** Menor ainda sem autorização do responsável. O contato do responsável nunca volta do servidor. */
+  consentimentoPendente?: boolean
 }
+
+/** Responsável legal de atleta menor. Só vai para o servidor; nunca é mostrado depois de salvo. */
+export type ResponsavelLegal = { nome: string; contato: string }
+
+export type DadosConsentimento = { responsavel: ResponsavelLegal; aceiteResponsavel: true }
+
+export type ConsentimentoAtleta = { atletaId: string; nome: string; menor: boolean; consentimentoPendente: boolean }
 
 export const FUNCOES_COMISSAO_CODIGOS = ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO'] as const
 export type FuncaoComissao = (typeof FUNCOES_COMISSAO_CODIGOS)[number]
@@ -86,7 +103,15 @@ export type DetalheEquipe = {
 
 export type NovaEquipe = { nome: string; cidade?: string; naipe: Naipe; escudoUrl?: string }
 
-export type NovoAtleta = { nome: string; dataNascimento: string; numeroPreferido?: number; posicao?: string }
+export type NovoAtleta = {
+  nome: string
+  dataNascimento: string
+  numeroPreferido?: number
+  posicao?: string
+  /** Obrigatórios para menor de 18 anos. */
+  responsavel?: ResponsavelLegal
+  aceiteResponsavel?: true
+}
 
 export type AtletaLote = { nome: string; numero?: number | null; dataNascimento?: string | null; posicao?: PosicaoCodigo | null }
 
