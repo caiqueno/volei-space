@@ -69,6 +69,33 @@ Prioridade: **súmula** (quadra com sinal ruim), depois **placar público** em c
 
 Dependências de backend: endpoint de lote idempotente e campo de id de evento. O front não deve ser o único guardião de regra (CLAUDE.md): o servidor continua validando limites de troca, placar e permissões.
 
+### 4.1 Fila offline ligada à súmula em modo sombra [V, desligada por padrão]
+
+**Estado:** implementado na rodada 6, atrás de flag. Não substitui o `PUT`.
+
+**Como ligar.** Defina `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1` no build do front (variável pública, lida em build) **e** `SUMULA_EVENTOS_ATIVO=1` no servidor, que liga a rota `POST /api/sumula/[token]/eventos` (sem ela a fila fica em "modo local": guarda no aparelho e não mostra alarme). Qualquer outro valor mantém tudo desligado: sem fila, sem IndexedDB, sem requisição extra, sem indicador. Para desligar, remova a variável e refaça o build.
+
+**O que a fila faz (flag ligada).**
+- `lancar/page.tsx` renderiza `<EspelhoFilaSumula>`, que chama `useFilaSumula(token)` e expõe `espelhar(ocorrencia)` à tela. A chave da fila é por token (`volei.sumula.fila.v1.<token>`), então cada partida tem a sua.
+- Cada ocorrência que a tela já registra é traduzida por `src/lib/sumula-ui/fila-adaptador.ts` (puro) para o evento do motor e enfileirada: ponto (com o sacador), início de set (formações e líberos), tempo, substituição normal e excepcional, troca de líbero, sanção (jogador, técnico, equipe, atraso), troca de lado manual, W.O. e desfazer.
+- O payload é validado com o mesmo schema do servidor (`PAYLOAD_POR_TIPO`); o que o servidor recusaria nem entra na fila.
+- Desfazer da tela vira `DESFAZ` por referência (`desfazClientEventId`). A fila troca pelo `seq` do servidor ao enviar, na ordem inversa; se o alvo nunca chegou ao servidor, o `DESFAZ` é descartado.
+- Falha de tradução, de fila ou de armazenamento nunca derruba a tela: o evento é descartado com `console.debug` discreto.
+- Ao oficializar a súmula, a tela chama `encerrar()`: uma última tentativa de envio (até 4 s) e depois `limpar()`, que apaga a fila e a chave do aparelho.
+- `<IndicadorConexao>` fica fixo no topo, ao centro, pequeno e com `pointer-events` só nele; respeita a área segura e some na impressão. Rejeições do motor (códigos `RG-xxx`) aparecem em "Ver pendências do apontador" (painel recolhido por padrão, botão "Dispensar" de 44 px). Nada bloqueia a súmula.
+
+**Fora do espelho (de propósito).** `set_end` e a troca automática de lado entre sets (o motor deriva do placar); o ponto de penalidade (o motor calcula pelo evento de sanção, espelhá-lo contaria duas vezes); tempo médico e demais anotações livres; presença e MVP.
+
+**Riscos enquanto o `PUT` e o log coexistem.**
+1. **Divergência entre as duas gravações.** O `PUT` grava o estado inteiro; o log recebe só os eventos espelhados. Um ponto aceito no `PUT` e recusado pelo motor (ex.: sacador fora da ordem, RG-ROT-001) aparece como pendência, mas o placar oficial continua o do `PUT`. Não use o log como resultado oficial até a comparação ficar limpa.
+2. **Correções que a tela faz sem evento.** Edição de camisa, formação manual e atribuição de autor do ponto não têm evento correspondente; o log pode divergir da tela nesses casos.
+3. **W.O. por anotação.** O W.O. é espelhado quando a nota "W.O." é salva com equipe relacionada; assume-se que essa equipe é a ausente. Confirmar com o árbitro-chefe antes de usar o log para decidir W.O.
+4. **Limpeza no encerramento.** Se a rede falhar no encerramento, eventos ainda não enviados são apagados junto com a fila (o `PUT` já tem a súmula). Isso é aceitável só no modo sombra.
+5. **Pendências sem dono.** Pendências ficam no aparelho até alguém dispensá-las; um apontador que troca de aparelho não as vê.
+6. **Dois aparelhos na mesma partida** geram conflito 409 no log (a fila reconcilia e avisa), enquanto o `PUT` segue com "última gravação vence".
+
+**Testes.** `npm run test:sumula-fila-adaptador` (cada tipo de ocorrência, flag, descarte seguro) e `npm run test:sumula-fila-desfaz` (DESFAZ por referência, limpeza por partida, StrictMode). A integração visual (tablet na horizontal, celular) **não foi aberta em navegador** nesta entrega.
+
 ## 5. Acessibilidade e responsividade [V/PROP]
 
 - Feito nesta entrega: alvos de 44 a 48 px na faixa "Quem fez?", em "Colar lista", "Novo jogador" e "Concluir"; mensagens com `role="status"`/`aria-live`; motivo do botão desabilitado ligado por `aria-describedby`; sem animações novas (nada a ajustar para `prefers-reduced-motion`).
