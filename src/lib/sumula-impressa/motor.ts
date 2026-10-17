@@ -155,9 +155,26 @@ export type MotorImpresso = {
   capitaoEmJogo: Array<{ seq: number; equipe: Lado; jogador: number }>
   fechamento: FechamentoImpresso
   houveCancelamentoDePontos: boolean
-  /** Eventos que o motor recusou: não entram no documento, mas o total é avisado. */
+  /** Total de eventos que o motor recusou (igual a `naoAplicados.length`). */
   recusados: number
+  /**
+   * Seção "Eventos não aplicados": eventos do log que o motor recusou. Não entram nos quadros (pontos, tempos,
+   * substituições, sanções), mas NÃO somem: o documento os lista com o motivo para o árbitro conferir.
+   */
+  naoAplicados: EventoNaoAplicado[]
 }
+
+export type EventoNaoAplicado = {
+  seq: number
+  /** Tipo do evento no log (ex.: TEMPO, SUBSTITUICAO, PONTO). */
+  tipo: string
+  /** Equipe do evento, quando o payload informa. */
+  equipe: Lado | null
+  codigo: string
+  mensagem: string
+}
+
+export const TITULO_EVENTOS_NAO_APLICADOS = 'Eventos não aplicados'
 
 /* ------------------------------ formatações ------------------------------- */
 
@@ -229,9 +246,30 @@ export function horaDoCarimbo(iso: string | null | undefined, fusoMin = -180): s
 /* ------------------------------ configuração ------------------------------ */
 
 /**
- * A rota pública não devolve as regras da categoria. A configuração é inferida dos sets que já constam na leitura:
- * alvo dos sets regulares = menor pontuação vencedora entre eles; set decisivo (5º) idem; melhor de 5 se alguma
- * equipe tem 3 sets ou foram jogados mais de 3. Sem sets, vale o padrão FIVB.
+ * Perfil PERMISSIVO da impressão: o documento só transcreve o que aconteceu, então a configuração inferida
+ * não pode derrubar um evento legítimo por limite (3º tempo, 7º/8º substituição de uma liga amadora, par A-B
+ * repetido). Os limites reais valem na hora do lançamento (PUT/eventos), não aqui.
+ */
+export const PERFIL_IMPRESSAO = {
+  id: 'IMPRESSAO',
+  limiteSubstituicoesPorSet: 99,
+  alertarAcimaDoOficial: false,
+  permitirParRepetido: true,
+  temposPorSet: 99,
+} as const
+
+const SET_DECISIVO_SEM_TIEBREAK_A_PARTIR_DE = 20
+
+/**
+ * A rota pública não devolve as regras da categoria. A configuração é inferida dos sets que já constam na leitura
+ * e é deliberadamente permissiva (a impressão transcreve, não julga):
+ *  - melhor de 5 se alguma equipe tem 3 sets ou foram jogados mais de 3; senão melhor de 3;
+ *  - alvo dos sets regulares ENCERRADOS: 25 se algum terminou com 25 ou mais (cobre o set estendido 27x25),
+ *    senão a menor pontuação vencedora entre eles; sem set encerrado, 25 (FIVB);
+ *  - set decisivo: 15 (também 17x15), exceto se terminou com 20 ou mais (liga sem tie-break: mesmo alvo dos regulares);
+ *  - 3º set obrigatório (melhor de 3) quando houve 3º set depois de 2x0;
+ *  - limites de tempos e substituições sem teto (`PERFIL_IMPRESSAO`).
+ * Sets "encerrados" = os `setsA + setsB` primeiros; os seguintes estão em andamento e não definem o alvo.
  */
 export function configParaImpressao(
   sets: ReadonlyArray<{ numero: number; pontosA: number; pontosB: number }>,
@@ -242,15 +280,33 @@ export function configParaImpressao(
   const vencedora = (s: { pontosA: number; pontosB: number }) => Math.max(s.pontosA, s.pontosB)
   const ordenados = [...sets].sort((a, b) => a.numero - b.numero)
   const decisivoNumero = melhorDe
-  const regulares = ordenados.filter((s) => s.numero < decisivoNumero && vencedora(s) > 0)
-  const decisivo = ordenados.find((s) => s.numero === decisivoNumero && vencedora(s) > 0)
-  const alvoSet = regulares.length ? Math.min(...regulares.map(vencedora)) : CONFIG_FIVB_MELHOR_DE_5.alvoSet
-  const alvoSetDecisivo = decisivo ? Math.min(vencedora(decisivo), alvoSet) : melhorDe === 3 ? alvoSet : CONFIG_FIVB_MELHOR_DE_5.alvoSetDecisivo
+  const encerrados = setsA + setsB > 0
+    ? ordenados.filter((s) => s.numero <= setsA + setsB)
+    : ordenados.filter((s) => vencedora(s) >= 15 && Math.abs(s.pontosA - s.pontosB) >= 2)
+  const regulares = encerrados.filter((s) => s.numero < decisivoNumero && vencedora(s) > 0)
+  const decisivo = encerrados.find((s) => s.numero === decisivoNumero && vencedora(s) > 0)
+  const alvoSet = regulares.length
+    ? regulares.some((s) => vencedora(s) >= CONFIG_FIVB_MELHOR_DE_5.alvoSet)
+      ? CONFIG_FIVB_MELHOR_DE_5.alvoSet
+      : Math.min(...regulares.map(vencedora))
+    : CONFIG_FIVB_MELHOR_DE_5.alvoSet
+  const alvoSetDecisivo = decisivo
+    ? vencedora(decisivo) >= SET_DECISIVO_SEM_TIEBREAK_A_PARTIR_DE
+      ? alvoSet
+      : CONFIG_FIVB_MELHOR_DE_5.alvoSetDecisivo
+    : melhorDe === 3
+      ? alvoSet
+      : CONFIG_FIVB_MELHOR_DE_5.alvoSetDecisivo
+  const venceu = (s: { pontosA: number; pontosB: number }) => (s.pontosA > s.pontosB ? 'A' : 'B')
+  const terceiroSetObrigatorio =
+    melhorDe === 3 && ordenados.length >= 3 && venceu(ordenados[0]!) === venceu(ordenados[1]!)
   return {
     ...CONFIG_FIVB_MELHOR_DE_5,
+    perfil: { ...PERFIL_IMPRESSAO },
     melhorDe,
     alvoSet,
     alvoSetDecisivo,
+    terceiroSetObrigatorio,
     trocaLadoNoDecisivoEm: Math.ceil(alvoSetDecisivo / 2),
   }
 }
@@ -346,6 +402,20 @@ export function montarMotorImpresso(log: readonly SumulaEvento[], config: Config
   const efetivos = eventosEfetivos(log)
   const final = derivarPlacar(log, config)
   const recusadas = new Set(final.inconsistencias.map((i) => i.seq))
+  const porSeq = new Map(log.map((e) => [e.seq, e] as const))
+  const naoAplicados: EventoNaoAplicado[] = final.inconsistencias
+    .map((i) => {
+      const evento = porSeq.get(i.seq)
+      const lado = (evento?.payload as { equipe?: unknown } | undefined)?.equipe
+      return {
+        seq: i.seq,
+        tipo: evento?.tipo ?? 'DESCONHECIDO',
+        equipe: lado === 'A' || lado === 'B' ? (lado as Lado) : null,
+        codigo: String(i.codigo),
+        mensagem: i.mensagem,
+      }
+    })
+    .sort((a, b) => a.seq - b.seq)
 
   const eventosPorSet = new Map<number, LinhaEvento[]>()
   const sancoesPorSet = new Map<number, LinhaSancao[]>()
@@ -502,7 +572,8 @@ export function montarMotorImpresso(log: readonly SumulaEvento[], config: Config
     capitaoEmJogo,
     fechamento,
     houveCancelamentoDePontos: final.houveCancelamentoDePontos,
-    recusados: recusadas.size,
+    recusados: naoAplicados.length,
+    naoAplicados,
   }
 }
 
