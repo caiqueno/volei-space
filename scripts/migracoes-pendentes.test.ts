@@ -277,6 +277,62 @@ assert.match(sqlPed, /estado\s+in\s*\('PENDENTE',\s*'ACEITO',\s*'RECUSADO',\s*'C
 assert.match(sqlPed, /payload\s+jsonb\s+not\s+null\s+default\s+'\{\}'/i)
 assert.match(sqlPed, /index\s+if\s+not\s+exists\s+"PedidoBanco_partidaId_estado_idx"\s+on\s+public\."PedidoBanco"\s*\("partidaId",\s*estado\)/i)
 
+// 5g) Rodada 10 (Meu Time): 0036 ConviteAtleta, 0037 ImportacaoAtletas, 0038 ClubeEquipe, 0039 Notificacao.
+const r10 = {
+  '202610170036_convite_atleta.sql': 'ConviteAtleta',
+  '202610170037_importacao_atletas.sql': 'ImportacaoAtletas',
+  '202610170038_clube_equipe.sql': 'ClubeEquipe',
+  '202610170039_notificacao.sql': 'Notificacao',
+} as const
+for (const [nome, tabela] of Object.entries(r10)) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(sql, /^\s*begin;\s*set\s+local\s+lock_timeout/i, `${nome}: begin + lock_timeout`)
+  assert.match(sql, /commit;\s*$/i)
+  assert.match(sql, new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\."${tabela}"`, 'i'))
+  assert.match(sql, new RegExp(`alter\\s+table\\s+public\\."${tabela}"\\s+enable\\s+row\\s+level\\s+security`, 'i'))
+  assert.match(sql, new RegExp(`revoke\\s+all\\s+on\\s+table\\s+public\\."${tabela}"\\s+from\\s+public,\\s*anon,\\s*authenticated`, 'i'))
+  assert.match(sql, new RegExp(`grant\\s+[a-z, ]+\\s+on\\s+table\\s+public\\."${tabela}"\\s+to\\s+service_role`, 'i'))
+  assert.ok(!/\bto\s+(anon|authenticated|public)\b/i.test(sql), `${nome}: sem grant para anon/authenticated`)
+  assert.ok(!/\bcreate\s+policy\b/i.test(sql), `${nome}: sem policy (acesso só por service_role)`)
+  assert.ok(!/\b(update|delete)\s+(from\s+)?public\./i.test(sql), `${nome}: não altera dados`)
+  const rb = sqlSemComentario(ler(dirRollback, nome))
+  assert.match(rb, new RegExp(`drop\\s+table\\s+if\\s+exists\\s+public\\."${tabela}"`, 'i'), `${nome}: reversão sem drop da tabela`)
+  assert.match(rb, /begin;\s*set\s+local\s+lock_timeout/i)
+  assert.ok(!/\bgrant\b/i.test(rb), `${nome}: reversão não concede nada`)
+}
+const sqlConvite = sqlPendente['202610170036_convite_atleta.sql']
+assert.match(sqlConvite, /"tokenHash"\s+text\s+not\s+null/i)
+assert.match(sqlConvite, /"ConviteAtleta_tokenHash_key"\s+unique\s*\("tokenHash"\)/i, 'tokenHash deve ser único')
+assert.ok(!/\btoken\s+text\b/i.test(sqlConvite), 'ConviteAtleta nunca guarda o token em claro')
+assert.match(sqlConvite, /"contatoCifrado"\s+text(?!\s+not\s+null)/i, 'contatoCifrado nullable')
+assert.match(sqlConvite, /estado\s+in\s*\('PENDENTE',\s*'ACEITO',\s*'EXPIRADO',\s*'REVOGADO'\)/i)
+assert.match(sqlConvite, /"equipeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
+assert.match(sqlConvite, /"atletaId"\s+uuid\s+references\s+public\."Atleta"\(id\)/i)
+for (const col of ['criadoPor', 'criadoEm', 'expiraEm', 'aceitoEm']) assert.ok(sqlConvite.includes(`"${col}"`), `ConviteAtleta sem ${col}`)
+const sqlImp = sqlPendente['202610170037_importacao_atletas.sql']
+assert.match(sqlImp, /estado\s+in\s*\('RASCUNHO',\s*'CONFIRMADA',\s*'DESCARTADA'\)/i)
+assert.match(sqlImp, /linhas\s+jsonb\s+not\s+null/i)
+assert.match(sqlImp, /resumo\s+jsonb/i)
+assert.match(sqlImp, /"equipeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)/i)
+const sqlClube = sqlPendente['202610170038_clube_equipe.sql']
+assert.ok(!/create\s+table\s+(?:if\s+not\s+exists\s+)?public\."Clube"\s*\(/i.test(sqlClube), '"Clube" já é criada na 0024: a 0038 não pode recriá-la')
+assert.match(sqlPendente['202610170024_meu_time_organizador_clube.sql'], /create\s+table\s+if\s+not\s+exists\s+public\."Clube"/i)
+assert.match(sqlClube, /alter\s+table\s+public\."Clube"\s+add\s+column\s+if\s+not\s+exists\s+"donoUserId"\s+text\s*;/i, 'donoUserId deve ser nullable')
+assert.match(sqlClube, /unique\s*\("clubeId",\s*"equipeId"\)/i)
+assert.match(sqlClube, /"clubeId"\s+uuid\s+not\s+null\s+references\s+public\."Clube"\(id\)/i)
+const rbClube = sqlSemComentario(ler(dirRollback, '202610170038_clube_equipe.sql'))
+assert.ok(!/drop\s+table[^;]*"Clube"\s*;/i.test(rbClube), 'reversão da 0038 não pode derrubar "Clube" (pertence à 0024)')
+assert.match(rbClube, /drop\s+column\s+if\s+exists\s+"donoUserId"/i)
+const sqlNotif = sqlPendente['202610170039_notificacao.sql']
+assert.match(sqlNotif, /"destinatarioUserId"\s+text\s+not\s+null/i)
+assert.match(sqlNotif, /payload\s+jsonb\s+not\s+null/i)
+assert.match(sqlNotif, /index\s+if\s+not\s+exists\s+"Notificacao_destinatarioUserId_lidaEm_idx"\s+on\s+public\."Notificacao"\s*\("destinatarioUserId",\s*"lidaEm"\)/i)
+
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {
   const sql = sqlPendente[arquivo]
