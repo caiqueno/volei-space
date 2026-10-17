@@ -19,6 +19,9 @@ const NOINDEX_PREFIXES = [
   '/sumula',
   '/arbitro',
   '/ficha',
+  '/banco',
+  '/scout',
+  '/convite-atleta',
 ]
 
 export async function middleware(req: NextRequest) {
@@ -130,5 +133,8 @@ export const config = {
     '/sumula/:path*',
     '/arbitro/:path*',
     '/ficha/:path*',
+    '/banco/:path*',
+    '/scout/:path*',
+    '/convite-atleta/:path*',
   ],
 }

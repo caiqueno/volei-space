@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { faseDoisAtiva } from '@/lib/meu-time-fase2-ui/flag'
 import { itemAtual, itensVisiveis } from '@/lib/meu-time-fase2-ui/navegacao'
-import { contarNaoLidas, rotuloSino, textoContador } from '@/lib/meu-time-fase2-ui/notificacoes'
+import { ErroMeuTime } from '@/components/meu-time/cliente'
+import { contarNaoLidas, falhaEncerraBuscaSino, rotuloSino, textoContador } from '@/lib/meu-time-fase2-ui/notificacoes'
 import type { Notificacao } from '@/lib/meu-time-fase2-ui/tipos'
 import { obterClienteFase2 } from './cliente'
 import { ListaNotificacoes } from './Notificacoes'
@@ -14,13 +15,22 @@ function Sino() {
   const [itens, setItens] = useState<Notificacao[] | null>(null)
   const [aberto, setAberto] = useState(false)
   const [erro, setErro] = useState(false)
+  const [encerrado, setEncerrado] = useState(false)
+  const parou = useRef(false)
   const raiz = useRef<HTMLDivElement>(null)
 
   const carregar = useCallback(async () => {
+    if (parou.current) return
     try {
       setItens(await obterClienteFase2().listarNotificacoes())
       setErro(false)
-    } catch {
+    } catch (e) {
+      // Sem sessão (401) ou sem permissão: não adianta insistir; o sino some em vez de repetir a requisição.
+      if (e instanceof ErroMeuTime && falhaEncerraBuscaSino(e.falha.tipo)) {
+        parou.current = true
+        setEncerrado(true)
+        return
+      }
       setErro(true)
     }
   }, [])
@@ -37,6 +47,7 @@ function Sino() {
   }, [aberto])
 
   const naoLidas = itens ? contarNaoLidas(itens) : 0
+  if (encerrado) return null
   return (
     <div ref={raiz} className="relative">
       <button

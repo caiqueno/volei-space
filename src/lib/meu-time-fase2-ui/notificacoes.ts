@@ -9,6 +9,11 @@ export function textoContador(n: number): string {
   return n > 9 ? '9+' : String(n)
 }
 
+/** Falhas em que insistir não adianta: sem sessão (401), sem permissão (403) ou recurso desligado. O sino para de tentar. */
+export function falhaEncerraBuscaSino(tipo: string | undefined): boolean {
+  return tipo === 'sem-sessao' || tipo === 'sem-permissao' || tipo === 'nao-habilitado'
+}
+
 export function rotuloSino(n: number): string {
   if (n <= 0) return 'Notificações, nenhuma nova'
   return `Notificações, ${n} ${n === 1 ? 'nova' : 'novas'}`

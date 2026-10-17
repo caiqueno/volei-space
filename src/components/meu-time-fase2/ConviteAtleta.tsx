@@ -4,15 +4,13 @@ import { useState, type FormEvent } from 'react'
 import { Aviso, botaoPrimario, Campo, campoEstilo, Carregando, cartao, descreve, FalhaTela, falhaDe, Pagina, useCarregar } from '@/components/meu-time/ui'
 import { POSICOES } from '@/components/meu-time/rotulos'
 import type { Falha } from '@/lib/meu-time-ui/respostas'
-import { EXPLICACAO_PUBLICA, ehMenorDeIdade, validarFormAtleta, type ErrosForm } from '@/lib/meu-time-fase2-ui/convites'
+import { AVISO_DADOS_ATLETA, EXPLICACAO_PUBLICA, ehMenorDeIdade, validarFormAtleta, type ErrosForm } from '@/lib/meu-time-fase2-ui/convites'
 import { faseDoisAtiva } from '@/lib/meu-time-fase2-ui/flag'
 import type { ConvitePublico } from '@/lib/meu-time-fase2-ui/tipos'
 import { obterClienteFase2, type ClienteFase2 } from './cliente'
 
 export function ConviteAtleta({ token, cliente }: { token: string; cliente?: ClienteFase2 }) {
-  const api = cliente ?? obterClienteFase2()
-  const { carga, tentarDeNovo } = useCarregar<ConvitePublico>(() => api.lerConvitePublico(token))
-
+  // Flag desligada: nenhuma requisição (o hook de carga fica no componente interno, que nem monta).
   if (!faseDoisAtiva()) {
     return (
       <Pagina titulo="Convite para o time">
@@ -20,6 +18,13 @@ export function ConviteAtleta({ token, cliente }: { token: string; cliente?: Cli
       </Pagina>
     )
   }
+  return <ConviteAtletaAtivo token={token} cliente={cliente} />
+}
+
+function ConviteAtletaAtivo({ token, cliente }: { token: string; cliente?: ClienteFase2 }) {
+  const api = cliente ?? obterClienteFase2()
+  const { carga, tentarDeNovo } = useCarregar<ConvitePublico>(() => api.lerConvitePublico(token))
+
   if (carga.estado === 'carregando') {
     return (
       <Pagina titulo="Convite para o time">
@@ -57,11 +62,12 @@ function Formulario({ token, convite, api }: { token: string; convite: ConvitePu
   const [falha, setFalha] = useState<Falha | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [ciente, setCiente] = useState(false)
   const menor = ehMenorDeIdade(nascimento)
 
   async function enviar(ev: FormEvent) {
     ev.preventDefault()
-    const e = validarFormAtleta({ nome, dataNascimento: nascimento, camisa })
+    const e = validarFormAtleta({ nome, dataNascimento: nascimento, camisa, ciente })
     setErros(e)
     if (Object.keys(e).length > 0) return
     setOcupado(true)
@@ -121,6 +127,28 @@ function Formulario({ token, convite, api }: { token: string; convite: ConvitePu
             ))}
           </select>
         </Campo>
+        <section aria-labelledby="ca-dados-titulo" className="rounded-xl border border-[var(--vs-border)] p-3 text-sm">
+          <h2 id="ca-dados-titulo" className="font-black">{AVISO_DADOS_ATLETA.titulo}</h2>
+          <ul className="mt-1 list-disc pl-5 text-[var(--vs-muted)]">
+            {AVISO_DADOS_ATLETA.itens.map((i) => (
+              <li key={i}>{i}</li>
+            ))}
+          </ul>
+        </section>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="ca-ciencia" className="flex min-h-[44px] items-start gap-3 text-sm font-bold">
+            <input
+              id="ca-ciencia"
+              type="checkbox"
+              className="mt-0.5 h-6 w-6 shrink-0"
+              checked={ciente}
+              onChange={(e) => setCiente(e.target.checked)}
+              {...descreve('ca-ciencia', undefined, erros.ciencia)}
+            />
+            <span>{AVISO_DADOS_ATLETA.ciencia}</span>
+          </label>
+          {erros.ciencia && <p id="ca-ciencia-erro" role="alert" className="text-sm font-bold text-[var(--vs-error-fg)]">{erros.ciencia}</p>}
+        </div>
         {falha && <FalhaTela falha={falha} />}
         <button type="submit" className={botaoPrimario} disabled={ocupado}>{ocupado ? 'Enviando…' : 'Enviar meus dados'}</button>
       </form>

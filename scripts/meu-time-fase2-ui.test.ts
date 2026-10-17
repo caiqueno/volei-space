@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { faseDoisAtiva } from '../src/lib/meu-time-fase2-ui/flag'
 import { EXPLICACAO_IGNORADA, LEGENDA_POSICOES, linhaSeraIgnorada, textoDeAvisoLinha, MODELO_CSV, podeConfirmar, resumoEmFrase, textoCsvValido, textoDeErroLinha, validarArquivoCsv } from '../src/lib/meu-time-fase2-ui/csv'
-import { EXPLICACAO_PUBLICA, ehMenorDeIdade, idadeEm, linkWhatsApp, normalizarEstado, podeRevogar, validarFormAtleta } from '../src/lib/meu-time-fase2-ui/convites'
-import { contarNaoLidas, rotuloSino, textoContador, tituloNotificacao } from '../src/lib/meu-time-fase2-ui/notificacoes'
+import { AVISO_DADOS_ATLETA, EXPLICACAO_PUBLICA, ehMenorDeIdade, idadeEm, linkWhatsApp, normalizarEstado, podeRevogar, validarFormAtleta } from '../src/lib/meu-time-fase2-ui/convites'
+import { contarNaoLidas, falhaEncerraBuscaSino, rotuloSino, textoContador, tituloNotificacao } from '../src/lib/meu-time-fase2-ui/notificacoes'
 import { itemAtual, itensVisiveis, ITENS_NAV } from '../src/lib/meu-time-fase2-ui/navegacao'
 import { criarClienteFase2 } from '../src/components/meu-time-fase2/cliente'
 
@@ -42,6 +42,20 @@ async function main() {
   assert.equal(linhaSeraIgnorada([]), false)
   assert.match(EXPLICACAO_IGNORADA, /Será ignorada/)
   assert.equal(textoDeErroLinha('CSV_VAZIO'), 'A planilha está vazia.')
+
+  // convite público: aviso de dados e ciência antes do envio
+  assert.match(AVISO_DADOS_ATLETA.itens.join(' '), /Finalidade/)
+  assert.match(AVISO_DADOS_ATLETA.itens.join(' '), /Quem vê/)
+  assert.match(AVISO_DADOS_ATLETA.itens.join(' '), /responsável/)
+  assert.match(AVISO_DADOS_ATLETA.itens.join(' '), /exclusão/)
+  const formOk = { nome: 'Maria Silva', dataNascimento: '2005-03-14', camisa: '' }
+  assert.deepEqual(validarFormAtleta({ ...formOk, ciente: true }), {})
+  assert.ok(validarFormAtleta({ ...formOk, ciente: false }).ciencia)
+  // sino: para de insistir sem sessão
+  assert.equal(falhaEncerraBuscaSino('sem-sessao'), true)
+  assert.equal(falhaEncerraBuscaSino('nao-habilitado'), true)
+  assert.equal(falhaEncerraBuscaSino('rede'), false)
+  assert.equal(falhaEncerraBuscaSino(undefined), false)
 
   // convites
   assert.equal(normalizarEstado('ATIVO'), 'ativo')
