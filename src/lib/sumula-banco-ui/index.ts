@@ -88,6 +88,53 @@ export function papeletasEnviadas(papeletas: PapeletaBanco[]): PapeletaBanco[] {
   return papeletas.filter((p) => p.estado.toUpperCase() === 'ENVIADA' && p.formacao.length > 0)
 }
 
+/** Papeletas a mostrar ao apontador: enviadas e também as já aceitas (continuam visíveis, marcadas "Aceita", nos polls seguintes). */
+export function papeletasParaExibir(papeletas: PapeletaBanco[]): PapeletaBanco[] {
+  return papeletas.filter((p) => {
+    const e = p.estado.toUpperCase()
+    return (e === 'ENVIADA' || e === 'ACEITA') && p.formacao.length > 0
+  })
+}
+
+export function papeletaJaAceita(p: Pick<PapeletaBanco, 'estado'>): boolean {
+  return p.estado.toUpperCase() === 'ACEITA'
+}
+
+export interface LinkBancoAtivo {
+  acessoId: string
+  equipeId: number
+  criadoEm: string | null
+  expiraEm: string | null
+  revogadoEm: string | null
+}
+
+/** Normaliza GET /api/banco/links?partidaId= ({data:[...]}), descartando itens malformados. */
+export function normalizarLinksBanco(bruto: unknown): LinkBancoAtivo[] {
+  if (!Array.isArray(bruto)) return []
+  const saida: LinkBancoAtivo[] = []
+  for (const x of bruto) {
+    if (!x || typeof x !== 'object') continue
+    const o = x as Record<string, unknown>
+    const id = typeof o.acessoId === 'string' || typeof o.acessoId === 'number' ? String(o.acessoId) : ''
+    const equipeId = idNumerico(o.equipeId)
+    if (!id || equipeId === null) continue
+    const txt = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null)
+    saida.push({ acessoId: id, equipeId, criadoEm: txt(o.criadoEm), expiraEm: txt(o.expiraEm), revogadoEm: txt(o.revogadoEm) })
+  }
+  return saida
+}
+
+/** Links ainda válidos: não revogados e não expirados. Mais recentes primeiro. */
+export function linksAtivos(links: readonly LinkBancoAtivo[], agora: number = Date.now()): LinkBancoAtivo[] {
+  return links
+    .filter((l) => {
+      if (l.revogadoEm) return false
+      const fim = l.expiraEm ? Date.parse(l.expiraEm) : NaN
+      return !(Number.isFinite(fim) && fim <= agora)
+    })
+    .sort((a, b) => String(b.criadoEm ?? '').localeCompare(String(a.criadoEm ?? '')))
+}
+
 export interface Divergencia {
   tipo: 'POSICAO' | 'LIBERO'
   posicao?: number
@@ -144,20 +191,24 @@ export function linkWhatsapp(url: string, nomeEquipe: string): string {
   return `https://wa.me/?text=${encodeURIComponent(texto)}`
 }
 
-/** Envelope {data}/{error}. 404 = recurso desligado; 503 = não habilitado. */
+/**
+ * Envelope {data}/{error, codigo}. 404/503 SEM `codigo` do servidor = recurso desligado.
+ * Com `codigo` (ex.: PEDIDO_NAO_ENCONTRADO, BANCO_INDISPONIVEL) é um erro real, com a mensagem do servidor.
+ */
 export type RespostaEnvelope<T> =
   | { tipo: 'ok'; data: T }
   | { tipo: 'desligado' }
-  | { tipo: 'erro'; mensagem: string }
+  | { tipo: 'erro'; mensagem: string; status: number; codigo?: string }
 
 export async function lerEnvelope<T>(resposta: { ok: boolean; status: number; json: () => Promise<unknown> }): Promise<RespostaEnvelope<T>> {
-  if (resposta.status === 404 || resposta.status === 503) return { tipo: 'desligado' }
-  let corpo: { data?: T; error?: unknown } | null = null
+  let corpo: { data?: T; error?: unknown; codigo?: unknown } | null = null
   try {
-    corpo = (await resposta.json()) as { data?: T; error?: unknown } | null
+    corpo = (await resposta.json()) as { data?: T; error?: unknown; codigo?: unknown } | null
   } catch {
     corpo = null
   }
+  const codigo = typeof corpo?.codigo === 'string' && corpo.codigo !== '' ? corpo.codigo : undefined
+  if ((resposta.status === 404 || resposta.status === 503) && !codigo) return { tipo: 'desligado' }
   if (resposta.ok && corpo && corpo.data !== undefined) return { tipo: 'ok', data: corpo.data }
   const erro = corpo?.error
   const mensagem = typeof erro === 'string'
@@ -165,5 +216,21 @@ export async function lerEnvelope<T>(resposta: { ok: boolean; status: number; js
     : erro && typeof erro === 'object' && 'message' in erro
       ? String((erro as { message: unknown }).message)
       : 'Não foi possível concluir. Tente de novo.'
-  return { tipo: 'erro', mensagem }
+  return { tipo: 'erro', mensagem, status: resposta.status, ...(codigo ? { codigo } : {}) }
+}
+
+/**
+ * Aviso ao apontador quando o servidor recusa a decisão DEPOIS de a tela já ter registrado a ação.
+ * Tempo/troca: o registro na súmula já valeu; desafio: o servidor é quem cria o desafio (não houve registro na súmula).
+ */
+export function mensagemFalhaDecisao(params: { decisao: 'ACEITO' | 'RECUSADO'; tipo: TipoPedidoBanco; status?: number | null; mensagem: string }): string {
+  const { decisao, tipo, status, mensagem } = params
+  if (decisao === 'RECUSADO') return `Não foi possível enviar a recusa: ${mensagem}`
+  if (tipo === 'DESAFIO') return `Não foi possível aceitar o desafio: ${mensagem}`
+  const nome = tipo === 'TEMPO' ? 'O tempo' : 'A troca'
+  const registrado = tipo === 'TEMPO' ? 'registrado' : 'registrada'
+  if (status === 422) {
+    return `${nome} já foi ${registrado} na súmula, mas o servidor recusou a resposta ao banco (${mensagem}). Confira o registro na súmula e avise o banco; o pedido pode continuar pendente.`
+  }
+  return `${nome} foi ${registrado} na súmula, mas o banco não recebeu a resposta (${mensagem}). Avise o banco e tente responder de novo só se precisar.`
 }

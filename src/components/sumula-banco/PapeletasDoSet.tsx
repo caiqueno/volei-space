@@ -8,7 +8,8 @@ import {
   idsPorIndice,
   lerEnvelope,
   mensagemDivergencia,
-  papeletasEnviadas,
+  papeletaJaAceita,
+  papeletasParaExibir,
   type ItemFormacao,
   type PapeletaBanco,
 } from '@/lib/sumula-banco-ui'
@@ -79,7 +80,7 @@ export function PapeletasDoSet(props: PapeletasDoSetProps) {
   }, [ativo, token, set])
 
   if (!ativo) return null
-  const enviadas = papeletasEnviadas(papeletas)
+  const enviadas = papeletasParaExibir(papeletas)
   if (enviadas.length === 0) return null
 
   async function aceitar(papeleta: PapeletaBanco) {
@@ -96,7 +97,7 @@ export function PapeletasDoSet(props: PapeletasDoSetProps) {
       )
       const lido = await lerEnvelope<unknown>(resposta)
       if (lido.tipo === 'ok') setAceitas((atual) => new Set(atual).add(papeleta.equipeId))
-      else avisoRef.current?.('A formação foi aplicada na tela, mas o banco não recebeu o aceite. Confirme a escalação e tente aceitar de novo.')
+      else avisoRef.current?.(`A formação foi aplicada na tela, mas o banco não recebeu o aceite${lido.tipo === 'erro' ? ` (${lido.mensagem})` : ''}. Confirme a escalação e tente aceitar de novo.`)
     } catch {
       avisoRef.current?.('Sem conexão para avisar o banco. A formação já está na tela; confirme a escalação.')
     } finally {
@@ -113,10 +114,13 @@ export function PapeletasDoSet(props: PapeletasDoSetProps) {
           const rotulo = (id: number) => props.rotuloJogador(papeleta.equipeId, id)
           const tela = props.escalacaoDaTela(papeleta.equipeId)
           const divergencias = tela?.confirmada ? divergenciasPapeleta(papeleta, tela) : []
-          const aceita = aceitas.has(papeleta.equipeId)
+          const aceita = aceitas.has(papeleta.equipeId) || papeletaJaAceita(papeleta)
           return (
             <li key={papeleta.equipeId} className="rounded-md border border-slate-300 p-2">
-              <p className="font-semibold">{nome}</p>
+              <p className="font-semibold">
+                {nome}
+                {aceita ? <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-900">Aceita</span> : null}
+              </p>
               <ol className="mt-1 grid grid-cols-3 gap-1 text-sm" aria-label={`Formação de ${nome}`}>
                 {[...papeleta.formacao].sort((a, b) => a.posicao - b.posicao).map((item) => (
                   <li key={item.posicao} className="rounded bg-slate-100 px-2 py-1">
