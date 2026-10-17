@@ -63,5 +63,15 @@ Abertos depois da rodada 6:
 - Os payloads do árbitro/organizador não dizem se o campeonato está publicado (necessário para o link de impressão em partida sem token).
 - Para ligar de verdade a fila + eventos: `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1` no build, `SUMULA_EVENTOS_ATIVO=1` no servidor e as migrations 0023 e 0029 aplicadas; antes disso comparar o log com o `PUT` em jogos reais.
 
+## Rodada 7 — competição privada completa (já na branch)
+Feito: o organizador escolhe **pública ou privada** no passo "Período e limites" do wizard de inscrições (grava `Liga.visibilidade`; o campo é opcional no PATCH para o autosave não sobrescrever) e, sendo privada, vê os links de inscrição por categoria com "Copiar", "WhatsApp" e "Gerar link"; privada sem link emitido responde "peça o link ao organizador"; `/api/equipes`, `/api/partidas`, agenda pública, `?organizador=`, `/campeonatos` e jogos públicos escondem privadas de visitante (dono vê as suas, admin vê tudo; com `ligaId`/slug a privada abre, é o "link"); `campeonatoPublicado` entra nos payloads do árbitro e do painel de partidas, e o link "Imprimir súmula" aparece também em partida sem token de campeonato público; **migration pendente 0031** reescreve as policies de leitura pública (`Liga`, `CategoriaCampeonato`, `Equipe`, `Partida`, `SetPartida`, `ClassificacaoEntrada`, `Premiacao`, `Midia`, `Mensagem`, `DestaquesPartida`) e a view `jogador_publico` para esconder competição privada.
+
+Abertos depois da rodada 7:
+- A migration 0031 nunca passou por um Postgres: aplicar só depois da 0003 e da 0030, em preview, com `EXPLAIN` das leituras anônimas; verificar no banco real se há outras policies permissivas que anulariam o filtro (somam por OR). O Realtime paga a RLS por evento e por assinante.
+- Os payloads de estrutura e de mata-mata do organizador ainda não trazem `campeonatoPublicado`.
+- A gravação de `visibilidade` junto com outros campos do setup não é atômica (coluna ausente: as outras configurações ficam salvas e a resposta é 503).
+- O cache de ids privados (30 s) só é limpo no mesmo processo.
+- `buscarAgendaCampeonato` de uma liga só (acesso por id/link) e `/jogos` sem `liga` não filtram privadas.
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
