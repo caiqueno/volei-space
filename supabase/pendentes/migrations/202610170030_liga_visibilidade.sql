@@ -18,8 +18,8 @@
 -- ATENÇÃO (RLS)
 --   As policies luv_public_select_* de "Liga" não filtram por visibilidade. A ocultação
 --   de competição PRIVADA nas listas é feita pelo servidor (service role). Se "Liga"
---   ainda for legível por anon, as linhas PRIVADAS também serão; decidir em passo
---   separado restringir a policy a visibilidade = 'PUBLICA'.
+--   ainda for legível por anon, as linhas PRIVADAS também serão; a restrição das policies a
+--   visibilidade <> 'PRIVADA' é a pendente 202610170031_rls_visibilidade_publica.sql.
 --
 -- BACKUP NECESSÁRIO
 --   Nenhum (só adiciona coluna).

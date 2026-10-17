@@ -29,7 +29,7 @@ function ler(dir: string, nome: string): string {
 
 const pendentes = listarSql(dirPendentes)
 const rollbacks = listarSql(dirRollback)
-assert.ok(pendentes.length >= 29, 'esperava ao menos 29migrations pendentes')
+assert.ok(pendentes.length >= 31, 'esperava ao menos 31 migrations pendentes')
 
 // 1) Cada migration tem reversão de mesmo nome e vice-versa.
 assert.deepEqual(rollbacks, pendentes, 'cada migration pendente precisa de rollback de mesmo nome')
@@ -156,6 +156,41 @@ assert.match(sqlVisibilidade, /"visibilidade"\s+in\s*\('PUBLICA',\s*'PRIVADA'\)/
 assert.ok(!/\bgrant\b/i.test(sqlVisibilidade), 'visibilidade não pode conceder nada a anon')
 assert.ok(!/\bupdate\s+public\."Liga"/i.test(sqlVisibilidade), 'sem UPDATE em Liga (triggers de campeonato finalizado)')
 assert.match(sqlSemComentario(ler(dirRollback, '202610170030_liga_visibilidade.sql')), /drop\s+column\s+if\s+exists\s+"visibilidade"/i)
+
+// 5d) Rodada 7: RLS pública sem competição PRIVADA (0031).
+const nome31 = '202610170031_rls_visibilidade_publica.sql'
+assert.ok(pendentes.includes(nome31), 'falta a 0031')
+assert.ok(versoes.indexOf('202610170030') < versoes.indexOf('202610170031'), '0031 deve vir depois da 0030')
+const sql31 = sqlPendente[nome31]
+const bruto31 = ler(dirPendentes, nome31)
+assert.match(bruto31, /PRÉ-REQUISITOS[\s\S]*202610170030[\s\S]*202610170003/, 'cabeçalho da 0031 precisa citar 0030 e 0003')
+for (const secao of ['QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO', 'DESEMPENHO']) {
+  assert.ok(bruto31.includes(secao), `0031 sem seção ${secao}`)
+}
+assert.match(sql31, /^\s*begin;\s*set\s+local\s+lock_timeout/i, '0031 deve abrir com begin + lock_timeout')
+assert.match(sql31, /commit;\s*$/i)
+assert.ok(!/\bgrant\b/i.test(sql31), '0031 não pode conceder nada (nem a anon)')
+assert.ok(!/\bcreate\s+policy\b/i.test(sql31), '0031 só reescreve policies existentes (alter policy), nunca recria')
+assert.match(sql31, /alter\s+policy\s+%I\s+on\s+public\.%I\s+using/i)
+assert.ok(!/\b(update|delete|truncate|drop)\b/i.test(sql31), '0031 não altera dados nem derruba objetos')
+for (const [tabela, politica] of [
+  ['Liga', 'luv_public_select_liga'], ['CategoriaCampeonato', 'categoria_publica'], ['Equipe', 'luv_public_select_equipe'],
+  ['Partida', 'luv_public_select_partida'], ['ClassificacaoEntrada', 'luv_public_select_classificacao'],
+]) {
+  assert.ok(sql31.includes(`'${tabela}', '${politica}'`), `0031 sem a policy ${politica} de ${tabela}`)
+}
+const filtros31 = sql31.match(/coalesce\([^)]*"visibilidade",\s*'PUBLICA'\)\s*<>\s*'PRIVADA'/g) ?? []
+assert.ok(filtros31.length >= 11, 'esperava o filtro de visibilidade nas 10 policies e na view')
+assert.match(sql31, /public\.jogador_publico/)
+const rb31 = sqlSemComentario(ler(dirRollback, nome31))
+assert.ok(!/\bgrant\b/i.test(rb31), 'reversão da 0031 não pode conceder nada')
+assert.ok(!/\bcreate\s+policy\b/i.test(rb31), 'reversão da 0031 não recria policy')
+assert.ok(!/visibilidade/i.test(rb31), 'reversão deve devolver as expressões originais, sem visibilidade')
+assert.match(rb31, /'categoria_publica',\s*\$e\$\s*true\s*\$e\$/i)
+assert.match(rb31, /begin;\s*set\s+local\s+lock_timeout/i)
+for (const politica of ['luv_public_select_liga', 'luv_public_select_equipe', 'luv_public_select_partida', 'categoria_publica']) {
+  assert.ok(sqlOficial.includes(politica), `policy ${politica} não existe em supabase/migrations`)
+}
 
 // 6) Índices CONCURRENTLY: um comando, sem transação; reversões de índice duplicado não derrubam o índice oficial.
 for (const arquivo of pendentes.filter((nome) => /_idx_/.test(nome))) {
