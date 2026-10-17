@@ -1,5 +1,6 @@
 // Tipos da súmula impressa. A entrada é a projeção de leitura da súmula
 // (sumulaParaConsulta); a saída é o modelo que a página de impressão desenha.
+import type { LinhaAssinatura, MotorImpresso } from './motor'
 
 export type JogadorRegistro = {
   id: number
@@ -57,6 +58,8 @@ export type AtletaImpresso = {
   jogadorId: number
   camisa: string
   nome: string
+  /** RG-ELE-006: primeiro nome + inicial do último sobrenome (ex.: CARLOS S.). */
+  nomeImpresso: string
   capitao: boolean
   libero: boolean
 }
@@ -94,6 +97,8 @@ export type SetImpresso = {
   duracaoMin: number | null
   tempos: EventoImpresso[]
   substituicoes: EventoImpresso[]
+  /** Trocas de líbero do set (texto das ocorrências): base da folha quando não há log do motor. */
+  trocasLibero: EventoImpresso[]
   tempoA: number
   tempoB: number
   substA: number
@@ -124,4 +129,7 @@ export type ModeloImpressao = {
   vencedor: string | null
   mvp: string[]
   encerrada: boolean
+  /** Derivado do log do motor (rodízio por ponto, A/P/E/D, folha de líbero); null quando só há ocorrências. */
+  motor: MotorImpresso | null
+  assinaturas: LinhaAssinatura[]
 }
