@@ -195,11 +195,24 @@ export function montarSumulaImpressa(registro: RegistroSumula, eventos?: readonl
     }
   })
 
-  const duracoes = sets.map((s) => s.duracaoMin)
-  const duracaoTotalMin = sets.length && duracoes.every((d) => d != null) ? duracoes.reduce<number>((t, d) => t + (d ?? 0), 0) : null
-
   const agenda = agendaDaPartida(registro)
   const motor = derivarMotor(registro, eventos)
+  // Com o log do motor, contadores e horários vêm dele (fonte única); sem ele ficam os das ocorrências.
+  if (motor) {
+    for (const s of sets) {
+      const f = motor.fechamento.porSet.find((x) => x.numero === s.numero)
+      if (!f) continue
+      s.tempoA = f.temposA
+      s.tempoB = f.temposB
+      s.substA = f.substA
+      s.substB = f.substB
+      s.inicio = s.inicio ?? f.inicio
+      s.fim = s.fim ?? f.fim
+      s.duracaoMin = s.duracaoMin ?? f.duracaoMin
+    }
+  }
+  const duracoes = sets.map((s) => s.duracaoMin)
+  const duracaoTotalMin = sets.length && duracoes.every((d) => d != null) ? duracoes.reduce<number>((t, d) => t + (d ?? 0), 0) : null
   const vencedor = registro.vencedorId === equipeA.id ? modeloA.nome : registro.vencedorId === equipeB.id ? modeloB.nome : null
   const mvp = (registro.destaques ?? [])
     .filter((d) => normalizar(String(d.tipo)) === 'mvp')

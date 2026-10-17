@@ -233,6 +233,11 @@ assert.equal(semLog.equipeA.atletas[0].nomeImpresso, 'CARLOS S.')
 const comLog = montarSumulaImpressa(reg, log)!
 assert.ok(comLog.motor)
 assert.equal(comLog.motor!.sets[0].pontos.length, 7)
+// com o log, contadores e horários do quadro de resultados vêm do motor
+assert.deepEqual([comLog.sets[0].tempoA, comLog.sets[0].substB], [1, 1])
+assert.equal(comLog.sets[0].inicio, '14:00')
+assert.equal(comLog.sets[0].duracaoMin, 25)
+assert.equal(comLog.duracaoTotalMin, 25)
 // log ilegível não derruba o documento
 assert.equal(montarSumulaImpressa(reg, [{ seq: 1 } as unknown as SumulaEvento])!.sets.length, 1)
 

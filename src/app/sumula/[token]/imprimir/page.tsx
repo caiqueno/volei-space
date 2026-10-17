@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
+import type { SumulaEvento } from '@/lib/regras-volei'
 import { SumulaImpressa } from '@/components/sumula-impressa/SumulaImpressa'
 import { montarSumulaImpressa, urlDeConsulta } from '@/lib/sumula-impressa/montar'
 import type { RegistroSumula } from '@/lib/sumula-impressa/tipos'
@@ -11,6 +12,7 @@ import type { RegistroSumula } from '@/lib/sumula-impressa/tipos'
 export default function SumulaImprimirPage() {
   const { token } = useParams<{ token: string }>()
   const [registro, setRegistro] = useState<RegistroSumula | null>(null)
+  const [eventos, setEventos] = useState<SumulaEvento[] | null>(null)
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(true)
 
@@ -33,7 +35,25 @@ export default function SumulaImprimirPage() {
     }
   }, [token])
 
-  const modelo = useMemo(() => (registro ? montarSumulaImpressa(registro) : null), [registro])
+  // O log de eventos do motor (rodízio por ponto, A/P/E/D, folha de líbero) é opcional: a rota responde 404/503
+  // quando o recurso está desligado ou a tabela ainda não existe, e então a súmula sai só com as ocorrências.
+  useEffect(() => {
+    if (!registro || /^\d+$/.test(token)) return
+    let ativo = true
+    fetch(`/api/sumula/${encodeURIComponent(token)}/eventos`, { cache: 'no-store' })
+      .then(async (resposta) => {
+        if (!resposta.ok) return
+        const json = await resposta.json().catch(() => ({}))
+        const lista = json?.data?.eventos
+        if (ativo && Array.isArray(lista)) setEventos(lista as SumulaEvento[])
+      })
+      .catch(() => undefined)
+    return () => {
+      ativo = false
+    }
+  }, [registro, token])
+
+  const modelo = useMemo(() => (registro ? montarSumulaImpressa(registro, eventos) : null), [registro, eventos])
 
   if (carregando) return <main className="si-estado" style={{ padding: 24, textAlign: "center" }} role="status">Carregando a súmula para impressão.</main>
   if (erro || !modelo) return <main className="si-estado" style={{ padding: 24, textAlign: "center" }} role="alert">{erro || 'Súmula indisponível.'}</main>
