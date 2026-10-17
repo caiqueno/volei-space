@@ -82,6 +82,23 @@ export function botaoPedido(params: {
   return liberado
 }
 
+/** Botão "Pedir desafio": só com a flag ligada; o limite por set é conferido pelo servidor (422 LIMITE_EXCEDIDO). */
+export function botaoDesafio(params: {
+  ativo: boolean
+  visao: Pick<VisaoBanco, 'pedidos' | 'partida'>
+  enviando: boolean
+  semConexao: boolean
+}): EstadoBotao {
+  if (!params.ativo) return barrado('Desafio de vídeo: fase posterior.')
+  if (partidaEncerrada(params.visao.partida.status)) return barrado('A partida já terminou.')
+  if (params.semConexao) return barrado('Sem conexão. Aguarde voltar para pedir.')
+  if (params.enviando) return barrado('Enviando o pedido...')
+  if (params.visao.pedidos.some((p) => p.estado === 'PENDENTE' && p.tipo === 'DESAFIO')) {
+    return barrado('Já existe um pedido de desafio aguardando o apontador.')
+  }
+  return liberado
+}
+
 export function podeCancelarPedido(p: PedidoBanco): boolean {
   return p.estado === 'PENDENTE'
 }
