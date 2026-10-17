@@ -28,7 +28,7 @@ begin;
 set local lock_timeout = '5s';
 
 create table if not exists public."ScoutAcao" (
-  id               uuid primary key default gen_random_uuid(),
+  id               bigint generated always as identity primary key,
   "partidaId"      integer not null references public."Partida"(id) on delete cascade,
   "setNumero"      integer not null check ("setNumero" between 1 and 5),
   "equipeId"       integer not null references public."Equipe"(id) on delete cascade,

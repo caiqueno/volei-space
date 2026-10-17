@@ -76,7 +76,7 @@ export function PedidosPainel({
         setErroForm(m.mensagem)
         return
       }
-      corpo = m.motivo ? { tipo: 'DESAFIO', payload: { motivo: m.motivo } } : { tipo: 'DESAFIO' }
+      corpo = m.motivo ? { tipo: 'DESAFIO', motivo: m.motivo } : { tipo: 'DESAFIO' }
     } else {
       corpo = dialogo === 'TEMPO' ? { tipo: 'TEMPO' } : { tipo: 'SUBSTITUICAO', sai, entra }
     }

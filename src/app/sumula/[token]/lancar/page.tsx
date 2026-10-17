@@ -61,6 +61,7 @@ import { SumulaSubShell } from '@/components/sumula/SumulaSubShell'
 import { FaixaQuemFez } from '@/components/sumula/FaixaQuemFez'
 import { CaixaRegra, OverrideArbitro } from '@/components/sumula/CaixaRegra'
 import { PedidosBanco } from '@/components/sumula-banco/PedidosBanco'
+import { PainelDesafios } from '@/components/desafio/PainelDesafios'
 import { PapeletasDoSet } from '@/components/sumula-banco/PapeletasDoSet'
 import { LinkBanco } from '@/components/sumula-banco/LinkBanco'
 import { PainelCorrecoes } from '@/components/sumula/PainelCorrecoes'
@@ -2296,6 +2297,9 @@ export default function SumulaPage() {
         )}
 
         <PedidosBanco token={String(token)} partidaEmAndamento={matchStatus === 'live'} nomeEquipe={(id) => timePorEquipeId(id)?.team.name ?? 'Equipe'} rotuloJogador={rotuloJogadorDoBanco} onAceitarTempo={aceitarTempoDoBanco} onAceitarTroca={aceitarTrocaDoBanco} aviso={addToast} />
+        {teamA && teamB ? (
+          <PainelDesafios token={String(token)} set={currentSet} equipes={[teamA.dbId, teamB.dbId]} nomeEquipe={(id) => timePorEquipeId(id)?.team.name ?? 'Equipe'} partidaEmAndamento={matchStatus === 'live'} />
+        ) : null}
         {activeTab === 'escalacao' && teamA && teamB && partida?.id ? (
           <LinkBanco partidaId={Number(partida.id)} equipes={[{ equipeId: teamA.dbId, nome: teamA.name }, { equipeId: teamB.dbId, nome: teamB.name }]} />
         ) : null}
