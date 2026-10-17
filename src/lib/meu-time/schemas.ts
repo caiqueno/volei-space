@@ -20,19 +20,49 @@ export const novaEquipeSchema = z.object({
   escudoUrl: z.string().trim().url().max(500).optional().nullable(),
 })
 
+/** Responsável legal de atleta menor. O contato (telefone ou e-mail) é gravado cifrado e nunca devolvido. */
+export const responsavelSchema = z.object({
+  nome: texto(200),
+  contato: z.string().trim().min(5).max(200),
+})
+
+const camposResponsavel = {
+  responsavel: responsavelSchema.optional(),
+  /** Só `true` vale: o aceite precisa ser afirmativo. */
+  aceiteResponsavel: z.literal(true).optional(),
+}
+
+const responsavelCompleto = (valor: { responsavel?: unknown; aceiteResponsavel?: unknown }) =>
+  Boolean(valor.responsavel) === Boolean(valor.aceiteResponsavel)
+const MENSAGEM_RESPONSAVEL = 'Envie "responsavel" e "aceiteResponsavel": true juntos.'
+
 export const novoAtletaSchema = z.object({
   nome: texto(200),
   dataNascimento,
   numeroPreferido: numeroCamisa.optional().nullable(),
   posicao: z.enum(POSICOES).optional().nullable(),
-})
+  ...camposResponsavel,
+}).refine(responsavelCompleto, MENSAGEM_RESPONSAVEL)
 
 export const editarAtletaSchema = z.object({
   nome: texto(200).optional(),
   dataNascimento: dataNascimento.optional(),
   numeroPreferido: numeroCamisa.optional().nullable(),
   posicao: z.enum(POSICOES).optional().nullable(),
+  ...camposResponsavel,
 }).refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
+  .refine(responsavelCompleto, MENSAGEM_RESPONSAVEL)
+
+/** POST /atletas/:atletaId/consentimento (completar o aceite depois do cadastro). */
+export const consentimentoSchema = z.object({
+  responsavel: responsavelSchema,
+  aceiteResponsavel: z.literal(true),
+})
+
+/** DELETE /atletas/:atletaId: corpo opcional com o motivo do pedido de exclusão. */
+export const exclusaoAtletaSchema = z.object({
+  motivo: z.string().trim().min(1).max(500).optional().nullable(),
+})
 
 /** `atletas` é o formato do contrato; `texto` aceita a lista colada do WhatsApp (mesmo parser da inscrição rápida). */
 export const loteAtletasSchema = z.object({

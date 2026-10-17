@@ -6,6 +6,7 @@ import { registrationWindowDecision } from '@/lib/team-registration-draft'
 import { ErroMeuTime, lerDados, tabelaAusente, violacaoUnica } from '@/lib/meu-time/acesso'
 import { avaliarConvite, type LinkCampeonato } from '@/lib/meu-time/convite'
 import {
+  idsComConsentimento,
   listarAtletasDoClube,
   listarComissao,
   paraAtletaDoBanco,
@@ -133,7 +134,9 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
   }
 
   // 4. Atletas escolhidos precisam estar no banco do time; ninguém pode estar em outro time da categoria.
-  const banco = new Map((await listarAtletasDoClube(equipe.clubeId)).map((linha) => [linha.id as string, paraAtletaDoBanco(linha)]))
+  const linhasDoClube = await listarAtletasDoClube(equipe.clubeId)
+  const comConsentimento = await idsComConsentimento(linhasDoClube)
+  const banco = new Map(linhasDoClube.map((linha) => [linha.id as string, paraAtletaDoBanco(linha, comConsentimento)]))
   const ids = pedido.atletas.map((item) => item.atletaId)
   const ocupados = (lerDados(
     await supabase.from('InscricaoAtleta').select('atletaId').eq('categoriaCampeonatoId', categoria.id).in('atletaId', ids).eq('ativo', true).eq('inscricaoAtiva', true),
@@ -218,5 +221,7 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
     status: inscricao.status,
     totalAtletas: copia.length,
   }
-  return { resumo, avisos: [...resultado.avisos, ...resultado.pendencias] }
+  // `avisos` segue como lista de textos (compatível com a tela); as pendências de LGPD começam pelo código
+  // ATLETA_MENOR_SEM_CONSENTIMENTO e também vêm estruturadas em `avisosDetalhe`.
+  return { resumo, avisos: [...resultado.avisos, ...resultado.pendencias], avisosDetalhe: resultado.pendenciasDetalhe }
 }

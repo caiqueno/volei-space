@@ -32,6 +32,8 @@ export type AtletaDoBanco = {
   /** Valor do banco: 'F' ou 'M'. */
   sexo: string | null
   temDocumento: boolean
+  /** Menor de 18 anos sem autorização ativa do responsável legal (calculado no servidor). */
+  consentimentoPendente?: boolean
 }
 
 export type SelecaoAtleta = {
@@ -81,6 +83,8 @@ export type ResultadoValidacao = {
   avisos: string[]
   /** Itens que faltam mas não impedem a inscrição (vira CONFIRMADA_COM_PENDENCIAS). */
   pendencias: string[]
+  /** Pendências com código (ex.: ATLETA_MENOR_SEM_CONSENTIMENTO), na mesma ordem das que são específicas por atleta. */
+  pendenciasDetalhe: ErroRegra[]
   status: StatusInscricao
 }
 
@@ -93,17 +97,22 @@ function plural(n: number, singular: string, pluralTexto: string) {
 }
 
 /** Mensagem do cartão de prontidão: "Seu time tem 9 atletas. 2 estão sem documento." */
-export function resumoProntidao(atletas: Array<{ temDocumento: boolean }>) {
+export function resumoProntidao(atletas: Array<{ temDocumento: boolean; consentimentoPendente?: boolean }>) {
   const total = atletas.length
   const semDocumento = atletas.filter((atleta) => !atleta.temDocumento).length
+  const semAutorizacaoResponsavel = atletas.filter((atleta) => atleta.consentimentoPendente).length
   let mensagem: string
   if (total === 0) mensagem = 'Seu time ainda não tem atletas. Adicione os primeiros para se inscrever.'
-  else if (semDocumento === 0) mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. Tudo certo.`
+  else if (semDocumento === 0 && semAutorizacaoResponsavel === 0) mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. Tudo certo.`
   else {
-    const estado = semDocumento === 1 ? '1 está sem documento' : `${semDocumento} estão sem documento`
-    mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. ${estado}.`
+    const partes: string[] = []
+    if (semDocumento > 0) partes.push(semDocumento === 1 ? '1 está sem documento' : `${semDocumento} estão sem documento`)
+    if (semAutorizacaoResponsavel > 0) {
+      partes.push(semAutorizacaoResponsavel === 1 ? '1 está sem autorização do responsável' : `${semAutorizacaoResponsavel} estão sem autorização do responsável`)
+    }
+    mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. ${partes.join('. ')}.`
   }
-  return { atletas: total, semDocumento, mensagem }
+  return { atletas: total, semDocumento, semAutorizacaoResponsavel, mensagem }
 }
 
 function dataIso(valor: string | null | undefined) {
@@ -119,6 +128,7 @@ export function validarInscricao(selecao: SelecaoAtleta[], contexto: ContextoIns
   const erros: ErroRegra[] = []
   const avisos: string[] = []
   const pendencias: string[] = []
+  const pendenciasDetalhe: ErroRegra[] = []
   const { regra, banco } = contexto
 
   if (selecao.length === 0) {
@@ -186,6 +196,12 @@ export function validarInscricao(selecao: SelecaoAtleta[], contexto: ContextoIns
     if (!atleta.temDocumento && regra.documentosExigidos.length > 0) {
       pendencias.push(`${nomeCurto(atleta)}: falta o documento.`)
     }
+    // LGPD: não bloqueia a inscrição, mas deixa a pendência registrada (CONFIRMADA_COM_PENDENCIAS).
+    if (atleta.consentimentoPendente) {
+      const mensagem = `${nomeCurto(atleta)} é menor de 18 anos e está sem autorização do responsável legal.`
+      pendencias.push(`ATLETA_MENOR_SEM_CONSENTIMENTO: ${mensagem}`)
+      pendenciasDetalhe.push({ codigo: 'ATLETA_MENOR_SEM_CONSENTIMENTO', mensagem, atletaId: item.atletaId })
+    }
   }
 
   if (capitaes > 1) erros.push({ codigo: 'MAIS_DE_UM_CAPITAO', mensagem: 'A equipe pode ter só 1 capitão.' })
@@ -218,6 +234,7 @@ export function validarInscricao(selecao: SelecaoAtleta[], contexto: ContextoIns
     erros,
     avisos,
     pendencias,
+    pendenciasDetalhe,
     status: pendencias.length > 0 ? 'CONFIRMADA_COM_PENDENCIAS' : 'CONFIRMADA',
   }
 }

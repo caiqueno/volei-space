@@ -132,7 +132,7 @@ async function main() {
     assert.equal(r.status, 201, nome)
     atletas.push((await json(r)).data)
   }
-  assert.deepEqual(Object.keys(atletas[0]).sort(), ['dataNascimento', 'id', 'nome', 'numeroPreferido', 'posicao', 'temDocumento'])
+  assert.deepEqual(Object.keys(atletas[0]).sort(), ['consentimentoPendente', 'dataNascimento', 'id', 'menor', 'nome', 'numeroPreferido', 'posicao', 'temDocumento'])
   assert.equal((await atletasRota.POST(req('POST', '/x', { nome: 'ana  SILVA', dataNascimento: '2000-03-10' }), params)).status, 409)
   assert.equal((await atletasRota.POST(req('POST', '/x', { nome: 'Sem Data' }), params)).status, 422)
   assert.equal((await atletasRota.POST(req('POST', '/x', { nome: 'Futura', dataNascimento: '2999-01-01' }), params)).status, 422)

@@ -10,6 +10,6 @@ export const dynamic = 'force-dynamic'
 export const POST = rotaMeuTime<{ id: string }>(async ({ req, usuarioId, params }) => {
   const { equipe } = await exigirEquipe(usuarioId, params.id, 'escrita')
   const pedido = validar(novaInscricaoSchema, await lerCorpo(req))
-  const { resumo, avisos } = await inscreverEquipe(usuarioId, equipe, pedido)
-  return sucesso(resumo, 201, { avisos })
+  const { resumo, avisos, avisosDetalhe } = await inscreverEquipe(usuarioId, equipe, pedido)
+  return sucesso(resumo, 201, { avisos, avisosDetalhe })
 })
