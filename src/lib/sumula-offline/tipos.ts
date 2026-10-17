@@ -45,6 +45,10 @@ export interface Pendencia {
 export interface ConflitoRegistrado {
   em: string
   seqAtual: number
+  /** Eventos que outro aparelho gravou entre a última leitura e o 409. 0 = só reenvio dos nossos (sem aviso). */
+  externos?: number
+  /** O apontador já viu o aviso (persistido: o aviso não volta ao recarregar a tela). */
+  reconhecido?: boolean
 }
 
 export interface DadosPersistidos {
@@ -72,6 +76,8 @@ export interface SnapshotFila {
   seqServidor: number
   estadoServidor: EstadoSumula | null
   ultimoConflito: ConflitoRegistrado | null
+  /** Há conflito reconciliado que o apontador ainda não viu (outro aparelho lançou eventos). */
+  conflitoAberto: boolean
   /** Mensagem curta para o usuário; só em status 'erro'. */
   erro: string | null
   proximaTentativaEm: number | null

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import { IndicadorConexao } from '@/components/sumula-offline/IndicadorConexao'
+import { bloqueioDeFechamento } from '@/lib/sumula-offline/politica'
 import { useFilaSumula } from '@/lib/sumula-offline/useFilaSumula'
 import { espelharOcorrencia, LivroEspelho, type Ocorrencia } from '@/lib/sumula-ui/fila-adaptador'
 
@@ -9,6 +10,11 @@ import { espelharOcorrencia, LivroEspelho, type Ocorrencia } from '@/lib/sumula-
 export interface EspelhoApi {
   /** Traduz e enfileira. Nunca lança; falha de tradução descarta o evento com log discreto. */
   espelhar(ocorrencia: Ocorrencia): void
+  /**
+   * Antes de fechar a súmula: tenta enviar o que está pendente (espera limitada) e devolve o motivo do bloqueio,
+   * ou null se pode fechar. Com a rota de eventos desligada (modo local) nunca bloqueia.
+   */
+  prepararFechamento(): Promise<string | null>
   /** Encerra a partida: tenta um último envio e apaga a fila deste token. */
   encerrar(): Promise<void>
 }
@@ -21,8 +27,9 @@ interface Props {
 }
 
 /**
- * Modo sombra da fila offline (só é renderizado com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1).
- * Não grava nada da súmula: o PUT continua sendo a fonte. Mostra o estado da conexão e as pendências do motor.
+ * Fila offline-first da súmula (só é renderizada com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1).
+ * Grava os eventos em POST /api/sumula/[token]/eventos pela fila persistida; o PUT legado segue em paralelo.
+ * Mostra o indicador fixo (Salvo / N pendentes / Sem conexão / Conflito), o aviso de conflito e as pendências.
  * Fica fixo no topo, ao centro, sem cobrir os botões de ponto; o painel de pendências só abre por toque.
  */
 export function EspelhoFilaSumula({ token, apiRef }: Props) {
@@ -44,6 +51,14 @@ export function EspelhoFilaSumula({ token, apiRef }: Props) {
           ocorrencia,
           (motivo) => console.debug('[sumula-fila] evento descartado:', motivo),
         )
+      },
+      async prepararFechamento() {
+        try {
+          await Promise.race([filaRef.current.sincronizar(), new Promise((resolve) => setTimeout(resolve, ESPERA_MAXIMA_ENCERRAR_MS))])
+        } catch {
+          // Sem rede: o bloqueio abaixo reflete o que ficou pendente.
+        }
+        return bloqueioDeFechamento(filaRef.current.fila.getSnapshot()).motivo
       },
       async encerrar() {
         if (encerradaRef.current) return
@@ -79,6 +94,21 @@ export function EspelhoFilaSumula({ token, apiRef }: Props) {
         aoTentarDeNovo={() => filaRef.current.retomar()}
         className="pointer-events-auto !min-h-[28px] !py-0.5 text-xs shadow-sm"
       />
+      {snapshot.conflitoAberto && (
+        <div role="alert" className="pointer-events-auto w-full max-w-sm rounded-lg border border-orange-400 bg-orange-50 p-3 text-xs text-orange-950 shadow-md">
+          <p className="font-semibold">
+            Outro aparelho lançou {snapshot.ultimoConflito?.externos ?? 0} {(snapshot.ultimoConflito?.externos ?? 0) === 1 ? 'evento' : 'eventos'} nesta súmula.
+          </p>
+          <p>Seus lançamentos foram mantidos e enviados. Confira o placar antes de continuar.</p>
+          <button
+            type="button"
+            onClick={() => void filaRef.current.reconhecerConflito()}
+            className="mt-1 min-h-[44px] rounded-md border border-orange-500 px-3 font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+          >
+            Entendi
+          </button>
+        </div>
+      )}
       {pendencias.length > 0 && (
         <details className="pointer-events-auto w-full max-w-sm rounded-lg border border-amber-300 bg-amber-50 text-xs text-amber-950 shadow-md">
           <summary className="flex min-h-[44px] cursor-pointer items-center px-3 font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">

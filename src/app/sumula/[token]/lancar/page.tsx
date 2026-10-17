@@ -294,7 +294,7 @@ export default function SumulaPage() {
   const rascunhoRef = useRef<RascunhoAndamento | null>(null)
   const [formacaoVersao, setFormacaoVersao] = useState(0)
   const finalSubmitRef = useRef(false)
-  // Modo sombra da fila offline: só existe com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1. Desligada, o ref fica nulo e nada roda.
+  // Fila offline-first (POST /eventos): só existe com NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1. Desligada, o ref fica nulo e nada roda.
   const filaAtiva = filaAtivaNoBuild()
   const espelhoRef = useRef<EspelhoApi | null>(null)
   function espelhar(ocorrencia: Ocorrencia) {
@@ -1921,6 +1921,17 @@ export default function SumulaPage() {
       return false
     }
     if (submitting) return false
+    if (filaAtiva && espelhoRef.current) {
+      // Offline-first: não fecha a súmula com lançamentos que o servidor ainda não confirmou.
+      setSubmitting(true)
+      const bloqueioFila = await espelhoRef.current.prepararFechamento().catch(() => null)
+      setSubmitting(false)
+      if (bloqueioFila) {
+        setErroOficial(bloqueioFila)
+        if (!automatic) addToast(bloqueioFila)
+        return false
+      }
+    }
     finalSubmitRef.current = true
     if (liveSaveRef.current) {
       clearTimeout(liveSaveRef.current)

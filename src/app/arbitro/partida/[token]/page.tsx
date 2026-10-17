@@ -2,7 +2,10 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { TEXTO_SEM_CONEXAO } from '@/lib/ao-vivo-conexao'
+import { rotuloAtualizado } from '@/lib/ao-vivo-ui/polling'
+import { usePollingVisivel, type ResultadoConsulta } from '@/lib/ao-vivo-ui/usePollingVisivel'
 import { ArrowRight, Camera, CheckCircle2, ClipboardCheck, QrCode, ShieldAlert, StopCircle, Timer, UserCheck, UserPlus, X } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { NomeEquipe } from '@/components/equipes/NomeEquipe'
@@ -65,6 +68,31 @@ export default function OperacaoArbitroPage() {
   useEffect(() => {
     fetchPartida(true)
   }, [token])
+
+  // Atualização automática (3 s, pausa com a aba oculta): troca os dados no lugar, sem tela de carregamento,
+  // então a posição de leitura e os campos em edição não se perdem. Falha isolada mantém o que já está na tela.
+  const ultimaAssinaturaRef = useRef('')
+  const consultarEmSegundoPlano = useCallback(
+    async (sinal: AbortSignal): Promise<ResultadoConsulta> => {
+      try {
+        const res = await fetch(`/api/arbitro/partidas/${token}`, { cache: 'no-store', signal: sinal })
+        if (res.status === 401 || res.status === 403 || res.status === 404) return 'parar'
+        if (!res.ok) return 'falha'
+        const json = await res.json().catch(() => null)
+        if (!json?.data) return 'falha'
+        const assinatura = JSON.stringify(json.data)
+        if (assinatura !== ultimaAssinaturaRef.current) {
+          ultimaAssinaturaRef.current = assinatura
+          setPartida(json.data)
+        }
+        return 'ok'
+      } catch {
+        return 'falha'
+      }
+    },
+    [token]
+  )
+  const { atualizadoEm, falhasSeguidas, parado: atualizacaoParada } = usePollingVisivel(consultarEmSegundoPlano, { ativo: !loading && !!partida })
 
   useEffect(() => {
     if (!partida || !partida.sumulaToken || !jogoJaIniciado(partida.status)) return
@@ -428,6 +456,15 @@ export default function OperacaoArbitroPage() {
       <section className="referee-hero border-b">
         <div className="mx-auto max-w-7xl px-4 py-8">
           <p className="referee-kicker text-xs font-black uppercase tracking-[0.22em]">Operacao do arbitro</p>
+          <p className="mt-1 text-xs font-semibold text-slate-200" role="status" aria-live="polite" data-testid="arbitro-atualizado">
+            {atualizacaoParada
+              ? 'Atualização automática pausada. Recarregue a página para atualizar.'
+              : falhasSeguidas > 0
+                ? `${TEXTO_SEM_CONEXAO}${atualizadoEm ? ` (${rotuloAtualizado(atualizadoEm).toLowerCase()})` : ''}`
+                : atualizadoEm
+                  ? rotuloAtualizado(atualizadoEm)
+                  : 'Atualiza sozinha a cada 3 segundos'}
+          </p>
           <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <TeamBox team={partida.equipeA} />
             <div className="referee-score-card rounded-3xl border px-6 py-5 text-center">
