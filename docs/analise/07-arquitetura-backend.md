@@ -112,4 +112,47 @@ Agregador: `npm run test:regras-volei-r3`.
 
 ### Fora desta rodada
 
-Ordem de assinatura (RG-FEC-002) e capitão ausente (RG-FEC-003); perda de sets anteriores no RG-FOR-009; passar `agora` e `horarioPrevisto` da partida a partir da rota; ampliar o CHECK de `tipo` na tabela; praia (RG-PRA); PDF e súmula anexa; RG-TMP-003/005/006; RG-LIB-014; os itens [M] acima.
+Ordem de assinatura (RG-FEC-002) e capitão ausente (RG-FEC-003); perda de sets anteriores no RG-FOR-009; passar `agora` e `horarioPrevisto` da partida a partir da rota; ampliar o CHECK de `tipo` na tabela; praia (RG-PRA); PDF e súmula anexa; os itens [M] acima. (RG-FEC-002/003, RG-FOR-009 completo, RG-TMP-003/005/006 e RG-LIB-014 foram fechados na rodada 8, abaixo.)
+
+## Rodada 8: o que sobrava do motor (branch `feat/r8-motor-restante`)
+
+Estado: **implementado em código e testado; nada ligado a tela, rota nova de `src/app`, migration ou banco**. A rota de eventos continua atrás de `SUMULA_EVENTOS_ATIVO`. O tipo novo de evento (`PEDIDO_INDEVIDO`) vai na tabela como `TEMPO` com o tipo real em `payload._motor` (mesma pendência do CHECK de `tipo`, para `banco-de-dados`).
+
+### O que mudou
+
+- **Fechamento (RG-FEC-002/003)**: `assinaturas.ts`. `validarAssinaturasFechamento` confere a ordem apontador, capitães, árbitros (pela posição `ordem` informada), a presença de apontador, árbitro e um registro de capitão por equipe. Capitão ausente (`AUSENTE_SUBSTITUIDO`): assina o capitão em jogo (`jogadorId` conferido contra `capitaesEmJogo`) com observação do fato. Capitão que recusa (`RECUSA`): campo em branco com o motivo na observação, sem entrar na ordem. `validarFechamentoComAssinaturas` junta isso aos totais (RG-FEC-004). Também `validarAssinaturasDeAbertura` (RG-FEC-001) e `validarAlteracaoDeResultado` (RG-FEC-005: a equipe não altera depois de oficializada; o organizador corrige com motivo). A janela de 30 minutos por link (D6) é regra de produto e não está aqui.
+- **Jogador não registrado de set anterior (RG-FOR-009 completo)**: `nao-registrado.ts` (`calcularPerdaPorNaoRegistrado`, pura) ligada à derivação. `DISCREPANCIA_PAPELETA` aceita `setEntrada` (set anterior ao corrente, só com causa `JOGADOR_NAO_REGISTRADO` e fase `DEPOIS_DO_INICIO`) e `momentoSeq` passa a ser o ponto, dentro desse set, em que ele entrou. Set de entrada: a faltosa perde os pontos desde o momento e, se tinha vencido o set, perde o set (o adversário recebe os pontos necessários). Sets posteriores à entrada: set vencido pela faltosa vira derrota com parcial 0 x alvo (0x25). No set corrente caem todos os pontos da faltosa e o adversário ganha ponto e saque (reversão que já existia). **Configurável [M]**: `ConfigPartida.naoRegistradoZeraSetsJaPerdidos` (se os sets que a faltosa já tinha perdido também têm os pontos zerados; padrão: mantêm o parcial real). O parcial exato do set de entrada vencido pela faltosa é interpretação e nenhum teste o fixa. Limitação: o `alvo` e o flag `decisivo` do set corrente continuam os calculados no início dele; se a perda de sets mudar o placar de sets, a observação `JOGADOR NÃO REGISTRADO ...` registra o antes e o depois.
+- **Pedidos de interrupção (RG-TMP-003/005/006)**: `pedidos.ts` + evento `PEDIDO_INDEVIDO { equipe, tipo?, atrasaOJogo? }`. Na mesma interrupção cabem até 2 tempos e 1 pedido de substituição (a excepcional e a troca de líbero ficam fora); o 3º tempo ou o 2º pedido de substituição seguidos viram inconsistência `RG-TMP-003` (com contexto da relação nominal, quem acusa o 2º pedido de substituição continua sendo `RG-SUB-007`). O 1º pedido indevido da equipe na partida, sem atrasar o jogo, é só registrado (`REGISTRO_SEM_SANCAO`); os seguintes são `ATRASO`, e a derivação devolve a sanção sugerida (advertência na 1ª, penalidade nas seguintes) em `pedidosIndevidos`; **quem lança a `SANCAO` de atraso é o apontador** (o motor não grava sanção sozinho). A advertência de atraso por pedido indevido bloqueia novo pedido regular da equipe (`RG-TMP-006`) até o fim do próximo rally concluído (penalidade de conduta não encerra a interrupção). A rota devolve a consequência como aviso ao receber o evento.
+- **Folha de controle de líbero (RG-LIB-014)**: `folha-libero.ts` (`montarFolhaControleLibero`). Por set e equipe: ordem, nº do líbero ("Líb."), nº do regular ("Troca", em branco entre dois líberos), posição em quadra, placar da hora com o da equipe que troca primeiro (`"9X6"`), redesignações com líbero antigo e novo. Quem é líbero vem de `liberosA/B` do `SET_INICIADO` e das redesignações; sem isso a linha sai com `liberoInferido`. Trocas desfeitas não entram. A assinatura do apontador assistente é do PDF.
+- **Intervalo (RG-SET-005)**: `set-partida.ts` (`duracaoDoIntervalo`, `validarConfigIntervalo`, `conferirIntervalo`); `ConfigPartida.intervaloLongoEntre2e3Minutos` (3 a 10, a pedido do organizador). RG-SET-007 já estava coberto no fechamento.
+- **Complementos com o ID no nome do teste**: RG-ELE-002 (`validarAlteracaoDeRelacao`, `validarEntradaEmQuadra`; se a escalação trava na assinatura continua decisão de produto, o parâmetro é `assinada`), RG-FOR-001 (`resolverSorteio`), RG-FOR-004 (`validarEntregaDaPapeleta`), RG-SAQ-003 (`avaliarExecucaoDoSaque`, 8 s), RG-POS-001/002/005 (`posicoes.ts`: medidas `x`/`y` informadas, equipe sacadora livre), RG-PTO-001/002 (`decidirFaltasDoRally`, motivo `FALTA_DUPLA` em `RALLY_REPETIDO`), RG-SAN-008, RG-WO-003 (`validarPresencaDaVencedoraNoWO`, `quadroResultadosWO`).
+
+### Cobertura das regras do 03
+
+`scripts/regras-volei-cobertura.test.ts` lê o `03` e falha listando todo ID indoor sem caso de teste com o ID no nome (aceita `RG-ROT-001/002` e `RG-PRO-001..003`). Resultado: **97 de 97 IDs exigidos cobertos**. Exceções documentadas no próprio teste e conferidas contra o `03` (uma exceção velha ou um [M] novo sem entrada na lista faz o teste falhar):
+
+- **[M] (6)**: RG-SUB-002, RG-TMP-009, RG-SAN-010, RG-PRO-002, RG-PRO-004, RG-WO-001. Ficam configuráveis. Quatro têm teste só da parte verificada (RG-SUB-002, RG-SAN-010, RG-PRO-002, RG-WO-001); nenhum teste fixa o trecho [M] como oficial.
+- **Praia (11)**: RG-PRA-001..011, fora do motor (que é só indoor).
+- **Papel ou PDF (11)**: RG-ELE-003/006/007, RG-FOR-010/011, RG-PTO-003, RG-SUB-005/015, RG-TMP-004, RG-INT-006/007. Descrevem preenchimento em papel ou layout do PDF; precisam de teste do gerador de PDF/tela, não do motor. A lista só pode encolher.
+
+### Tabela: regra -> arquivo -> teste (rodada 8)
+
+| Regra | Arquivo (`src/lib/…`) | Teste (`scripts/…`) |
+| --- | --- | --- |
+| RG-FEC-001/002/003/005 | `regras-volei/assinaturas.ts`, `fechamento.ts` (`validarFechamentoComAssinaturas`) | `regras-volei-assinaturas.test.ts`, `regras-volei-complementos.test.ts` |
+| RG-FOR-009 (set anterior) | `regras-volei/nao-registrado.ts`, `eventos.ts`, `sumula-eventos/esquema.ts` | `regras-volei-nao-registrado.test.ts` |
+| RG-TMP-003/005/006 | `regras-volei/pedidos.ts`, `eventos.ts`, `sumula-eventos/{esquema,mapeamento,servico}.ts` | `regras-volei-pedidos.test.ts` |
+| RG-LIB-014 | `regras-volei/folha-libero.ts` | `regras-volei-folha-libero.test.ts` |
+| RG-SET-005 | `regras-volei/set-partida.ts`, `config.ts` | `regras-volei-intervalo.test.ts` |
+| RG-ELE-002, RG-FOR-001/004, RG-SAQ-003, RG-POS-001/002/005, RG-PTO-001/002, RG-SAN-008, RG-WO-003 | `elenco.ts`, `set-partida.ts`, `papeleta.ts`, `rotacao.ts`, `posicoes.ts`, `eventos.ts`, `wo-interrupcao.ts` | `regras-volei-complementos.test.ts` |
+| Cobertura dos IDs do 03 | (lê `docs/analise/03-regras-validaveis.md`) | `regras-volei-cobertura.test.ts` |
+
+Agregador: `npm run test:regras-volei-r8` (testes novos mais a cobertura). Segue valendo `npm run test:regras-volei-r3`.
+
+### Itens [M] / NÃO CONFIRMADOS depois da rodada 8
+
+Os mesmos da rodada 3, mais o tratamento dos sets que a faltosa já tinha perdido no RG-FOR-009 (`naoRegistradoZeraSetsJaPerdidos`) e o parcial do set de entrada vencido por ela. Continuam configuráveis e sem teste que os fixe como oficiais.
+
+### Fora da rodada 8
+
+Passar `agora`/`horarioPrevisto` da rota; ampliar o CHECK de `tipo` na tabela; praia; PDF e súmula anexa (inclui a folha de controle de líbero impressa e as 11 regras de papel/PDF acima); lançar a `SANCAO` de atraso automaticamente a partir do `PEDIDO_INDEVIDO` (hoje é o apontador); decidir se a escalação trava na assinatura da relação (RG-ELE-002).
