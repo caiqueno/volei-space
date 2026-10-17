@@ -164,7 +164,8 @@
     "test:sumula-impressa-motor": "node scripts/with-ts-node.mjs scripts/sumula-impressa-motor.test.ts",
     "test:meu-time-fase2-csv": "node scripts/with-ts-node.mjs scripts/meu-time-fase2-csv.test.ts",
     "test:meu-time-fase2-rotas": "node scripts/with-ts-node.mjs scripts/meu-time-fase2-rotas.test.ts",
-    "test:meu-time-fase2-ui": "node scripts/with-ts-node.mjs scripts/meu-time-fase2-ui.test.ts"
+    "test:meu-time-fase2-ui": "node scripts/with-ts-node.mjs scripts/meu-time-fase2-ui.test.ts",
+    "test:scout": "node scripts/with-ts-node.mjs scripts/scout.test.ts && node scripts/with-ts-node.mjs scripts/scout-rota.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
