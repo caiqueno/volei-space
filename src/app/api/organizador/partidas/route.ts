@@ -4,6 +4,7 @@ import { success, error } from '@/lib/api-response'
 import { requirePublicRole } from '@/lib/auth'
 import { categoriaDaUrl } from '@/lib/isolamento-categoria'
 import { consultarComVaga } from '@/lib/consulta-vaga'
+import { campeonatoPublicadoDaLiga } from '@/lib/visibilidade-competicao'
 import { ladoExposto } from '@/lib/vaga-a-definir'
 
 export async function GET(req: NextRequest) {
@@ -46,10 +47,12 @@ export async function GET(req: NextRequest) {
   })
 
   if (partidasErr) return error('Erro ao carregar partidas', 500, partidasErr.message)
+  const campeonatoPublicado = await campeonatoPublicadoDaLiga(ligaId)
   const linhas = (data ?? []).map((partida: any) => ({
     ...partida,
+    campeonatoPublicado,
     equipeA: ladoExposto(partida.equipeA, partida.origemVagaA),
     equipeB: ladoExposto(partida.equipeB, partida.origemVagaB),
   }))
-  return success({ partidas: linhas.slice(0, limite), temMais: linhas.length > limite })
+  return success({ partidas: linhas.slice(0, limite), temMais: linhas.length > limite, campeonatoPublicado })
 }

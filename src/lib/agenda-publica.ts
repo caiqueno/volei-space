@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { campeonatoDeTeste } from '@/lib/campeonato-teste'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 import { consultarComVaga } from '@/lib/consulta-vaga'
 import { normalizarPartidaPublica, PARTIDA_PUBLICA_COLUNAS, type PartidaPublica } from '@/lib/partida-publica'
 
@@ -12,10 +13,13 @@ function normalizar(linhas: unknown[] | null) {
     .filter((partida) => partida.liga?.simulacao !== true)
 }
 
-async function idsSemCampeonatoDeTeste(ligaIds: number[]) {
+// `excluirPrivadas` vale para listas que misturam campeonatos (agenda global). Quem abre um
+// campeonato específico, pelo link ou slug, passa sem ele: privada continua acessível ao convidado.
+async function idsSemCampeonatoDeTeste(ligaIds: number[], opcoes: { excluirPrivadas?: boolean } = {}) {
   const { data, error } = await supabaseAdmin.from('Liga').select('id,nome,slug,descricao,simulacao').in('id', ligaIds)
   if (error) return { ids: [] as number[], erro: true }
-  return { ids: (data ?? []).filter((liga) => !campeonatoDeTeste(liga)).map((liga) => liga.id), erro: false }
+  const privadas = opcoes.excluirPrivadas ? await idsCompeticoesPrivadas() : new Set<number>()
+  return { ids: (data ?? []).filter((liga) => !campeonatoDeTeste(liga) && !privadas.has(Number(liga.id))).map((liga) => liga.id), erro: false }
 }
 
 const PAGINA_AGENDA = 8
@@ -71,7 +75,8 @@ export async function buscarAgendaCampeonato(
 
 export async function buscarPartidasPublicas(ligaIds: number[], completo: boolean) {
   if (ligaIds.length === 0) return { partidas: [] as PartidaPublica[], erro: false }
-  const publico = await idsSemCampeonatoDeTeste(ligaIds)
+  // Lista de vários campeonatos: privada nunca entra.
+  const publico = await idsSemCampeonatoDeTeste(ligaIds, { excluirPrivadas: true })
   if (publico.erro) return { partidas: [] as PartidaPublica[], erro: true }
   ligaIds = publico.ids
   if (ligaIds.length === 0) return { partidas: [] as PartidaPublica[], erro: false }

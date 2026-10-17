@@ -5,6 +5,7 @@ import { equipeSchema } from '@/lib/schemas'
 import { verifyToken } from '@/lib/auth'
 import { exigirOrganizadorDaLiga, ligasVisiveisAoOrganizador } from '@/lib/organizador-isolamento'
 import { STATUS_CAMPEONATO_PUBLICO } from '@/lib/campeonato-publico'
+import { idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 import { EQUIPE_JOGADOR_LISTA_COLUNAS, EQUIPE_LIGA_RESUMO_COLUNAS, EQUIPE_LISTA_COLUNAS } from '@/lib/projecoes-publicas'
 
 const EQUIPE_COLUNAS = EQUIPE_LISTA_COLUNAS
@@ -82,7 +83,9 @@ export async function GET(req: NextRequest) {
         .eq('simulacao', false)
         .in('status', STATUS_PUBLICOS)
       if (publicasErr) throw publicasErr
-      const ids = (publicas ?? []).map((liga) => liga.id)
+      // Lista sem campeonato escolhido: competição privada nunca aparece (só com ligaId, pelo link).
+      const privadas = await idsCompeticoesPrivadas()
+      const ids = (publicas ?? []).map((liga) => liga.id).filter((id) => !privadas.has(Number(id)))
       if (ids.length === 0) return success([])
       q = q.in('ligaId', ids)
     }

@@ -13,6 +13,11 @@
 // token emitido não aceita inscrição (CONVITE_INVALIDO) até o organizador gerar o link.
 import { timingSafeEqual } from 'node:crypto'
 
+/** Para o organizador (painel de links): o que fazer quando a privada ainda não tem link. */
+export const MENSAGEM_PRIVADA_SEM_LINK = 'Competição privada: gere o link de inscrição desta categoria. Sem ele ninguém consegue inscrever equipes.'
+/** Para quem tenta se inscrever numa privada que ainda não emitiu link. */
+export const MENSAGEM_PRIVADA_SEM_LINK_PUBLICA = 'Esta competição é privada e o organizador ainda não emitiu o link de inscrição desta categoria. Peça o link ao organizador.'
+
 export type LinkCampeonato = {
   token: string
   ativo: boolean | null
@@ -54,13 +59,15 @@ export function avaliarConvite(convite: string | undefined | null, estado: Estad
   const privada = Boolean(estado.privada) || String(estado.visibilidade ?? '').trim().toUpperCase() === 'PRIVADA'
   const exigido = privada || aceitos.length > 0
   if (!exigido) return { ok: true, exigido: false }
+  // Privada sem nenhum link emitido: os códigos de sempre, mas a mensagem diz o que está faltando.
+  const semLinkEmitido = privada && aceitos.length === 0
 
   const informado = (convite ?? '').trim()
   if (!informado) {
-    return { ok: false, status: 403, codigo: 'CONVITE_OBRIGATORIO', mensagem: 'Esta categoria exige o link de inscrição enviado pelo organizador.' }
+    return { ok: false, status: 403, codigo: 'CONVITE_OBRIGATORIO', mensagem: semLinkEmitido ? MENSAGEM_PRIVADA_SEM_LINK_PUBLICA : 'Esta categoria exige o link de inscrição enviado pelo organizador.' }
   }
   if (!aceitos.some((token) => iguais(token, informado))) {
-    return { ok: false, status: 403, codigo: 'CONVITE_INVALIDO', mensagem: 'O link de inscrição não confere com esta categoria.' }
+    return { ok: false, status: 403, codigo: 'CONVITE_INVALIDO', mensagem: semLinkEmitido ? MENSAGEM_PRIVADA_SEM_LINK_PUBLICA : 'O link de inscrição não confere com esta categoria.' }
   }
   return { ok: true, exigido: true }
 }

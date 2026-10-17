@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { success } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { dataHoraUtc } from '@/lib/data-hora'
+import { campeonatoPublicadoDaLiga } from '@/lib/visibilidade-competicao'
 import { anexarNumerosHerdados } from '@/lib/numero-herdado-leitura'
 import { anexarPresencasHerdadas } from '@/lib/presenca-herdada-leitura'
 
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   if (demoPresencaLiberada(token)) {
     return success({
       ...partidaDemoPresenca(token),
+      campeonatoPublicado: false,
       janelaValidacao: { liberada: true, mensagem: 'Demonstração local. Nada é gravado.' },
     })
   }
@@ -28,6 +30,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   return success({
     ...access.partida,
+    // true só com a liga publicada, fora da simulação e não privada (decide o link de imprimir súmula).
+    campeonatoPublicado: await campeonatoPublicadoDaLiga(Number(access.partida.ligaId)),
     janelaValidacao: getJanelaValidacao(access.partida.dataHora),
   })
 }

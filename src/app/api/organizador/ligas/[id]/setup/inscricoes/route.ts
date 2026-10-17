@@ -17,6 +17,8 @@ import { separarElegibilidade } from '@/lib/elegibilidade-categoria'
 import { CategoryScopeError, getCategoryConfiguration } from '@/lib/category-scope'
 import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-defaults'
 import { validateQrPhotoNameDependency } from '@/lib/championship-validation'
+import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
+import { gravarVisibilidadeDaLiga, lerVisibilidadeDaLiga } from '@/lib/visibilidade-competicao'
 
 const COLUMNS = 'id,organizadorId,inscricoesAbertas,inscricoesAberturaEm,inscricoesEncerramentoEm,inscricaoAprovacaoAutomatica,inscricaoPermiteEdicaoAposEnvio,inscricaoPrazoEdicaoDias,elencoQuantidadeMinima,elencoQuantidadeMaxima,elencoCadastroDuranteInscricao,elencoCadastroAposAprovacao,qrCodeEnabled,formularioInscricaoConfig,prazoAlteracaoElencoDias'
 
@@ -42,9 +44,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const liga = await requireOwnedLigaForSetup(req, Number(id), COLUMNS)
   if (liga instanceof Response) return liga
+  // A visibilidade é lida à parte: sem a coluna (migration pendente) vale PUBLICA e o resto da leitura não quebra.
+  const visibilidade = await lerVisibilidadeDaLiga(Number(id))
   const categoryView = await loadCategorySection(req, Number(id))
-  if (categoryView) return categoryView
-  return success(liga)
+  if (categoryView) {
+    if (categoryView.status !== 200) return categoryView
+    const corpo = (await categoryView.json().catch(() => null)) as { data?: Record<string, unknown> } | null
+    if (!corpo || typeof corpo.data !== 'object' || corpo.data === null) return categoryView
+    return success({ ...corpo.data, visibilidade })
+  }
+  return success({ ...liga, visibilidade })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -58,6 +67,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const parsed = setupInscricoesSchema.safeParse(body)
   if (!parsed.success) return error('Dados inválidos', 422, parsed.error.flatten())
+
+  // Só a visibilidade no corpo: grava a coluna própria e não toca na seção (nem semeia o formulário).
+  if (parsed.data.visibilidade !== undefined && Object.keys(parsed.data).length === 1) {
+    const bloqueioFinalizado = await rejectIfCampeonatoFinalizado(ligaId)
+    if (bloqueioFinalizado) return bloqueioFinalizado
+    const gravada = await gravarVisibilidadeDaLiga(ligaId, parsed.data.visibilidade)
+    if (!gravada.ok) return error(gravada.mensagem, gravada.status)
+    return success({ ...liga, visibilidade: parsed.data.visibilidade })
+  }
 
   // Dependência obrigatória QR -> nome/foto do atleta, verificada sobre o
   // estado EFETIVO (existente + patch mesclado), nunca só o payload isolado
@@ -79,7 +97,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const effectiveQrEnabled = parsed.data.qrCodeEnabled ?? qrBase
 
-  const payload: Record<string, unknown> = { ...parsed.data }
+  // Visibilidade é da competição inteira (não da categoria) e tem coluna própria.
+  const { visibilidade: visibilidadeNova, ...dadosDaSecao } = parsed.data
+  const payload: Record<string, unknown> = { ...dadosDaSecao }
   let effectiveFormulario: FormularioConfig
 
   if (parsed.data.formularioInscricaoConfig !== undefined) {
@@ -120,5 +140,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const finalized = await finalizeSectionPatch({ ligaId, section: 'inscricoes', intent, ligaAfterPatch: applied.data })
   if (finalized instanceof Response) return finalized
 
-  return success({ ...applied.data, setupStatus: finalized.setupStatus, issues: finalized.issues })
+  let visibilidade = await lerVisibilidadeDaLiga(ligaId)
+  if (visibilidadeNova !== undefined) {
+    const gravada = await gravarVisibilidadeDaLiga(ligaId, visibilidadeNova)
+    if (!gravada.ok) return error(`${gravada.mensagem} As demais configurações das inscrições foram salvas.`, gravada.status)
+    visibilidade = visibilidadeNova
+  }
+
+  return success({ ...applied.data, visibilidade, setupStatus: finalized.setupStatus, issues: finalized.issues })
 }
