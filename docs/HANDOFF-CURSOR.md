@@ -73,5 +73,20 @@ Abertos depois da rodada 7:
 - O cache de ids privados (30 s) só é limpo no mesmo processo.
 - `buscarAgendaCampeonato` de uma liga só (acesso por id/link) e `/jogos` sem `liga` não filtram privadas.
 
+## Rodada 8 — motor, servidor em modo sombra e LGPD de menores (já na branch)
+Feito:
+- **Motor:** fechamento com ordem de assinatura e capitão ausente (RG-FEC-002/003); jogador não registrado com perda de pontos/sets (RG-FOR-009, opção `naoRegistradoZeraSetsJaPerdidos` configurável); pedidos de tempo/substituição e novo evento `PEDIDO_INDEVIDO` (RG-TMP-003/005/006); folha de controle de líbero derivada do log (RG-LIB-014); intervalo entre sets (RG-SET-005). `scripts/regras-volei-cobertura.test.ts` lê o `03` e falha listando IDs sem teste: 97 de 97 IDs exigidos cobertos; ficam isentos os 6 itens [M], o vôlei de praia e 11 IDs de papel/PDF (lista `PENDENTES_PDF_OU_PAPEL`, que só pode encolher).
+- **Servidor em modo sombra:** com `SUMULA_SERVIDOR_SOMBRA=1`, o `PUT /api/sumula/[token]` revalida as ocorrências com o motor e devolve `avisosMotor` e `divergenciaPlacar` (só avisos; nunca bloqueia nem muda o que foi gravado). Desligado = resposta idêntica à de antes. Critérios para passar a bloqueio em `docs/analise/07-arquitetura-backend.md`.
+- **LGPD de menores:** consentimento do responsável (contato cifrado AES-256-GCM, chave `LGPD_CHAVE_CIFRA` obrigatória em cada ambiente), `Atleta.menor`/`consentimentoPendente`, rotas de consentimento, exclusão que anonimiza (preserva o histórico de jogos), inscrição sem bloqueio mas com aviso `ATLETA_MENOR_SEM_CONSENTIMENTO`; telas do Meu Time com bloco do responsável, selo "sem autorização", "Completar agora" e filtro. **Migration pendente 0032** (`AtletaConsentimento`, `AtletaExclusaoPedido`, `Atleta.anonimizadoEm`). Texto do termo é RASCUNHO.
+
+**Decisões jurídicas que são do dono, com advogado** (lista completa em `docs/analise/25-lgpd-menores.md`, seção 6): base legal para dados de menores, texto final do termo, prazos de retenção, manter o nome do atleta no histórico após anonimizar, papéis de controlador/operador, DPO e ROPA, quem pode pedir exclusão, maioridade em 29/02, inscrição de menor só com aviso, compartilhamento com organizadores/árbitros e fotos públicas, comunicação de incidente à ANPD.
+
+Abertos depois da rodada 8:
+- Sombra: o motor recusa substituição excepcional enquanto houver substituição regular possível (RG-SUB-011), então deve aparecer como `erro` quando o árbitro decidiu; súmulas sem formação completa no início do set geram `SOMBRA-NAO-TRADUZIDA` (ruído de medição). Não traduzidos: redesignação de líbero, protesto, discrepância de papeleta, capitão, sacador.
+- O motor não lança sozinho a `SANCAO` de atraso a partir de `PEDIDO_INDEVIDO`; `agora` e `horarioPrevisto` ainda não vêm da rota.
+- Não há job de retenção/anonimização automática, rota de acesso/portabilidade do titular, verificação de que o responsável existe, nem rotação da chave de cifra; as colunas antigas de responsável em `AtletaDocumento` (0025) ficam sem uso.
+- A migration 0029 (tipos de evento) precisa continuar acompanhando `PayloadPorTipo`: o teste estático `migracoes-pendentes` falha quando falta um tipo.
+- 11 IDs de papel/PDF do `03` seguem sem teste até existir o gerador de PDF.
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
