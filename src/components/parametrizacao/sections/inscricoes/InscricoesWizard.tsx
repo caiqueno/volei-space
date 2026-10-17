@@ -19,6 +19,8 @@ import { FloatingLabelNumberInput } from '@/components/ui/floating-label'
 import type { FieldRequirement, InscricoesSectionDTO } from '@/types/championship-setup'
 import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-defaults'
 import { revealMissingFields } from '../../wizard/missing-fields'
+import { LinksCategoriaPrivada } from './LinksCategoriaPrivada'
+import { OPCOES_VISIBILIDADE, deveMostrarLinks, normalizarVisibilidade, rotuloVisibilidade } from './visibilidade-ui'
 
 const STEPS: WizardStepDef[] = [
   { key: 'periodo', title: 'Período e limites' },
@@ -152,6 +154,8 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
 
   const formulario = data.formularioInscricaoConfig ?? getDefaultFormularioInscricaoConfig()
   const qrOn = data.qrCodeEnabled
+  // Campo tolerante: sem `visibilidade` no payload (backend antigo) a competição é pública.
+  const visibilidade = normalizarVisibilidade((data as { visibilidade?: unknown }).visibilidade)
 
   // Enviar só o grupo alterado — o servidor mescla por grupo, então isto é
   // seguro mesmo sem reenviar equipe/lider a cada mudança de atleta.
@@ -197,6 +201,29 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
         {stepIndex === 0 && (
           <>
             <CheckboxRow label="Inscrições abertas" checked={data.inscricoesAbertas} onChange={(v) => updateNow({ inscricoesAbertas: v })} />
+            <fieldset className="grid gap-2">
+              <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-luva-amber">Quem pode encontrar a competição</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {OPCOES_VISIBILIDADE.map((opcao) => (
+                  <label
+                    key={opcao.value}
+                    className={`creator-category-option grid cursor-pointer gap-1 text-left focus-within:ring-2 focus-within:ring-luva-amber ${visibilidade === opcao.value ? 'is-selected' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="visibilidade-competicao"
+                      value={opcao.value}
+                      checked={visibilidade === opcao.value}
+                      onChange={() => updateNow({ visibilidade: opcao.value } as unknown as Partial<InscricoesSectionDTO>)}
+                      className="sr-only"
+                    />
+                    <span className="text-sm font-black">{opcao.titulo}</span>
+                    <span className="text-xs font-semibold opacity-80">{opcao.descricao}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {deveMostrarLinks(visibilidade) && <LinksCategoriaPrivada ligaId={ligaId} />}
             <div className="grid gap-4 sm:grid-cols-2">
               <DateTimePickerInput
                 id="inscricoes-abertura"
@@ -327,6 +354,8 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
         {stepIndex === 4 && (
           <div className="grid gap-3">
             <ReviewRow label="Inscrições" value={data.inscricoesAbertas ? 'Abertas' : 'Fechadas'} />
+            <ReviewRow label="Visibilidade" value={rotuloVisibilidade(visibilidade)} />
+            {deveMostrarLinks(visibilidade) && <LinksCategoriaPrivada ligaId={ligaId} />}
             <ReviewRow label="Aprovação" value="Automática (sem fila)" />
             <ReviewRow label="Elenco" value={`${data.elencoQuantidadeMinima ?? '—'} a ${data.elencoQuantidadeMaxima ?? '—'} atletas`} />
             <ReviewRow label="QR Code" value={qrOn ? 'Ativado' : 'Desativado'} />
