@@ -21,6 +21,7 @@ export interface PapeletaBanco {
   estado: EstadoPapeleta
   formacao: SlotFormacao[]
   liberoId: number | null
+  libero2Id?: number | null
   capitaoId: number | null
 }
 
@@ -46,9 +47,13 @@ export interface RascunhoPapeleta {
   slots: Record<number, number | null>
   liberoId: number | null
   capitaoId: number | null
+  /** Segundo líbero, opcional: só vale com elenco acima de 12 atletas. */
+  libero2Id?: number | null
 }
 
 export interface Violacao {
   codigo: string
   mensagem: string
+  /** Problema do elenco (quem pode jogar) ou da formação (como está escalado). Vazio = não classificado. */
+  grupo?: 'elenco' | 'formacao'
 }

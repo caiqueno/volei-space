@@ -11,7 +11,7 @@ export const NUMERAL_POSICAO: Readonly<Record<number, string>> = { 1: 'I', 2: 'I
 export const POSICOES: readonly number[] = [1, 2, 3, 4, 5, 6]
 
 export function rascunhoVazio(): RascunhoPapeleta {
-  return { slots: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }, liberoId: null, capitaoId: null }
+  return { slots: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }, liberoId: null, libero2Id: null, capitaoId: null }
 }
 
 export function rascunhoDaPapeleta(p: PapeletaBanco | undefined | null): RascunhoPapeleta {
@@ -22,6 +22,7 @@ export function rascunhoDaPapeleta(p: PapeletaBanco | undefined | null): Rascunh
   }
   r.liberoId = p.liberoId ?? null
   r.capitaoId = p.capitaoId ?? null
+  r.libero2Id = p.libero2Id ?? null
   return r
 }
 
@@ -41,11 +42,20 @@ export function colocarJogador(r: RascunhoPapeleta, posicao: number, jogadorId: 
     if (outra !== undefined) slots[outra] = slots[posicao] ?? null
   }
   slots[posicao] = jogadorId
-  return { ...r, slots, liberoId: jogadorId !== null && r.liberoId === jogadorId ? null : r.liberoId }
+  return {
+    ...r,
+    slots,
+    liberoId: jogadorId !== null && r.liberoId === jogadorId ? null : r.liberoId,
+    libero2Id: jogadorId !== null && r.libero2Id === jogadorId ? null : r.libero2Id,
+  }
 }
 
 export function definirLibero(r: RascunhoPapeleta, jogadorId: number | null): RascunhoPapeleta {
   return { ...r, liberoId: jogadorId }
+}
+
+export function definirLibero2(r: RascunhoPapeleta, jogadorId: number | null): RascunhoPapeleta {
+  return { ...r, libero2Id: jogadorId }
 }
 
 export function definirCapitao(r: RascunhoPapeleta, jogadorId: number | null): RascunhoPapeleta {
@@ -56,13 +66,15 @@ export function definirCapitao(r: RascunhoPapeleta, jogadorId: number | null): R
 export function corpoDaPapeleta(r: RascunhoPapeleta): {
   formacao: { posicao: number; jogadorId: number }[]
   liberoId?: number
+  libero2Id?: number
   capitaoId?: number
 } | null {
   if (!formacaoCompleta(r)) return null
-  const corpo: { formacao: { posicao: number; jogadorId: number }[]; liberoId?: number; capitaoId?: number } = {
+  const corpo: { formacao: { posicao: number; jogadorId: number }[]; liberoId?: number; libero2Id?: number; capitaoId?: number } = {
     formacao: POSICOES.map((posicao) => ({ posicao, jogadorId: r.slots[posicao] as number })),
   }
   if (r.liberoId !== null) corpo.liberoId = r.liberoId
+  if (r.libero2Id != null) corpo.libero2Id = r.libero2Id
   if (r.capitaoId !== null) corpo.capitaoId = r.capitaoId
   return corpo
 }
@@ -89,31 +101,83 @@ export function validarFormacaoLocal(r: RascunhoPapeleta, elenco: readonly Jogad
   const violacoes: Violacao[] = []
   const faltando = POSICOES.filter((p) => r.slots[p] === null || r.slots[p] === undefined)
   const nomeDe = (id: number) => elenco.find((j) => j.jogadorId === id)?.nome ?? `jogador ${id}`
+  const doElenco = (codigo: string, mensagem: string) => violacoes.push({ codigo, mensagem, grupo: 'elenco' })
+  const daFormacao = (codigo: string, mensagem: string) => violacoes.push({ codigo, mensagem, grupo: 'formacao' })
 
   const escolhidos = titulares(r)
   if (new Set(escolhidos).size !== escolhidos.length) {
-    violacoes.push({ codigo: 'RG-FOR-005', mensagem: 'O mesmo jogador não pode ocupar duas posições. Cada posição precisa de um jogador diferente.' })
+    daFormacao('RG-FOR-005', 'O mesmo jogador não pode ocupar duas posições. Cada posição precisa de um jogador diferente.')
   }
   for (const id of Array.from(new Set(escolhidos))) {
     const v = validarEntradaEmQuadra({ relacao: ids, jogador: id })
-    if (!v.ok) violacoes.push({ codigo: v.codigo, mensagem: `${nomeDe(id)} não consta no elenco desta partida.` })
+    if (!v.ok) doElenco(v.codigo, `${nomeDe(id)} não consta no elenco desta partida.`)
   }
 
-  if (r.liberoId !== null) {
-    const v = validarRegistroDeLiberos([r.liberoId], [...ids])
-    if (!v.ok) violacoes.push({ codigo: v.codigo, mensagem: `${nomeDe(r.liberoId)} não consta no elenco desta partida.` })
-    if (escolhidos.includes(r.liberoId)) {
-      violacoes.push({ codigo: 'RG-LIB-003', mensagem: `${nomeDe(r.liberoId)} está entre os 6 titulares. O líbero não ocupa posição na formação inicial: escolha outro líbero ou outro titular.` })
+  // Líbero (e o segundo, opcional, só com elenco acima de 12): do elenco e fora dos 6 titulares.
+  const liberos: number[] = []
+  if (r.liberoId !== null) liberos.push(r.liberoId)
+  if (r.libero2Id != null) {
+    if (elenco.length <= LIMITE_ELENCO_DOIS_LIBEROS) {
+      daFormacao('RG-LIB-001', `O segundo líbero só vale com mais de ${LIMITE_ELENCO_DOIS_LIBEROS} atletas no elenco.`)
+    } else if (r.libero2Id === r.liberoId) {
+      daFormacao('RG-LIB-001', 'O primeiro e o segundo líbero precisam ser jogadores diferentes.')
+    } else if (r.liberoId === null) {
+      daFormacao('RG-LIB-001', 'Escolha o primeiro líbero antes do segundo.')
+    } else {
+      liberos.push(r.libero2Id)
     }
   }
+  for (const lib of liberos) {
+    const v = validarRegistroDeLiberos([lib], [...ids])
+    if (!v.ok) doElenco(v.codigo, `${nomeDe(lib)} não consta no elenco desta partida.`)
+    if (escolhidos.includes(lib)) {
+      daFormacao('RG-LIB-003', `${nomeDe(lib)} está entre os 6 titulares. O líbero não ocupa posição na formação inicial: escolha outro líbero ou outro titular.`)
+    }
+  }
+  // Capitão: basta estar no elenco (pode ficar fora dos 6 titulares); só não pode ser líbero.
   if (r.capitaoId !== null) {
     if (!ids.includes(r.capitaoId)) {
-      violacoes.push({ codigo: 'RG-ELE-005', mensagem: 'O capitão escolhido não consta no elenco desta partida.' })
-    } else if (r.capitaoId === r.liberoId) {
-      violacoes.push({ codigo: 'RG-ELE-005', mensagem: 'O líbero não pode ser o capitão da equipe. Escolha outro jogador como capitão.' })
+      doElenco('RG-ELE-005', 'O capitão escolhido não consta no elenco desta partida.')
+    } else if (liberos.includes(r.capitaoId)) {
+      daFormacao('RG-ELE-005', 'O líbero não pode ser o capitão da equipe. Escolha outro jogador como capitão.')
     }
   }
+
+  // Camisa repetida entre quem participa da papeleta.
+  const participantes = Array.from(new Set([...escolhidos, ...liberos, ...(r.capitaoId !== null ? [r.capitaoId] : [])]))
+  for (const rep of camisasRepetidas(participantes, elenco)) {
+    doElenco('CAMISA_REPETIDA', `A camisa ${rep.numero} está em mais de um atleta (${rep.nomes.join(' e ')}). Corrija o número no elenco com o responsável do time.`)
+  }
   return { violacoes, faltando, pronta: faltando.length === 0 && violacoes.length === 0 }
+}
+
+/** Elenco acima deste número admite um segundo líbero. */
+export const LIMITE_ELENCO_DOIS_LIBEROS = 12
+
+export function admiteSegundoLibero(elenco: readonly JogadorBanco[]): boolean {
+  return elenco.length > LIMITE_ELENCO_DOIS_LIBEROS
+}
+
+/** Camisas (não vazias) usadas por mais de um dos atletas informados. */
+export function camisasRepetidas(idsAtletas: readonly number[], elenco: readonly JogadorBanco[]): { numero: number; nomes: string[] }[] {
+  const porNumero = new Map<number, string[]>()
+  for (const id of idsAtletas) {
+    const j = elenco.find((x) => x.jogadorId === id)
+    if (!j || j.numero === null || j.numero === undefined) continue
+    porNumero.set(j.numero, [...(porNumero.get(j.numero) ?? []), j.nome])
+  }
+  return Array.from(porNumero.entries())
+    .filter(([, nomes]) => nomes.length > 1)
+    .map(([numero, nomes]) => ({ numero, nomes }))
+}
+
+/** Separa as mensagens de elenco das de formação (e as sem grupo, que vêm do servidor). */
+export function agruparViolacoes(violacoes: readonly Violacao[]): { elenco: Violacao[]; formacao: Violacao[]; outras: Violacao[] } {
+  return {
+    elenco: violacoes.filter((v) => v.grupo === 'elenco'),
+    formacao: violacoes.filter((v) => v.grupo === 'formacao'),
+    outras: violacoes.filter((v) => !v.grupo),
+  }
 }
 
 /** Mensagem curta do que ainda falta, para o botão "Enviar" desabilitado. */
@@ -125,5 +189,5 @@ export function motivoNaoPodeEnviar(v: ResultadoValidacao): string | null {
 }
 
 export function igual(a: RascunhoPapeleta, b: RascunhoPapeleta): boolean {
-  return a.liberoId === b.liberoId && a.capitaoId === b.capitaoId && POSICOES.every((p) => a.slots[p] === b.slots[p])
+  return a.liberoId === b.liberoId && (a.libero2Id ?? null) === (b.libero2Id ?? null) && a.capitaoId === b.capitaoId && POSICOES.every((p) => a.slots[p] === b.slots[p])
 }

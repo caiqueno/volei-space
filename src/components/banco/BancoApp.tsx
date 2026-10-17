@@ -15,6 +15,7 @@ export function BancoApp({ token }: { token: string }) {
   const [visao, setVisao] = useState<VisaoBanco | null>(null)
   const [tela, setTela] = useState<TelaEstado | null>(null)
   const [setEscolhido, setSetEscolhido] = useState<number | null>(null)
+  const [limitado, setLimitado] = useState(false)
   const ultimoJson = useRef('')
   const temVisao = useRef(false)
 
@@ -29,10 +30,12 @@ export function BancoApp({ token }: { token: string }) {
         setVisao(dados)
       }
       temVisao.current = true
+      setLimitado(false)
       setTela(null)
       return
     }
     const t = classificarFalha(r.status)
+    setLimitado(t === 'limite')
     if (t === 'desligado' || t === 'token-invalido' || t === 'expirado') {
       setTela(t)
       return 'parar'
@@ -48,7 +51,7 @@ export function BancoApp({ token }: { token: string }) {
   }, [visao, setEscolhido])
 
   if (tela && !visao) return <EstadoTela tela={tela} onTentar={atualizarAgora} />
-  if (tela && visao && tela !== 'rede' && tela !== 'erro' && tela !== 'nao-habilitado') return <EstadoTela tela={tela} />
+  if (tela && visao && tela !== 'rede' && tela !== 'erro' && tela !== 'limite' && tela !== 'nao-habilitado') return <EstadoTela tela={tela} />
   if (!visao || setEscolhido === null) return <CarregandoTela />
 
   const placar = formatarPlacar(visao.partida.placar)
@@ -72,7 +75,11 @@ export function BancoApp({ token }: { token: string }) {
         ) : null}
         <p className="mt-1 text-sm text-vs-muted">{String(visao.partida.status || '').replace(/_/g, ' ').toLowerCase()}</p>
         <p role="status" className={`mt-2 inline-block rounded-full border px-3 py-1 text-sm font-bold ${semConexao ? 'border-red-400 bg-red-950/60 text-red-100' : 'border-vs-border text-vs-muted'}`}>
-          {semConexao ? `Sem conexão. Mostrando os dados ${ultimaAtualizacao ? textoAtualizado(ultimaAtualizacao) : 'antigos'}.` : textoAtualizado(ultimaAtualizacao)}
+          {limitado
+            ? `Muitas consultas, aguardando. Mostrando os dados ${ultimaAtualizacao ? textoAtualizado(ultimaAtualizacao) : 'antigos'}.`
+            : semConexao
+              ? `Sem conexão. Mostrando os dados ${ultimaAtualizacao ? textoAtualizado(ultimaAtualizacao) : 'antigos'}.`
+              : textoAtualizado(ultimaAtualizacao)}
         </p>
       </header>
 

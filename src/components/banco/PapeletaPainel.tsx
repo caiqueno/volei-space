@@ -4,10 +4,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { botaoEnviarPapeleta, papeletaEditavel, ROTULO_ESTADO_PAPELETA } from '@/lib/banco-ui/botoes'
 import { chamarBanco } from '@/lib/banco-ui/cliente'
 import {
+  admiteSegundoLibero,
+  agruparViolacoes,
   colocarJogador,
   corpoDaPapeleta,
   definirCapitao,
   definirLibero,
+  definirLibero2,
   igual,
   motivoNaoPodeEnviar,
   NUMERAL_POSICAO,
@@ -21,7 +24,7 @@ import { partidaEncerrada } from '@/lib/banco-ui/botoes'
 import { BTN_PRIMARIO, BTN_SECUNDARIO, Dialogo } from './Dialogo'
 import { Quadra } from './Quadra'
 
-type StatusSalvo = 'nada' | 'local' | 'salvando' | 'salvo' | 'rede' | 'recusado'
+type StatusSalvo = 'nada' | 'local' | 'salvando' | 'salvo' | 'rede' | 'limite' | 'recusado'
 
 const TEXTO_SALVO: Record<StatusSalvo, string> = {
   nada: '',
@@ -29,6 +32,7 @@ const TEXTO_SALVO: Record<StatusSalvo, string> = {
   salvando: 'Salvando o rascunho...',
   salvo: 'Rascunho salvo.',
   rede: 'Sem conexão: rascunho guardado só neste aparelho. Tentando de novo.',
+  limite: 'Muitas consultas, aguardando. O rascunho está guardado neste aparelho e vamos tentar de novo.',
   recusado: 'O servidor não aceitou esta formação (veja os motivos abaixo).',
 }
 
@@ -94,6 +98,11 @@ export function PapeletaPainel({
         setViolacoesServidor([])
         return
       }
+      if (r.status === 429) {
+        setSalvo('limite')
+        tentarDeNovo = setTimeout(() => setTentativa((n) => n + 1), 10000)
+        return
+      }
       if (r.status === null || (r.status ?? 0) >= 500) {
         setSalvo('rede')
         tentarDeNovo = setTimeout(() => setTentativa((n) => n + 1), 5000)
@@ -141,6 +150,7 @@ export function PapeletaPainel({
   }
 
   const todasViolacoes = [...validacao.violacoes, ...violacoesServidor.filter((v) => !validacao.violacoes.some((l) => l.mensagem === v.mensagem))]
+  const grupos = agruparViolacoes(todasViolacoes)
   const emQuadra = new Set(Object.values(exibido.slots).filter((x): x is number => typeof x === 'number'))
   const nomeDe = (id: number | null) => (id == null ? 'Nenhum' : rotuloJogador(visao.elenco.find((j) => j.jogadorId === id)))
 
@@ -186,13 +196,35 @@ export function PapeletaPainel({
           >
             <option value="">Sem líbero</option>
             {visao.elenco.map((j) => (
-              <option key={j.jogadorId} value={j.jogadorId} disabled={emQuadra.has(j.jogadorId)}>
+              <option key={j.jogadorId} value={j.jogadorId} disabled={emQuadra.has(j.jogadorId) || j.jogadorId === exibido.libero2Id}>
                 {rotuloJogador(j)}
                 {emQuadra.has(j.jogadorId) ? ' (titular)' : ''}
               </option>
             ))}
           </select>
         </div>
+        {admiteSegundoLibero(visao.elenco) ? (
+          <div>
+            <label htmlFor="sel-libero2" className="text-sm font-bold text-vs-text">
+              Segundo líbero (opcional)
+            </label>
+            <select
+              id="sel-libero2"
+              className={CAMPO}
+              disabled={!editavel || encerrada}
+              value={exibido.libero2Id ?? ''}
+              onChange={(e) => alterar(definirLibero2(rascunho, e.target.value === '' ? null : Number(e.target.value)))}
+            >
+              <option value="">Sem segundo líbero</option>
+              {visao.elenco.map((j) => (
+                <option key={j.jogadorId} value={j.jogadorId} disabled={emQuadra.has(j.jogadorId) || j.jogadorId === exibido.liberoId}>
+                  {rotuloJogador(j)}
+                  {emQuadra.has(j.jogadorId) ? ' (titular)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div>
           <label htmlFor="sel-capitao" className="text-sm font-bold text-vs-text">
             Capitão
@@ -206,7 +238,7 @@ export function PapeletaPainel({
           >
             <option value="">Sem capitão</option>
             {visao.elenco.map((j) => (
-              <option key={j.jogadorId} value={j.jogadorId} disabled={j.jogadorId === exibido.liberoId}>
+              <option key={j.jogadorId} value={j.jogadorId} disabled={j.jogadorId === exibido.liberoId || j.jogadorId === exibido.libero2Id}>
                 {rotuloJogador(j)}
               </option>
             ))}
@@ -215,15 +247,24 @@ export function PapeletaPainel({
       </div>
 
       <div aria-live="polite" className="mt-3 space-y-2">
-        {todasViolacoes.length > 0 ? (
-          <ul className="space-y-1 rounded-xl border border-red-400 bg-red-950/60 p-3 text-sm font-semibold text-red-100">
-            {todasViolacoes.map((v, i) => (
-              <li key={`${v.codigo}-${i}`}>
-                {v.mensagem} <span className="text-xs font-normal text-red-200">({v.codigo})</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        {([
+          ['Problema no elenco', grupos.elenco],
+          ['Problema na formação', grupos.formacao],
+          ['Recusado pelo servidor', grupos.outras],
+        ] as const).map(([titulo, lista]) =>
+          lista.length > 0 ? (
+            <div key={titulo} className="rounded-xl border border-red-400 bg-red-950/60 p-3 text-sm font-semibold text-red-100">
+              <p className="text-xs font-bold uppercase tracking-wide text-red-200">{titulo}</p>
+              <ul className="mt-1 space-y-1">
+                {lista.map((v, i) => (
+                  <li key={`${v.codigo}-${i}`}>
+                    {v.mensagem} <span className="text-xs font-normal text-red-200">({v.codigo})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null,
+        )}
         {editavel && salvo !== 'nada' ? <p className="text-sm text-vs-muted">{TEXTO_SALVO[salvo]}</p> : null}
         {erroEnvio ? (
           <p role="alert" className="rounded-xl border border-red-400 bg-red-950/60 p-3 text-sm font-bold text-red-100">

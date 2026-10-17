@@ -1,9 +1,13 @@
 /** Classificação das respostas do servidor para as telas de estado do app do banco. Módulo PURO. */
 
-export type TelaEstado = 'desligado' | 'nao-habilitado' | 'token-invalido' | 'expirado' | 'rede' | 'erro'
+export type TelaEstado = 'desligado' | 'nao-habilitado' | 'token-invalido' | 'expirado' | 'rede' | 'limite' | 'erro'
+
+/** 429: o servidor limitou as consultas; não é erro do usuário nem falta de internet. */
+export const MENSAGEM_LIMITE = 'Muitas consultas, aguardando. Tentamos de novo em instantes.'
 
 export function classificarFalha(status: number | null): TelaEstado {
   if (status === null) return 'rede'
+  if (status === 429) return 'limite'
   if (status === 404) return 'desligado'
   if (status === 503) return 'nao-habilitado'
   if (status === 410) return 'expirado'
@@ -17,6 +21,7 @@ export const TEXTO_TELA: Readonly<Record<TelaEstado, { titulo: string; texto: st
   'token-invalido': { titulo: 'Link inválido', texto: 'Este link não é válido. Peça um novo link ao organizador ou ao apontador.', tentar: false },
   expirado: { titulo: 'Link expirado', texto: 'Este link expirou ou foi revogado. Peça um novo link ao organizador ou ao apontador.', tentar: false },
   rede: { titulo: 'Sem conexão', texto: 'Não foi possível falar com o servidor. Verifique sua internet.', tentar: true },
+  limite: { titulo: 'Muitas consultas, aguardando', texto: 'O servidor pediu uma pausa. Vamos tentar de novo sozinhos, com um intervalo maior a cada vez.', tentar: true },
   erro: { titulo: 'Algo deu errado', texto: 'Não foi possível carregar agora. Tente novamente.', tentar: true },
 }
 

@@ -1,5 +1,5 @@
 /** Chamadas do app do banco ao servidor. O link (token) é a credencial: sem login, sem cookie. */
-import { extrairViolacoes, mensagemDeErro } from './falhas'
+import { extrairViolacoes, MENSAGEM_LIMITE, mensagemDeErro } from './falhas'
 import type { Violacao } from './tipos'
 
 export interface RespostaBanco {
@@ -25,7 +25,7 @@ export async function chamarBanco(token: string, caminho: string, metodo: 'GET' 
       status: res.status,
       json,
       violacoes: res.ok ? [] : extrairViolacoes(json),
-      erro: res.ok ? null : mensagemDeErro(json, 'Não foi possível concluir. Tente novamente.'),
+      erro: res.ok ? null : res.status === 429 ? MENSAGEM_LIMITE : mensagemDeErro(json, 'Não foi possível concluir. Tente novamente.'),
     }
   } catch {
     return { ok: false, status: null, json: null, violacoes: [], erro: 'Sem conexão. Tente de novo quando a internet voltar.' }

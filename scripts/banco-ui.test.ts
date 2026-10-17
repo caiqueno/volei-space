@@ -2,16 +2,21 @@ import assert from 'node:assert/strict'
 import {
   botaoEnviarPapeleta,
   botaoPedido,
+  partidaEncerrada,
   podeCancelarPedido,
   usoDeLimites,
   validarSubstituicaoLocal,
 } from '../src/lib/banco-ui/botoes'
-import { classificarFalha, extrairViolacoes, formatarPlacar, mensagemDeErro, nomeDoLado } from '../src/lib/banco-ui/falhas'
+import { classificarFalha, extrairViolacoes, formatarPlacar, MENSAGEM_LIMITE, mensagemDeErro, nomeDoLado, TEXTO_TELA } from '../src/lib/banco-ui/falhas'
 import {
+  admiteSegundoLibero,
+  agruparViolacoes,
+  camisasRepetidas,
   colocarJogador,
   corpoDaPapeleta,
   definirCapitao,
   definirLibero,
+  definirLibero2,
   formacaoCompleta,
   motivoNaoPodeEnviar,
   rascunhoDaPapeleta,
@@ -230,6 +235,65 @@ caso('sets: mostra os existentes mais o próximo e abre o primeiro não aceito',
   assert.equal(setPadrao([p(1, 'ACEITA')]), 2)
   assert.equal(setPadrao([p(1, 'ACEITA'), p(2, 'RASCUNHO')]), 2)
   assert.deepEqual(setsDisponiveis([p(5, 'ACEITA')]), [5])
+})
+
+caso('F6: capitão fora dos 6 titulares é aceito se estiver no elenco', () => {
+  const v = validarFormacaoLocal(definirCapitao(completo(), 108), elenco)
+  assert.equal(v.pronta, true)
+})
+
+caso('F6: camisa repetida entre participantes é problema de ELENCO', () => {
+  const dup: JogadorBanco[] = elenco.map((j) => (j.jogadorId === 101 ? { ...j, numero: 1 } : j))
+  const v = validarFormacaoLocal(completo(), dup)
+  assert.equal(v.pronta, false)
+  const cam = v.violacoes.find((x) => x.codigo === 'CAMISA_REPETIDA')
+  assert.ok(cam)
+  assert.equal(cam!.grupo, 'elenco')
+  assert.match(cam!.mensagem, /camisa 1/)
+  // camisa repetida de quem não participa não bloqueia
+  const dupFora: JogadorBanco[] = elenco.map((j) => (j.jogadorId === 108 ? { ...j, numero: 8 } : j.jogadorId === 107 ? { ...j, numero: 8 } : j))
+  assert.equal(validarFormacaoLocal(completo(), dupFora).pronta, true)
+  assert.deepEqual(camisasRepetidas([100, 101], dup), [{ numero: 1, nomes: ['Atleta 1', 'Atleta 2'] }])
+})
+
+caso('F6: erros de elenco e de formação ficam separados', () => {
+  const r = definirLibero(colocarJogador(completo(), 3, 999), 100)
+  const g = agruparViolacoes(validarFormacaoLocal(r, elenco).violacoes)
+  assert.ok(g.elenco.some((x) => /não consta no elenco/.test(x.mensagem)))
+  assert.ok(g.formacao.some((x) => x.codigo === 'RG-LIB-003'))
+  assert.equal(g.outras.length, 0)
+  const servidor = agruparViolacoes([{ codigo: 'X', mensagem: 'do servidor' }])
+  assert.equal(servidor.outras.length, 1)
+})
+
+caso('F6: segundo líbero só com elenco acima de 12', () => {
+  assert.equal(admiteSegundoLibero(elenco), false)
+  const grande: JogadorBanco[] = Array.from({ length: 14 }, (_, i) => ({ jogadorId: 100 + i, nome: `Atleta ${i + 1}`, numero: i + 1 }))
+  assert.equal(admiteSegundoLibero(grande), true)
+  const ok = validarFormacaoLocal(definirLibero2(definirLibero(completo(), 107), 108), grande)
+  assert.equal(ok.pronta, true)
+  assert.equal(corpoDaPapeleta(definirLibero2(definirLibero(completo(), 107), 108))?.libero2Id, 108)
+  // elenco pequeno: recusa o segundo líbero
+  assert.equal(validarFormacaoLocal(definirLibero2(definirLibero(completo(), 107), 108), elenco).pronta, false)
+  // mesmo líbero duas vezes, ou segundo titular
+  assert.equal(validarFormacaoLocal(definirLibero2(definirLibero(completo(), 107), 107), grande).pronta, false)
+  assert.equal(validarFormacaoLocal(definirLibero2(definirLibero(completo(), 107), 100), grande).pronta, false)
+  // opcional: sem segundo líbero não aparece no corpo
+  assert.equal(corpoDaPapeleta(definirLibero(completo(), 107))?.libero2Id, undefined)
+})
+
+caso('F6: partida encerrada inclui WO, ENCERRADA e CANCELADA', () => {
+  for (const s of ['WO', 'wo', 'ENCERRADA', 'CANCELADA', 'FINALIZADA']) assert.equal(partidaEncerrada(s), true, s)
+  assert.equal(partidaEncerrada('EM_ANDAMENTO'), false)
+})
+
+caso('F11: 429 vira "Muitas consultas, aguardando" e não "Algo deu errado"', () => {
+  assert.equal(classificarFalha(429), 'limite')
+  assert.equal(TEXTO_TELA.limite.titulo, 'Muitas consultas, aguardando')
+  assert.notEqual(TEXTO_TELA.limite.titulo, TEXTO_TELA.erro.titulo)
+  assert.match(MENSAGEM_LIMITE, /Muitas consultas, aguardando/)
+  // recuo crescente entre as tentativas
+  assert.ok(intervaloPolling(3) > intervaloPolling(1))
 })
 
 console.log(`\nbanco-ui: ${total} casos executados.`)
