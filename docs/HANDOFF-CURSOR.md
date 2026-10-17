@@ -88,5 +88,22 @@ Abertos depois da rodada 8:
 - A migration 0029 (tipos de evento) precisa continuar acompanhando `PayloadPorTipo`: o teste estático `migracoes-pendentes` falha quando falta um tipo.
 - 11 IDs de papel/PDF do `03` seguem sem teste até existir o gerador de PDF.
 
+## Rodada 9 — app de banco, papeleta e súmula impressa completa (já na branch)
+Feito:
+- **App de banco** (`/banco/[token]`, celular, sem login: o link é a credencial, só o hash fica no banco): papeleta do set (6 titulares, líbero, capitão, validação com o motor, rascunho, envio que trava e é imutável), pedidos de tempo e substituição com polling de 3 s. Desafio de vídeo responde 501 ("fase posterior"). Tudo atrás de `BANCO_APP_ATIVO=1` (e `NEXT_PUBLIC_BANCO_APP_ATIVO=1` na tela); desligado = 404 e nenhuma requisição.
+- **Apontador** (`lancar`): painel `PedidosBanco` (aceitar passa pelo motor antes de registrar; recusar), `PapeletasDoSet` (divergência com a escalação, aceitar papeleta) e `LinkBanco` (gera/copia/WhatsApp, na aba escalação).
+- **Árbitro:** `/arbitro/jogo/[token]` atualiza sozinho a cada 3 s. Não é a súmula ao vivo: isso continua aberto.
+- **Súmula impressa** (`/sumula/[token]/imprimir`): rodízio ponto a ponto com sacador, A/P/E/D, folha de líbero, protesto, súmula anexa, assinaturas; usa o log do motor quando `/eventos` responde (flag `SUMULA_EVENTOS_ATIVO`), senão cai nas ocorrências ("não registrado nesta versão"). Corrigido o CSS que deixava a folha escura.
+- **Migrations pendentes 0033–0035** (`BancoAcesso`, `Papeleta` com trigger de imutabilidade, `PedidoBanco`). Nunca rodaram num Postgres: ensaiar em preview (trigger, unicidade do hash, anon sem acesso).
+
+Abertos depois da rodada 9:
+- Limites de tempo/substituição são por set e conferidos só no servidor; criação de pedidos sem lock (dois simultâneos podem passar; o limite é reconferido ao decidir). Não há janela "papeleta visível 12 min antes", nem retenção de `BancoAcesso` expirado.
+- Aceitar pedido: se o servidor aceitar mas a resposta falhar depois de a súmula registrar, o pedido fica pendente e aceitar de novo duplica (só há toast).
+- Troca do banco entra como substituição regular (excepcional não); aceitar DESAFIO só grava a decisão.
+- Rota pública de súmula não traz o log; o PDF com rodízio exige a rota `/eventos`. Config da partida na impressão é inferida dos sets. Sem hora por ponto. RG-PTO-003 (ampulheta) e RG-INT-007 (log de edição) só parciais. Sem impressão da súmula em branco.
+- Tela do banco e componentes do apontador sem teste de renderização nem conferência no navegador; sem auditoria WCAG automática.
+- `src/lib/arbitro-access.ts` tem `/^d+$/` sem barra (token numérico nunca filtra por id). NÃO corrigir sem decidir: faria o id da partida valer como credencial.
+- Ainda não feitos do PROMPT: scout/.dvw, desafio por vídeo, vôlei de praia, offline-first ligado de verdade, notificações, convite ao atleta/importação por planilha, clube com várias equipes, protótipo navegável.
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.

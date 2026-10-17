@@ -124,9 +124,8 @@ caso('botão de tempo: livre, pendente, limite e partida encerrada', () => {
   const base = { tipo: 'TEMPO' as const, enviando: false, semConexao: false }
   assert.equal(botaoPedido({ ...base, visao: visao([]) }).habilitado, true)
   assert.match(botaoPedido({ ...base, visao: visao([pedido({})]) }).motivo ?? '', /aguardando/)
-  const limite = botaoPedido({ ...base, visao: visao([pedido({ id: 1, estado: 'ACEITO' }), pedido({ id: 2, estado: 'ACEITO' })]) })
-  assert.equal(limite.habilitado, false)
-  assert.match(limite.motivo ?? '', /2 tempos/)
+  // limite é por set e fica no servidor: a tela não bloqueia pelo total da partida
+  assert.equal(botaoPedido({ ...base, visao: visao([pedido({ id: 1, estado: 'ACEITO' }), pedido({ id: 2, estado: 'ACEITO' })]) }).habilitado, true)
   assert.equal(botaoPedido({ ...base, visao: visao([], 'ENCERRADA') }).habilitado, false)
   assert.equal(botaoPedido({ ...base, visao: visao([]), semConexao: true }).habilitado, false)
 })
