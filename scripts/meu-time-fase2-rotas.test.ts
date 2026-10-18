@@ -189,6 +189,23 @@ async function main() {
   await expirada.from('ConviteAtleta').update({ expiraEm: new Date(Date.now() - 1000).toISOString() }).eq('id', linhas[linhas.length - 1].id)
   assert.deepEqual((await json(await publico.GET(req('GET', '/x'), { params: { token: t6 } }))).data, { estado: 'INDISPONIVEL' })
 
+  // S4: criador que perdeu a permissão de escrita => convite indisponível (resposta uniforme), sem reservar
+  await entrar('lider')
+  const t7 = await novo()
+  const membros = (banco.atual as any)
+  await membros.from('MembroEquipe').update({ papel: 'ASSISTENTE' }).eq('timeId', EQ).eq('usuarioId', 'lider')
+  sessao.token = null
+  assert.deepEqual((await json(await publico.GET(req('GET', '/x'), { params: { token: t7 } }))).data, { estado: 'INDISPONIVEL' })
+  const semPermissao = await publico.POST(req('POST', '/x', { nome: 'Sem Permissao', dataNascimento: '2001-05-05' }), { params: { token: t7 } })
+  assert.equal(semPermissao.status, 404)
+  assert.equal((await json(semPermissao)).codigo, 'CONVITE_INDISPONIVEL')
+  assert.equal((await membros.from('ConviteAtleta').select()).data.find((c: any) => c.usadoEm == null && c.revogadoEm == null && c.atletaId == null) !== undefined, true, 'convite não foi consumido')
+  assert.equal((await membros.from('Atleta').select()).data.length, 2, 'nenhum atleta criado')
+  // devolvido o papel, o mesmo convite volta a valer
+  await membros.from('MembroEquipe').update({ papel: 'RESPONSAVEL' }).eq('timeId', EQ).eq('usuarioId', 'lider')
+  assert.deepEqual((await json(await publico.GET(req('GET', '/x'), { params: { token: t7 } }))).data, { estado: 'DISPONIVEL', equipe: { nome: 'Equipe A', naipe: 'FEMININO' } })
+  await entrar('lider')
+
   // Limite de taxa no GET público
   reiniciarCotas()
   let ultimo = 200
@@ -268,6 +285,33 @@ async function main() {
   const descId = (await json(r)).data.id
   assert.equal((await importacaoId.DELETE(req('DELETE', '/x'), { params: { id: descId } })).status, 200)
   assert.equal((await confirmar.POST(req('POST', '/x'), { params: { id: descId } })).status, 404)
+
+  // S5: prévias expiram (expiraEm) e há limite de 5 pendentes por equipe
+  const nova = async (nome = 'Previa Teste') => importacao.POST(req('POST', '/api/meu-time/importacao', { equipeId: EQ, csv: `nome,nascimento\n${nome},1999-01-01` }))
+  const tabImp = () => (banco.atual as any).from('ImportacaoAtletas')
+  const ids: string[] = []
+  for (let i = 0; i < 5; i += 1) {
+    r = await nova(`Previa Numero${i}x`)
+    assert.equal(r.status, 201)
+    ids.push((await json(r)).data.id)
+  }
+  r = await nova('Sexta Previa')
+  assert.equal(r.status, 429)
+  assert.equal((await json(r)).codigo, 'IMPORTACAO_LIMITE_PREVIAS')
+  // vence uma: a nova prévia a expurga (e leva os dados pessoais junto) e passa a caber
+  await tabImp().update({ expiraEm: new Date(Date.now() - 1000).toISOString() }).eq('id', ids[0])
+  await tabImp().update({ expiraEm: new Date(Date.now() + 3600_000).toISOString() }).eq('id', ids[1])
+  r = await nova('Sexta Previa')
+  assert.equal(r.status, 201)
+  assert.ok(!(await tabImp().select()).data.some((l: any) => l.id === ids[0]), 'prévia expirada foi apagada')
+  // prévia vencida entre dois expurgos: confirmar e descartar tratam como inexistente (404) e apagam
+  await tabImp().update({ expiraEm: new Date(Date.now() - 1000).toISOString() }).eq('id', ids[2])
+  assert.equal((await confirmar.POST(req('POST', '/x'), { params: { id: ids[2] } })).status, 404)
+  assert.ok(!(await tabImp().select()).data.some((l: any) => l.id === ids[2]))
+  await tabImp().update({ expiraEm: new Date(Date.now() - 1000).toISOString() }).eq('id', ids[3])
+  assert.equal((await importacaoId.DELETE(req('DELETE', '/x'), { params: { id: ids[3] } })).status, 404)
+  // prévia ainda válida segue confirmável
+  assert.equal((await confirmar.POST(req('POST', '/x'), { params: { id: ids[1] } })).status, 200)
 
   // --- Clube -------------------------------------------------------------------
   banco.atual = criarBancoEscrita(tabelas())

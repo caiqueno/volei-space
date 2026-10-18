@@ -1,6 +1,6 @@
 // Tipos da súmula impressa. A entrada é a projeção de leitura da súmula
 // (sumulaParaConsulta); a saída é o modelo que a página de impressão desenha.
-import type { LinhaAssinatura, MotorImpresso } from './motor'
+import type { EventoNaoAplicado, LinhaAssinatura, MotorImpresso } from './motor'
 
 export type JogadorRegistro = {
   id: number
@@ -131,5 +131,7 @@ export type ModeloImpressao = {
   encerrada: boolean
   /** Derivado do log do motor (rodízio por ponto, A/P/E/D, folha de líbero); null quando só há ocorrências. */
   motor: MotorImpresso | null
+  /** Seção "Eventos não aplicados" (os recusados pelo motor); vazio sem log. A tela deve listá-los em vez de omiti-los. */
+  eventosNaoAplicados: EventoNaoAplicado[]
   assinaturas: LinhaAssinatura[]
 }

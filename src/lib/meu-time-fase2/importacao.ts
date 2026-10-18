@@ -18,9 +18,21 @@ type LinhaImportacao = {
   linhas: LinhaPrevia[] | null
   resumo: Resumo | null
   resultado: { criados: number; ignorados: Array<{ n: number; motivo: string }> } | null
+  /** Validade da prévia (migration 0037: padrão agora + 72 h). Ausente/nulo = sem expiração (linhas antigas). */
+  expiraEm?: string | null
 }
 
-const COLUNAS = 'id,timeId,criadoPor,status,linhas,resumo,resultado'
+const COLUNAS = 'id,timeId,criadoPor,status,linhas,resumo,resultado,expiraEm'
+
+/** Máximo de prévias pendentes (não expiradas) por equipe. */
+export const MAX_PREVIAS_PENDENTES = 5
+
+/** Prévia ainda não confirmada cuja validade passou: vale como inexistente (os dados pessoais já devem sair). */
+export function previaExpirada(linha: Pick<LinhaImportacao, 'status' | 'expiraEm'>, agora = Date.now()): boolean {
+  if (linha.status !== 'PREVIA' || !linha.expiraEm) return false
+  const limite = new Date(linha.expiraEm).getTime()
+  return !Number.isNaN(limite) && limite <= agora
+}
 
 /** Marca como AVISO (e como "ja existe") as linhas que repetem nome+nascimento do banco do time. */
 function marcarExistentes(linhas: LinhaCsv[], existentes: Array<{ nome: string; dataNascimento?: string | Date | null }>) {
@@ -45,11 +57,31 @@ function paraSaida(linha: LinhaPrevia) {
   return { n: linha.n, status: linha.status, erros: linha.erros, avisos: linha.avisos, dados: linha.dados }
 }
 
+/** Apaga as prévias vencidas da equipe (levam junto nome e nascimento). Confirmadas ficam. */
+async function expurgarPreviasExpiradas(timeId: string) {
+  lerFase2(
+    await supabase.from('ImportacaoAtletas').delete().eq('timeId', timeId).eq('status', 'PREVIA').lt('expiraEm', new Date().toISOString()),
+    'expurgar prévias expiradas',
+  )
+}
+
 export async function criarPrevia(usuarioId: string, equipeId: string, csv: string) {
   const { equipe } = await exigirEquipe(usuarioId, equipeId, 'escrita')
   const lido = analisarCsv(csv)
   if (!lido.ok) {
     throw new ErroMeuTime(lido.mensagem, lido.codigo === 'CSV_LIMITE_LINHAS' ? 413 : 422, lido.codigo)
+  }
+  await expurgarPreviasExpiradas(equipe.id)
+  const pendentes = (lerFase2(
+    await supabase.from('ImportacaoAtletas').select('id,status,expiraEm').eq('timeId', equipe.id).eq('status', 'PREVIA'),
+    'prévias pendentes',
+  ) as Array<Pick<LinhaImportacao, 'status' | 'expiraEm'>> | null) ?? []
+  if (pendentes.filter((p) => !previaExpirada(p)).length >= MAX_PREVIAS_PENDENTES) {
+    throw new ErroMeuTime(
+      `Esta equipe já tem ${MAX_PREVIAS_PENDENTES} importações aguardando confirmação. Confirme ou descarte alguma antes de enviar outra planilha.`,
+      429,
+      'IMPORTACAO_LIMITE_PREVIAS',
+    )
   }
   const linhas = marcarExistentes(lido.linhas, await listarAtletasDoClube(equipe.clubeId))
   const resumo = resumir(linhas)
@@ -66,6 +98,11 @@ async function carregar(usuarioId: string, id: string, permissao: 'escrita') {
   if (!idValido(id)) throw naoEncontrada()
   const linha = lerFase2(await supabase.from('ImportacaoAtletas').select(COLUNAS).eq('id', id).maybeSingle(), 'importação') as LinhaImportacao | null
   if (!linha) throw naoEncontrada()
+  if (previaExpirada(linha)) {
+    // Prévia vencida é indisponível (404) e sai do banco junto com os dados pessoais.
+    await supabase.from('ImportacaoAtletas').delete().eq('id', id).eq('status', 'PREVIA')
+    throw naoEncontrada()
+  }
   let acesso
   try {
     acesso = await exigirEquipe(usuarioId, linha.timeId, permissao)

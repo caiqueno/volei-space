@@ -120,6 +120,13 @@ export async function consultarConviteAberto(token: string) {
   if (!convite || estadoDoConvite(convite) !== 'ATIVO') return { estado: 'INDISPONIVEL' as const }
   const equipe = await equipeDoConvite(convite.timeId)
   if (!equipe) return { estado: 'INDISPONIVEL' as const }
+  // Mesma regra do aceite: sem criador com permissão de escrita o convite não está disponível.
+  try {
+    await exigirEquipe(convite.criadoPor, equipe.id, 'escrita')
+  } catch (erro) {
+    if (erro instanceof ErroMeuTime && (erro.status === 404 || erro.status === 403)) return { estado: 'INDISPONIVEL' as const }
+    throw erro
+  }
   return { estado: 'DISPONIVEL' as const, equipe: { nome: equipe.nome, naipe: equipe.naipe } }
 }
 
@@ -136,6 +143,14 @@ export async function aceitarConvite(token: string, entrada: { nome: string; dat
   if (!convite || estadoDoConvite(convite) !== 'ATIVO') throw indisponivel()
   const equipe = await equipeDoConvite(convite.timeId)
   if (!equipe) throw indisponivel()
+  // Quem criou o convite precisa AINDA poder escrever na equipe (pode ter saído ou perdido o papel):
+  // senão o convite vale como indisponível, com a mesma resposta uniforme, antes de reservar.
+  try {
+    await exigirEquipe(convite.criadoPor, equipe.id, 'escrita')
+  } catch (erro) {
+    if (erro instanceof ErroMeuTime && (erro.status === 404 || erro.status === 403)) throw indisponivel()
+    throw erro
+  }
 
   const reservado = (lerFase2(
     await supabase.from('ConviteAtleta').update({ usadoEm: new Date().toISOString() }).eq('id', convite.id).is('usadoEm', null).is('revogadoEm', null).select('id'),

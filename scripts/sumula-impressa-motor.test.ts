@@ -18,6 +18,7 @@ import {
   paginarLinhas,
   pontosDaSumulaAnexa,
   rotuloDoMembro,
+  TITULO_EVENTOS_NAO_APLICADOS,
 } from '../src/lib/sumula-impressa/motor'
 import { montarSumulaImpressa } from '../src/lib/sumula-impressa/montar'
 import type { RegistroSumula } from '../src/lib/sumula-impressa/tipos'
@@ -221,6 +222,76 @@ const c5 = configParaImpressao([{ numero: 1, pontosA: 25, pontosB: 20 }, { numer
 assert.deepEqual([c5.melhorDe, c5.alvoSet, c5.alvoSetDecisivo, c5.trocaLadoNoDecisivoEm], [5, 25, 15, 8])
 assert.equal(configParaImpressao([], 0, 0).alvoSet, 25)
 
+// R8: a configuração inferida é permissiva e não derruba eventos legítimos
+// (3º tempo, 7º e 8º substituição, 3º set obrigatório depois de 2x0, set estendido 27x25, decisivo 17x15)
+{
+  seq = 0
+  const permissivo: SumulaEvento[] = []
+  const par = () => permissivo.push(ponto('A'), ponto('B'))
+  const F_A = [1, 2, 3, 4, 5, 6]
+  const F_B = [11, 12, 13, 14, 15, 16]
+  // Set 1: 3 tempos de A e 8 substituições de B (6 trocas e depois o retorno do titular ao próprio lugar), A vence 25x20
+  permissivo.push(ev('SET_INICIADO', { numeroSet: 1, formacaoA: F_A, formacaoB: F_B, saqueInicial: 'A' }))
+  for (let i = 0; i < 3; i++) { par(); permissivo.push(ev('TEMPO', { equipe: 'A' })) }
+  const trocas: Array<[number, number]> = [[11, 21], [12, 22], [13, 23], [14, 24], [15, 25], [16, 26], [21, 11], [22, 12]]
+  for (const [sai, entra] of trocas) { par(); permissivo.push(ev('SUBSTITUICAO', { equipe: 'B', sai, entra })) }
+  for (let i = 0; i < 9; i++) par() // 11 + 9 = 20x20 ... (11 pares já lançados acima: 3 + 8)
+  for (let i = 0; i < 5; i++) permissivo.push(ponto('A'))
+  // Set 2: estendido, A vence 27x25
+  permissivo.push(ev('SET_INICIADO', { numeroSet: 2, formacaoA: F_A, formacaoB: F_B, saqueInicial: 'B' }))
+  for (let i = 0; i < 24; i++) par()
+  permissivo.push(ponto('A'), ponto('B'), ponto('A'), ponto('A'))
+  // Set 3 (obrigatório depois de 2x0, decisivo): B vence 17x15, com troca de lado aos 8
+  permissivo.push(ev('SET_INICIADO', { numeroSet: 3, formacaoA: F_A, formacaoB: F_B, saqueInicial: 'A' }))
+  for (let i = 0; i < 7; i++) par()
+  permissivo.push(ponto('B'), ev('TROCA_LADO', {}), ponto('A'))
+  for (let i = 0; i < 6; i++) par()
+  permissivo.push(ponto('B'), ponto('A'), ponto('B'), ponto('B'))
+
+  const setsLidos = [{ numero: 1, pontosA: 25, pontosB: 20 }, { numero: 2, pontosA: 27, pontosB: 25 }, { numero: 3, pontosA: 15, pontosB: 17 }]
+  const inferida = configParaImpressao(setsLidos, 2, 1)
+  assert.deepEqual([inferida.melhorDe, inferida.alvoSet, inferida.alvoSetDecisivo, inferida.terceiroSetObrigatorio], [3, 25, 15, true])
+  assert.ok(inferida.perfil.temposPorSet >= 99 && inferida.perfil.limiteSubstituicoesPorSet >= 99)
+  const mPerm = montarMotorImpresso(permissivo, inferida)
+  assert.equal(mPerm.recusados, 0, JSON.stringify(mPerm.naoAplicados))
+  assert.deepEqual(mPerm.naoAplicados, [])
+  assert.deepEqual(mPerm.sets.map((s) => s.numero), [1, 2, 3])
+  assert.equal(mPerm.sets[0].eventos.filter((e) => e.tipo === 'TEMPO').length, 3)
+  assert.equal(mPerm.sets[0].eventos.filter((e) => e.tipo === 'SUBSTITUICAO').length, 8)
+  assert.deepEqual([mPerm.fechamento.setsA, mPerm.fechamento.setsB], [2, 1])
+  // com um perfil restritivo (o que a inferência antiga usava) o 3º tempo e a 7ª substituição são recusados
+  const restritivo = { ...inferida, perfil: { ...inferida.perfil, temposPorSet: 2, limiteSubstituicoesPorSet: 6 } }
+  assert.ok(montarMotorImpresso(permissivo, restritivo).recusados > 0)
+
+  // alvoSet: 25 se algum set encerrado >= 25; senão o menor; set em andamento não define o alvo
+  assert.equal(configParaImpressao([{ numero: 1, pontosA: 27, pontosB: 25 }], 1, 0).alvoSet, 25)
+  assert.equal(configParaImpressao([{ numero: 1, pontosA: 21, pontosB: 15 }, { numero: 2, pontosA: 23, pontosB: 21 }], 2, 0).alvoSet, 21)
+  assert.equal(configParaImpressao([{ numero: 1, pontosA: 25, pontosB: 20 }, { numero: 2, pontosA: 7, pontosB: 5 }], 1, 0).alvoSet, 25, 'set 2 em andamento')
+  assert.equal(configParaImpressao([{ numero: 1, pontosA: 25, pontosB: 20 }, { numero: 2, pontosA: 20, pontosB: 25 }, { numero: 3, pontosA: 25, pontosB: 22 }, { numero: 4, pontosA: 23, pontosB: 25 }, { numero: 5, pontosA: 17, pontosB: 15 }], 3, 2).alvoSetDecisivo, 15)
+  assert.equal(configParaImpressao([{ numero: 1, pontosA: 25, pontosB: 20 }, { numero: 2, pontosA: 20, pontosB: 25 }], 1, 1).terceiroSetObrigatorio, false)
+
+  // evento que o motor ainda recusa NÃO some: aparece em "Eventos não aplicados" com tipo, equipe e motivo
+  seq = 0
+  const comRecusa: SumulaEvento[] = [
+    ev('SET_INICIADO', { numeroSet: 1, formacaoA: F_A, formacaoB: F_B, saqueInicial: 'A' }),
+    ponto('A'),
+    ev('TEMPO', { equipe: 'B' }),
+    ponto('B'),
+    ev('TEMPO', { equipe: 'B' }),
+    ponto('A'),
+    ev('TEMPO', { equipe: 'B' }), // 3º tempo com um perfil de 2: o motor recusa
+  ]
+  const mRec = montarMotorImpresso(comRecusa, restritivo)
+  assert.equal(mRec.recusados, 1)
+  assert.equal(mRec.naoAplicados.length, 1)
+  assert.deepEqual([mRec.naoAplicados[0].tipo, mRec.naoAplicados[0].equipe], ['TEMPO', 'B'])
+  assert.ok(mRec.naoAplicados[0].codigo.startsWith('RG-') && mRec.naoAplicados[0].mensagem.length > 5)
+  assert.equal(mRec.sets[0].eventos.length, 2, 'o recusado fica fora dos quadros')
+  assert.equal(montarMotorImpresso(comRecusa, inferida).naoAplicados.length, 0, 'com a inferência permissiva o mesmo log passa inteiro')
+  assert.equal(TITULO_EVENTOS_NAO_APLICADOS, 'Eventos não aplicados')
+  seq = 1000
+}
+
 // integração com o modelo: sem log o modelo segue só com as ocorrências; com log traz o motor
 const reg: RegistroSumula = {
   id: 1, setsPorA: 1, setsPorB: 0, equipeA: { id: 1, nome: 'Alfa', jogadores: [{ id: 1, nome: 'Carlos Eduardo Silva', numero: 1 }] }, equipeB: { id: 2, nome: 'Beta', jogadores: [] },
@@ -228,6 +299,7 @@ const reg: RegistroSumula = {
 }
 const semLog = montarSumulaImpressa(reg)!
 assert.equal(semLog.motor, null)
+assert.deepEqual(semLog.eventosNaoAplicados, [])
 assert.equal(semLog.assinaturas.length, 6)
 assert.equal(semLog.equipeA.atletas[0].nomeImpresso, 'CARLOS S.')
 const comLog = montarSumulaImpressa(reg, log)!

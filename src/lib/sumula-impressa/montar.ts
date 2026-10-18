@@ -243,6 +243,7 @@ export function montarSumulaImpressa(registro: RegistroSumula, eventos?: readonl
     mvp,
     encerrada: vencedor != null,
     motor,
+    eventosNaoAplicados: motor?.naoAplicados ?? [],
     assinaturas: montarAssinaturas({
       nomeA: modeloA.nome,
       nomeB: modeloB.nome,

@@ -179,8 +179,9 @@ export async function listarDesafios(
   return { tipo: 'OK', desafios: ((r.data ?? []) as any[]).map(desafioPublico) }
 }
 
+/** DesafioVideo.id é uuid: id malformado = não encontrado (404), nunca erro 22P02 do Postgres. */
 export function idDeDesafio(valor: string): string | null {
-  return /^[A-Za-z0-9_-]{1,64}$/.test(valor) ? valor : null
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor) ? valor.toLowerCase() : null
 }
 
 /** Decide um desafio aberto. Idempotente para a mesma decisão; decisão diferente de uma já tomada = 409. */

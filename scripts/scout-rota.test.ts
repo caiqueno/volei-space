@@ -40,14 +40,25 @@ async function main() {
 
   const entrada = { partidaId: 9, config, geradoEm: '2026-10-17T12:00:00.000Z' }
 
-  // Eventos desligados => 503
-  const off = await lerResumoScout(banco({}), entrada, {})
-  assert.deepEqual(off, { tipo: 'INDISPONIVEL', mensagem: 'Eventos da súmula ainda não habilitados neste ambiente.' })
+  // Eventos desligados => resumo só com as ações manuais, seções derivadas vazias e aviso (nada de 503)
+  const acaoManual = { id: 1, set: 1, equipe: 'A', jogadorId: 11, fundamento: 'ATAQUE', resultado: 'PONTO', zonaOrigem: 4, zonaDestino: 6, rotacao: 2, posicao: null, pontoA: 3, pontoB: 2, origem: 'MANUAL', criadoEm: null } as any
+  const off = await lerResumoScout(banco({}), { ...entrada, acoes: [acaoManual] }, {})
+  assert.equal(off.tipo, 'OK')
+  if (off.tipo === 'OK') {
+    assert.equal(off.semLog, true)
+    assert.equal(off.resumo.acoes.length, 1)
+    assert.deepEqual(off.resumo.derivado.pontos, [])
+    assert.ok(off.resumo.lacunas.some((l) => l.includes('Log de eventos da súmula indisponível')))
+  }
   assert.equal(MENSAGEM_EVENTOS_INDISPONIVEIS, 'Eventos da súmula ainda não habilitados neste ambiente.')
 
-  // Tabela ausente => 503
-  const ausente = await lerResumoScout(banco({ error: { code: '42P01', message: 'relation "SumulaEvento" does not exist' } }), entrada, { SUMULA_EVENTOS_ATIVO: '1' })
-  assert.equal(ausente.tipo, 'INDISPONIVEL')
+  // Tabela ausente => igual (aviso, sem 503)
+  const ausente = await lerResumoScout(banco({ error: { code: '42P01', message: 'relation "SumulaEvento" does not exist' } }), { ...entrada, acoes: [acaoManual] }, { SUMULA_EVENTOS_ATIVO: '1' })
+  assert.equal(ausente.tipo, 'OK')
+  if (ausente.tipo === 'OK') {
+    assert.equal(ausente.semLog, true)
+    assert.equal(ausente.resumo.acoes.length, 1)
+  }
 
   // Erro genérico => ERRO (500)
   const falha = await lerResumoScout(banco({ error: { code: 'XX000', message: 'boom' } }), entrada, { SUMULA_EVENTOS_ATIVO: '1' })
