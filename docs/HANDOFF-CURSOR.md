@@ -133,5 +133,22 @@ Abertos depois da rodada 11:
 - Ações descartadas na tradução da tela para a fila (atleta desconhecido, formação incompleta) não bloqueiam o fechamento.
 - Formato .dvw continua não confirmado (nada implementado).
 
+## Rodada 12 — protótipo, QA, segurança, regras e correções (já na branch)
+Feito:
+- **Protótipo navegável** em `/prototipo` (`NEXT_PUBLIC_PROTOTIPO_ATIVO=1`): 22 telas em 7 perfis (líder, atleta, apontador, banco, árbitro, organizador, espectador), dados de exemplo em memória, sem chamar API.
+- **Três revisões** (relatórios): QA em `docs/analise/29-qa-rodada-12.md` (inclui roteiro de teste manual por perfil e a tabela das flags); segurança (0 crítico, 1 alto, 5 médios, 7 baixos) e regras de vôlei (2 altas, 7 médias, 5 baixas), todos os itens de código corrigidos nesta rodada.
+- **Correções de segurança:** lista pública `/api/ao-vivo` respeita flag, limite e privadas; cota de IP consumida uma vez; links do banco com `acessoId`, listagem e revogação; convite de atleta exige que o criador ainda tenha permissão; prévia de importação expira em 72 h (máx. 5 pendentes); uuid inválido = 404; noindex para /banco, /scout, /convite-atleta.
+- **Correções de regras:** retorno de substituição (B→A) no banco; capitão pode estar no banco; perfil de elenco (12/14, camisa); limites contados pelo log; zonas do scout 4-3-2 / 7-8-9 / 5-6-1 (7–9 a confirmar); súmula impressa com configuração permissiva e seção "Eventos não aplicados"; desafio opcional com estado INCONCLUSIVA (não consome); resumo e exportação do scout incluem as ações manuais e funcionam sem o log.
+- **Migrations:** 0037 ganhou `expiraEm`; 0041 aceita INCONCLUSIVA; **0038 NÃO APLICAR** (redundante). Ordem de aplicação em preview: 0033, 0034, 0035, 0036, 0037, 0039, 0040, 0041 (a 0041 depende da 0035). `.env.example` e `docs/COMO-TESTAR.md` listam todas as flags.
+
+Abertos depois da rodada 12:
+- `libero2Id` é validado mas não persistido (a tabela `Papeleta` só tem `liberoId`); exigiria migration futura.
+- O aceite de ciência da LGPD no convite público existe só na tela; o servidor ainda não registra. Rate limit continua em memória por instância (o store persistente é evolução). Sem job de expurgo agendado das prévias vencidas (apaga ao criar nova).
+- Desafio: não gera evento `DESAFIO` no log do motor; sem janela de 7 s nem lista fechada de lances; limite por equipe vem de variável de ambiente, não por campeonato.
+- Aceitar pedido tem janela em que a súmula registra e o servidor recusa depois (422): a tela avisa, o apontador resolve.
+- `src/lib/arbitro-access.ts` mantém `/^d+$/` DE PROPÓSITO: corrigir faria o id da partida valer como credencial. Só mexer com testes e decisão do dono.
+- Nenhuma tela das rodadas 9 a 12 foi aberta num navegador. Roteiro de teste manual: seção final do relatório 29.
+- A confirmação do que está `[M]`/não confirmado (desafio de vídeo oficial, zonas 7–9, rotação K1–K6 do levantador, WO, sanções mistas) depende de árbitro/COBRAV.
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
