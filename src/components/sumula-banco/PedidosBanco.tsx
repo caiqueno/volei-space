@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   bancoAppAtivo,
   lerEnvelope,
+  mensagemFalhaDecisao,
   podeAceitar,
   pedidosPendentes,
   textoPedido,
@@ -66,7 +67,7 @@ export function PedidosBanco(props: PedidosBancoProps) {
           setPedidos(Array.isArray(lido.data?.pedidos) ? lido.data.pedidos : [])
           setErro('')
         } else {
-          setErro('Não foi possível atualizar os pedidos do banco. Tentando de novo.')
+          setErro(`${lido.mensagem} Tentando de novo.`)
         }
       } catch {
         if (vivo) setErro('Sem conexão para atualizar os pedidos do banco. Tentando de novo.')
@@ -98,11 +99,7 @@ export function PedidosBanco(props: PedidosBancoProps) {
         if (decisao === 'ACEITO' && pedido.tipo === 'DESAFIO') setRecarga((n) => n + 1)
       } else {
         const mensagem = lido.tipo === 'erro' ? lido.mensagem : 'O banco não está habilitado para esta partida.'
-        avisoRef.current?.(
-          decisao === 'ACEITO'
-            ? `O pedido foi registrado na súmula, mas o banco não recebeu a resposta (${mensagem}). Avise o banco e toque em Recusar/Aceitar de novo só se precisar.`
-            : `Não foi possível enviar a recusa: ${mensagem}`,
-        )
+        avisoRef.current?.(mensagemFalhaDecisao({ decisao, tipo: pedido.tipo, status: lido.tipo === 'erro' ? lido.status : null, mensagem }))
       }
     } catch {
       avisoRef.current?.('Sem conexão para responder ao banco. Tente de novo.')

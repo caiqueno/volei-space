@@ -3,6 +3,9 @@ import {
   agruparPorSet,
   desafioAtivo,
   lerRespostaDesafio,
+  linkVideoSeguro,
+  TEXTO_SISTEMA_VIDEO,
+  textoDecisao,
   montarCorpoDesafio,
   normalizarDesafios,
   podeDecidir,
@@ -94,7 +97,24 @@ async function main() {
     assert.deepEqual(await lerRespostaDesafio(mk(404, {})), { tipo: 'desligado' })
     assert.deepEqual(await lerRespostaDesafio(mk(503, {})), { tipo: 'desligado' })
     assert.deepEqual(await lerRespostaDesafio(mk(200, { data: [1] })), { tipo: 'ok', data: [1] })
-    assert.deepEqual(await lerRespostaDesafio(mk(422, { error: 'Limite' })), { tipo: 'erro', mensagem: 'Limite' })
+    assert.deepEqual(await lerRespostaDesafio(mk(422, { error: 'Limite' })), { tipo: 'erro', mensagem: 'Limite', status: 422 })
+  })
+  await caso('envelope: 404/503 com codigo do servidor e erro real, sem codigo e desligado', async () => {
+    const mk = (status: number, corpo: unknown) => ({ ok: status < 400, status, json: async () => corpo })
+    assert.deepEqual(await lerRespostaDesafio(mk(503, { error: 'Recurso ainda não habilitado neste ambiente.', codigo: 'DESAFIO_INDISPONIVEL' })), {
+      tipo: 'erro', mensagem: 'Recurso ainda não habilitado neste ambiente.', status: 503, codigo: 'DESAFIO_INDISPONIVEL',
+    })
+    assert.equal((await lerRespostaDesafio(mk(404, { error: 'Desafio não encontrado.', codigo: 'DESAFIO_NAO_ENCONTRADO' }))).tipo, 'erro')
+    assert.deepEqual(await lerRespostaDesafio(mk(404, { error: 'Recurso não encontrado.' })), { tipo: 'desligado' })
+  })
+  await caso('inconclusiva, link seguro e texto do sistema de vídeo', () => {
+    assert.equal(textoDecisao('INCONCLUSIVA').includes('não consome'), true)
+    assert.equal(textoEstadoDesafio('INCONCLUSIVA'), 'Inconclusiva (não consome)')
+    assert.equal(linkVideoSeguro('https://exemplo.com/v'), 'https://exemplo.com/v')
+    assert.equal(linkVideoSeguro('javascript:alert(1)'), null)
+    assert.equal(linkVideoSeguro('data:text/html,x'), null)
+    assert.equal(linkVideoSeguro(null), null)
+    assert.match(TEXTO_SISTEMA_VIDEO, /sistema de vídeo/)
   })
   await caso('normalizar', () => {
     assert.deepEqual(normalizarDesafios(null), [])

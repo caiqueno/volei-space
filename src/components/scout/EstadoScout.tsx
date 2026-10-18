@@ -2,12 +2,13 @@
 
 import { TEXTO_TELA_SCOUT, type TelaScout } from '@/lib/scout-ui/textos'
 
-export function EstadoScout({ tela, onTentar }: { tela: TelaScout; onTentar?: () => void }) {
+export function EstadoScout({ tela, onTentar, aviso }: { tela: TelaScout; onTentar?: () => void; aviso?: string | null }) {
   const t = TEXTO_TELA_SCOUT[tela]
   return (
     <section role="alert" className="mx-auto mt-16 w-full max-w-md rounded-3xl border border-vs-border bg-vs-surface p-6 text-center text-vs-text">
       <h1 className="font-display text-3xl font-bold">{t.titulo}</h1>
       <p className="mt-3 text-base leading-7">{t.texto}</p>
+      {aviso ? <p className="mt-3 text-base font-bold leading-7 text-vs-gold">{aviso}</p> : null}
       {t.tentar && onTentar ? (
         <button
           type="button"

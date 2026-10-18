@@ -17,9 +17,11 @@ import {
   registrarFalha,
   registrarMinha,
   remover,
+  textoPausaFila,
   textoPendentes,
   type Armazenamento,
 } from '../src/lib/scout-ui/fila'
+import { GRADE_ZONAS, LEGENDA_QUADRA, NOTA_ZONAS_COBRAV } from '../src/lib/scout-ui/zonas'
 import {
   acaoDaResposta,
   acoesDaResposta,
@@ -116,6 +118,21 @@ caso('fila: destino por status', () => {
   assert.equal(destinoDaResposta(429), 'tentar-de-novo')
   assert.equal(destinoDaResposta(422), 'descartar')
   assert.equal(destinoDaResposta(400), 'descartar')
+})
+
+caso('fila: 401/403/404 pausam sem descartar; só 400/422 descartam', () => {
+  for (const s of [401, 403, 404, 410]) assert.equal(destinoDaResposta(s), 'pausar')
+  assert.equal(textoPausaFila(401), 'Sessão expirada: entre de novo, suas ações continuam salvas.')
+  assert.equal(textoPausaFila(403), 'Sessão expirada: entre de novo, suas ações continuam salvas.')
+  assert.match(textoPausaFila(404), /link/i)
+  assert.match(textoPausaFila(404), /continuam salvas/)
+})
+
+caso('zonas: grade segue a convenção da rede (4-3-2 / 7-8-9 / 5-6-1)', () => {
+  assert.deepEqual(GRADE_ZONAS.map((l) => [...l]), [[4, 3, 2], [7, 8, 9], [5, 6, 1]])
+  assert.deepEqual([...GRADE_ZONAS.flat()].sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8, 9])
+  assert.match(LEGENDA_QUADRA, /rede em cima, vista da equipe que defende/i)
+  assert.match(NOTA_ZONAS_COBRAV, /COBRAV/)
 })
 
 caso('fila: leitura tolera lixo, duplicata e armazenamento quebrado', () => {

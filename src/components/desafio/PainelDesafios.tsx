@@ -5,6 +5,8 @@ import {
   agruparPorSet,
   desafioAtivo,
   iconeEstadoDesafio,
+  linkVideoSeguro,
+  TEXTO_SISTEMA_VIDEO,
   lerRespostaDesafio,
   MOTIVO_MAX,
   montarCorpoDesafio,
@@ -78,7 +80,7 @@ export function PainelDesafios({ token, set, equipes, nomeEquipe, partidaEmAndam
           setErro('')
           setCarregou(true)
         } else {
-          setErro('Não foi possível atualizar os desafios. Tentando de novo.')
+          setErro(`${lido.mensagem} Tentando de novo.`)
         }
       } catch {
         if (vivo) setErro('Sem conexão para atualizar os desafios. Tentando de novo.')
@@ -171,6 +173,7 @@ export function PainelDesafios({ token, set, equipes, nomeEquipe, partidaEmAndam
         ))}
       </ul>
       <p className="text-xs text-slate-700">Informativo. O limite de desafios é conferido pelo servidor ao registrar.</p>
+      <p className="text-xs text-slate-700">{TEXTO_SISTEMA_VIDEO}</p>
 
       <div aria-live="polite">
         {erro ? <p className="mt-1 text-xs font-semibold text-amber-900">{erro}</p> : null}
@@ -235,9 +238,9 @@ export function PainelDesafios({ token, set, equipes, nomeEquipe, partidaEmAndam
                     <span>{textoEstadoDesafio(d.estado)}</span>
                   </p>
                   {d.motivo ? <p className="text-sm">Motivo: {d.motivo}</p> : null}
-                  {d.linkVideo ? (
+                  {linkVideoSeguro(d.linkVideo) ? (
                     <p className="text-sm">
-                      <a href={d.linkVideo} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-blue-800 underline">
+                      <a href={linkVideoSeguro(d.linkVideo) ?? undefined} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-blue-800 underline">
                         Ver vídeo
                       </a>
                     </p>
@@ -262,6 +265,9 @@ export function PainelDesafios({ token, set, equipes, nomeEquipe, partidaEmAndam
                         </button>
                         <button type="button" disabled={!aberto} onClick={() => setConfirmar({ id, decisao: 'REVERTIDA' })} className={`${BTN} bg-blue-700 text-white`}>
                           Revertida
+                        </button>
+                        <button type="button" disabled={!aberto} onClick={() => setConfirmar({ id, decisao: 'INCONCLUSIVA' })} className={`${BTN} border-2 border-blue-700 bg-white text-blue-900`}>
+                          Inconclusiva (não consome)
                         </button>
                         <button type="button" disabled={!aberto} onClick={() => setConfirmar({ id, decisao: 'CANCELADO' })} className={`${BTN} border-2 border-slate-500 bg-white text-slate-900`}>
                           Cancelar

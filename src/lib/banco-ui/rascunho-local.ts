@@ -48,7 +48,7 @@ export function interpretarRascunho(bruto: string): RascunhoPapeleta | null {
     const id = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) ? v : null)
     const slots: Record<number, number | null> = {}
     for (const p of POSICOES) slots[p] = id(slotsBrutos[String(p)])
-    return { slots, liberoId: id(j.liberoId), capitaoId: id(j.capitaoId) }
+    return { slots, liberoId: id(j.liberoId), libero2Id: id(j.libero2Id), capitaoId: id(j.capitaoId) }
   } catch {
     return null
   }

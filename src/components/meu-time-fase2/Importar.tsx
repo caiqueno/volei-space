@@ -3,7 +3,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Aviso, botaoPerigo, botaoPrimario, botaoSecundario, Campo, campoEstilo, cartao, FalhaTela, falhaDe } from '@/components/meu-time/ui'
 import type { Falha } from '@/lib/meu-time-ui/respostas'
-import { NOME_ARQUIVO_MODELO, podeConfirmar, resumoEmFrase, ROTULO_STATUS, textoCsvValido, textoDeErroLinha, textoDoModeloCsv, validarArquivoCsv } from '@/lib/meu-time-fase2-ui/csv'
+import { EXPLICACAO_IGNORADA, LEGENDA_POSICOES, linhaSeraIgnorada, textoDeAvisoLinha, NOME_ARQUIVO_MODELO, podeConfirmar, resumoEmFrase, ROTULO_STATUS, textoCsvValido, textoDeErroLinha, textoDoModeloCsv, validarArquivoCsv } from '@/lib/meu-time-fase2-ui/csv'
 import type { PreviaImportacao } from '@/lib/meu-time-fase2-ui/tipos'
 import { obterClienteFase2, type ClienteFase2 } from './cliente'
 import { PaginaFase2, SeletorEquipe } from './Comum'
@@ -89,6 +89,7 @@ export function ImportarPlanilha({ cliente }: { cliente?: ClienteFase2 }) {
         <>
           <Aviso>Traga vários atletas de uma vez. Baixe o modelo, preencha no Excel ou Google Planilhas e envie o arquivo .csv, ou cole as linhas abaixo. Você confere tudo antes de confirmar.</Aviso>
           <button type="button" className={botaoSecundario} onClick={baixarModelo}>Baixar planilha modelo</button>
+          <p className="text-sm text-[var(--vs-muted)]">Posição (coluna opcional): {LEGENDA_POSICOES}.</p>
           <SeletorEquipe id="imp-equipe" valor={equipeId} aoMudar={setEquipeId} rotulo="Para qual time?" />
           <div className={`${cartao} flex flex-col gap-3`}>
             <Campo id="imp-arquivo" rotulo="Enviar arquivo .csv" ajuda="O arquivo é lido aqui no seu aparelho e só vai ao servidor quando você tocar em Conferir.">
@@ -116,6 +117,14 @@ export function ImportarPlanilha({ cliente }: { cliente?: ClienteFase2 }) {
                 <span className="font-black">
                   Linha {l.n}: {String(l.dados.nome ?? 'sem nome')} <span className="text-sm font-bold">({ROTULO_STATUS[l.status]})</span>
                 </span>
+                {linhaSeraIgnorada(l.avisos) && <p className="text-sm font-bold text-[var(--vs-muted)]">{EXPLICACAO_IGNORADA}</p>}
+                {l.avisos.length > 0 && (
+                  <ul className="list-disc pl-5 text-sm text-[var(--vs-muted)]" aria-label="Avisos da linha">
+                    {l.avisos.map((a, i) => (
+                      <li key={i}>{textoDeAvisoLinha(a)}</li>
+                    ))}
+                  </ul>
+                )}
                 {l.erros.length > 0 && (
                   <ul className={`list-disc pl-5 text-sm ${l.status === 'ERRO' ? 'text-[var(--vs-error-fg)]' : 'text-[var(--vs-muted)]'}`}>
                     {l.erros.map((e, i) => (

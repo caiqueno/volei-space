@@ -6,7 +6,7 @@ export type ConvitePublico = { equipe: string; categoria: string | null; estado:
 export type DadosAtletaConvite = { nome: string; dataNascimento: string; camisa?: number; posicao?: string }
 
 export type StatusLinha = 'OK' | 'AVISO' | 'ERRO'
-export type LinhaImportacao = { n: number; status: StatusLinha; erros: string[]; dados: Record<string, unknown> }
+export type LinhaImportacao = { n: number; status: StatusLinha; erros: string[]; avisos: string[]; dados: Record<string, unknown> }
 export type PreviaImportacao = {
   id: string
   resumo: { validas: number; comAviso: number; invalidas: number }

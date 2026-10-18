@@ -67,11 +67,26 @@ export function ehMenorDeIdade(dataIso: string, hoje: Date = new Date()): boolea
   return i !== null && i < 18
 }
 
-export type ErrosForm = Partial<Record<'nome' | 'dataNascimento' | 'camisa', string>>
+export type ErrosForm = Partial<Record<'nome' | 'dataNascimento' | 'camisa' | 'ciencia', string>>
+
+/** Aviso curto de tratamento de dados, mostrado ANTES do envio no convite público (LGPD). */
+export const AVISO_DADOS_ATLETA = {
+  titulo: 'Como usamos seus dados',
+  itens: [
+    'Finalidade: cadastrar você no time e nas competições de vôlei em que ele jogar.',
+    'Quem vê: o responsável pelo time e os organizadores das competições em que o time se inscrever.',
+    'Menores de 18 anos: entramos em contato com o responsável para pedir a autorização.',
+    'Você pode pedir a exclusão dos seus dados quando quiser, falando com o responsável pelo time ou com o organizador.',
+  ],
+  ciencia: 'Li e estou ciente de como meus dados serão usados.',
+} as const
+
+export const MENSAGEM_CIENCIA = 'Marque que você leu o aviso de uso dos dados para enviar.'
 
 /** Validação de conforto do formulário do atleta (o servidor valida de novo). */
-export function validarFormAtleta(f: { nome: string; dataNascimento: string; camisa: string }, hoje: Date = new Date()): ErrosForm {
+export function validarFormAtleta(f: { nome: string; dataNascimento: string; camisa: string; ciente?: boolean }, hoje: Date = new Date()): ErrosForm {
   const erros: ErrosForm = {}
+  if (f.ciente === false) erros.ciencia = MENSAGEM_CIENCIA
   if (f.nome.trim().length < 2) erros.nome = 'Escreva seu nome completo.'
   if (idadeEm(f.dataNascimento, hoje) === null) erros.dataNascimento = 'Informe uma data de nascimento válida.'
   if (f.camisa.trim() !== '') {

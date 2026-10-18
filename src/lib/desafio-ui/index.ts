@@ -3,8 +3,8 @@
  * O servidor é a autoridade: saldo e limites aqui são só informação para a tela.
  */
 
-export type EstadoDesafio = 'SOLICITADO' | 'EM_ANALISE' | 'MANTIDA' | 'REVERTIDA' | 'CANCELADO'
-export type DecisaoDesafio = 'MANTIDA' | 'REVERTIDA' | 'CANCELADO'
+export type EstadoDesafio = 'SOLICITADO' | 'EM_ANALISE' | 'MANTIDA' | 'REVERTIDA' | 'CANCELADO' | 'INCONCLUSIVA'
+export type DecisaoDesafio = 'MANTIDA' | 'REVERTIDA' | 'CANCELADO' | 'INCONCLUSIVA'
 
 export interface Desafio {
   id: number | string
@@ -31,6 +31,7 @@ export const ROTULO_ESTADO_DESAFIO: Readonly<Record<EstadoDesafio, string>> = {
   MANTIDA: 'Decisão mantida',
   REVERTIDA: 'Decisão revertida',
   CANCELADO: 'Cancelado',
+  INCONCLUSIVA: 'Inconclusiva (não consome)',
 }
 
 export const ICONE_ESTADO_DESAFIO: Readonly<Record<EstadoDesafio, string>> = {
@@ -39,6 +40,7 @@ export const ICONE_ESTADO_DESAFIO: Readonly<Record<EstadoDesafio, string>> = {
   MANTIDA: '✔',
   REVERTIDA: '↺',
   CANCELADO: '–',
+  INCONCLUSIVA: '≈',
 }
 
 export function textoEstadoDesafio(estado: string): string {
@@ -133,7 +135,17 @@ export function textoSaldo(s: { usados: number; limite: number | null; restantes
 export function textoDecisao(decisao: DecisaoDesafio): string {
   if (decisao === 'MANTIDA') return 'Manter a decisão do árbitro'
   if (decisao === 'REVERTIDA') return 'Reverter a decisão do árbitro'
+  if (decisao === 'INCONCLUSIVA') return 'Marcar como inconclusivo (não consome o desafio da equipe)'
   return 'Cancelar o desafio'
+}
+
+/** O desafio de vídeo só vale em competições que usam sistema de vídeo. */
+export const TEXTO_SISTEMA_VIDEO = 'O desafio de vídeo só vale em competições com sistema de vídeo. Se a sua competição não usa, não registre desafios.'
+
+/** Link seguro para o <a href>: reaplica a validação (só http/https) mesmo para dados vindos do servidor. */
+export function linkVideoSeguro(entrada: string | null | undefined): string | null {
+  const r = validarLinkVideo(entrada)
+  return r.ok ? r.link : null
 }
 
 /** Botões de decisão só em desafio aberto e sem requisição em voo. */
@@ -147,22 +159,23 @@ export function podeRegistrar(params: { partidaEmAndamento: boolean; enviando: b
   return { ok: true }
 }
 
-export type RespostaDesafios<T> = { tipo: 'ok'; data: T } | { tipo: 'desligado' } | { tipo: 'erro'; mensagem: string }
+export type RespostaDesafios<T> = { tipo: 'ok'; data: T } | { tipo: 'desligado' } | { tipo: 'erro'; mensagem: string; status: number; codigo?: string }
 
-/** Lê o envelope {data}/{error}; 404 e 503 = recurso desligado. */
+/** Lê o envelope {data}/{error, codigo}; 404/503 SEM `codigo` do servidor = recurso desligado. Com `codigo` é erro real. */
 export async function lerRespostaDesafio<T>(resposta: { ok: boolean; status: number; json: () => Promise<unknown> }): Promise<RespostaDesafios<T>> {
-  if (resposta.status === 404 || resposta.status === 503) return { tipo: 'desligado' }
-  let corpo: { data?: T; error?: unknown } | null = null
+  let corpo: { data?: T; error?: unknown; codigo?: unknown } | null = null
   try {
-    corpo = (await resposta.json()) as { data?: T; error?: unknown } | null
+    corpo = (await resposta.json()) as { data?: T; error?: unknown; codigo?: unknown } | null
   } catch {
     corpo = null
   }
+  const codigo = typeof corpo?.codigo === 'string' && corpo.codigo !== '' ? corpo.codigo : undefined
+  if ((resposta.status === 404 || resposta.status === 503) && !codigo) return { tipo: 'desligado' }
   if (resposta.ok && corpo && corpo.data !== undefined) return { tipo: 'ok', data: corpo.data }
   const erro = corpo?.error
   const mensagem =
     typeof erro === 'string' ? erro : erro && typeof erro === 'object' && 'message' in erro ? String((erro as { message: unknown }).message) : 'Não foi possível concluir. Tente de novo.'
-  return { tipo: 'erro', mensagem }
+  return { tipo: 'erro', mensagem, status: resposta.status, ...(codigo ? { codigo } : {}) }
 }
 
 /** Normaliza a lista vinda do servidor, descartando itens malformados. */

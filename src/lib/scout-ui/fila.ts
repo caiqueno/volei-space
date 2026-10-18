@@ -107,13 +107,25 @@ export function registrarFalha(fila: readonly ItemFila[], clientEventId: string,
   )
 }
 
-/** O que fazer com o item após a resposta. 2xx e 409 (já gravada) saem da fila; erro de validação descarta; o resto tenta de novo. */
-export function destinoDaResposta(status: number | null): 'enviada' | 'descartar' | 'tentar-de-novo' {
+export type DestinoResposta = 'enviada' | 'descartar' | 'tentar-de-novo' | 'pausar'
+
+/**
+ * O que fazer com o item após a resposta. 2xx e 409 (já gravada) saem da fila; só 400/422 (validação) descartam;
+ * 401/403 (sessão) e 404/410 (link) PAUSAM a fila sem perder nada; o resto tenta de novo com recuo.
+ */
+export function destinoDaResposta(status: number | null): DestinoResposta {
   if (status === null) return 'tentar-de-novo'
   if (status >= 200 && status < 300) return 'enviada'
   if (status === 409) return 'enviada'
+  if (status === 401 || status === 403 || status === 404 || status === 410) return 'pausar'
   if (status === 408 || status === 425 || status === 429 || status >= 500) return 'tentar-de-novo'
   return 'descartar'
+}
+
+/** Mensagem da fila pausada: as ações continuam guardadas neste aparelho. */
+export function textoPausaFila(status: number | null): string {
+  if (status === 404 || status === 410) return 'Link do scout indisponível: confira o link com o organizador. Suas ações continuam salvas neste aparelho.'
+  return 'Sessão expirada: entre de novo, suas ações continuam salvas.'
 }
 
 export function textoPendentes(n: number): string {

@@ -28,7 +28,7 @@ export function papeletaEditavel(estado: EstadoPapeleta | undefined): boolean {
 }
 
 export function partidaEncerrada(status: string): boolean {
-  return ['ENCERRADA', 'FINALIZADA', 'CANCELADA'].includes(String(status || '').toUpperCase())
+  return ['ENCERRADA', 'FINALIZADA', 'CANCELADA', 'WO'].includes(String(status || '').toUpperCase())
 }
 
 export function botaoEnviarPapeleta(params: {

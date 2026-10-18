@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import {
-  bancoAppAtivo, divergenciasPapeleta, formacaoAplicavel, idsPorIndice, lerEnvelope, linkWhatsapp, podeAceitar,
-  papeletasEnviadas, pedidosPendentes, textoPedido, type PedidoBanco,
+  bancoAppAtivo, divergenciasPapeleta, formacaoAplicavel, idsPorIndice, lerEnvelope, linksAtivos, linkWhatsapp, mensagemFalhaDecisao,
+  normalizarLinksBanco, papeletaJaAceita, papeletasParaExibir, podeAceitar,
+  papeletasEnviadas, pedidosPendentes, textoPedido, type PapeletaBanco, type PedidoBanco,
 } from '../src/lib/sumula-banco-ui'
 
 const rot = (id: number) => (id === 7 ? '#7' : id === 12 ? '#12' : null)
@@ -51,8 +52,41 @@ async function main() {
   assert.deepEqual(await lerEnvelope(resp(404, {})), { tipo: 'desligado' })
   assert.deepEqual(await lerEnvelope(resp(503, {})), { tipo: 'desligado' })
   assert.deepEqual(await lerEnvelope(resp(200, { data: { x: 1 } })), { tipo: 'ok', data: { x: 1 } })
-  assert.deepEqual(await lerEnvelope(resp(400, { error: 'Ruim' })), { tipo: 'erro', mensagem: 'Ruim' })
+  assert.deepEqual(await lerEnvelope(resp(400, { error: 'Ruim' })), { tipo: 'erro', mensagem: 'Ruim', status: 400 })
   assert.equal((await lerEnvelope(resp(500, null))).tipo, 'erro')
+  // 404/503 COM codigo do servidor: erro real, com a mensagem; sem codigo: desligado
+  assert.deepEqual(await lerEnvelope(resp(404, { error: 'Pedido não encontrado.', codigo: 'PEDIDO_NAO_ENCONTRADO' })), {
+    tipo: 'erro', mensagem: 'Pedido não encontrado.', status: 404, codigo: 'PEDIDO_NAO_ENCONTRADO',
+  })
+  assert.deepEqual(await lerEnvelope(resp(503, { error: 'Banco ainda não habilitado neste ambiente.', codigo: 'BANCO_INDISPONIVEL' })), {
+    tipo: 'erro', mensagem: 'Banco ainda não habilitado neste ambiente.', status: 503, codigo: 'BANCO_INDISPONIVEL',
+  })
+  assert.deepEqual(await lerEnvelope(resp(404, { error: 'Recurso não encontrado.' })), { tipo: 'desligado' })
+
+  // mensagem após decisão recusada pelo servidor
+  assert.doesNotMatch(mensagemFalhaDecisao({ decisao: 'ACEITO', tipo: 'DESAFIO', status: 503, mensagem: 'x' }), /registrado na súmula/)
+  assert.match(mensagemFalhaDecisao({ decisao: 'ACEITO', tipo: 'TEMPO', status: 422, mensagem: 'Limite' }), /tempo já foi registrado na súmula.*recusou/i)
+  assert.match(mensagemFalhaDecisao({ decisao: 'ACEITO', tipo: 'SUBSTITUICAO', status: 422, mensagem: 'Limite' }), /A troca já foi registrada na súmula/)
+  assert.match(mensagemFalhaDecisao({ decisao: 'RECUSADO', tipo: 'TEMPO', status: 500, mensagem: 'Falhou' }), /recusa: Falhou/)
+
+  // papeletas aceitas continuam visíveis
+  const pap = (estado: string, n = 6): PapeletaBanco => ({ equipeId: 1, estado, liberoId: null, capitaoId: null, formacao: Array.from({ length: n }, (_, i) => ({ posicao: i + 1, jogadorId: i + 10 })) })
+  assert.equal(papeletasParaExibir([pap('ENVIADA'), pap('ACEITA'), pap('RASCUNHO'), pap('ACEITA', 0)]).length, 2)
+  assert.equal(papeletaJaAceita(pap('ACEITA')), true)
+  assert.equal(papeletaJaAceita(pap('ENVIADA')), false)
+
+  // links do banco
+  const lista = normalizarLinksBanco([
+    { acessoId: 'a1', equipeId: 1, criadoEm: '2026-01-01T10:00:00Z', expiraEm: '2999-01-01T00:00:00Z', revogadoEm: null },
+    { acessoId: 'a2', equipeId: 1, criadoEm: '2026-01-02T10:00:00Z', expiraEm: '2999-01-01T00:00:00Z', revogadoEm: '2026-01-03T00:00:00Z' },
+    { acessoId: 'a3', equipeId: 2, criadoEm: '2026-01-02T10:00:00Z', expiraEm: '2020-01-01T00:00:00Z', revogadoEm: null },
+    { acessoId: 'a4', equipeId: 2, criadoEm: '2026-01-04T10:00:00Z', expiraEm: null, revogadoEm: null },
+    { lixo: true },
+    null,
+  ])
+  assert.equal(lista.length, 4)
+  assert.deepEqual(linksAtivos(lista, Date.parse('2026-06-01T00:00:00Z')).map((l) => l.acessoId), ['a4', 'a1'])
+  assert.deepEqual(normalizarLinksBanco('x'), [])
   console.log('sumula-banco-ui: ok')
 }
 

@@ -96,7 +96,7 @@ export function criarClienteFase2(fetchImpl?: Fetch): ClienteFase2 {
       const linhas = (Array.isArray(d.linhas) ? d.linhas : []).map((l) => {
         const o = obj(l)
         const status = o.status === 'ERRO' || o.status === 'AVISO' ? o.status : 'OK'
-        return { n: Number(o.n) || 0, status, erros: Array.isArray(o.erros) ? (o.erros as unknown[]).map((e) => (typeof e === 'string' ? e : JSON.stringify(e))) : [], dados: obj(o.dados) } as PreviaImportacao['linhas'][number]
+        return { n: Number(o.n) || 0, status, erros: Array.isArray(o.erros) ? (o.erros as unknown[]).map((e) => (typeof e === 'string' ? e : JSON.stringify(e))) : [], avisos: Array.isArray(o.avisos) ? (o.avisos as unknown[]).filter((a): a is string => typeof a === 'string') : [], dados: obj(o.dados) } as PreviaImportacao['linhas'][number]
       })
       return { id: texto(d.id), resumo: { validas: Number(r.validas) || 0, comAviso: Number(r.comAviso) || 0, invalidas: Number(r.invalidas) || 0 }, linhas }
     },
