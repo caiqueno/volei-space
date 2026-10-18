@@ -61,6 +61,11 @@ NÃO atendidos ainda:
 - Aplicar a 0032 depois da 0025, conforme docs 16 e 22.
 - O texto do termo (`TERMO_TEXTO_RASCUNHO`) é rascunho: a tela deve mostrá-lo, mas não deve ir a produção sem a validação abaixo. Mudou o texto: subir `TERMO_VERSAO`.
 
+### R13: ciência no convite de atleta e expurgo das prévias
+
+- `POST /api/convite-atleta/[token]` exige `cienciaLgpd: true` no corpo; sem ele responde `400` com `codigo: CIENCIA_OBRIGATORIA`, antes de ler os dados do atleta. O aceite grava `ConviteAtleta."cienciaLgpdEm"` e `"cienciaVersao"` (constante `VERSAO_CIENCIA_LGPD = 'v1-rascunho'`, texto ainda rascunho). Se as colunas ainda não existirem (migration pendente), o aceite segue sem gravar a ciência e o servidor registra um aviso sem dados pessoais. A tela precisa enviar `cienciaLgpd: true` depois de o titular marcar a ciência.
+- `POST /api/cron/expurgo-previas` apaga as prévias de importação vencidas chamando por RPC (service role) a função `public.expurgar_previas_importacao()`. Protegida por `Authorization: Bearer ${CRON_SECRET}` (comparação em tempo constante). Sem `CRON_SECRET` configurado a rota responde 404; credencial errada = 401; função ausente = 503; sucesso = 200 `{ data: { apagadas } }`. **Não está agendada**: para agendar na Vercel basta adicionar em `vercel.json` `"crons": [{ "path": "/api/cron/expurgo-previas", "schedule": "0 4 * * *" }]` e definir `CRON_SECRET` no projeto (a Vercel envia o Bearer sozinha em cron jobs; o agendador da Vercel usa GET, então ajustar a rota para aceitar GET ou usar outro agendador que dispare POST). Hoje a rota só aceita POST.
+
 ## 6. Decisões jurídicas pendentes (dono + advogado)
 
 O sistema NÃO decide nada disto; os valores atuais são provisórios.
