@@ -125,8 +125,15 @@ async function main() {
 
   // POST: validação, aceite único, maior de idade
   sessao.token = null
-  assert.equal((await publico.POST(req('POST', '/x', { nome: 'A', dataNascimento: '2000-01-01' }), { params: { token } })).status, 422)
-  r = await publico.POST(req('POST', '/x', { nome: 'Carla Atleta', dataNascimento: '2000-05-05', camisa: 12, posicao: 'PT' }), { params: { token } })
+  assert.equal((await publico.POST(req('POST', '/x', { nome: 'A', dataNascimento: '2000-01-01', cienciaLgpd: true }), { params: { token } })).status, 422)
+  // Ciência LGPD obrigatória (R13): sem true nada é lido nem gravado
+  for (const corpoSemCiencia of [{ nome: 'Carla Atleta', dataNascimento: '2000-05-05' }, { nome: 'Carla Atleta', dataNascimento: '2000-05-05', cienciaLgpd: false }, { nome: 'Carla Atleta', dataNascimento: '2000-05-05', cienciaLgpd: 'true' }]) {
+    const semCiencia = await publico.POST(req('POST', '/x', corpoSemCiencia), { params: { token } })
+    assert.equal(semCiencia.status, 400)
+    assert.equal((await json(semCiencia)).codigo, 'CIENCIA_OBRIGATORIA')
+  }
+  assert.equal((await (banco.atual as any).from('Atleta').select()).data.length, 0)
+  r = await publico.POST(req('POST', '/x', { nome: 'Carla Atleta', dataNascimento: '2000-05-05', cienciaLgpd: true, camisa: 12, posicao: 'PT' }), { params: { token } })
   assert.equal(r.status, 201)
   corpo = await json(r)
   assert.equal(corpo.data.recebido, true)
@@ -135,14 +142,17 @@ async function main() {
   assert.equal(atletas.length, 1)
   assert.equal(atletas[0].numeroPreferido, 12)
   assert.equal((await (banco.atual as any).from('VinculoAtletaClube').select()).data[0].clubeId, CLUBE)
+  const conviteGravado = (await (banco.atual as any).from('ConviteAtleta').select()).data[0]
+  assert.equal(conviteGravado.cienciaVersao, 'v1-rascunho')
+  assert.ok(Date.parse(conviteGravado.cienciaLgpdEm) > 0, 'cienciaLgpdEm gravada')
   const notif = (await (banco.atual as any).from('Notificacao').select()).data
   assert.equal(notif.length, 1)
   assert.equal(notif[0].usuarioId, 'lider')
   // segundo uso: indisponível, igual a token inventado
-  const usado = await publico.POST(req('POST', '/x', { nome: 'Outra Pessoa', dataNascimento: '2001-05-05' }), { params: { token } })
+  const usado = await publico.POST(req('POST', '/x', { nome: 'Outra Pessoa', dataNascimento: '2001-05-05', cienciaLgpd: true }), { params: { token } })
   assert.equal(usado.status, 404)
   assert.equal((await json(usado)).codigo, 'CONVITE_INDISPONIVEL')
-  assert.equal((await publico.POST(req('POST', '/x', { nome: 'Outra Pessoa', dataNascimento: '2001-05-05' }), { params: { token: 'z'.repeat(43) } })).status, 404)
+  assert.equal((await publico.POST(req('POST', '/x', { nome: 'Outra Pessoa', dataNascimento: '2001-05-05', cienciaLgpd: true }), { params: { token: 'z'.repeat(43) } })).status, 404)
   assert.deepEqual((await json(await publico.GET(req('GET', '/x'), { params: { token } }))).data, { estado: 'INDISPONIVEL' })
   assert.equal((await (banco.atual as any).from('Atleta').select()).data.length, 1)
 
@@ -155,15 +165,48 @@ async function main() {
   await entrar('lider')
   const t3 = await novo()
   sessao.token = null
-  r = await publico.POST(req('POST', '/x', { nome: 'Menina Menor', dataNascimento: '2015-01-01' }), { params: { token: t3 } })
+  r = await publico.POST(req('POST', '/x', { nome: 'Menina Menor', dataNascimento: '2015-01-01', cienciaLgpd: true }), { params: { token: t3 } })
   assert.equal(r.status, 201)
   assert.deepEqual((await json(r)).data.pendencias, ['ATLETA_MENOR_SEM_CONSENTIMENTO'])
   await entrar('lider')
   const t4 = await novo()
   sessao.token = null
-  r = await publico.POST(req('POST', '/x', { nome: 'carla atleta', dataNascimento: '2000-05-05' }), { params: { token: t4 } })
+  r = await publico.POST(req('POST', '/x', { nome: 'carla atleta', dataNascimento: '2000-05-05', cienciaLgpd: true }), { params: { token: t4 } })
   assert.equal(r.status, 201)
   assert.equal((await (banco.atual as any).from('Atleta').select()).data.length, 2, 'duplicata não cria')
+
+  // Colunas de ciência ausentes (migration pendente): o aceite segue, sem gravar a ciência e sem 500
+  {
+    await entrar('lider')
+    const t8 = await novo()
+    sessao.token = null
+    const real = banco.atual as any
+    const erroColuna = { code: '42703', message: 'column "cienciaLgpdEm" of relation "ConviteAtleta" does not exist' }
+    const falha: any = new Proxy({}, { get: (_, k) => (k === 'then' ? (res: any) => Promise.resolve({ data: null, error: erroColuna }).then(res) : () => falha) })
+    const semColunas = Object.create(real)
+    semColunas.from = (t: string) => {
+      const q = real.from(t)
+      if (t !== 'ConviteAtleta') return q
+      const update = q.update.bind(q)
+      q.update = (v: any) => (v && 'cienciaLgpdEm' in v ? falha : update(v))
+      return q
+    }
+    banco.atual = semColunas
+    const aviso = console.warn
+    const avisos: string[] = []
+    console.warn = (...a: unknown[]) => void avisos.push(a.join(' '))
+    try {
+      r = await publico.POST(req('POST', '/x', { nome: 'Sem Coluna Atleta', dataNascimento: '2002-02-02', cienciaLgpd: true }), { params: { token: t8 } })
+    } finally {
+      console.warn = aviso
+      banco.atual = real
+    }
+    assert.equal(r.status, 201)
+    assert.ok(avisos.some((m) => m.includes('ciência LGPD não gravada')), 'registra aviso no log do servidor')
+    assert.ok(!avisos.join(' ').includes('Sem Coluna'), 'o aviso não leva PII')
+    assert.equal((await (banco.atual as any).from('Atleta').select()).data.length, 3)
+    reiniciarCotas()
+  }
 
   // Revogar
   await entrar('lider')
@@ -179,7 +222,7 @@ async function main() {
   assert.equal((await convite.DELETE(req('DELETE', '/x'), { params: { id: ativo.id } })).status, 200, 'idempotente')
   assert.equal((await convite.DELETE(req('DELETE', '/x'), { params: { id: 'nao-uuid' } })).status, 404)
   sessao.token = null
-  assert.equal((await publico.POST(req('POST', '/x', { nome: 'Depois Revogado', dataNascimento: '2001-05-05' }), { params: { token: t5 } })).status, 404)
+  assert.equal((await publico.POST(req('POST', '/x', { nome: 'Depois Revogado', dataNascimento: '2001-05-05', cienciaLgpd: true }), { params: { token: t5 } })).status, 404)
 
   // Expirado
   const expirada = (banco.atual as any)
@@ -196,11 +239,12 @@ async function main() {
   await membros.from('MembroEquipe').update({ papel: 'ASSISTENTE' }).eq('timeId', EQ).eq('usuarioId', 'lider')
   sessao.token = null
   assert.deepEqual((await json(await publico.GET(req('GET', '/x'), { params: { token: t7 } }))).data, { estado: 'INDISPONIVEL' })
-  const semPermissao = await publico.POST(req('POST', '/x', { nome: 'Sem Permissao', dataNascimento: '2001-05-05' }), { params: { token: t7 } })
+  reiniciarCotas()
+  const semPermissao = await publico.POST(req('POST', '/x', { nome: 'Sem Permissao', dataNascimento: '2001-05-05', cienciaLgpd: true }), { params: { token: t7 } })
   assert.equal(semPermissao.status, 404)
   assert.equal((await json(semPermissao)).codigo, 'CONVITE_INDISPONIVEL')
   assert.equal((await membros.from('ConviteAtleta').select()).data.find((c: any) => c.usadoEm == null && c.revogadoEm == null && c.atletaId == null) !== undefined, true, 'convite não foi consumido')
-  assert.equal((await membros.from('Atleta').select()).data.length, 2, 'nenhum atleta criado')
+  assert.equal((await membros.from('Atleta').select()).data.length, 3, 'nenhum atleta criado')
   // devolvido o papel, o mesmo convite volta a valer
   await membros.from('MembroEquipe').update({ papel: 'RESPONSAVEL' }).eq('timeId', EQ).eq('usuarioId', 'lider')
   assert.deepEqual((await json(await publico.GET(req('GET', '/x'), { params: { token: t7 } }))).data, { estado: 'DISPONIVEL', equipe: { nome: 'Equipe A', naipe: 'FEMININO' } })

@@ -45,8 +45,18 @@ Decidir é idempotente: repetir a mesma decisão devolve 200; decisão diferente
 
 Quando o apontador aceita (`POST /api/sumula/[token]/pedidos-banco/[id]/decidir` `{ decisao: 'ACEITO' }`) o servidor cria o `DesafioVideo` `EM_ANALISE` com `pedidoBancoId`, e a resposta traz `{ pedido, desafio }`. Repetir o aceite devolve o mesmo desafio (idempotente por `pedidoBancoId`). Se o limite estourou entre o pedido e a decisão, ou a tabela sumiu, o aceite é recusado (422/503) e o pedido continua `PENDENTE`. `RECUSADO` não cria desafio. O limite de TEMPO/SUBSTITUICAO do aceite não se aplica ao DESAFIO.
 
+## Evento DESAFIO no log da súmula (R13)
+
+Ao decidir um desafio (`MANTIDA`, `REVERTIDA`, `INCONCLUSIVA`, `CANCELADO`), `POST /api/sumula/[token]/desafios/[id]/decidir` registra, **só quando `SUMULA_EVENTOS_ATIVO=1` e a tabela/RPC do log existem**, um evento `DESAFIO` pela mesma função das rotas de eventos (`processarLote`, atômico, com versão otimista; em `CONFLITO` relê e tenta de novo até 3 vezes). Código: `src/lib/sumula-eventos/desafio-log.ts`.
+
+- Payload (`PayloadPorTipo.DESAFIO` em `src/lib/regras-volei/eventos.ts`): `{ equipe: 'A' | 'B', setNumero, resultado, desafioId }`. Na tabela o `tipo` é `DESAFIO` (aceito pelo CHECK das migrations 0023/0029) e o tipo do motor vai em `_motor`.
+- Idempotente: `clientEventId` é um UUID determinístico (formato v5) derivado do id do desafio. Repetir a mesma decisão (200 idempotente) reaproveita o mesmo id e devolve duplicado, o que também recupera um registro que tenha falhado antes.
+- **É só registro.** O evento NÃO altera placar, rotação, contadores nem repete rally. Reverter um lance (cancelar um ponto, repetir o rally) é decisão da arbitragem, lançada à parte pelos eventos de jogo (`DESFAZ`, `RALLY_REPETIDO`...). `derivarPlacar` ignora o evento, inclusive depois do fim da partida (WO, partida encerrada).
+- Falha ao registrar (flag, tabela ausente, RPC ausente, conflito persistente, súmula oficializada) nunca impede a decisão: o servidor registra um aviso no log e responde 200.
+- O tipo `DESAFIO` também passou a ser aceito no lote de `POST /api/sumula/[token]/eventos` (mesmo payload); não tem efeito no placar.
+
 ## Pendências
 
 - Migration 0041 e tela do desafio.
-- O desafio ainda não gera evento `DESAFIO` no log do motor (o tipo existe no log, mas esta rota só registra o pedido e a decisão).
+- Regra de produto para a consequência da reversão no jogo (hoje a arbitragem lança os eventos à parte).
 - Regra oficial de limite e de devolução em caso de reversão.

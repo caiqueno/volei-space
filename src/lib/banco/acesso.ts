@@ -7,7 +7,7 @@
  */
 import type { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
+import { consumirLimiteAsync, ipDaRequisicao, modoDeFalhaDoMetodo } from '@/lib/rate-limit'
 import { requireSumulaTokenAccess } from '@/lib/sumula-access'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import {
@@ -32,18 +32,18 @@ export type AcessoBanco = {
 
 /**
  * Limite por IP: consome UMA vez por requisição (antes o balde do IP era gasto duas vezes).
- * O store é em memória por instância (ver rate-limit.ts); o store persistente do Supabase
- * (SupabaseRateLimitStore, assíncrono) fica como evolução e exige tornar este caminho assíncrono.
+ * Usa o store persistente (Supabase) com fallback em memória (rate-limit.ts). Se o limitador falhar,
+ * leitura segue (falha-aberto) e escrita é recusada (falha-fechado).
  */
-function limitadoPorIp(req: NextRequest): NextResponse | null {
-  const ip = consumirLimite(`banco:ip:${ipDaRequisicao(req)}`, 120, 60_000)
+async function limitadoPorIp(req: NextRequest): Promise<NextResponse | null> {
+  const ip = await consumirLimiteAsync(`banco:ip:${ipDaRequisicao(req)}`, 120, 60_000, modoDeFalhaDoMetodo(req.method))
   if (!ip.ok) return respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: ip.retryAfterSeconds })
   return null
 }
 
 /** Balde por token: só depois de validar o formato (token malformado não cria balde). */
-function limitadoPorToken(chaveToken: string): NextResponse | null {
-  const t = consumirLimite(`banco:tk:${chaveToken}`, 90, 60_000)
+async function limitadoPorToken(chaveToken: string, metodo: string): Promise<NextResponse | null> {
+  const t = await consumirLimiteAsync(`banco:tk:${chaveToken}`, 90, 60_000, modoDeFalhaDoMetodo(metodo))
   if (!t.ok) return respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: t.retryAfterSeconds })
   return null
 }
@@ -51,11 +51,11 @@ function limitadoPorToken(chaveToken: string): NextResponse | null {
 /** Resolve o link do banco. Devolve a resposta de erro pronta quando o acesso não vale. */
 export async function resolverAcessoBanco(req: NextRequest, token: string): Promise<AcessoBanco | NextResponse> {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitadoPorIp(req)
+  const bloqueado = await limitadoPorIp(req)
   if (bloqueado) return bloqueado
   if (!tokenBancoValido(token)) return respostaErro('Link inválido.', 404, 'LINK_INVALIDO')
   const hash = hashTokenBanco(token)
-  const porToken = limitadoPorToken(hash.slice(0, 24))
+  const porToken = await limitadoPorToken(hash.slice(0, 24), req.method)
   if (porToken) return porToken
 
   try {
@@ -86,7 +86,7 @@ export type AcessoApontador = {
 /** Apontador/árbitro/organizador da partida, pela mesma autenticação da súmula. */
 export async function resolverApontador(req: NextRequest, sumulaToken: string): Promise<AcessoApontador | NextResponse> {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitadoPorIp(req)
+  const bloqueado = await limitadoPorIp(req)
   if (bloqueado) return bloqueado
   const base = await requireSumulaTokenAccess(sumulaToken)
   if (base instanceof Response) return base as NextResponse

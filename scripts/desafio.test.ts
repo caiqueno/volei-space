@@ -168,6 +168,23 @@ async function main() {
   // id malformado ou inexistente: 404, nunca 500
   assert.equal((await decidir('00000000-0000-4000-8000-0000000000ff', { decisao: 'MANTIDA' })).status, 404)
 
+  // Com o log de eventos ligado mas sem a tabela do log (ou qualquer falha ao registrar), a decisão segue e responde 200 (R13)
+  {
+    process.env.SUMULA_EVENTOS_ATIVO = '1'
+    const aviso = console.warn
+    console.warn = () => undefined
+    try {
+      const novoDesafio = (await j(await post({ setNumero: 4, equipeId: 1 }))).data.desafio
+      const dLog = await decidir(novoDesafio.id, { decisao: 'INCONCLUSIVA' })
+      assert.equal(dLog.status, 200, 'falha ao registrar no log não impede a decisão')
+      assert.equal((await j(dLog)).data.desafio.estado, 'INCONCLUSIVA')
+      assert.equal((await decidir(novoDesafio.id, { decisao: 'INCONCLUSIVA' })).status, 200, 'repetir é idempotente')
+    } finally {
+      console.warn = aviso
+      delete process.env.SUMULA_EVENTOS_ATIVO
+    }
+  }
+
   // --- Desafio de partida encerrada e campeonato finalizado
   dados.Liga![0]!.status = 'FINALIZADO'
   assert.equal((await post({ ...D, setNumero: 3 })).status, 409)

@@ -18,6 +18,43 @@ import {
 } from '@/lib/regras-volei'
 import { aplicarRally, type EstadoSaque } from '@/lib/regras-volei/rotacao'
 
+/** Estado do set num instante do log: placar e rotação de cada equipe (1 a 6, relativa à formação inicial do set). */
+export interface EstadoDoSetNoMomento {
+  placarA: number
+  placarB: number
+  rotacaoA: number
+  rotacaoB: number
+}
+
+/**
+ * Placar e rotação do set `setNumero` ao fim do log (o "momento" em que uma ação nova é lançada), derivados com
+ * `derivarPlacar`. Null quando o set não está no log (ex.: ainda não iniciado). Pontos cancelados não contam.
+ */
+export function estadoDoSetNoMomento(
+  log: readonly SumulaEvento[],
+  config: ConfigPartida,
+  setNumero: number,
+  contexto?: ContextoDerivacao,
+): EstadoDoSetNoMomento | null {
+  const placar = derivarPlacar(log, config, contexto)
+  const set = placar.sets.find((s) => s.numero === setNumero)
+  if (!set) return null
+  let estado: EstadoSaque = { formacaoA: [...set.formacaoInicialA], formacaoB: [...set.formacaoInicialB], saca: set.sacouPrimeiro }
+  const rotacao = { A: 1, B: 1 }
+  for (const passo of set.jornal) {
+    if (passo.tipo === 'TROCA') {
+      const troca = (f: readonly number[]) => f.map((j) => (j === passo.sai ? passo.entra : j))
+      estado = passo.equipe === 'A' ? { ...estado, formacaoA: troca(estado.formacaoA) } : { ...estado, formacaoB: troca(estado.formacaoB) }
+      continue
+    }
+    if (passo.ponto.cancelado) continue
+    const prox = aplicarRally(estado, passo.ponto.equipe)
+    if (prox.saca !== estado.saca) rotacao[prox.saca] = (rotacao[prox.saca] % 6) + 1
+    estado = prox
+  }
+  return { placarA: set.placar.a, placarB: set.placar.b, rotacaoA: rotacao.A, rotacaoB: rotacao.B }
+}
+
 export type TipoPontoScout = 'PONTO_NO_SAQUE' | 'SIDE_OUT' | 'ADMINISTRATIVO'
 
 export interface PontoScout {

@@ -57,7 +57,7 @@ const CODIGO_ENCERRADA = {
 } as const
 
 /** Protesto registrado ou abandonado vale depois do fim da partida (RG-PRO-002/003). */
-const TIPOS_POS_JOGO: readonly string[] = ['PROTESTO_REGISTRADO', 'PROTESTO_DESISTIDO']
+const TIPOS_POS_JOGO: readonly string[] = ['PROTESTO_REGISTRADO', 'PROTESTO_DESISTIDO', 'DESAFIO']
 
 function nomeDaEquipe(equipe: Equipe) {
   return `equipe ${equipe}`
@@ -385,6 +385,7 @@ function checarPorTipo(amb: Ambiente, tipo: NovoEvento['tipo'], p: Record<string
       // As regras de estado (partida em andamento ou terminada, anúncio prévio) são conferidas na derivação.
       return { avisos: [] }
     case 'OBSERVACAO':
+    case 'DESAFIO':
     case 'DESFAZ':
       return { avisos: [] }
   }

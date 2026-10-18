@@ -45,12 +45,15 @@ export function ipDaRequisicao(req: { headers: { get(nome: string): string | nul
   return (vercel || real || encaminhado || 'desconhecido').slice(0, 80)
 }
 
+/** Zera as cotas em memória e o store assíncrono padrão (os testes usam para isolar casos). */
 export function reiniciarCotas() {
   baldes.clear()
+  storePadrao = null
 }
 
 export function limparLimites() {
   baldes.clear()
+  storePadrao = null
 }
 
 // ---------------------------------------------------------------------------
@@ -241,4 +244,39 @@ export async function limiteEsgotado(chave: string, limite: number, agora = Date
 
 export async function zerarLimite(chave: string): Promise<void> {
   await (await obterStore()).zerar(chave)
+}
+
+// ---------------------------------------------------------------------------
+// Limitador assíncrono para rotas por token e públicas (R13). Usa o store
+// persistente (Supabase) com fallback para memória; se o próprio limitador
+// falhar, a política decide: leitura pública segue (falha-aberto) e
+// escrita/aceite é recusada (falha-fechado). Nunca lança.
+// ---------------------------------------------------------------------------
+
+export type ModoFalhaLimite = 'ABERTO' | 'FECHADO'
+export type ResultadoLimite = { ok: boolean; retryAfterSeconds: number; indisponivel?: boolean }
+
+/** Leitura (GET/HEAD/OPTIONS) falha aberto; qualquer escrita falha fechado. */
+export function modoDeFalhaDoMetodo(metodo: string | null | undefined): ModoFalhaLimite {
+  const m = String(metodo ?? 'GET').toUpperCase()
+  return m === 'GET' || m === 'HEAD' || m === 'OPTIONS' ? 'ABERTO' : 'FECHADO'
+}
+
+export async function consumirLimiteAsync(
+  chave: string,
+  limite: number,
+  janelaMs: number,
+  modoFalha: ModoFalhaLimite,
+  agora = Date.now(),
+): Promise<ResultadoLimite> {
+  try {
+    const cota = await checkRateLimit(chave, { limite, janelaMs }, agora)
+    return { ok: cota.permitido, retryAfterSeconds: cota.retryAfterSeconds }
+  } catch (err) {
+    const mensagem = err instanceof Error ? err.message : ''
+    console.warn('[rate-limit] limitador indisponível.', mensagem)
+    return modoFalha === 'ABERTO'
+      ? { ok: true, retryAfterSeconds: 0, indisponivel: true }
+      : { ok: false, retryAfterSeconds: 5, indisponivel: true }
+  }
 }

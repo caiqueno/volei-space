@@ -4,7 +4,9 @@ import { error, success } from '@/lib/api-response'
 import { requireSumulaLeitura, requireSumulaTokenAccess } from '@/lib/sumula-access'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
-import { listarAcoes, registrarAcao, scoutAtivo, type ClienteDb, type PartidaScout } from '@/lib/scout'
+import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
+import { configDaPartida, contextoDaPartida, type ClienteEventos } from '@/lib/sumula-eventos'
+import { criarDerivadorDoLog, listarAcoes, registrarAcao, scoutAtivo, type ClienteDb, type PartidaScout } from '@/lib/scout'
 
 /**
  * Scout manual (R11). Desligado por padrão: 404 sem `SCOUT_ATIVO=1`.
@@ -53,7 +55,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   }
 
   try {
-    const r = await registrarAcao(cliente, partidaDoScout(access.partida), corpo, access.auth?.userId ? String(access.auth.userId) : null)
+    const partida = access.partida
+    const derivar = criarDerivadorDoLog(supabaseAdmin as unknown as ClienteEventos, Number(partida.id), async () => ({
+      config: configDaPartida(await regrasEfetivasDaPartida(partida)),
+      contexto: contextoDaPartida(partida),
+    }))
+    const r = await registrarAcao(cliente, partidaDoScout(partida), corpo, access.auth?.userId ? String(access.auth.userId) : null, derivar)
     if (r.tipo === 'OK') return success({ acao: r.acao }, r.status)
     if (r.tipo === 'INVALIDO') return error(r.mensagem, r.status, r.detalhes)
     if (r.tipo === 'INDISPONIVEL') return error(r.mensagem, 503)

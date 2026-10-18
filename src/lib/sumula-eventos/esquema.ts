@@ -29,6 +29,7 @@ export const TIPOS_DE_EVENTO = [
   'PROTESTO_ANUNCIADO',
   'PROTESTO_REGISTRADO',
   'PROTESTO_DESISTIDO',
+  'DESAFIO',
   'DESFAZ',
 ] as const satisfies readonly SumulaEventoTipo[]
 
@@ -122,6 +123,13 @@ export const PAYLOAD_POR_TIPO: Record<SumulaEventoTipo, z.ZodTypeAny> = {
     anunciadoSeq: z.number().int().positive().nullable().optional(),
   }),
   PROTESTO_DESISTIDO: z.object({ equipe, anunciadoSeq: z.number().int().positive().nullable().optional() }),
+  // Só registro da decisão do desafio de vídeo (R13); não mexe no placar.
+  DESAFIO: z.object({
+    equipe,
+    setNumero: z.number().int().min(1).max(5),
+    resultado: z.enum(['MANTIDA', 'REVERTIDA', 'INCONCLUSIVA', 'CANCELADO']),
+    desafioId: z.string().uuid(),
+  }),
   DESFAZ: z.object({}),
 }
 

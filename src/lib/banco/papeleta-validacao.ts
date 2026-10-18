@@ -16,8 +16,8 @@ export type EntradaPapeleta = {
   formacao: readonly EntradaFormacao[]
   liberoId?: number | null
   /**
-   * Segundo líbero (opcional, RG-LIB-001). É VALIDADO, mas ainda não é gravado: a tabela "Papeleta" só tem
-   * "liberoId" (migration futura para a coluna "libero2Id"; a formação precisa ter exatamente 6 itens).
+   * Segundo líbero (opcional, RG-LIB-001). Validado com o motor (diferente do primeiro, fora dos titulares,
+   * na relação nominal, e só aceito quando o perfil/elenco permite dois líberos) e gravado em "libero2Id".
    */
   libero2Id?: number | null
   /** Capitão da equipe: basta constar na relação nominal; pode ser o líbero ou estar no banco (RG-ELE-005). */

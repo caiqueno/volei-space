@@ -47,7 +47,7 @@ const db = supabaseAdmin as any
 export const papeletaSchema = z.object({
   formacao: z.array(z.object({ posicao: z.number().int(), jogadorId: z.number().int().positive() })).length(6),
   liberoId: z.number().int().positive().nullish(),
-  /** Segundo líbero: validado, mas ainda não gravado (a tabela só tem liberoId; coluna em migration futura). */
+  /** Segundo líbero: validado pelo motor e gravado em "libero2Id" (se a coluna não existir, é ignorado com aviso). */
   libero2Id: z.number().int().positive().nullish(),
   capitaoId: z.number().int().positive().nullish(),
 })
@@ -172,12 +172,24 @@ export async function salvarRascunho(partida: PartidaBanco, equipeId: number, se
     capitaoId: entrada.capitaoId ?? null,
     estado: 'RASCUNHO',
   }
+  // Segundo líbero: tenta gravar; se a coluna "libero2Id" ainda não existir, repete sem ela (nunca 500) e avisa.
+  const comLibero2 = { ...valores, libero2Id: entrada.libero2Id ?? null }
   if (existente) {
-    const linhas = conferir(await db.from('Papeleta').update(valores).eq('id', existente.id).eq('estado', 'RASCUNHO').select()) as any[]
+    let escrita = await db.from('Papeleta').update(comLibero2).eq('id', existente.id).eq('estado', 'RASCUNHO').select()
+    if (escrita.error && colunaLibero2Ausente(escrita.error)) {
+      escrita = await db.from('Papeleta').update(valores).eq('id', existente.id).eq('estado', 'RASCUNHO').select()
+      if (!escrita.error) avisarLibero2NaoGravado(entrada, avisos)
+    }
+    const linhas = conferir(escrita) as any[]
     if (!linhas || linhas.length === 0) return travada()
     return success({ papeleta: papeletaPublica(linhas[0]), violacoes: [], avisos })
   }
-  const criada = await db.from('Papeleta').insert({ partidaId: partida.id, equipeId, setNumero, ...valores }).select().maybeSingle()
+  const base = { partidaId: partida.id, equipeId, setNumero }
+  let criada = await db.from('Papeleta').insert({ ...base, ...comLibero2 }).select().maybeSingle()
+  if (criada.error && colunaLibero2Ausente(criada.error)) {
+    criada = await db.from('Papeleta').insert({ ...base, ...valores }).select().maybeSingle()
+    if (!criada.error) avisarLibero2NaoGravado(entrada, avisos)
+  }
   if (criada.error) {
     if (violacaoDeUnicidade(criada.error)) {
       return respostaErro('A papeleta foi alterada ao mesmo tempo. Recarregue e tente de novo.', 409, 'CONFLITO')
@@ -187,17 +199,26 @@ export async function salvarRascunho(partida: PartidaBanco, equipeId: number, se
   return success({ papeleta: papeletaPublica(criada.data ?? { setNumero, ...valores }), violacoes: [], avisos }, 200)
 }
 
-/** Avisos que não bloqueiam: capitão fora dos titulares e segundo líbero ainda não gravado. */
+/** Avisos que não bloqueiam: hoje, capitão fora dos seis titulares. */
 function avisosDoRascunho(entrada: EntradaPapeleta) {
-  const avisos = avisosDaPapeleta(entrada)
-  if (entrada.libero2Id != null) {
-    avisos.push({
-      codigo: 'LIBERO2_NAO_PERSISTIDO',
-      mensagem: 'O segundo líbero foi conferido, mas ainda não é gravado na papeleta; informe-o ao apontador.',
-      categoria: 'ELENCO',
-    })
-  }
-  return avisos
+  return avisosDaPapeleta(entrada)
+}
+
+/** Coluna "libero2Id" ausente (migration pendente): erro do Postgres (42703) ou do PostgREST (PGRST204). */
+export function colunaLibero2Ausente(erro: { code?: string | null; message?: string | null } | null | undefined) {
+  if (!erro) return false
+  const mensagem = String(erro.message ?? '')
+  return erro.code === '42703' || erro.code === 'PGRST204' || /libero2Id/.test(mensagem)
+}
+
+/** Só avisa quando havia segundo líbero a gravar: sem a coluna, ele foi conferido mas não persistiu. */
+function avisarLibero2NaoGravado(entrada: EntradaPapeleta, avisos: ReturnType<typeof avisosDaPapeleta>) {
+  if (entrada.libero2Id == null) return
+  avisos.push({
+    codigo: 'LIBERO2_NAO_PERSISTIDO',
+    mensagem: 'O segundo líbero foi conferido, mas este ambiente ainda não o grava na papeleta; informe-o ao apontador.',
+    categoria: 'ELENCO',
+  })
 }
 
 export async function enviarPapeleta(partida: PartidaBanco, equipeId: number, setNumero: number) {
@@ -212,6 +233,7 @@ export async function enviarPapeleta(partida: PartidaBanco, equipeId: number, se
   const entrada: EntradaPapeleta = {
     formacao: Array.isArray(existente.formacao) ? existente.formacao : [],
     liberoId: existente.liberoId ?? null,
+    libero2Id: existente.libero2Id ?? null,
     capitaoId: existente.capitaoId ?? null,
   }
   const violacoes = validarPapeletaDoBanco(entrada, elenco, { perfil: await perfilDaPartidaBanco(partida) })
@@ -224,6 +246,8 @@ export async function enviarPapeleta(partida: PartidaBanco, equipeId: number, se
     s: setNumero,
     f: formacaoOrdenada(entrada.formacao),
     l: entrada.liberoId ?? null,
+    // Só entra no hash quando existe, para não alterar o hash de papeletas antigas.
+    ...(entrada.libero2Id != null ? { l2: entrada.libero2Id } : {}),
     c: entrada.capitaoId ?? null,
   })
   const linhas = conferir(
@@ -305,6 +329,7 @@ export async function criarPedido(partida: PartidaBanco, equipeId: number, corpo
     elenco,
     titulares: enviada && Array.isArray(papeleta.formacao) ? papeleta.formacao.map((f: any) => Number(f.jogadorId)) : null,
     liberoId: enviada ? papeleta.liberoId ?? null : null,
+    libero2Id: enviada ? papeleta.libero2Id ?? null : null,
     // Limite pelo log efetivo da súmula (quando houver) + pedidos aceitos ainda não lançados.
     uso: usoDoSet({ pedidos: pedidos ?? [], setNumero, log: logDoSet }),
   })

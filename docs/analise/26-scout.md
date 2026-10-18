@@ -10,11 +10,24 @@ Código: `src/lib/scout/acoes.ts`, `src/app/api/scout/[token]/acoes/route.ts` (G
 | --- | --- | --- |
 | `POST /api/scout/[token]/acoes` | escrita da súmula (`requireArbitroPartidaAccess`: apontador, árbitro escalado, organizador dono; campeonato finalizado = 409) | 201 `{ data: { acao } }`; repetição do mesmo `clientEventId` = 200 com a mesma ação |
 | `GET /api/scout/[token]/acoes?set=` | leitura da súmula | 200 `{ data: [acao] }` (sem anuladas, ordem de lançamento); `set` fora de 1-5 = 400 |
+| `PATCH /api/scout/[token]/acoes/[id]` | escrita da súmula | 200 `{ data: { acao } }` com a ação corrigida (R13, ver abaixo) |
 | `DELETE /api/scout/[token]/acoes/[id]` | escrita da súmula | 200 `{ data: { acao } }` com `anuladoEm`; anular de novo = 200 (idempotente); id inexistente ou de outra partida = 404 |
 
 Corpo do POST: `clientEventId` (obrigatório, até 100, `[A-Za-z0-9_.:-]`), `setNumero` (1-5), `equipeId`, `jogadorId?`, `fundamento`, `resultado`, `zonaOrigem?`, `zonaDestino?` (1-9), `rotacao?` (1-6), `placarA?`, `placarB?` (placar do set antes da ação). Validado por zod e por `validarAcao`. Erros: 400 dados inválidos; 422 equipe fora da partida ou jogador que não pertence à equipe; 503 `Recurso ainda não habilitado neste ambiente.` (tabela ausente); flag desligada = 404.
 
 Idempotência por `(partidaId, clientEventId)`; reenviar uma ação já anulada devolve a mesma ação anulada (200), não a recria. Placar ausente vira 0 na agregação/exportação (campo é "placar antes").
+
+### R13: placar e rotação derivados do log no POST
+
+Quando `placarA`, `placarB` ou `rotacao` não vêm no corpo e `SUMULA_EVENTOS_ATIVO=1` com a tabela do log disponível, o servidor preenche os campos ausentes com o estado do set no momento, derivado do log (`derivarPlacar`, via `estadoDoSetNoMomento` em `src/lib/scout/derivacao.ts`): placar do set antes da ação e rotação da equipe da ação (1 a 6, relativa à formação inicial do set; pontos cancelados não contam). O que o cliente informa prevalece. Sem log, sem a tabela, sem o set iniciado ou com falha na leitura, a ação é gravada como antes (campos nulos). O scout nunca escreve no log. Teste: `npm run test:r13-backend`.
+
+### R13: correção de ação (PATCH)
+
+`PATCH /api/scout/[token]/acoes/[id]`, mesmo acesso de escrita do POST/DELETE (campeonato finalizado = 409; flag desligada = 404).
+
+Corpo (todos opcionais, ao menos um; qualquer outra chave = 400): `fundamento`, `resultado`, `zonaOrigem` (1-9 ou `null`), `zonaDestino` (1-9 ou `null`), `jogadorId` (da mesma equipe da ação, ou `null`). Mesmas validações do lançamento (zod e `validarAcao`). Placar, rotação, set, equipe e `clientEventId` não mudam.
+
+Respostas: 200 `{ data: { acao } }`; é idempotente (corrigir para o valor que já está, ou repetir a mesma correção, devolve 200 sem gravar de novo). 400 corpo inválido; 404 id inexistente ou de outra partida; 409 `ACAO_ANULADA` (ação anulada não é corrigida; a correção é condicional a `anuladoEm is null`); 422 jogador que não pertence à equipe da ação; 503 tabela ausente.
 
 ### Exportação e resumo com ações manuais
 

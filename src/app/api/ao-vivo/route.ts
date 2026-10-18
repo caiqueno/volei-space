@@ -8,7 +8,7 @@ import { campeonatoDeTeste } from '@/lib/campeonato-teste'
 import { campeonatoPublicado } from '@/lib/campeonato-publico'
 import { campeonatoPublicadoDaLiga, idsCompeticoesPrivadas } from '@/lib/visibilidade-competicao'
 import { aoVivoAtivo } from '@/lib/ao-vivo'
-import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
+import { consumirLimiteAsync, ipDaRequisicao } from '@/lib/rate-limit'
 
 /**
  * Lista PÚBLICA de partidas em andamento. Mesmas garantias do detalhe `/api/ao-vivo/[partidaId]`:
@@ -29,7 +29,7 @@ function semCache(resposta: NextResponse) {
 export async function GET(req: NextRequest) {
   if (!aoVivoAtivo()) return semCache(error('Recurso não encontrado.', 404))
 
-  const cota = consumirLimite(`ao-vivo:ip:${ipDaRequisicao(req)}`, LIMITE_POR_MINUTO, 60_000)
+  const cota = await consumirLimiteAsync(`ao-vivo:ip:${ipDaRequisicao(req)}`, LIMITE_POR_MINUTO, 60_000, 'ABERTO')
   if (!cota.ok) {
     const limitada = error('Muitas requisições. Aguarde um instante.', 429)
     limitada.headers.set('Retry-After', String(cota.retryAfterSeconds))
