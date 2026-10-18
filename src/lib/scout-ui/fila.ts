@@ -2,10 +2,19 @@
  * Fila local de ações pendentes (falta de rede) e lista das ações lançadas neste aparelho (para "Desfazer última").
  * Módulo PURO: o armazenamento é injetado (localStorage no navegador) e todo acesso é protegido por try/catch.
  */
-import type { PayloadAcao } from './tipos'
+import type { AcaoServidor, CamposCorrecao, PayloadAcao } from './tipos'
+
+/** Correção pendente de uma ação já gravada: vai por PATCH /acoes/[id] (idempotente: repetir dá o mesmo resultado). */
+export interface CorrecaoPendente {
+  acaoId: number | string
+  campos: CamposCorrecao
+}
 
 export interface ItemFila {
+  /** Ação nova (POST). Em correção, é o retrato da ação original (só identifica o item na fila). */
   payload: PayloadAcao
+  /** Presente quando o item é uma correção (PATCH) em vez de uma ação nova. */
+  correcao?: CorrecaoPendente
   tentativas: number
   /** Epoch ms da próxima tentativa. */
   proximaEm: number
@@ -43,6 +52,14 @@ function ehPayload(p: unknown): p is PayloadAcao {
   )
 }
 
+function lerCorrecao(c: unknown): CorrecaoPendente | null {
+  const o = c as Partial<CorrecaoPendente> | null | undefined
+  if (!o || typeof o !== 'object') return null
+  if (typeof o.acaoId !== 'number' && typeof o.acaoId !== 'string') return null
+  if (!o.campos || typeof o.campos !== 'object') return null
+  return { acaoId: o.acaoId, campos: o.campos }
+}
+
 export function interpretarFila(bruto: string | null): ItemFila[] {
   if (!bruto) return []
   try {
@@ -53,8 +70,10 @@ export function interpretarFila(bruto: string | null): ItemFila[] {
     for (const it of v as Partial<ItemFila>[]) {
       if (!it || !ehPayload(it.payload) || vistos.has(it.payload.clientEventId)) continue
       vistos.add(it.payload.clientEventId)
+      const correcao = lerCorrecao(it.correcao)
       saida.push({
         payload: it.payload,
+        ...(correcao ? { correcao } : {}),
         tentativas: Number.isFinite(it.tentativas) ? Math.max(0, Number(it.tentativas)) : 0,
         proximaEm: Number.isFinite(it.proximaEm) ? Number(it.proximaEm) : 0,
       })
@@ -88,6 +107,55 @@ export function enfileirar(fila: readonly ItemFila[], payload: PayloadAcao, agor
   if (fila.some((i) => i.payload.clientEventId === payload.clientEventId)) return [...fila]
   const nova = [...fila, { payload, tentativas: 0, proximaEm: agora }]
   return nova.length > LIMITE_FILA ? nova.slice(nova.length - LIMITE_FILA) : nova
+}
+
+export const idCorrecao = (acaoId: number | string) => `corrigir:${acaoId}`
+
+/**
+ * Enfileira a correção de uma ação já gravada. O id do item é determinístico por ação: corrigir a mesma ação duas vezes
+ * antes de enviar junta os campos (a última escolha vence) em vez de duplicar. Null se a ação não tem set/equipe.
+ */
+export function enfileirarCorrecao(fila: readonly ItemFila[], acao: AcaoServidor, campos: CamposCorrecao, agora: number): ItemFila[] | null {
+  const setNumero = acao.setNumero ?? acao.set
+  if (typeof setNumero !== 'number' || typeof acao.equipeId !== 'number' || Object.keys(campos).length === 0) return null
+  const id = idCorrecao(acao.id)
+  const existente = fila.find((i) => i.payload.clientEventId === id)
+  if (existente?.correcao) {
+    const juntos = { ...existente.correcao.campos, ...campos }
+    return fila.map((i) => (i === existente ? { ...i, correcao: { acaoId: acao.id, campos: juntos }, tentativas: 0, proximaEm: agora } : i))
+  }
+  const item: ItemFila = {
+    payload: { clientEventId: id, setNumero, equipeId: acao.equipeId, fundamento: acao.fundamento, resultado: acao.resultado },
+    correcao: { acaoId: acao.id, campos },
+    tentativas: 0,
+    proximaEm: agora,
+  }
+  const nova = [...fila, item]
+  return nova.length > LIMITE_FILA ? nova.slice(nova.length - LIMITE_FILA) : nova
+}
+
+export interface RequisicaoItem {
+  metodo: 'POST' | 'PATCH'
+  /** Sufixo depois de /api/scout/[token]. */
+  resto: string
+  corpo: unknown
+}
+
+/** Como enviar o item: ação nova por POST /acoes; correção por PATCH /acoes/[id] só com os campos alterados. */
+export function requisicaoDoItem(item: ItemFila): RequisicaoItem {
+  if (item.correcao) {
+    return { metodo: 'PATCH', resto: `/acoes/${encodeURIComponent(String(item.correcao.acaoId))}`, corpo: item.correcao.campos }
+  }
+  return { metodo: 'POST', resto: '/acoes', corpo: item.payload }
+}
+
+/**
+ * Destino do item após a resposta. Igual a destinoDaResposta, exceto que numa correção 404/410 significa "ação apagada":
+ * descarta só esse item em vez de pausar a fila toda.
+ */
+export function destinoDoItem(item: ItemFila, status: number | null): DestinoResposta {
+  if (item.correcao && (status === 404 || status === 410)) return 'descartar'
+  return destinoDaResposta(status)
 }
 
 export function remover(fila: readonly ItemFila[], clientEventId: string): ItemFila[] {

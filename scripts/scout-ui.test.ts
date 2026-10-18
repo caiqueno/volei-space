@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import { scoutAtivo } from '../src/lib/scout-ui/flag'
-import { montarPayload, motivoNaoPodeLancar, novoClientEventId } from '../src/lib/scout-ui/payload'
+import { montarCorrecao, montarPayload, motivoNaoPodeLancar, novoClientEventId } from '../src/lib/scout-ui/payload'
 import {
   chaveFila,
   destinoDaResposta,
+  destinoDoItem,
   enfileirar,
+  enfileirarCorrecao,
+  requisicaoDoItem,
   gravarFila,
   gravarMinhas,
   interpretarFila,
@@ -31,6 +34,7 @@ import {
   estatisticaDaEquipe,
   filtrarAcoes,
   linhasResumo,
+  textoContextoAcao,
 } from '../src/lib/scout-ui/textos'
 import { agregarAcoes } from '../src/lib/scout/estatisticas'
 import type { AcaoScout } from '../src/lib/scout/modelo'
@@ -251,6 +255,55 @@ caso('resumo: sem dado quando não há denominador e valores com dado', () => {
   assert.equal(l[2]!.valor, '1')
   assert.equal(estatisticaDaEquipe(json, 'B'), null)
   assert.equal(estatisticaDaEquipe({}, 'A'), null)
+})
+
+const acaoSrv = (p: Partial<AcaoServidor> = {}): AcaoServidor => ({ id: 41, setNumero: 2, equipeId: 10, jogadorId: 5, fundamento: 'ATAQUE', resultado: 'CONTINUA', zonaOrigem: 4, zonaDestino: null, ...p })
+
+caso('montarCorrecao: só os campos alterados; nada alterado vira null', () => {
+  const a = acaoSrv()
+  const igual = { jogadorId: 5, fundamento: 'ATAQUE', resultado: 'CONTINUA', zonaOrigem: 4, zonaDestino: null } as const
+  assert.equal(montarCorrecao(a, igual), null)
+  assert.deepEqual(montarCorrecao(a, { ...igual, resultado: 'PONTO', zonaDestino: 9 }), { resultado: 'PONTO', zonaDestino: 9 })
+  assert.deepEqual(montarCorrecao(a, { ...igual, jogadorId: 6, fundamento: 'BLOQUEIO' }), { fundamento: 'BLOQUEIO', jogadorId: 6 })
+  assert.equal(montarCorrecao(a, { ...igual, zonaOrigem: 12 }), null)
+})
+
+caso('correção entra na fila como PATCH idempotente (um item por ação, campos juntados)', () => {
+  const a = acaoSrv()
+  const f1 = enfileirarCorrecao([], a, { resultado: 'PONTO' }, 1000)!
+  assert.equal(f1.length, 1)
+  assert.deepEqual(requisicaoDoItem(f1[0]!), { metodo: 'PATCH', resto: '/acoes/41', corpo: { resultado: 'PONTO' } })
+  const f2 = enfileirarCorrecao(f1, a, { zonaDestino: 2, resultado: 'ERRO' }, 2000)!
+  assert.equal(f2.length, 1)
+  assert.deepEqual(f2[0]!.correcao?.campos, { resultado: 'ERRO', zonaDestino: 2 })
+  // vive junto de ação nova (POST) sem misturar
+  const nova = enfileirar(f2, { clientEventId: 'n1', setNumero: 1, equipeId: 10, fundamento: 'SAQUE', resultado: 'PONTO' }, 3000)
+  assert.equal(requisicaoDoItem(nova[1]!).metodo, 'POST')
+  assert.equal(enfileirarCorrecao([], acaoSrv({ equipeId: undefined }), { resultado: 'PONTO' }, 1), null)
+  assert.equal(enfileirarCorrecao([], a, {}, 1), null)
+})
+
+caso('fila com correção sobrevive ao armazenamento; destino de PATCH 404/410 descarta o item, sem pausar', () => {
+  const f = enfileirarCorrecao([], acaoSrv(), { resultado: 'PONTO' }, 1)!
+  const lida = interpretarFila(JSON.stringify(f))
+  assert.deepEqual(lida[0]!.correcao, { acaoId: 41, campos: { resultado: 'PONTO' } })
+  assert.equal(destinoDoItem(lida[0]!, 404), 'descartar')
+  assert.equal(destinoDoItem(lida[0]!, 410), 'descartar')
+  assert.equal(destinoDoItem(lida[0]!, 200), 'enviada')
+  assert.equal(destinoDoItem(lida[0]!, 400), 'descartar')
+  assert.equal(destinoDoItem(lida[0]!, 401), 'pausar')
+  assert.equal(destinoDoItem(lida[0]!, null), 'tentar-de-novo')
+  const post = enfileirar([], { clientEventId: 'n1', setNumero: 1, equipeId: 10, fundamento: 'SAQUE', resultado: 'PONTO' }, 1)[0]!
+  assert.equal(destinoDoItem(post, 404), 'pausar')
+})
+
+caso('textoContextoAcao mostra rotação e placar só quando existem', () => {
+  assert.equal(textoContextoAcao({}), '')
+  assert.equal(textoContextoAcao({ rotacao: null, placarA: null, placarB: null }), '')
+  assert.equal(textoContextoAcao({ rotacao: 3 }), 'rotação 3')
+  assert.equal(textoContextoAcao({ rotacao: 3, placarA: 12, placarB: 10 }), 'rotação 3, placar 12 x 10')
+  assert.equal(textoContextoAcao({ placarA: 0, placarB: 0 }), 'placar 0 x 0')
+  assert.equal(textoContextoAcao({ placarA: 5 }), '')
 })
 
 console.log(`\nscout-ui: ${total} casos executados.`)
