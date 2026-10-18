@@ -152,7 +152,7 @@ async function main() {
       const errada = await rota.POST(req('Bearer outro'))
       assert.equal(errada.status, 401)
       assert.ok(!JSON.stringify(await errada.json()).includes('segredo-do-cron'))
-      assert.equal((rota as Record<string, unknown>).GET, undefined, 'só POST')
+      assert.equal(typeof (rota as Record<string, unknown>).GET, 'function', 'GET aceito (Vercel cron), sempre com o segredo')
     } finally {
       if (antes === undefined) delete process.env.CRON_SECRET
       else process.env.CRON_SECRET = antes

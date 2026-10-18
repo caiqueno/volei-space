@@ -7,7 +7,7 @@
  * de confirmação. Ver docs/analise/27-desafio-video.md.
  */
 
-export const ESTADOS_DESAFIO = ['SOLICITADO', 'EM_ANALISE', 'MANTIDA', 'REVERTIDA', 'CANCELADO'] as const
+export const ESTADOS_DESAFIO = ['SOLICITADO', 'EM_ANALISE', 'MANTIDA', 'REVERTIDA', 'INCONCLUSIVA', 'CANCELADO'] as const
 export type EstadoDesafio = (typeof ESTADOS_DESAFIO)[number]
 
 /** Decisões que o apontador pode registrar. */

@@ -26,3 +26,8 @@ export async function POST(req: Request) {
   }
   return NextResponse.json({ data: { apagadas: r.apagadas } }, { headers: SEM_CACHE })
 }
+
+// A Vercel cron dispara GET com o mesmo cabeçalho Authorization; o segredo continua sendo obrigatório.
+export async function GET(req: Request) {
+  return POST(req)
+}
