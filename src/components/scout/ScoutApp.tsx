@@ -5,8 +5,10 @@ import { usePolling } from '@/lib/banco-ui/use-polling'
 import { textoAtualizado } from '@/lib/banco-ui/polling'
 import { caminhoScout, caminhoSumula, chamarApi } from '@/lib/scout-ui/cliente'
 import {
-  destinoDaResposta,
+  destinoDoItem,
   enfileirar,
+  enfileirarCorrecao,
+  requisicaoDoItem,
   gravarFila,
   gravarMinhas,
   lerFila,
@@ -22,7 +24,7 @@ import {
   type ItemFila,
   type MinhaAcao,
 } from '@/lib/scout-ui/fila'
-import { montarPayload, motivoNaoPodeLancar, novoClientEventId } from '@/lib/scout-ui/payload'
+import { montarCorrecao, montarPayload, motivoNaoPodeLancar, novoClientEventId } from '@/lib/scout-ui/payload'
 import {
   acaoDaResposta,
   acoesDaResposta,
@@ -34,6 +36,7 @@ import {
   filtrarAcoes,
   linhasResumo,
   rotuloCamisa,
+  textoContextoAcao,
   type TelaScout,
 } from '@/lib/scout-ui/textos'
 import {
@@ -85,6 +88,9 @@ export function ScoutApp({ token }: { token: string }) {
   const [filtroSet, setFiltroSet] = useState<number | 'todos'>('todos')
   const [filtroEquipe, setFiltroEquipe] = useState<number | 'todas'>('todas')
   const [aviso, setAviso] = useState('')
+  /** Ação do servidor em correção (o seletor fica pré-preenchido; set e equipe travados). */
+  const [editando, setEditando] = useState<AcaoServidor | null>(null)
+  const painelRef = useRef<HTMLElement | null>(null)
 
   const filaRef = useRef<ItemFila[]>([])
   const minhasRef = useRef<MinhaAcao[]>([])
@@ -128,8 +134,9 @@ export function ScoutApp({ token }: { token: string }) {
       for (;;) {
         const item = proximoParaEnviar(filaRef.current, Date.now())
         if (!item) break
-        const r = await chamarApi(caminhoScout(token, '/acoes'), 'POST', item.payload)
-        const destino = destinoDaResposta(r.status)
+        const req = requisicaoDoItem(item)
+        const r = await chamarApi(caminhoScout(token, req.resto), req.metodo, req.corpo)
+        const destino = destinoDoItem(item, r.status)
         if (destino === 'pausar') {
           // Sessão/link: mantém todos os itens e para de enviar até o apontador tentar de novo.
           pausadaRef.current = true
@@ -143,7 +150,13 @@ export function ScoutApp({ token }: { token: string }) {
         }
         if (destino === 'enviada') {
           const acao = acaoDaResposta(r.json)
-          if (acao) salvarMinhas(registrarMinha(minhasRef.current, { id: acao.id, clientEventId: item.payload.clientEventId }))
+          if (acao && !item.correcao) salvarMinhas(registrarMinha(minhasRef.current, { id: acao.id, clientEventId: item.payload.clientEventId }))
+        } else if (item.correcao) {
+          setAviso(
+            r.status === 404 || r.status === 410
+              ? 'Uma correção foi descartada: a ação já não existe.'
+              : 'Uma correção foi recusada pelo servidor (dados inválidos) e saiu da fila.',
+          )
         } else {
           setAviso('Uma ação foi recusada pelo servidor (dados inválidos) e saiu da fila.')
         }
@@ -238,6 +251,50 @@ export function ScoutApp({ token }: { token: string }) {
     void enviarFila().then(() => atualizarAgora())
   }
 
+  function iniciarCorrecao(a: AcaoServidor) {
+    setEditando(a)
+    setSetNumero(a.setNumero ?? a.set ?? setNumero)
+    if (typeof a.equipeId === 'number') setEquipeId(a.equipeId)
+    setJogadorId(a.jogadorId ?? null)
+    setFundamento(a.fundamento)
+    setResultado(a.resultado)
+    setZonaOrigem(a.zonaOrigem ?? null)
+    setZonaDestino(a.zonaDestino ?? null)
+    setAviso('Corrigindo uma ação: altere o que estiver errado e salve.')
+    painelRef.current?.scrollIntoView?.({ block: 'start' })
+  }
+
+  function limparSeletor() {
+    setEditando(null)
+    setFundamento(null)
+    setResultado(null)
+    setZonaOrigem(null)
+    setZonaDestino(null)
+  }
+
+  function cancelarCorrecao() {
+    limparSeletor()
+    setAviso('Correção cancelada.')
+  }
+
+  function salvarCorrecao() {
+    if (!editando) return
+    const campos = montarCorrecao(editando, { jogadorId, fundamento, resultado, zonaOrigem, zonaDestino })
+    if (!campos) {
+      setAviso('Nada foi alterado.')
+      return
+    }
+    const nova = enfileirarCorrecao(filaRef.current, editando, campos, Date.now())
+    if (!nova) {
+      setAviso('Não foi possível corrigir esta ação.')
+      return
+    }
+    salvarFila(nova)
+    limparSeletor()
+    setAviso('Correção salva. Enviando ao servidor.')
+    void enviarFila().then(() => atualizarAgora())
+  }
+
   async function desfazer() {
     const plano = planoDesfazer(filaRef.current, minhasRef.current)
     if (plano.tipo === 'nada') {
@@ -300,8 +357,13 @@ export function ScoutApp({ token }: { token: string }) {
       ) : null}
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <section aria-label="Lançar ação" className="space-y-3 rounded-3xl border border-vs-border bg-vs-surface p-4">
-          <fieldset>
+        <section ref={painelRef} aria-label={editando ? 'Corrigir ação' : 'Lançar ação'} className="space-y-3 rounded-3xl border border-vs-border bg-vs-surface p-4">
+          {editando ? (
+            <p role="status" className="rounded-2xl border border-vs-gold bg-vs-elevated p-3 text-base font-bold text-vs-gold">
+              Corrigindo: {descreverAcao(editando, equipes)}. Set e equipe não podem ser trocados.
+            </p>
+          ) : null}
+          <fieldset disabled={editando !== null} className="disabled:opacity-60">
             <legend className="mb-1 text-sm font-bold text-vs-muted">Set</legend>
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((s) => (
@@ -312,7 +374,7 @@ export function ScoutApp({ token }: { token: string }) {
             </div>
           </fieldset>
 
-          <fieldset>
+          <fieldset disabled={editando !== null} className="disabled:opacity-60">
             <legend className="mb-1 text-sm font-bold text-vs-muted">Equipe</legend>
             <div className="flex flex-wrap gap-2">
               {equipes.map((e) => (
@@ -366,7 +428,7 @@ export function ScoutApp({ token }: { token: string }) {
             </div>
           </fieldset>
 
-          <details className="rounded-2xl border border-vs-border p-3">
+          <details key={editando ? String(editando.id) : 'novo'} open={editando !== null && (zonaOrigem !== null || zonaDestino !== null)} className="rounded-2xl border border-vs-border p-3">
             <summary className="min-h-[44px] cursor-pointer text-base font-bold leading-[44px]">Zona (opcional)</summary>
             <p className="text-xs text-vs-muted">{NOTA_ZONAS_COBRAV}</p>
             <div className="mt-2 grid gap-4 sm:grid-cols-2">
@@ -376,12 +438,25 @@ export function ScoutApp({ token }: { token: string }) {
           </details>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={motivo !== null} onClick={lancar} className={`${BTN} flex-1 bg-vs-gold px-6 text-lg text-vs-on-gold border-vs-gold`}>
-              Lançar ação
-            </button>
-            <button type="button" onClick={() => void desfazer()} className={`${BTN} ${OFF}`}>
-              Desfazer última
-            </button>
+            {editando ? (
+              <>
+                <button type="button" disabled={motivo !== null} onClick={salvarCorrecao} className={`${BTN} flex-1 bg-vs-gold px-6 text-lg text-vs-on-gold border-vs-gold`}>
+                  Salvar correção
+                </button>
+                <button type="button" onClick={cancelarCorrecao} className={`${BTN} ${OFF}`}>
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" disabled={motivo !== null} onClick={lancar} className={`${BTN} flex-1 bg-vs-gold px-6 text-lg text-vs-on-gold border-vs-gold`}>
+                  Lançar ação
+                </button>
+                <button type="button" onClick={() => void desfazer()} className={`${BTN} ${OFF}`}>
+                  Desfazer última
+                </button>
+              </>
+            )}
           </div>
           {motivo ? <p className="text-sm text-vs-muted">{motivo}</p> : null}
           <p role="status" aria-live="polite" className="min-h-[1.5rem] text-sm font-semibold text-vs-text">
@@ -447,9 +522,20 @@ export function ScoutApp({ token }: { token: string }) {
             ) : (
               <ul className="mt-3 space-y-1">
                 {visiveis.map((a) => (
-                  <li key={String(a.id)} className="rounded-lg border border-vs-border px-3 py-2 text-base">
-                    <span className="text-vs-muted">Set {a.setNumero ?? a.set}: </span>
-                    {descreverAcao(a, equipes)}
+                  <li key={String(a.id)} className="flex items-start justify-between gap-2 rounded-lg border border-vs-border px-3 py-2 text-base">
+                    <div>
+                      <span className="text-vs-muted">Set {a.setNumero ?? a.set}: </span>
+                      {descreverAcao(a, equipes)}
+                      {textoContextoAcao(a) ? <p className="text-sm text-vs-muted">{textoContextoAcao(a)}</p> : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => iniciarCorrecao(a)}
+                      aria-label={`Corrigir ação: ${descreverAcao(a, equipes)}`}
+                      className={`${BTN} shrink-0 ${editando?.id === a.id ? ON : OFF}`}
+                    >
+                      Corrigir
+                    </button>
                   </li>
                 ))}
               </ul>

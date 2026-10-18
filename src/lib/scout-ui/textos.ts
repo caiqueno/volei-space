@@ -89,6 +89,14 @@ export function descreverAcao(a: AcaoServidor, equipes: readonly EquipeScoutTela
   return `${quem}: ${ROTULO_FUNDAMENTO[a.fundamento] ?? a.fundamento}, ${ROTULO_RESULTADO[a.resultado] ?? a.resultado}${zona}`
 }
 
+/** "rotação 3, placar 12 x 10" quando o servidor preencheu (há log do jogo); vazio caso contrário. */
+export function textoContextoAcao(a: Pick<AcaoServidor, 'rotacao' | 'placarA' | 'placarB'>): string {
+  const partes: string[] = []
+  if (typeof a.rotacao === 'number') partes.push(`rotação ${a.rotacao}`)
+  if (typeof a.placarA === 'number' && typeof a.placarB === 'number') partes.push(`placar ${a.placarA} x ${a.placarB}`)
+  return partes.join(', ')
+}
+
 export interface Filtro {
   set: number | 'todos'
   equipeId: number | 'todas'

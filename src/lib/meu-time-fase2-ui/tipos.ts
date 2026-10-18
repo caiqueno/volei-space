@@ -3,7 +3,7 @@ export type EstadoConvite = 'ativo' | 'usado' | 'expirado' | 'revogado' | 'inval
 export type ConviteResumo = { id: string; estado: EstadoConvite; criadoEm: string; expiraEm: string }
 export type ConviteGerado = { url: string; expiraEm: string }
 export type ConvitePublico = { equipe: string; categoria: string | null; estado: EstadoConvite }
-export type DadosAtletaConvite = { nome: string; dataNascimento: string; camisa?: number; posicao?: string }
+export type DadosAtletaConvite = { nome: string; dataNascimento: string; camisa?: number; posicao?: string; cienciaLgpd: true }
 
 export type StatusLinha = 'OK' | 'AVISO' | 'ERRO'
 export type LinhaImportacao = { n: number; status: StatusLinha; erros: string[]; avisos: string[]; dados: Record<string, unknown> }

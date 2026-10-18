@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { faseDoisAtiva } from '../src/lib/meu-time-fase2-ui/flag'
 import { EXPLICACAO_IGNORADA, LEGENDA_POSICOES, linhaSeraIgnorada, textoDeAvisoLinha, MODELO_CSV, podeConfirmar, resumoEmFrase, textoCsvValido, textoDeErroLinha, validarArquivoCsv } from '../src/lib/meu-time-fase2-ui/csv'
-import { AVISO_DADOS_ATLETA, EXPLICACAO_PUBLICA, ehMenorDeIdade, idadeEm, linkWhatsApp, normalizarEstado, podeRevogar, validarFormAtleta } from '../src/lib/meu-time-fase2-ui/convites'
+import { AVISO_DADOS_ATLETA, EXPLICACAO_PUBLICA, TEXTO_VERSAO_AVISO, ehMenorDeIdade, idadeEm, linkWhatsApp, mensagemCienciaObrigatoria, montarCorpoConvite, normalizarEstado, podeRevogar, validarFormAtleta } from '../src/lib/meu-time-fase2-ui/convites'
 import { contarNaoLidas, falhaEncerraBuscaSino, rotuloSino, textoContador, tituloNotificacao } from '../src/lib/meu-time-fase2-ui/notificacoes'
 import { itemAtual, itensVisiveis, ITENS_NAV } from '../src/lib/meu-time-fase2-ui/navegacao'
 import { criarClienteFase2 } from '../src/components/meu-time-fase2/cliente'
@@ -132,6 +132,23 @@ async function main() {
   assert.ok(chamadas.at(-1)?.url.endsWith('/c%2F1'))
   const rede = criarClienteFase2((async () => { throw new Error('x') }) as typeof fetch)
   await assert.rejects(() => rede.listarNotificacoes(), (err: { falha?: { tipo: string } }) => err.falha?.tipo === 'rede')
+
+  // convite público: cienciaLgpd no corpo e tratamento do 400 CIENCIA_OBRIGATORIA
+  const base = { nome: ' Maria Silva ', dataNascimento: '2005-03-14', camisa: '7', posicao: '' }
+  assert.equal(montarCorpoConvite({ ...base, ciente: false }), null)
+  assert.deepEqual(montarCorpoConvite({ ...base, ciente: true }), { nome: 'Maria Silva', dataNascimento: '2005-03-14', camisa: 7, cienciaLgpd: true })
+  assert.match(TEXTO_VERSAO_AVISO, /v1-rascunho do aviso, sujeita à revisão jurídica/)
+  assert.ok(mensagemCienciaObrigatoria({ status: 400, codigo: 'CIENCIA_OBRIGATORIA' }))
+  assert.equal(mensagemCienciaObrigatoria({ status: 400, codigo: 'OUTRO' }), null)
+  assert.equal(mensagemCienciaObrigatoria({ status: 500, codigo: 'CIENCIA_OBRIGATORIA' }), null)
+  const enviados: string[] = []
+  const apiCiencia = criarClienteFase2((async (_u: string, init?: RequestInit) => {
+    enviados.push(String(init?.body))
+    return new Response(JSON.stringify({ error: 'Confirme a ciência.', codigo: 'CIENCIA_OBRIGATORIA' }), { status: 400 })
+  }) as typeof fetch)
+  const corpoOk = montarCorpoConvite({ ...base, ciente: true })!
+  await assert.rejects(() => apiCiencia.enviarConvitePublico('t', corpoOk), (err: { falha?: { status: number; codigo?: string } }) => !!err.falha && mensagemCienciaObrigatoria(err.falha) !== null)
+  assert.equal(JSON.parse(enviados[0]!).cienciaLgpd, true)
 
   console.log('meu-time-fase2-ui: ok')
 }

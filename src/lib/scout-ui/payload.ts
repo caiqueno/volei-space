@@ -1,5 +1,5 @@
 /** Montagem e validação do payload de uma ação. Módulo PURO (o servidor valida de novo). */
-import { FUNDAMENTOS, RESULTADOS, type Fundamento, type PayloadAcao, type ResultadoAcao } from './tipos'
+import { FUNDAMENTOS, RESULTADOS, type AcaoServidor, type CamposCorrecao, type Fundamento, type PayloadAcao, type ResultadoAcao } from './tipos'
 
 export interface EntradaAcao {
   clientEventId: string
@@ -44,6 +44,28 @@ export function montarPayload(e: EntradaAcao): PayloadAcao | null {
   if (inteiro(e.placarA, 0, 999)) p.placarA = e.placarA
   if (inteiro(e.placarB, 0, 999)) p.placarB = e.placarB
   return p
+}
+
+export interface EntradaCorrecao {
+  jogadorId: number | null
+  fundamento: Fundamento | null
+  resultado: ResultadoAcao | null
+  zonaOrigem: number | null
+  zonaDestino: number | null
+}
+
+/**
+ * Diferença entre a ação original e o que está no seletor: só os campos alterados e válidos.
+ * null se nada mudou (nada a salvar). Zona ou jogador limpos não são enviados (o contrato não prevê limpar).
+ */
+export function montarCorrecao(original: AcaoServidor, e: EntradaCorrecao): CamposCorrecao | null {
+  const c: CamposCorrecao = {}
+  if (e.fundamento && FUNDAMENTOS.includes(e.fundamento) && e.fundamento !== original.fundamento) c.fundamento = e.fundamento
+  if (e.resultado && RESULTADOS.includes(e.resultado) && e.resultado !== original.resultado) c.resultado = e.resultado
+  if (inteiro(e.zonaOrigem, 1, 9) && e.zonaOrigem !== (original.zonaOrigem ?? null)) c.zonaOrigem = e.zonaOrigem
+  if (inteiro(e.zonaDestino, 1, 9) && e.zonaDestino !== (original.zonaDestino ?? null)) c.zonaDestino = e.zonaDestino
+  if (inteiro(e.jogadorId, 1, Number.MAX_SAFE_INTEGER) && e.jogadorId !== (original.jogadorId ?? null)) c.jogadorId = e.jogadorId
+  return Object.keys(c).length > 0 ? c : null
 }
 
 interface Cripto {

@@ -1,4 +1,4 @@
-import type { EstadoConvite } from './tipos'
+import type { DadosAtletaConvite, EstadoConvite } from './tipos'
 
 const CONHECIDOS: EstadoConvite[] = ['ativo', 'usado', 'expirado', 'revogado', 'invalido']
 
@@ -82,6 +82,28 @@ export const AVISO_DADOS_ATLETA = {
 } as const
 
 export const MENSAGEM_CIENCIA = 'Marque que você leu o aviso de uso dos dados para enviar.'
+
+/** Versão do aviso exibido no convite público (texto sujeito à revisão jurídica). */
+export const TEXTO_VERSAO_AVISO = 'Versão v1-rascunho do aviso, sujeita à revisão jurídica.'
+
+export const MENSAGEM_CIENCIA_SERVIDOR = 'Para enviar, marque que você leu o aviso de uso dos dados e tente de novo.'
+
+/** Corpo do POST do convite público. O servidor exige `cienciaLgpd: true`; sem a marcação do checkbox não há corpo (null). */
+export function montarCorpoConvite(f: { nome: string; dataNascimento: string; camisa: string; posicao: string; ciente: boolean }): DadosAtletaConvite | null {
+  if (!f.ciente) return null
+  return {
+    nome: f.nome.trim(),
+    dataNascimento: f.dataNascimento,
+    ...(f.camisa.trim() !== '' ? { camisa: Number(f.camisa) } : {}),
+    ...(f.posicao ? { posicao: f.posicao } : {}),
+    cienciaLgpd: true,
+  }
+}
+
+/** Mensagem própria para o 400 CIENCIA_OBRIGATORIA; para outras falhas devolve null (usa o texto padrão). */
+export function mensagemCienciaObrigatoria(falha: { status: number; codigo?: string }): string | null {
+  return falha.status === 400 && falha.codigo === 'CIENCIA_OBRIGATORIA' ? MENSAGEM_CIENCIA_SERVIDOR : null
+}
 
 /** Validação de conforto do formulário do atleta (o servidor valida de novo). */
 export function validarFormAtleta(f: { nome: string; dataNascimento: string; camisa: string; ciente?: boolean }, hoje: Date = new Date()): ErrosForm {

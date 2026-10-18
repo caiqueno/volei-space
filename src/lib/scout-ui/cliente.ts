@@ -6,7 +6,7 @@ export interface RespostaScout {
   json: unknown
 }
 
-export async function chamarApi(caminho: string, metodo: 'GET' | 'POST' | 'DELETE', corpo?: unknown): Promise<RespostaScout> {
+export async function chamarApi(caminho: string, metodo: 'GET' | 'POST' | 'PATCH' | 'DELETE', corpo?: unknown): Promise<RespostaScout> {
   try {
     const res = await fetch(caminho, {
       method: metodo,

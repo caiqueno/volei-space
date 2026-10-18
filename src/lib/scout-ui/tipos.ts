@@ -44,6 +44,19 @@ export interface AcaoServidor {
   resultado: ResultadoAcao
   zonaOrigem?: number | null
   zonaDestino?: number | null
+  /** Preenchidos pelo servidor quando há log do jogo; ausentes ou null caso contrário. */
+  rotacao?: number | null
+  placarA?: number | null
+  placarB?: number | null
+}
+
+/** Campos corrigíveis de uma ação (PATCH /api/scout/[token]/acoes/[id]); só os que mudaram. */
+export interface CamposCorrecao {
+  fundamento?: Fundamento
+  resultado?: ResultadoAcao
+  zonaOrigem?: number
+  zonaDestino?: number
+  jogadorId?: number
 }
 
 export const ROTULO_FUNDAMENTO: Readonly<Record<Fundamento, string>> = {
