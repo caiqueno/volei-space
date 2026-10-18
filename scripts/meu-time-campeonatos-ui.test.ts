@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { criarClienteCampeonatos } from '../src/components/meu-time-campeonatos/cliente'
 import { urlBanco } from '../src/lib/banco-ui/cliente'
 import { papelSomenteLeitura } from '../src/lib/banco-ui/papel'
 import {
@@ -12,6 +13,14 @@ import {
   comTituloDeSolicitacao,
   inscricaoSolicitacaoAtiva,
   mensagemDeCodigo,
+  alternarAtleta,
+  limitesDoErro,
+  maximoParaEscolha,
+  mensagemErroSolicitacao,
+  normalizarAtletasDoBanco,
+  ordenarAtletas,
+  selecaoValida,
+  textoContagemSelecao,
   mensagemRetorno,
   normalizarJogos,
   normalizarOfertas,
@@ -119,5 +128,91 @@ const n = comTituloDeSolicitacao({ id: '1', tipo: 'SOLICITACAO_APROVADA', payloa
 assert.equal(n.payload.titulo, 'Seu time foi aceito: Copa')
 const outro = { tipo: 'X', payload: {} }
 assert.equal(comTituloDeSolicitacao(outro), outro)
+
+// erros do POST de solicitação
+assert.equal(mensagemErroSolicitacao({ codigo: 'TIME_SEM_ATLETAS', mensagem: 'x' }), 'Cadastre atletas no time antes de se inscrever.')
+assert.equal(mensagemErroSolicitacao({ codigo: 'CONVITE_OBRIGATORIO', mensagem: 'x' }), 'Esta competição é por convite. Peça o link de inscrição ao organizador.')
+assert.equal(mensagemErroSolicitacao({ codigo: 'INSCRICOES_FECHADAS', mensagem: 'x' }), 'As inscrições desta categoria estão fechadas.')
+assert.match(mensagemErroSolicitacao({ codigo: 'NAIPE_INCOMPATIVEL', mensagem: 'x' }), /naipe/)
+assert.equal(
+  mensagemErroSolicitacao({ codigo: 'ABAIXO_DO_MINIMO', mensagem: 'Faltam 3 atleta(s) para chegar ao mínimo de 8.' }),
+  'Esta categoria pede no mínimo 8 atletas. Seu time tem 5. Cadastre mais 3 atletas e tente de novo.',
+)
+assert.equal(
+  mensagemErroSolicitacao({ codigo: 'ABAIXO_DO_MINIMO', mensagem: 'Faltam 1 atleta(s) para chegar ao mínimo de 6.' }),
+  'Esta categoria pede no mínimo 6 atletas. Seu time tem 5. Cadastre mais 1 atleta e tente de novo.',
+)
+assert.match(mensagemErroSolicitacao({ codigo: 'ABAIXO_DO_MINIMO', mensagem: 'texto sem números' }), /menos atletas/)
+assert.equal(
+  mensagemErroSolicitacao({ codigo: 'ACIMA_DO_MAXIMO', mensagem: 'Remova 4 atleta(s): o máximo é 12.' }),
+  'Esta categoria aceita no máximo 12 atletas. Seu time tem 16. Escolha quem entra.',
+)
+assert.match(mensagemErroSolicitacao({ codigo: 'ACIMA_DO_MAXIMO', mensagem: 'O banco do time tem atletas demais para numerar de 0 a 99.' }), /atletas demais/)
+assert.equal(mensagemErroSolicitacao({ codigo: 'SOLICITACAO_PENDENTE', mensagem: 'x' }), 'Já existe um pedido seu aguardando o organizador para esta categoria.')
+assert.equal(mensagemErroSolicitacao({ codigo: 'OUTRO', mensagem: 'Texto do servidor.' }), 'Texto do servidor.')
+assert.deepEqual(limitesDoErro('ACIMA_DO_MAXIMO', 'Remova 2 atleta(s): o máximo é 10.'), { minimo: null, maximo: 10, diferenca: 2 })
+assert.deepEqual(limitesDoErro('ABAIXO_DO_MINIMO', 'Faltam 2 atleta(s) para chegar ao mínimo de 8.'), { minimo: 8, maximo: null, diferenca: 2 })
+assert.deepEqual(limitesDoErro('X', 'o máximo é 3'), { minimo: null, maximo: null, diferenca: null })
+
+// escolha de atletas só no excesso
+assert.equal(maximoParaEscolha({ codigo: 'ACIMA_DO_MAXIMO', mensagem: 'Remova 4 atleta(s): o máximo é 12.' }), 12)
+assert.equal(maximoParaEscolha({ codigo: 'ACIMA_DO_MAXIMO', mensagem: 'sem número' }), null)
+assert.equal(maximoParaEscolha({ codigo: 'ABAIXO_DO_MINIMO', mensagem: 'Faltam 1 atleta(s) para chegar ao mínimo de 6.' }), null)
+assert.equal(maximoParaEscolha({ mensagem: 'o máximo é 5' }), null)
+
+assert.deepEqual(alternarAtleta([], 'a', 2), ['a'])
+assert.deepEqual(alternarAtleta(['a'], 'b', 2), ['a', 'b'])
+assert.deepEqual(alternarAtleta(['a', 'b'], 'c', 2), ['a', 'b'])
+assert.deepEqual(alternarAtleta(['a', 'b'], 'a', 2), ['b'])
+const base = ['a']
+alternarAtleta(base, 'b', 3)
+assert.deepEqual(base, ['a'])
+assert.equal(selecaoValida([], 3), false)
+assert.equal(selecaoValida(['a'], 3), true)
+assert.equal(selecaoValida(['a', 'b', 'c', 'd'], 3), false)
+assert.equal(textoContagemSelecao(0, 12), 'Escolha até 12 atletas.')
+assert.equal(textoContagemSelecao(5, 12), '5 de 12 escolhidos. Ainda cabem 7 atletas.')
+assert.equal(textoContagemSelecao(11, 12), '11 de 12 escolhidos. Ainda cabem 1 atleta.')
+assert.equal(textoContagemSelecao(12, 12), '12 de 12 escolhidos. Para trocar, desmarque alguém.')
+
+const banco = normalizarAtletasDoBanco([
+  { id: 'z', nome: 'Zeca', numeroPreferido: null, cpf: '123' },
+  { id: 'b', nome: 'Bia', numeroPreferido: 7 },
+  { id: 'a', nome: 'Ana', numeroPreferido: 7 },
+  { id: 'c', nome: 'Caio', numeroPreferido: 1 },
+  { id: '', nome: 'Sem id' },
+  { id: 'q', nome: '' },
+  null,
+])
+assert.equal(banco.length, 4)
+assert.deepEqual(banco[0], { id: 'z', nome: 'Zeca', numeroPreferido: null })
+assert.deepEqual(ordenarAtletas(banco).map((a) => a.id), ['c', 'a', 'b', 'z'])
+assert.deepEqual(normalizarAtletasDoBanco('x'), [])
+
+// cliente: o POST leva os ids dos atletas só quando houver escolha; a lista vem do detalhe da equipe
+async function clienteDeTeste() {
+  const chamadas: Array<{ url: string; metodo: string; corpo: unknown }> = []
+  const falso = (async (url: string, init?: { method?: string; body?: string }) => {
+    chamadas.push({ url, metodo: init?.method ?? 'GET', corpo: init?.body ? JSON.parse(init.body) : undefined })
+    const dado = String(url).includes('/solicitacoes')
+      ? { data: { estado: 'PENDENTE', id: 9 } }
+      : { data: { atletas: [{ id: 'a1', nome: 'Ana', numeroPreferido: 3, cpf: 'x' }] } }
+    return { ok: true, status: 200, json: async () => dado }
+  }) as unknown as typeof fetch
+  const api = criarClienteCampeonatos(falso)
+  await api.solicitar('e1', 'c1', 'oi', ['a1', 'a2'])
+  await api.solicitar('e1', 'c1')
+  await api.solicitar('e1', 'c1', undefined, [])
+  const lista = await api.listarAtletas('e1')
+  return { chamadas, lista }
+}
+void clienteDeTeste().then(({ chamadas, lista }) => {
+  assert.deepEqual(chamadas[0].corpo, { equipeId: 'e1', categoriaId: 'c1', mensagem: 'oi', atletas: ['a1', 'a2'] })
+  assert.deepEqual(chamadas[1].corpo, { equipeId: 'e1', categoriaId: 'c1' })
+  assert.deepEqual(chamadas[2].corpo, { equipeId: 'e1', categoriaId: 'c1' })
+  assert.equal(chamadas[3].url, '/api/meu-time/equipes/e1')
+  assert.deepEqual(lista, [{ id: 'a1', nome: 'Ana', numeroPreferido: 3 }])
+  console.log('meu-time-campeonatos-ui cliente: ok')
+})
 
 console.log('meu-time-campeonatos-ui: ok')
