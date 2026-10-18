@@ -175,7 +175,8 @@
     "test:desafio-ui": "node scripts/with-ts-node.mjs scripts/desafio-ui.test.ts",
     "test:sumula-offline-politica": "node scripts/with-ts-node.mjs scripts/sumula-offline-politica.test.ts",
     "test:ao-vivo-ui": "node scripts/with-ts-node.mjs scripts/ao-vivo-ui.test.ts",
-    "test:prototipo": "node scripts/with-ts-node.mjs scripts/prototipo.test.ts"
+    "test:prototipo": "node scripts/with-ts-node.mjs scripts/prototipo.test.ts",
+    "test:organizador-solicitacoes-ui": "node scripts/with-ts-node.mjs scripts/organizador-solicitacoes-ui.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
