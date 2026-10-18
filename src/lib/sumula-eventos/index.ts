@@ -4,6 +4,7 @@
  */
 export * from './config-partida'
 export * from './contexto'
+export * from './desafio-log'
 export * from './esquema'
 export * from './lote'
 export * from './mapeamento'

@@ -34,6 +34,7 @@ export const TIPO_NA_TABELA: Record<SumulaEventoTipo, string> = {
   PROTESTO_ANUNCIADO: 'SAQUE',
   PROTESTO_REGISTRADO: 'SAQUE',
   PROTESTO_DESISTIDO: 'SAQUE',
+  DESAFIO: 'DESAFIO',
   DESFAZ: 'DESFAZ',
 }
 

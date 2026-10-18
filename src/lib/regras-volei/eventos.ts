@@ -159,6 +159,12 @@ export interface PayloadPorTipo {
   PROTESTO_REGISTRADO: { equipe: Equipe; relato: string; anunciadoSeq?: number | null }
   /** RG-PRO-003: o capitão decidiu não formalizar o protesto anunciado. */
   PROTESTO_DESISTIDO: { equipe: Equipe; anunciadoSeq?: number | null }
+  /**
+   * Decisão de um desafio de vídeo (R13): só REGISTRO no log. Não altera placar, rotação nem repete rally;
+   * qualquer consequência no jogo é decisão da arbitragem, lançada à parte (ponto, RALLY_REPETIDO...).
+   * `desafioId` (uuid do DesafioVideo) torna o registro idempotente.
+   */
+  DESAFIO: { equipe: Equipe; setNumero: number; resultado: 'MANTIDA' | 'REVERTIDA' | 'INCONCLUSIVA' | 'CANCELADO'; desafioId: string }
   DESFAZ: Record<string, never>
 }
 
@@ -594,6 +600,8 @@ export function derivarPlacar(
         tratarProtesto(e)
         continue
       }
+      // A decisão do desafio é só registro: pode chegar depois do fim e não muda nada.
+      if (e.tipo === 'DESAFIO') continue
       rejeitar(e.seq, 'RG-WO-001', 'Evento após o encerramento por WO/repetição da partida foi ignorado.')
       continue
     }
