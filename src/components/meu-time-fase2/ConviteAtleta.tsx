@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { Aviso, botaoPrimario, Campo, campoEstilo, Carregando, cartao, descreve, FalhaTela, falhaDe, Pagina, useCarregar } from '@/components/meu-time/ui'
 import { POSICOES } from '@/components/meu-time/rotulos'
 import type { Falha } from '@/lib/meu-time-ui/respostas'
-import { AVISO_DADOS_ATLETA, EXPLICACAO_PUBLICA, ehMenorDeIdade, validarFormAtleta, type ErrosForm } from '@/lib/meu-time-fase2-ui/convites'
+import { AVISO_DADOS_ATLETA, EXPLICACAO_PUBLICA, MENSAGEM_CIENCIA, TEXTO_VERSAO_AVISO, ehMenorDeIdade, mensagemCienciaObrigatoria, montarCorpoConvite, validarFormAtleta, type ErrosForm } from '@/lib/meu-time-fase2-ui/convites'
 import { faseDoisAtiva } from '@/lib/meu-time-fase2-ui/flag'
 import type { ConvitePublico } from '@/lib/meu-time-fase2-ui/tipos'
 import { obterClienteFase2, type ClienteFase2 } from './cliente'
@@ -70,18 +70,21 @@ function Formulario({ token, convite, api }: { token: string; convite: ConvitePu
     const e = validarFormAtleta({ nome, dataNascimento: nascimento, camisa, ciente })
     setErros(e)
     if (Object.keys(e).length > 0) return
+    const corpo = montarCorpoConvite({ nome, dataNascimento: nascimento, camisa, posicao, ciente })
+    if (!corpo) {
+      setErros({ ...e, ciencia: MENSAGEM_CIENCIA })
+      return
+    }
     setOcupado(true)
     setFalha(null)
     try {
-      await api.enviarConvitePublico(token, {
-        nome: nome.trim(),
-        dataNascimento: nascimento,
-        ...(camisa.trim() !== '' ? { camisa: Number(camisa) } : {}),
-        ...(posicao ? { posicao } : {}),
-      })
+      await api.enviarConvitePublico(token, corpo)
       setEnviado(true)
     } catch (erro) {
-      setFalha(falhaDe(erro))
+      const f = falhaDe(erro)
+      const ciencia = mensagemCienciaObrigatoria(f)
+      if (ciencia) setErros({ ciencia })
+      setFalha(ciencia ? { ...f, mensagem: ciencia } : f)
     } finally {
       setOcupado(false)
     }
@@ -134,6 +137,7 @@ function Formulario({ token, convite, api }: { token: string; convite: ConvitePu
               <li key={i}>{i}</li>
             ))}
           </ul>
+          <p className="mt-2 text-xs text-[var(--vs-muted)]">{TEXTO_VERSAO_AVISO}</p>
         </section>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="ca-ciencia" className="flex min-h-[44px] items-start gap-3 text-sm font-bold">
