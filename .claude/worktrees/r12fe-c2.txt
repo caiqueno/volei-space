@@ -1,0 +1,3 @@
+fix(meu-time): modelo CSV com codigos de posicao do servidor e avisos por linha
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>

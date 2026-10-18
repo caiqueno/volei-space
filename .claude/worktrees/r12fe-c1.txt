@@ -1,0 +1,3 @@
+fix(scout): zonas pela convencao da rede, fila pausa em 401/403/404 e resumo opcional
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>

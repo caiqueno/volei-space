@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>volei.space — conceito</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --fundo:#061426; --fundo2:#0c2340; --ouro:#f5b82e; --texto:#f2f6fb; --suave:#9db3cc; --ok:#4ade80; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--fundo); color: var(--texto); font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  .cena { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 9vw; opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; background: radial-gradient(ellipse at 80% 10%, var(--fundo2), var(--fundo) 60%); pointer-events: none; }
+  .cena.ativa { opacity: 1; transform: none; }
+  .selo { color: var(--ouro); font-weight: 800; letter-spacing: .18em; font-size: 1.1vw; text-transform: uppercase; margin-bottom: 2vw; }
+  h1 { font-size: 6.4vw; line-height: 1.02; font-weight: 900; letter-spacing: -.02em; }
+  h1 span { color: var(--ouro); }
+  h2 { font-size: 3.8vw; line-height: 1.1; font-weight: 800; margin-bottom: 2.4vw; max-width: 80vw; }
+  p.sub { font-size: 2vw; color: var(--suave); margin-top: 1.8vw; max-width: 70vw; line-height: 1.4; }
+  ul.lista { list-style: none; padding: 0; display: grid; gap: 1.1vw; font-size: 2vw; }
+  ul.lista li { display: flex; gap: 1.2vw; align-items: baseline; opacity: 0; transform: translateX(-14px); transition: all .5s ease; }
+  .ativa ul.lista li { opacity: 1; transform: none; }
+  .ativa ul.lista li:nth-child(1) { transition-delay: .5s } .ativa ul.lista li:nth-child(2) { transition-delay: 1.2s }
+  .ativa ul.lista li:nth-child(3) { transition-delay: 1.9s } .ativa ul.lista li:nth-child(4) { transition-delay: 2.6s }
+  .ativa ul.lista li:nth-child(5) { transition-delay: 3.3s } .ativa ul.lista li:nth-child(6) { transition-delay: 4s }
+  ul.lista b { color: var(--ouro); min-width: 3.2vw; }
+  .x { color: #f87171 !important; } .v { color: var(--ok) !important; }
+  .perfis { display: flex; flex-wrap: wrap; gap: 1.1vw; max-width: 82vw; }
+  .perfil { border: .2vw solid #2b4a70; border-radius: 1vw; padding: 1vw 1.6vw; font-size: 1.9vw; background: rgba(255,255,255,.04); opacity: 0; transform: scale(.92); transition: all .45s ease; }
+  .ativa .perfil { opacity: 1; transform: none; }
+  .ativa .perfil:nth-child(1){transition-delay:.3s}.ativa .perfil:nth-child(2){transition-delay:.7s}.ativa .perfil:nth-child(3){transition-delay:1.1s}
+  .ativa .perfil:nth-child(4){transition-delay:1.5s}.ativa .perfil:nth-child(5){transition-delay:1.9s}.ativa .perfil:nth-child(6){transition-delay:2.3s}.ativa .perfil:nth-child(7){transition-delay:2.7s}
+  .quadra { position: absolute; right: 8vw; top: 50%; transform: translateY(-50%); width: 24vw; height: 24vw; border: .25vw solid var(--ouro); display: grid; grid-template: repeat(2,1fr)/repeat(3,1fr); }
+  .quadra div { border: .1vw solid #2b4a70; display: flex; align-items: center; justify-content: center; font-size: 2.4vw; font-weight: 800; color: var(--suave); }
+  .quadra .sac { color: var(--fundo); background: var(--ouro); }
+  .barra { position: absolute; left: 0; right: 0; bottom: 0; height: .5vw; background: var(--ouro); transform-origin: left; transform: scaleX(0); }
+  .rodape { position: absolute; left: 9vw; bottom: 2.4vw; color: var(--suave); font-size: 1.2vw; }
+</style>
+</head>
+<body>
+<section class="cena" id="c0">
+  <div class="selo">Plataforma de campeonatos</div>
+  <h1>volei<span>.space</span></h1>
+  <p class="sub">A súmula digital que conhece as regras do vôlei de quadra, do banco ao organizador.</p>
+</section>
+
+<section class="cena" id="c1">
+  <div class="selo">O problema</div>
+  <h2>Campeonato de vôlei ainda roda em papel, planilha e WhatsApp.</h2>
+  <ul class="lista">
+    <li><b class="x">✕</b> Súmula em papel: rasura, rotação errada, ponto conferido de cabeça</li>
+    <li><b class="x">✕</b> Papeleta entregue de mão e sem registro do que foi pedido</li>
+    <li><b class="x">✕</b> Inscrição por planilha, sem controle de quem é menor de idade</li>
+    <li><b class="x">✕</b> Resultado só aparece quando alguém digita depois</li>
+  </ul>
+</section>
+
+<section class="cena" id="c2">
+  <div class="selo">O conceito</div>
+  <h2>Um motor de regras do vôlei no centro de tudo.</h2>
+  <ul class="lista">
+    <li><b class="v">✓</b> Rotação, saque, substituições e líbero conferidos a cada ponto</li>
+    <li><b class="v">✓</b> Tempos, sanções, desafio e fechamento da súmula com assinaturas</li>
+    <li><b class="v">✓</b> Regras da FIVB e da CBV; o que depende do organizador é configurável</li>
+    <li><b class="v">✓</b> Todo lançamento vira um evento imutável: dá para auditar e reproduzir</li>
+  </ul>
+  <div class="quadra" aria-hidden="true"><div>IV</div><div>III</div><div>II</div><div>V</div><div>VI</div><div class="sac">I</div></div>
+</section>
+
+<section class="cena" id="c3">
+  <div class="selo">Quem usa</div>
+  <h2>Sete perfis, cada um com a sua tela.</h2>
+  <div class="perfis">
+    <div class="perfil">Líder do time</div><div class="perfil">Atleta convidado</div><div class="perfil">Apontador</div>
+    <div class="perfil">Banco da equipe</div><div class="perfil">Árbitro</div><div class="perfil">Organizador</div><div class="perfil">Espectador</div>
+  </div>
+  <p class="sub">Convite por link, papeleta pelo celular, pedidos ao apontador em tempo real e placar ao vivo para a arquibancada.</p>
+</section>
+
+<section class="cena" id="c4">
+  <div class="selo">Princípios</div>
+  <h2>Feito para quadra de verdade.</h2>
+  <ul class="lista">
+    <li><b>⚡</b> Funciona com internet ruim: lançamentos ficam na fila e sincronizam sozinhos</li>
+    <li><b>🛡</b> Regras e permissões validadas no servidor, com isolamento entre organizadores</li>
+    <li><b>👶</b> Proteção de dados de menores (LGPD): consentimento do responsável e contato cifrado</li>
+    <li><b>🏐</b> Só vôlei de quadra; cada módulo novo nasce desligado e é ligado aos poucos</li>
+  </ul>
+</section>
+
+<section class="cena" id="c5">
+  <div class="selo">Agora, a plataforma</div>
+  <h2>Percursos clicáveis com dados de exemplo.</h2>
+  <p class="sub">O protótipo a seguir não grava nada e não usa banco: é só para mostrar como cada perfil usa o sistema.</p>
+</section>
+
+<section class="cena" id="c6">
+  <div class="selo">Situação</div>
+  <h2>Código pronto para testar.</h2>
+  <ul class="lista">
+    <li><b class="v">✓</b> Súmula, papeleta, banco, scout, desafio, placar ao vivo, Meu Time, offline-first</li>
+    <li><b class="v">✓</b> Revisões de segurança, de regras e de contratos feitas e corrigidas</li>
+    <li><b>→</b> Próximo passo: testar no navegador e ensaiar o banco em preview</li>
+    <li><b>→</b> Decisões jurídicas de LGPD e confirmação de regras com a COBRAV</li>
+  </ul>
+  <div class="rodape">volei.space — branch cursor-teste</div>
+</section>
+<div class="barra" id="barra"></div>
+<script>
+  window.mostrar = function (n) {
+    document.querySelectorAll('.cena').forEach(function (el) { el.classList.remove('ativa'); });
+    var alvo = document.getElementById('c' + n);
+    if (alvo) alvo.classList.add('ativa');
+  };
+  window.esconder = function () { document.querySelectorAll('.cena').forEach(function (el) { el.classList.remove('ativa'); }); };
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[
+  { "id": "c0", "texto": "Este é o vôlei ponto space: uma plataforma de campeonatos de vôlei de quadra, com súmula digital que conhece as regras." },
+  { "id": "c1", "texto": "Hoje, muito campeonato ainda roda em papel, planilha e grupo de mensagens. A súmula tem rasura, a rotação sai errada, a papeleta é entregue de mão, e o resultado só aparece quando alguém digita depois." },
+  { "id": "c2", "texto": "A ideia é ter um motor de regras do vôlei no centro de tudo. A cada ponto, o sistema confere a rotação, o saque, as substituições e o líbero. Tempos, sanções, desafio e fechamento da súmula seguem as regras da FIVB e da CBV. E cada lançamento vira um evento imutável, que pode ser auditado." },
+  { "id": "c3", "texto": "São sete perfis: líder do time, atleta convidado, apontador, banco da equipe, árbitro, organizador e espectador. Cada um tem a sua tela." },
+  { "id": "c4", "texto": "Foi pensado para a quadra de verdade. Funciona com internet ruim, valida regras e permissões no servidor, protege os dados de menores de idade, e cada módulo novo nasce desligado, para ser ligado aos poucos." },
+  { "id": "c5", "texto": "Agora, a plataforma em ação. É um protótipo com dados de exemplo. Nada é gravado." },
+  { "id": "lider", "texto": "O líder do time cadastra a equipe, convida atletas por um link e importa a planilha, vendo os erros antes de confirmar." },
+  { "id": "atleta", "texto": "O atleta abre o convite e preenche os próprios dados. Se for menor de idade, o responsável será contatado." },
+  { "id": "apontador1", "texto": "O apontador marca cada ponto com um toque. Veja o placar mudando a cada lance." },
+  { "id": "apontador2", "texto": "Quando o time que recebia ganha o ponto, ele assume o saque, e a rotação gira uma posição. Repare no jogador que vai para a posição de saque." },
+  { "id": "apontador3", "texto": "O apontador também registra tempos e substituições, respeitando os limites de cada set." },
+  { "id": "apontador4", "texto": "Quando o banco pede uma troca, o apontador aceita ou recusa na hora." },
+  { "id": "apontador5", "texto": "Há ainda o desafio de vídeo e, no final, o fechamento da súmula, com as assinaturas." },
+  { "id": "banco", "texto": "No celular, o banco monta a papeleta com os seis titulares, envia ao apontador, e depois pede tempo ou troca, sem precisar gritar da lateral." },
+  { "id": "arbitro", "texto": "O árbitro acompanha o jogo ao vivo, em modo de leitura, sem poder alterar a súmula." },
+  { "id": "organizador", "texto": "O organizador acompanha a competição, a tabela e as súmulas, e exporta os dados do scout." },
+  { "id": "espectador", "texto": "E o público acompanha o placar ao vivo, em tela cheia." },
+  { "id": "c6", "texto": "O código está pronto para ser testado. Os próximos passos são testar no navegador, ensaiar o banco de dados em preview, e confirmar as regras com a COBRAV." }
+]

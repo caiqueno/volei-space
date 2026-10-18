@@ -1,0 +1,3 @@
+fix(banco): validacao de papeleta (capitao, camisa, libero2), WO encerrada e aviso de limite 429
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
