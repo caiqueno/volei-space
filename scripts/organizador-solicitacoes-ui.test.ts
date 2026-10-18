@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   campeonatosDaLista, contarPendentes, destinoNotificacao, filtrarPorCampeonato, limparMotivo, normalizarModo,
   normalizarNotificacoes, normalizarSolicitacoes, podeDecidir, rotuloContador, rotuloEstado, rotuloModo,
-  solicitacoesAtivo, textoAtletas, tratarResposta, urlSolicitacoes, MOTIVO_MAX,
+  baseSolicitacoes, itemAtivoSolicitacoes, rotuloAprovacaoRevisao, solicitacoesAtivo, textoAtletas, tratarResposta, urlSolicitacoes, MOTIVO_MAX,
 } from '../src/lib/organizador-solicitacoes-ui'
 
 // Flag: só '1'.
@@ -77,5 +77,26 @@ assert.equal(c.mensagem, 'Já recusada.')
 assert.equal(tratarResposta(403).tipo, 'sessao')
 assert.equal(tratarResposta(500, { error: 'boom' }).mensagem, 'boom')
 assert.equal(tratarResposta(500).tipo, 'generica')
+
+// /painel: mesma fila, outra rota
+assert.equal(baseSolicitacoes(), '/admin/solicitacoes')
+assert.equal(baseSolicitacoes('admin'), '/admin/solicitacoes')
+assert.equal(baseSolicitacoes('painel'), '/painel/solicitacoes')
+assert.equal(destinoNotificacao('SOLICITACAO_INSCRICAO', 'painel'), '/painel/solicitacoes')
+assert.equal(destinoNotificacao('SOLICITACAO_INSCRICAO', 'admin'), '/admin/solicitacoes')
+assert.equal(destinoNotificacao('OUTRA', 'painel'), null)
+assert.equal(itemAtivoSolicitacoes('/painel/solicitacoes', 'painel'), true)
+assert.equal(itemAtivoSolicitacoes('/painel/solicitacoes/x', 'painel'), true)
+assert.equal(itemAtivoSolicitacoes('/painel/solicitacoes', 'admin'), false)
+assert.equal(itemAtivoSolicitacoes('/painel/solicitacoesx', 'painel'), false)
+assert.equal(itemAtivoSolicitacoes('/admin/solicitacoes', 'admin'), true)
+
+// Revisão da etapa Inscrições
+assert.equal(rotuloAprovacaoRevisao(false, 'APROVACAO'), 'Automática (sem fila)')
+assert.equal(rotuloAprovacaoRevisao(true, 'AUTOMATICA'), 'Automática (sem fila)')
+assert.equal(rotuloAprovacaoRevisao(true, 'APROVACAO'), 'Com aprovação do organizador')
+assert.equal(rotuloAprovacaoRevisao(true, 'carregando'), 'Carregando...')
+assert.match(rotuloAprovacaoRevisao(true, 'erro'), /Não foi possível/)
+assert.match(rotuloAprovacaoRevisao(true, 'sem-categoria'), /categoria/)
 
 console.log('organizador-solicitacoes-ui: ok')

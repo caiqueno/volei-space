@@ -35,9 +35,9 @@ export function BancoApp({ token, baseApi, papel }: { token: string; baseApi?: s
       setTela(null)
       return
     }
-    const t = classificarFalha(r.status)
+    const t = classificarFalha(r.status, Boolean(baseApi))
     setLimitado(t === 'limite')
-    if (t === 'desligado' || t === 'token-invalido' || t === 'expirado') {
+    if (t === 'desligado' || t === 'token-invalido' || t === 'sessao' || t === 'expirado') {
       setTela(t)
       return 'parar'
     }

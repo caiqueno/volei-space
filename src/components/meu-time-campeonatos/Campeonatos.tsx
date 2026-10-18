@@ -9,17 +9,20 @@ import {
   AJUDA_MODO,
   botaoDaOferta,
   codigoPedeRecarregar,
+  maximoParaEscolha,
+  mensagemErroSolicitacao,
   inscricaoSolicitacaoAtiva,
   LIMITE_MENSAGEM,
-  mensagemDeCodigo,
   mensagemRetorno,
   prepararMensagem,
   ROTULO_MODO,
   textoConfirmacao,
   textoSituacao,
+  type AtletaDoBanco,
   type OfertaCampeonato,
 } from '@/lib/meu-time-campeonatos-ui/regras'
 import { obterClienteCampeonatos, type ClienteCampeonatos } from './cliente'
+import { SeletorAtletas } from './SeletorAtletas'
 
 const SELO_MODO = {
   AUTOMATICA: 'border-[var(--vs-border-strong)] text-[var(--vs-text)]',
@@ -28,22 +31,28 @@ const SELO_MODO = {
 
 type Retorno = { tom: 'is-success' | 'is-error'; texto: string }
 
+/** Resultado do envio. `escolher` = máximo de atletas, quando o líder precisa escolher quem entra. */
+type ResultadoEnvio = { ok: boolean; escolher?: number }
+
 function Oferta({
   oferta,
   equipeNome,
   ocupado,
   aoConfirmar,
   aoCancelar,
+  carregarAtletas,
 }: {
   oferta: OfertaCampeonato
   equipeNome: string
   ocupado: boolean
-  aoConfirmar: (o: OfertaCampeonato, mensagem?: string) => Promise<void>
+  aoConfirmar: (o: OfertaCampeonato, mensagem?: string, atletas?: string[]) => Promise<ResultadoEnvio>
   aoCancelar: (o: OfertaCampeonato) => Promise<void>
+  carregarAtletas: () => Promise<AtletaDoBanco[]>
 }) {
   const botao = botaoDaOferta(oferta)
   const [confirmando, setConfirmando] = useState(false)
   const [mensagem, setMensagem] = useState('')
+  const [maximoEscolha, setMaximoEscolha] = useState<number | null>(null)
   const idBase = `oferta-${oferta.categoriaId}`
   const gatilho = useRef<HTMLButtonElement>(null)
   const primeiro = useRef<HTMLButtonElement>(null)
@@ -55,6 +64,7 @@ function Oferta({
   function fechar() {
     setConfirmando(false)
     setMensagem('')
+    setMaximoEscolha(null)
     gatilho.current?.focus()
   }
 
@@ -106,6 +116,20 @@ function Oferta({
               />
             </Campo>
           )}
+          {maximoEscolha !== null ? (
+            <SeletorAtletas
+              idBase={idBase}
+              maximo={maximoEscolha}
+              ocupado={ocupado}
+              carregar={carregarAtletas}
+              aoEnviar={async (ids) => {
+                const r = await aoConfirmar(oferta, prepararMensagem(mensagem), ids)
+                if (r.escolher !== undefined) setMaximoEscolha(r.escolher)
+                else fechar()
+              }}
+              aoVoltar={() => setMaximoEscolha(null)}
+            />
+          ) : (
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               ref={primeiro}
@@ -113,7 +137,11 @@ function Oferta({
               className={botaoPrimario}
               disabled={ocupado}
               onClick={async () => {
-                await aoConfirmar(oferta, prepararMensagem(mensagem))
+                const r = await aoConfirmar(oferta, prepararMensagem(mensagem))
+                if (r.escolher !== undefined) {
+                  setMaximoEscolha(r.escolher)
+                  return
+                }
                 setConfirmando(false)
                 setMensagem('')
               }}
@@ -124,6 +152,7 @@ function Oferta({
               Voltar
             </button>
           </div>
+          )}
         </div>
       )}
     </li>
@@ -166,6 +195,8 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
     void carregar()
   }, [ativo, carregar])
 
+  const carregarAtletas = useCallback(() => api.listarAtletas(equipeId), [api, equipeId])
+
   // Flag desligada: nada novo aparece e nenhuma requisição sai.
   if (!ativo) {
     return (
@@ -175,22 +206,31 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
     )
   }
 
-  async function aoConfirmar(o: OfertaCampeonato, mensagem?: string) {
+  async function aoConfirmar(o: OfertaCampeonato, mensagem?: string, atletas?: string[]): Promise<ResultadoEnvio> {
     setOcupado(o.categoriaId)
     setRetorno(null)
     try {
-      const r = await api.solicitar(equipeId, o.categoriaId, mensagem)
+      const r = await api.solicitar(equipeId, o.categoriaId, mensagem, atletas)
       setRetorno({ tom: 'is-success', texto: mensagemRetorno(r.estado, o.modo) })
     } catch (e) {
       const f = falhaDe(e)
-      setRetorno({ tom: 'is-error', texto: mensagemDeCodigo(f.codigo) ?? f.mensagem })
+      setRetorno({ tom: 'is-error', texto: mensagemErroSolicitacao(f) })
+      const escolher = maximoParaEscolha(f)
+      if (escolher !== null) {
+        setOcupado(null)
+        return { ok: false, escolher }
+      }
       if (!(e instanceof ErroMeuTime) || (!codigoPedeRecarregar(f.codigo) && f.tipo !== 'conflito')) {
         setOcupado(null)
-        return
+        return { ok: false }
       }
+      await carregar()
+      setOcupado(null)
+      return { ok: false }
     }
     await carregar()
     setOcupado(null)
+    return { ok: true }
   }
 
   async function aoCancelar(o: OfertaCampeonato) {
@@ -223,7 +263,7 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
       {ofertas && ofertas.length > 0 && (
         <ul className="flex flex-col gap-3" aria-label="Campeonatos e categorias">
           {ofertas.map((o) => (
-            <Oferta key={o.categoriaId} oferta={o} equipeNome={equipeNome} ocupado={ocupado === o.categoriaId} aoConfirmar={aoConfirmar} aoCancelar={aoCancelar} />
+            <Oferta key={o.categoriaId} oferta={o} equipeNome={equipeNome} ocupado={ocupado === o.categoriaId} aoConfirmar={aoConfirmar} aoCancelar={aoCancelar} carregarAtletas={carregarAtletas} />
           ))}
         </ul>
       )}

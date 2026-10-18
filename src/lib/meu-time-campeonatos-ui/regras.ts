@@ -253,3 +253,99 @@ export function comTituloDeSolicitacao<T extends { tipo: string; payload: Record
 }
 
 export const HREF_CAMPEONATOS = '/meu-time/campeonatos'
+
+// ---------------------------------------------------------------- erros do pedido de inscrição
+
+export type AtletaDoBanco = { id: string; nome: string; numeroPreferido: number | null }
+
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`
+
+function primeiroInteiro(texto: string, padrao: RegExp): number | null {
+  const m = padrao.exec(texto)
+  if (!m) return null
+  const n = Number(m[1])
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
+
+/** Limites e diferença lidos da mensagem do servidor ("Faltam X ... mínimo de N", "Remova X ...: o máximo é M"). */
+export function limitesDoErro(codigo: string | undefined, mensagem: string): { minimo: number | null; maximo: number | null; diferenca: number | null } {
+  if (codigo === 'ABAIXO_DO_MINIMO') {
+    return { minimo: primeiroInteiro(mensagem, /m[ií]nimo (?:de|é) (\d+)/i), maximo: null, diferenca: primeiroInteiro(mensagem, /faltam (\d+)/i) }
+  }
+  if (codigo === 'ACIMA_DO_MAXIMO') {
+    return { minimo: null, maximo: primeiroInteiro(mensagem, /m[aá]ximo (?:de|é) (\d+)/i), diferenca: primeiroInteiro(mensagem, /remova (\d+)/i) }
+  }
+  return { minimo: null, maximo: null, diferenca: null }
+}
+
+export type FalhaSolicitacao = { codigo?: string; mensagem: string }
+
+/** Mensagem simples para os erros do POST de solicitação. Cai na mensagem do servidor quando o código é outro. */
+export function mensagemErroSolicitacao(f: FalhaSolicitacao): string {
+  const { minimo, maximo, diferenca } = limitesDoErro(f.codigo, f.mensagem)
+  switch (f.codigo) {
+    case 'TIME_SEM_ATLETAS':
+      return 'Cadastre atletas no time antes de se inscrever.'
+    case 'ABAIXO_DO_MINIMO': {
+      if (minimo === null) return 'Seu time tem menos atletas do que esta categoria pede. Cadastre mais atletas e tente de novo.'
+      const base = `Esta categoria pede no mínimo ${plural(minimo, 'atleta', 'atletas')}.`
+      if (diferenca === null) return `${base} Cadastre mais atletas no time e tente de novo.`
+      return `${base} Seu time tem ${Math.max(0, minimo - diferenca)}. Cadastre mais ${plural(diferenca, 'atleta', 'atletas')} e tente de novo.`
+    }
+    case 'ACIMA_DO_MAXIMO': {
+      if (maximo === null) return 'Seu time tem atletas demais para esta categoria. Remova alguns do banco do time e tente de novo.'
+      const base = `Esta categoria aceita no máximo ${plural(maximo, 'atleta', 'atletas')}.`
+      return diferenca !== null ? `${base} Seu time tem ${maximo + diferenca}. Escolha quem entra.` : `${base} Escolha quem entra.`
+    }
+    case 'CONVITE_OBRIGATORIO':
+      return 'Esta competição é por convite. Peça o link de inscrição ao organizador.'
+    case 'INSCRICOES_FECHADAS':
+      return 'As inscrições desta categoria estão fechadas.'
+    case 'NAIPE_INCOMPATIVEL':
+      return 'O naipe do seu time não é o desta categoria. Escolha uma categoria do mesmo naipe.'
+    default:
+      return mensagemDeCodigo(f.codigo) ?? f.mensagem
+  }
+}
+
+/** Só no excesso de atletas o líder resolve na própria tela, escolhendo quem entra. Devolve o máximo ou null. */
+export function maximoParaEscolha(f: FalhaSolicitacao): number | null {
+  if (f.codigo !== 'ACIMA_DO_MAXIMO') return null
+  const { maximo } = limitesDoErro(f.codigo, f.mensagem)
+  return maximo !== null && maximo >= 1 ? maximo : null
+}
+
+// ---------------------------------------------------------------- escolha de atletas
+
+/** Marca ou desmarca um atleta. No máximo, novas marcações são ignoradas (desmarcar sempre vale). */
+export function alternarAtleta(selecionados: readonly string[], id: string, maximo: number): string[] {
+  if (selecionados.includes(id)) return selecionados.filter((s) => s !== id)
+  return selecionados.length >= maximo ? [...selecionados] : [...selecionados, id]
+}
+
+export function selecaoValida(selecionados: readonly string[], maximo: number): boolean {
+  return selecionados.length >= 1 && selecionados.length <= maximo
+}
+
+export function textoContagemSelecao(marcados: number, maximo: number): string {
+  if (marcados === 0) return `Escolha até ${plural(maximo, 'atleta', 'atletas')}.`
+  if (marcados >= maximo) return `${marcados} de ${maximo} escolhidos. Para trocar, desmarque alguém.`
+  return `${marcados} de ${maximo} escolhidos. Ainda cabem ${plural(maximo - marcados, 'atleta', 'atletas')}.`
+}
+
+/** Atletas na ordem do número preferido (sem número vão para o fim), depois por nome. */
+export function ordenarAtletas(lista: AtletaDoBanco[]): AtletaDoBanco[] {
+  const n = (a: AtletaDoBanco) => (a.numeroPreferido === null ? Number.MAX_SAFE_INTEGER : a.numeroPreferido)
+  return [...lista].sort((a, b) => n(a) - n(b) || a.nome.localeCompare(b.nome, 'pt-BR'))
+}
+
+export function normalizarAtletasDoBanco(dado: unknown): AtletaDoBanco[] {
+  if (!Array.isArray(dado)) return []
+  return dado
+    .map((i) => {
+      const o = obj(i)
+      const n = typeof o.numeroPreferido === 'number' && Number.isFinite(o.numeroPreferido) ? o.numeroPreferido : null
+      return { id: txt(o.id), nome: txt(o.nome), numeroPreferido: n }
+    })
+    .filter((a) => a.id !== '' && a.nome !== '')
+}

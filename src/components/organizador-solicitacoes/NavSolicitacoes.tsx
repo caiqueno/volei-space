@@ -6,17 +6,26 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Bell, Inbox } from 'lucide-react'
 import { usePollingVisivel, type ResultadoConsulta } from '@/lib/ao-vivo-ui/usePollingVisivel'
 import {
-  INTERVALO_SOLICITACOES_MS, contarPendentes, dataCurta, destinoNotificacao, normalizarNotificacoes,
+  INTERVALO_SOLICITACOES_MS, baseSolicitacoes, contarPendentes, dataCurta, destinoNotificacao, itemAtivoSolicitacoes, normalizarNotificacoes,
   normalizarSolicitacoes, rotuloContador, solicitacoesAtivo, tratarResposta, urlSolicitacoes,
-  type NotificacaoOrganizador,
+  type AreaOrganizador, type NotificacaoOrganizador,
 } from '@/lib/organizador-solicitacoes-ui'
 
 function useAtivo() {
   return solicitacoesAtivo(process.env.NEXT_PUBLIC_INSCRICAO_SOLICITACAO_ATIVO)
 }
 
-/** Item "Solicitações" do menu com contador de pendentes. Desligado pela flag: não renderiza nem consulta. */
-export function ItemNavSolicitacoes() {
+type VarianteNav = 'admin' | 'painel-lateral' | 'painel-mobile'
+
+const CLASSE_LINK: Record<VarianteNav, { base: string; ativo: string }> = {
+  admin: { base: 'admin-nav-link flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition', ativo: 'admin-nav-link-active' },
+  'painel-lateral': { base: 'profile-sidebar-link', ativo: 'is-active' },
+  'painel-mobile': { base: 'profile-mobile-link', ativo: 'is-active' },
+}
+
+/** Item "Solicitações" do menu com contador de pendentes (/admin e /painel). Desligado pela flag: não renderiza nem consulta. */
+export function ItemNavSolicitacoes({ area = 'admin', variante }: { area?: AreaOrganizador; variante?: VarianteNav } = {}) {
+  const v: VarianteNav = variante ?? (area === 'painel' ? 'painel-lateral' : 'admin')
   const ativo = useAtivo()
   const pathname = usePathname()
   const [pendentes, setPendentes] = useState(0)
@@ -36,18 +45,19 @@ export function ItemNavSolicitacoes() {
   usePollingVisivel(buscar, { ativo, baseMs: INTERVALO_SOLICITACOES_MS, maxMs: 60_000 })
 
   if (!ativo) return null
-  const active = pathname.startsWith('/admin/solicitacoes')
+  const active = itemAtivoSolicitacoes(pathname, area)
+  const classes = CLASSE_LINK[v]
   const contador = rotuloContador(pendentes)
   return (
     <Link
-      href="/admin/solicitacoes"
+      href={baseSolicitacoes(area)}
       aria-current={active ? 'page' : undefined}
-      className={`admin-nav-link flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition ${active ? 'admin-nav-link-active' : ''}`}
+      className={`${classes.base} ${active ? classes.ativo : ''}`}
     >
       <Inbox size={18} />
-      <span className="flex-1">Solicitações</span>
+      <span className={v === 'painel-mobile' ? undefined : 'flex-1'}>Solicitações</span>
       {contador && (
-        <span className="rounded-full bg-luva-amber px-2 py-0.5 text-xs font-black text-[#07111f]" aria-label={`${pendentes} pendentes`}>
+        <span className="ml-1 rounded-full bg-luva-amber px-2 py-0.5 text-xs font-black text-[#07111f]" aria-label={`${pendentes} pendentes`}>
           {contador}
         </span>
       )}
@@ -56,7 +66,7 @@ export function ItemNavSolicitacoes() {
 }
 
 /** Sino de notificações do organizador. Tipo SOLICITACAO_INSCRICAO leva à fila. */
-export function SinoNotificacoesOrganizador() {
+export function SinoNotificacoesOrganizador({ area = 'admin' }: { area?: AreaOrganizador } = {}) {
   const ativo = useAtivo()
   const router = useRouter()
   const [lista, setLista] = useState<NotificacaoOrganizador[]>([])
@@ -106,7 +116,7 @@ export function SinoNotificacoesOrganizador() {
       setNaoLidas((v) => Math.max(0, v - 1))
       void fetch(`/api/organizador/notificacoes/${encodeURIComponent(n.id)}/lida`, { method: 'POST' }).catch(() => undefined)
     }
-    const destino = destinoNotificacao(n.tipo)
+    const destino = destinoNotificacao(n.tipo, area)
     if (destino) {
       setAberto(false)
       router.push(destino)
@@ -122,7 +132,7 @@ export function SinoNotificacoesOrganizador() {
         aria-expanded={aberto}
         aria-haspopup="true"
         aria-label={naoLidas > 0 ? `Notificações, ${naoLidas} não lidas` : 'Notificações'}
-        className="admin-nav-link flex min-h-[44px] w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-luva-amber"
+        className={`${area === 'painel' ? 'profile-sidebar-link' : 'admin-nav-link'} flex min-h-[44px] w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-luva-amber`}
       >
         <Bell size={18} />
         <span className="flex-1 text-left">Notificações</span>
