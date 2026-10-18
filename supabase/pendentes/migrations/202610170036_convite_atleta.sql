@@ -7,6 +7,8 @@
 --   ACEITO, EXPIRADO, REVOGADO; "aceitoEm" e "atletaId" só existem depois do aceite.
 --   "equipeId" referencia "TimeClube" (a equipe permanente do Meu Time, 0024), não a "Equipe" legada.
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role.
+--   CIÊNCIA LGPD: no aceite o servidor grava "cienciaLgpdEm" (momento em que o atleta confirmou ter lido o
+--   aviso de privacidade) e "cienciaVersao" (versão do texto exibido). Ambos nulos até o aceite.
 --   USO DE "contatoCifrado": reservado para o contato (e-mail/telefone) do atleta convidado, cifrado no
 --   aplicativo. Hoje nenhuma leitura o usa e NENHUMA rota o devolve; se um dia for lido, só o servidor
 --   decifra, nunca o devolve ao cliente.
@@ -40,6 +42,8 @@ create table if not exists public."ConviteAtleta" (
   "revogadoEm"     timestamptz,
   "usadoEm"        timestamptz,
   "atletaId"       uuid references public."Atleta"(id) on delete set null,
+  "cienciaLgpdEm"  timestamptz,
+  "cienciaVersao"  text check ("cienciaVersao" is null or char_length("cienciaVersao") <= 50),
   constraint "ConviteAtleta_tokenHash_key" unique ("tokenHash")
 );
 create index if not exists "ConviteAtleta_timeId_idx" on public."ConviteAtleta" ("timeId");

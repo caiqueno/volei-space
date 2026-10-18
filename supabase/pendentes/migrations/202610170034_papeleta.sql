@@ -2,9 +2,9 @@
 --
 -- OBJETIVO
 --   "Papeleta": formação inicial de uma equipe em um set de uma partida. "formacao" é jsonb com 6 itens
---   {posicao 1..6, jogadorId}; "liberoId" e "capitaoId" são opcionais. Estados: RASCUNHO, ENVIADA, ACEITA.
+--   {posicao 1..6, jogadorId}; "liberoId", "libero2Id" (segundo líbero; FK Jogador on delete set null; CHECK diferente de "liberoId" quando ambos não nulos) e "capitaoId" são opcionais. Estados: RASCUNHO, ENVIADA, ACEITA.
 --   Única por ("partidaId","equipeId","setNumero").
---   IMUTABILIDADE (RG-FOR-006): trigger "papeleta_imutavel_trg" impede alterar formacao, liberoId e capitaoId
+--   IMUTABILIDADE (RG-FOR-006): trigger "papeleta_imutavel_trg" impede alterar formacao, liberoId, libero2Id e capitaoId
 --   (e partida/equipe/set) quando a linha já está ENVIADA ou ACEITA, impede voltar de estado e impede DELETE
 --   fora de RASCUNHO. "atualizadoEm" é mantido pelo mesmo trigger. Correção depois de enviada é regra de
 --   negócio do servidor (ex.: substituição registrada na súmula), nunca edição da papeleta.
@@ -35,6 +35,7 @@ create table if not exists public."Papeleta" (
   "setNumero"    integer not null check ("setNumero" between 1 and 5),
   formacao       jsonb not null check (jsonb_typeof(formacao) = 'array' and jsonb_array_length(formacao) = 6),
   "liberoId"     integer references public."Jogador"(id) on delete restrict,
+  "libero2Id"    integer references public."Jogador"(id) on delete set null,
   "capitaoId"    integer references public."Jogador"(id) on delete restrict,
   estado         text not null default 'RASCUNHO' check (estado in ('RASCUNHO', 'ENVIADA', 'ACEITA')),
   "enviadaEm"    timestamptz,
@@ -44,6 +45,7 @@ create table if not exists public."Papeleta" (
   "criadoEm"     timestamptz not null default now(),
   "atualizadoEm" timestamptz not null default now(),
   constraint "Papeleta_partida_equipe_set_key" unique ("partidaId", "equipeId", "setNumero"),
+  constraint "Papeleta_libero_distintos_chk" check ("liberoId" is null or "libero2Id" is null or "liberoId" <> "libero2Id"),
   constraint "Papeleta_enviada_chk" check (estado = 'RASCUNHO' or ("enviadaEm" is not null and "conteudoHash" is not null)),
   constraint "Papeleta_aceita_chk" check (estado <> 'ACEITA' or ("aceitaEm" is not null and "aceitaPor" is not null))
 );
@@ -66,6 +68,7 @@ begin
   if old.estado in ('ENVIADA', 'ACEITA') then
     if new.formacao is distinct from old.formacao
        or new."liberoId" is distinct from old."liberoId"
+       or new."libero2Id" is distinct from old."libero2Id"
        or new."capitaoId" is distinct from old."capitaoId"
        or new."partidaId" is distinct from old."partidaId"
        or new."equipeId" is distinct from old."equipeId"
