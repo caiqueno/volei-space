@@ -195,6 +195,8 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
     void carregar()
   }, [ativo, carregar])
 
+  const carregarAtletas = useCallback(() => api.listarAtletas(equipeId), [api, equipeId])
+
   // Flag desligada: nada novo aparece e nenhuma requisição sai.
   if (!ativo) {
     return (
@@ -203,8 +205,6 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
       </Pagina>
     )
   }
-
-  const carregarAtletas = useCallback(() => api.listarAtletas(equipeId), [api, equipeId])
 
   async function aoConfirmar(o: OfertaCampeonato, mensagem?: string, atletas?: string[]): Promise<ResultadoEnvio> {
     setOcupado(o.categoriaId)
