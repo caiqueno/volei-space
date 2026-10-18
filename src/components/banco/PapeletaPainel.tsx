@@ -41,12 +41,17 @@ const CAMPO =
 
 export function PapeletaPainel({
   token,
+  baseApi,
+  somenteLeitura = false,
   visao,
   set,
   semConexao,
   onAtualizar,
 }: {
   token: string
+  baseApi?: string
+  /** Assistente: vê a papeleta, mas não edita nem envia. */
+  somenteLeitura?: boolean
   visao: VisaoBanco
   set: number
   semConexao: boolean
@@ -54,7 +59,7 @@ export function PapeletaPainel({
 }) {
   const doServidor = visao.papeletas.find((p) => p.setNumero === set)
   const estado = doServidor?.estado
-  const editavel = papeletaEditavel(estado)
+  const editavel = papeletaEditavel(estado) && !somenteLeitura
   const encerrada = partidaEncerrada(visao.partida.status)
 
   const [rascunho, setRascunho] = useState<RascunhoPapeleta>(() => lerRascunho(token, set) ?? rascunhoDaPapeleta(doServidor))
@@ -91,7 +96,7 @@ export function PapeletaPainel({
     let tentarDeNovo: ReturnType<typeof setTimeout> | undefined
     const timer = setTimeout(async () => {
       setSalvo('salvando')
-      const r = await chamarBanco(token, `/papeleta/${set}`, 'PUT', corpo)
+      const r = await chamarBanco(token, `/papeleta/${set}`, 'PUT', corpo, baseApi)
       if (minha !== sequencia.current) return
       if (r.ok) {
         setSalvo('salvo')
@@ -115,7 +120,7 @@ export function PapeletaPainel({
       clearTimeout(timer)
       if (tentarDeNovo) clearTimeout(tentarDeNovo)
     }
-  }, [rascunho, tentativa, editavel, token, set])
+  }, [rascunho, tentativa, editavel, token, set, baseApi])
 
   function alterar(proximo: RascunhoPapeleta) {
     if (igual(proximo, rascunho)) return
@@ -130,7 +135,7 @@ export function PapeletaPainel({
     setEnviando(true)
     setErroEnvio(null)
     sequencia.current += 1 // descarta resposta de PUT em andamento
-    const salvar = await chamarBanco(token, `/papeleta/${set}`, 'PUT', corpo)
+    const salvar = await chamarBanco(token, `/papeleta/${set}`, 'PUT', corpo, baseApi)
     if (!salvar.ok) {
       setViolacoesServidor(salvar.violacoes)
       setErroEnvio(salvar.erro)
@@ -138,7 +143,7 @@ export function PapeletaPainel({
       setConfirmando(false)
       return
     }
-    const r = await chamarBanco(token, `/papeleta/${set}/enviar`, 'POST')
+    const r = await chamarBanco(token, `/papeleta/${set}/enviar`, 'POST', undefined, baseApi)
     setEnviando(false)
     setConfirmando(false)
     if (!r.ok) {
@@ -170,7 +175,11 @@ export function PapeletaPainel({
         </p>
       </div>
 
-      {!editavel ? (
+      {somenteLeitura ? (
+        <p className="mt-3 rounded-xl border border-vs-border bg-vs-elevated p-3 text-sm font-semibold text-vs-text">
+          Você está como assistente: pode ver a papeleta, mas só quem lidera o time escolhe os jogadores e envia.
+        </p>
+      ) : !editavel ? (
         <p className="mt-3 rounded-xl border border-vs-border bg-vs-elevated p-3 text-sm font-semibold text-vs-text">
           Papeleta travada: depois de enviada ela não muda. Para alterar um jogador, só por substituição regular durante o jogo.
         </p>

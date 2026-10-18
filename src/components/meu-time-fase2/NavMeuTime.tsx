@@ -8,6 +8,16 @@ import { itemAtual, itensVisiveis } from '@/lib/meu-time-fase2-ui/navegacao'
 import { ErroMeuTime } from '@/components/meu-time/cliente'
 import { contarNaoLidas, falhaEncerraBuscaSino, rotuloSino, textoContador } from '@/lib/meu-time-fase2-ui/notificacoes'
 import type { Notificacao } from '@/lib/meu-time-fase2-ui/tipos'
+import {
+  abaExtraAtual,
+  abasExtras,
+  bancoSessaoAtivo,
+  caminhoEhAbaExtra,
+  comTituloDeSolicitacao,
+  ehNotificacaoDeSolicitacao,
+  HREF_CAMPEONATOS,
+  inscricaoSolicitacaoAtiva,
+} from '@/lib/meu-time-campeonatos-ui/regras'
 import { obterClienteFase2 } from './cliente'
 import { ListaNotificacoes } from './Notificacoes'
 
@@ -22,7 +32,7 @@ function Sino() {
   const carregar = useCallback(async () => {
     if (parou.current) return
     try {
-      setItens(await obterClienteFase2().listarNotificacoes())
+      setItens((await obterClienteFase2().listarNotificacoes()).map(comTituloDeSolicitacao))
       setErro(false)
     } catch (e) {
       // Sem sessão (401) ou sem permissão: não adianta insistir; o sino some em vez de repetir a requisição.
@@ -80,6 +90,11 @@ function Sino() {
               }}
             />
           )}
+          {itens && itens.slice(0, 5).some((n) => ehNotificacaoDeSolicitacao(n.tipo)) && (
+            <Link href={HREF_CAMPEONATOS} onClick={() => setAberto(false)} className="inline-flex min-h-[44px] items-center text-sm font-bold text-[var(--vs-gold)] underline">
+              Ver meus campeonatos
+            </Link>
+          )}
           <Link href="/meu-time/notificacoes" onClick={() => setAberto(false)} className="inline-flex min-h-[44px] items-center text-sm font-bold text-[var(--vs-gold)] underline">
             Ver todas
           </Link>
@@ -93,14 +108,16 @@ export function NavMeuTime() {
   const caminho = usePathname() ?? ''
   const ativa = faseDoisAtiva()
   const itens = itensVisiveis(ativa)
-  // Flag desligada: nada novo aparece, a tela segue como era.
-  if (!ativa) return null
+  const solicitacao = inscricaoSolicitacaoAtiva()
+  const extras = abasExtras(solicitacao, bancoSessaoAtivo())
+  // Flags desligadas: nada novo aparece, a tela segue como era.
+  if (!ativa && extras.length === 0) return null
   return (
     <nav aria-label="Meu Time" className="border-b border-[var(--vs-border)] bg-[var(--vs-bg)] px-3 py-2 text-[var(--vs-text)]">
       <div className="mx-auto flex max-w-xl items-center gap-2">
         <ul className="flex flex-1 gap-1 overflow-x-auto">
           {itens.map((i) => {
-            const atual = itemAtual(caminho, i)
+            const atual = itemAtual(caminho, i) && !(i.href === '/meu-time' && caminhoEhAbaExtra(caminho))
             return (
               <li key={i.rotulo} className="shrink-0">
                 <Link
@@ -113,8 +130,22 @@ export function NavMeuTime() {
               </li>
             )
           })}
+          {extras.map((a) => {
+            const atual = abaExtraAtual(caminho, a)
+            return (
+              <li key={a.rotulo} className="shrink-0">
+                <Link
+                  href={a.href}
+                  aria-current={atual ? 'page' : undefined}
+                  className={`inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-bold ${atual ? 'bg-[var(--vs-elevated)] text-[var(--vs-gold)] underline' : 'text-[var(--vs-text)] hover:bg-[var(--vs-elevated)]'}`}
+                >
+                  {a.rotulo}
+                </Link>
+              </li>
+            )
+          })}
         </ul>
-        {ativa && <Sino />}
+        {(ativa || solicitacao) && <Sino />}
       </div>
     </nav>
   )

@@ -40,6 +40,8 @@ export interface VisaoBanco {
   papeletas: PapeletaBanco[]
   pedidos: PedidoBanco[]
   limites: { tempos: number; substituicoes: number }
+  /** Só no banco por sessão: LIDER ou ASSISTENTE. Ausente no banco por token. */
+  papel?: string
 }
 
 /** Rascunho local: posição (1..6) -> jogador (ou null se vazia). */
