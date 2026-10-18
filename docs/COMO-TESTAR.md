@@ -46,6 +46,24 @@ Confira que o `.env.local` aponta para o projeto de **desenvolvimento** (ou para
 - Um organizador não enxerga campeonatos, equipes ou súmulas de outro.
 - O link de recuperação de senha do administrador só serve para trocar a senha, nunca como sessão.
 
+## Rodadas 9 a 12: como ligar cada módulo em desenvolvimento
+
+Tudo vem desligado. Em `.env.local`, descomente (seção própria em `.env.example`) a flag de servidor e a de tela do módulo:
+
+| Módulo | Servidor | Tela |
+| --- | --- | --- |
+| Aplicativo do banco | `BANCO_APP_ATIVO` | `NEXT_PUBLIC_BANCO_APP_ATIVO` |
+| Scout | `SCOUT_ATIVO` | `NEXT_PUBLIC_SCOUT_ATIVO` |
+| Desafio por vídeo | `DESAFIO_ATIVO` (`DESAFIO_LIMITE_POR_SET`) | `NEXT_PUBLIC_DESAFIO_ATIVO` |
+| Placar ao vivo | `AO_VIVO_ATIVO` | `NEXT_PUBLIC_AO_VIVO_ATIVO` |
+| Meu Time | `MEU_TIME_ATIVO`, `MEU_TIME_FASE2_ATIVO` | `NEXT_PUBLIC_MEU_TIME_FASE2_ATIVO` |
+| Eventos da súmula | `SUMULA_EVENTOS_ATIVO`, `SUMULA_SERVIDOR_SOMBRA` | `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO` |
+| Protótipos | nenhuma | `NEXT_PUBLIC_PROTOTIPO_ATIVO` |
+
+`LGPD_CHAVE_CIFRA` (32 bytes em base64) é obrigatória para gravar dados pessoais no Meu Time; fica só no servidor, nunca com `NEXT_PUBLIC_`. Mudou uma flag `NEXT_PUBLIC_`? Faça novo build.
+
+Migrations pendentes 0033 a 0041: só em banco de **preview** (nunca produção), uma por vez, na ordem do número, com a reversão à mão. Ordem: 0033, 0034, 0035 (`PedidoBanco`), 0036 e 0037 (precisam de 0024 e 0025), 0039, 0040 e por fim 0041 (**depende da 0035**; aborta se faltar). A 0038 (`ClubeEquipe`) NÃO é aplicada: é redundante com `TimeClube.clubeId`. Detalhes em `docs/analise/16-plano-aplicacao-migrations.md`.
+
 ## Regras do ambiente
 
 - Banco local (opcional): `npm run reset-db` recria o Supabase **local**; ele recusa qualquer alvo remoto.

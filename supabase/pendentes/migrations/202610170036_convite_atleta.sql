@@ -7,6 +7,9 @@
 --   ACEITO, EXPIRADO, REVOGADO; "aceitoEm" e "atletaId" só existem depois do aceite.
 --   "equipeId" referencia "TimeClube" (a equipe permanente do Meu Time, 0024), não a "Equipe" legada.
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role.
+--   USO DE "contatoCifrado": reservado para o contato (e-mail/telefone) do atleta convidado, cifrado no
+--   aplicativo. Hoje nenhuma leitura o usa e NENHUMA rota o devolve; se um dia for lido, só o servidor
+--   decifra, nunca o devolve ao cliente.
 --
 -- PRÉ-REQUISITOS
 --   202610170024 ("TimeClube") e 202610170025 ("Atleta") aplicadas.

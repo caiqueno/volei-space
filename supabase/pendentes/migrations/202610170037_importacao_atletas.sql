@@ -8,6 +8,9 @@
 --   "linhas" das prévias CONFIRMADA/DESCARTADA após o prazo de retenção definido pelo jurídico (25).
 --   "equipeId" referencia "TimeClube" (0024).
 --   Segurança: RLS ligada, sem policy e sem grant para anon/authenticated. Só service_role.
+--   RETENÇÃO: a prévia expira em 72 h ("expiraEm" = criadoEm + 72 horas). O servidor ignora prévias
+--   vencidas e uma rotina deve apagá-las (a rotina não faz parte desta migration). Prazo das linhas já
+--   confirmadas: definir com o jurídico.
 --
 -- PRÉ-REQUISITOS
 --   202610170024 ("TimeClube") aplicada.
@@ -36,9 +39,11 @@ create table if not exists public."ImportacaoAtletas" (
   linhas      jsonb not null check (jsonb_typeof(linhas) = 'array'),
   resumo      jsonb check (resumo is null or jsonb_typeof(resumo) = 'object'),
   resultado   jsonb check (resultado is null or jsonb_typeof(resultado) = 'object'),
-  "confirmadoEm" timestamptz
+  "confirmadoEm" timestamptz,
+  "expiraEm" timestamptz not null default now() + interval '72 hours'
 );
 create index if not exists "ImportacaoAtletas_timeId_status_idx" on public."ImportacaoAtletas" ("timeId", status);
+create index if not exists "ImportacaoAtletas_expiraEm_idx" on public."ImportacaoAtletas" ("expiraEm");
 
 alter table public."ImportacaoAtletas" enable row level security;
 revoke all on table public."ImportacaoAtletas" from public, anon, authenticated;
