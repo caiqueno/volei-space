@@ -14,6 +14,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { consumirLimiteAsync, modoDeFalhaDoMetodo } from '@/lib/rate-limit'
 import { ErroMeuTime, meuTimeAtivo } from '@/lib/meu-time/acesso'
 import { inscricaoViva } from '@/lib/meu-time/regras'
+import { repararVinculosDoTime } from '@/lib/meu-time/equipe-legada'
+import { colunaAusente } from '@/lib/coluna-ausente'
 import type { EquipeBanco, PapelEquipe } from '@/lib/meu-time/dados'
 import { limitadoPorIp, respostaDeExcecao, type AcessoBanco } from './acesso'
 import {
@@ -68,9 +70,9 @@ export async function resolverAcessoSessao(
     const partida = await lerPartidaBanco(partidaId)
     if (!partida || (equipeId !== partida.equipeAId && equipeId !== partida.equipeBId)) return naoEncontradoBanco()
 
-    const inscricoes = (conferir(
-      await db.from('Inscricao').select('timeId,status,categoriaCampeonatoId').eq('equipeLegadoId', equipeId).eq('ligaId', partida.ligaId),
-    ) as any[] | null) ?? []
+    const lidas = await db.from('Inscricao').select('timeId,status,categoriaCampeonatoId').eq('equipeLegadoId', equipeId).eq('ligaId', partida.ligaId)
+    if (lidas.error && colunaAusente(lidas.error, ['equipeLegadoId'])) throw new TabelaBancoAusenteErro()
+    const inscricoes = (conferir(lidas) as any[] | null) ?? []
     const times = inscricoes
       .filter((item) => inscricaoViva(String(item.status)))
       .filter((item) => !partida.categoriaCampeonatoId || item.categoriaCampeonatoId === partida.categoriaCampeonatoId)
@@ -118,9 +120,11 @@ function inicioDoDia(agora: Date): Date {
  */
 export async function listarJogosDaEquipe(equipe: EquipeBanco, agora = new Date()): Promise<JogoDaEquipe[]> {
   try {
-    const inscricoes = ((conferir(
-      await db.from('Inscricao').select('ligaId,categoriaCampeonatoId,status,equipeLegadoId').eq('timeId', equipe.id),
-    ) as any[] | null) ?? []).filter((item) => item.equipeLegadoId != null && inscricaoViva(String(item.status)))
+    // Reparo preguiçoso: inscrições antigas sem a Equipe legada ganham o vínculo (idempotente, com limite).
+    await repararVinculosDoTime(equipe.id)
+    const lidas = await db.from('Inscricao').select('ligaId,categoriaCampeonatoId,status,equipeLegadoId').eq('timeId', equipe.id)
+    if (lidas.error && colunaAusente(lidas.error, ['equipeLegadoId'])) throw new TabelaBancoAusenteErro()
+    const inscricoes = ((conferir(lidas) as any[] | null) ?? []).filter((item) => item.equipeLegadoId != null && inscricaoViva(String(item.status)))
     if (inscricoes.length === 0) return []
     const porEquipe = new Map<number, { ligaId: number; categoriaId: string }>()
     for (const item of inscricoes) porEquipe.set(Number(item.equipeLegadoId), { ligaId: Number(item.ligaId), categoriaId: String(item.categoriaCampeonatoId) })

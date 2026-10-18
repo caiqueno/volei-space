@@ -18,7 +18,7 @@ type ErroBanco = { code?: string | null; message?: string | null; details?: stri
 
 /** Coluna nova (modoInscricao) ou tabela nova ainda não existe neste banco. */
 export function recursoAusente(erro: ErroBanco) {
-  return tabelaAusente(erro) || colunaAusente(erro, ['modoInscricao', 'SolicitacaoInscricao'])
+  return tabelaAusente(erro) || colunaAusente(erro, ['modoInscricao', 'SolicitacaoInscricao', 'atletasEscolhidos'])
 }
 
 export function indisponivel() {
