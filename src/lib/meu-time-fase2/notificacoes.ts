@@ -3,7 +3,14 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { ErroMeuTime, idValido } from '@/lib/meu-time/acesso'
 import { lerFase2 } from '@/lib/meu-time-fase2/acesso'
 
-export type TipoNotificacao = 'CONVITE_ACEITO' | 'IMPORTACAO_CONFIRMADA' | 'AJUSTE_PEDIDO'
+export type TipoNotificacao =
+  | 'CONVITE_ACEITO'
+  | 'IMPORTACAO_CONFIRMADA'
+  | 'AJUSTE_PEDIDO'
+  // R14: solicitação de inscrição (organizador recebe a primeira; o líder recebe as duas últimas).
+  | 'SOLICITACAO_INSCRICAO'
+  | 'SOLICITACAO_APROVADA'
+  | 'SOLICITACAO_RECUSADA'
 
 export type Notificacao = {
   id: string
