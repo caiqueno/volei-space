@@ -137,6 +137,24 @@ export const RESPOSTA_ACEITE = { recebido: true, mensagem: 'Cadastro recebido. O
  * Duplicata (mesmo nome+nascimento) devolve a mesma resposta de sucesso, sem criar nem revelar nada.
  * Se a criação falhar por outro motivo, a reserva é desfeita para o convite poder ser usado de novo.
  */
+export const VERSAO_CIENCIA_LGPD = 'v1-rascunho'
+
+/**
+ * Registra a ciência LGPD no convite. As colunas "cienciaLgpdEm"/"cienciaVersao" vêm de migration separada:
+ * se ainda não existirem, o aceite segue sem gravar e o servidor registra um aviso sem PII.
+ */
+async function registrarCienciaLgpd(conviteId: string) {
+  try {
+    const { error } = await supabase
+      .from('ConviteAtleta')
+      .update({ cienciaLgpdEm: new Date().toISOString(), cienciaVersao: VERSAO_CIENCIA_LGPD })
+      .eq('id', conviteId)
+    if (error) console.warn('[convite-atleta] ciência LGPD não gravada (colunas ausentes?).', error.code ?? '')
+  } catch {
+    console.warn('[convite-atleta] ciência LGPD não gravada.')
+  }
+}
+
 export async function aceitarConvite(token: string, entrada: { nome: string; dataNascimento: string; numeroPreferido?: number | null; posicao?: string | null }) {
   const convite = await buscarPorToken(token)
   const indisponivel = () => new ErroMeuTime(MENSAGEM_CONVITE_INDISPONIVEL, 404, 'CONVITE_INDISPONIVEL')
@@ -161,6 +179,7 @@ export async function aceitarConvite(token: string, entrada: { nome: string; dat
   try {
     const atleta = await adicionarAtleta(convite.criadoPor, equipe.clubeId, entrada)
     await supabase.from('ConviteAtleta').update({ atletaId: atleta.id }).eq('id', convite.id)
+    await registrarCienciaLgpd(convite.id)
     await notificar(
       convite.criadoPor,
       'CONVITE_ACEITO',
@@ -172,6 +191,7 @@ export async function aceitarConvite(token: string, entrada: { nome: string; dat
     return { ...RESPOSTA_ACEITE, pendencias }
   } catch (erro) {
     if (erro instanceof ErroMeuTime && erro.codigo === 'ATLETA_DUPLICADO') {
+      await registrarCienciaLgpd(convite.id)
       return { ...RESPOSTA_ACEITE, pendencias: ehMenorDeIdade(entrada.dataNascimento) ? ['ATLETA_MENOR_SEM_CONSENTIMENTO'] : [] }
     }
     await supabase.from('ConviteAtleta').update({ usadoEm: null }).eq('id', convite.id)
