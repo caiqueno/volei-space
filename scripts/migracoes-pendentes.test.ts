@@ -463,6 +463,43 @@ assert.match(sql42, /grant\s+execute\s+on\s+function\s+public\.expurgar_previas_
 assert.ok(!/grant\s+[^;]*\bto\s+[^;]*\b(anon|authenticated|public)\b/i.test(sql42), '0042 não pode conceder a anon/authenticated/public')
 assert.match(sqlSemComentario(ler(dirRollback, nome42)), /drop\s+function\s+if\s+exists\s+public\.expurgar_previas_importacao\(\)/i)
 
+// 5j) Rodada 14: modoInscricao na categoria e SolicitacaoInscricao (0043).
+const nome43 = '202610170043_solicitacao_inscricao.sql'
+assert.ok(pendentes.includes(nome43), 'falta a 0043')
+for (const dep of ['202610170024', '202610170026', '202610170039']) {
+  assert.ok(versoes.indexOf(dep) < versoes.indexOf('202610170043'), `0043 deve vir depois da ${dep}`)
+}
+const bruto43 = ler(dirPendentes, nome43)
+const sql43 = sqlPendente[nome43]
+for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+  assert.ok(bruto43.includes(secao), `0043 sem seção ${secao}`)
+}
+assert.match(sql43, /add\s+column\s+if\s+not\s+exists\s+"modoInscricao"\s+text\s+not\s+null\s+default\s+'AUTOMATICA'/i)
+assert.match(sql43, /check\s*\("modoInscricao"\s+in\s*\('AUTOMATICA',\s*'APROVACAO'\)\)/i)
+assert.match(sql43, /create\s+table\s+if\s+not\s+exists\s+public\."SolicitacaoInscricao"/i)
+assert.match(sql43, /"timeId"\s+uuid\s+not\s+null\s+references\s+public\."TimeClube"\(id\)\s+on\s+delete\s+cascade/i)
+assert.match(sql43, /"categoriaId"\s+uuid\s+not\s+null/i)
+assert.match(sql43, /foreign\s+key\s*\("categoriaId",\s*"ligaId"\)\s+references\s+public\."CategoriaCampeonato"\(id,\s*"ligaId"\)/i)
+assert.match(sql43, /estado\s+text\s+not\s+null\s+default\s+'PENDENTE'\s+check\s*\(estado\s+in\s*\('PENDENTE',\s*'APROVADA',\s*'RECUSADA',\s*'CANCELADA'\)\)/i)
+assert.match(sql43, /mensagem\s+text\s+check\s*\(mensagem\s+is\s+null\s+or\s+char_length\(mensagem\)\s*<=\s*500\)/i)
+assert.match(sql43, /"motivoRecusa"\s+text\s+check\s*\("motivoRecusa"\s+is\s+null\s+or\s+char_length\("motivoRecusa"\)\s*<=\s*500\)/i)
+assert.match(sql43, /"solicitadoPor"\s+text\s+not\s+null/i)
+assert.match(sql43, /"decididoPor"\s+text\s*,/i)
+assert.match(sql43, /"inscricaoId"\s+uuid\s+references\s+public\."Inscricao"\(id\)\s+on\s+delete\s+set\s+null/i)
+assert.match(sql43, /check\s*\(estado\s+not\s+in\s*\('APROVADA',\s*'RECUSADA'\)\s+or\s+"decididoEm"\s+is\s+not\s+null\)/i)
+assert.match(sql43, /create\s+unique\s+index\s+if\s+not\s+exists\s+"SolicitacaoInscricao_pendente_key"\s+on\s+public\."SolicitacaoInscricao"\s*\("timeId",\s*"categoriaId"\)\s+where\s+estado\s*=\s*'PENDENTE'/i)
+assert.match(sql43, /index\s+if\s+not\s+exists\s+"SolicitacaoInscricao_categoriaId_estado_idx"\s+on\s+public\."SolicitacaoInscricao"\s*\("categoriaId",\s*estado\)/i)
+assert.match(sql43, /index\s+if\s+not\s+exists\s+"SolicitacaoInscricao_timeId_estado_idx"\s+on\s+public\."SolicitacaoInscricao"\s*\("timeId",\s*estado\)/i)
+assert.match(sql43, /alter\s+table\s+public\."SolicitacaoInscricao"\s+enable\s+row\s+level\s+security/i)
+assert.match(sql43, /revoke\s+all\s+on\s+table\s+public\."SolicitacaoInscricao"\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql43, /grant\s+select,\s*insert,\s*update,\s*delete\s+on\s+table\s+public\."SolicitacaoInscricao"\s+to\s+service_role/i)
+assert.ok(!/create\s+policy/i.test(sql43), '0043 não cria policy (só service_role)')
+assert.ok(!/alter\s+table\s+public\."Notificacao"/i.test(sql43), '0043 não altera Notificacao')
+const rb43 = sqlSemComentario(ler(dirRollback, nome43))
+assert.match(rb43, /drop\s+table\s+if\s+exists\s+public\."SolicitacaoInscricao"/i)
+assert.match(rb43, /drop\s+column\s+if\s+exists\s+"modoInscricao"/i)
+assert.ok(!/drop\s+table[^;]*"(Inscricao|TimeClube|Notificacao|CategoriaCampeonato)"/i.test(rb43), 'reversão da 0043 não derruba tabelas de outras migrations')
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')
