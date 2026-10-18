@@ -158,5 +158,14 @@ Abertos depois da rodada 13:
 - `src/lib/arbitro-access.ts` mantém `/^d+$/` DE PROPÓSITO: corrigir faria o id da partida valer como credencial.
 - Itens `[M]`/não confirmados (desafio de vídeo oficial, zonas 7–9, rotação K1–K6, WO, sanções mistas) dependem de árbitro/COBRAV. Vôlei de praia está fora do escopo.
 
+## Rodada 14 — acesso único do time, aba Campeonatos e aprovação pelo organizador (já na branch)
+Decisão do dono: líder e banco da equipe são UM acesso (login do time); cada categoria escolhe `modoInscricao` AUTOMATICA (padrão) ou APROVACAO.
+- **Líder** (flags `INSCRICAO_SOLICITACAO_ATIVO` / `NEXT_PUBLIC_INSCRICAO_SOLICITACAO_ATIVO`): aba Campeonatos (lista com selo de modo e situação; Inscrever ou Solicitar participação; cancelar pendente; escolher atletas quando o time passa do máximo).
+- **Organizador:** seletor do modo por categoria (parametrização), fila de Solicitações em `/painel/solicitacoes` e `/admin/solicitacoes` (Aprovar/Recusar com motivo), sino e contador; aprovar cria a inscrição e notifica o líder.
+- **Banco por login** (flags `BANCO_SESSAO_ATIVO` / `NEXT_PUBLIC_BANCO_SESSAO_ATIVO`, além de `BANCO_APP_ATIVO` e `MEU_TIME_ATIVO`): aba Jogos lista os jogos da equipe e abre o mesmo app de banco por `/api/banco/sessao/[partidaId]/[equipeId]`, sem link. O link por token continua como alternativa.
+- **Ponte equipe do Meu Time → Equipe legada** (`Inscricao.equipeLegadoId`): criada na inscrição confirmada e na geração de calendário, com reparo ao listar jogos; sem ela o banco por login não acha o jogo.
+- **Migrations pendentes 0043** (`SolicitacaoInscricao`, `CategoriaCampeonato.modoInscricao`) **e 0044** (atletas escolhidos na solicitação).
+- Itens abertos da rodada 14 estão em `docs/FALTA-FAZER.md` (seção 5).
+
 ## Regras do projeto
-Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
+Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por categoria: modo AUTOMATICA (padrão) ou APROVACAO (organizador aprova), escolhido pelo organizador; link de convite continua para competição privada. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.

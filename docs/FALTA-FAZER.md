@@ -1,6 +1,6 @@
 # O que falta fazer — volei.space (branch `cursor-teste`)
 
-Estado em 18/10/2026. O código do `PROMPT-volei-space.md` que dá para fazer sem navegador, sem banco e sem produção está pronto na `cursor-teste` (rodadas 5 a 13). Este arquivo lista **só o que sobrou**. Detalhes técnicos estão em `docs/HANDOFF-CURSOR.md` e `docs/analise/`.
+Estado em 18/10/2026. O código do `PROMPT-volei-space.md` que dá para fazer sem navegador, sem banco e sem produção está pronto na `cursor-teste` (rodadas 5 a 14; a 14 trouxe o acesso único líder+banco, a aba Campeonatos e a aprovação de inscrição pelo organizador). Este arquivo lista **só o que sobrou**. Detalhes técnicos estão em `docs/HANDOFF-CURSOR.md` e `docs/analise/`.
 
 **Regras que continuam valendo:** só vôlei de quadra (nada de praia); nada de push nem de mexer na `main` (publica direto em produção na Vercel) até todos os itens da seção 1 a 4 estarem feitos; nenhuma migration é aplicada sem ensaio em preview.
 
@@ -14,6 +14,8 @@ Roteiro por perfil em `docs/analise/29-qa-rodada-12.md`. Ligar as flags de desen
 
 - [ ] Organizador: competição, tabela, súmulas, exportação do scout.
 - [ ] Líder do time: cadastrar time, convidar atleta por link, importar planilha CSV (prévia com erros), notificações, clube.
+- [ ] **Rodada 14:** aba Campeonatos (inscrição automática e solicitação com aprovação), aba Jogos (banco aberto pelo login, sem link), escolha de atletas quando o time passa do máximo da categoria.
+- [ ] **Rodada 14:** organizador em `/painel`: seletor do modo de inscrição por categoria, fila de Solicitações (Aprovar/Recusar), sino de notificações e contador; conferir que o líder recebe a resposta no sino.
 - [ ] Atleta convidado: abrir convite, aviso de LGPD, aceitar; testar com menor de 18.
 - [ ] Apontador: placar, rotação, substituição, tempo, aceitar pedido do banco, papeletas, desafio, fechamento com assinaturas, súmula impressa (`/sumula/[token]/imprimir`).
 - [ ] Banco da equipe (celular): papeleta de 6 posições, líbero(s), capitão, enviar e travar, pedir tempo/troca/desafio.
@@ -30,8 +32,9 @@ Roteiro por perfil em `docs/analise/29-qa-rodada-12.md`. Ligar as flags de desen
 Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num Postgres. Só passaram no teste estático.
 
 - [ ] Rodar as consultas Q1–Q13 do `docs/analise/16-plano-aplicacao-migrations.md` no banco de desenvolvimento/preview.
-- [ ] Ensaiar a aplicação na ordem do doc 16 (inclui 0001 RateLimit; 0033 a 0037, 0039, 0040, 0041; 0042 depois da 0037). **Não aplicar a 0038** (redundante com `TimeClube.clubeId`).
+- [ ] Ensaiar a aplicação na ordem do doc 16 (inclui 0001 RateLimit; 0033 a 0037, 0039, 0040, 0041; 0042 depois da 0037; 0043 depois da 0026; 0044 depois da 0043). **Não aplicar a 0038** (redundante com `TimeClube.clubeId`).
 - [ ] Verificar no Postgres real: gatilho de imutabilidade da papeleta (inclui `libero2Id`), `unique` do `tokenHash`, CHECKs de `DesafioVideo`, função `expurgar_previas_importacao()`, acesso do `anon` negado em todas as tabelas novas.
+- [ ] Rodada 14: ensaiar a ponte `TimeClube` → `Equipe` legada (criação de `Equipe` e `Jogador`, restrições `(categoriaCampeonatoId, nome)` e `(nome, ligaId, categoria, serie)`), o vínculo `Inscricao.equipeLegadoId` e o reparo ao listar jogos.
 - [ ] Confirmar tipos de `id` reais (`Partida`, `Equipe`, `Jogador` são `integer` no código; o schema do Prisma está defasado).
 - [ ] Rodar o reverso (`supabase/pendentes/rollback`) de cada uma para provar que volta.
 - [ ] Decidir quando e como mover as migrations de `pendentes/` para `supabase/migrations`.
@@ -74,6 +77,12 @@ Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num 
 - [ ] Competição privada: payloads de estrutura/mata-mata sem `campeonatoPublicado`; gravação mista de `visibilidade` não atômica; cache de ids privados só no processo; `buscarAgendaCampeonato` e `/jogos` sem `liga` não filtram privadas.
 - [ ] Navegação global de produto: `package.json` ainda se chama `luva-platform`; limpar `.claude/worktrees/` (`git worktree remove`) e branches `feat/*`/`worktree-agent-*` antigas.
 - [ ] 11 IDs de papel/PDF do doc 03 já têm teste no motor de impressão; RG-FEC-003 (capitão ausente/recusa) e RG-PTO-003 ficam parciais.
+
+- [ ] Rodada 14: a vitrine `GET /api/meu-time/campeonatos` não devolve a contagem de atletas nem o máximo da categoria (a tela lê esses números da mensagem de erro do servidor); devolver os números no contrato.
+- [ ] Rodada 14: mudanças no elenco da inscrição depois de confirmada não são sincronizadas com `Jogador` legado; mata-mata só recebe a ponte pela inscrição e pelo reparo da estrutura.
+- [ ] Rodada 14: sino do organizador não aparece no menu do celular do `/painel`; barra lateral e menu do celular consultam a lista de pendentes duas vezes.
+- [ ] Rodada 14: em competição pública a vitrine apresenta o token da categoria em nome da equipe (o controle passa a ser o `modoInscricao`); confirmar com o dono se quer outro comportamento.
+- [ ] Banco por sessão: capitão só lê, assistente faz pedidos mas não envia papeleta (interpretação do papel; confirmar).
 
 ## 6. Caminho até a `main` (só depois das seções 1 a 4)
 
