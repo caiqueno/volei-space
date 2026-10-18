@@ -141,14 +141,22 @@ Feito:
 - **Correções de regras:** retorno de substituição (B→A) no banco; capitão pode estar no banco; perfil de elenco (12/14, camisa); limites contados pelo log; zonas do scout 4-3-2 / 7-8-9 / 5-6-1 (7–9 a confirmar); súmula impressa com configuração permissiva e seção "Eventos não aplicados"; desafio opcional com estado INCONCLUSIVA (não consome); resumo e exportação do scout incluem as ações manuais e funcionam sem o log.
 - **Migrations:** 0037 ganhou `expiraEm`; 0041 aceita INCONCLUSIVA; **0038 NÃO APLICAR** (redundante). Ordem de aplicação em preview: 0033, 0034, 0035, 0036, 0037, 0039, 0040, 0041 (a 0041 depende da 0035). `.env.example` e `docs/COMO-TESTAR.md` listam todas as flags.
 
-Abertos depois da rodada 12:
-- `libero2Id` é validado mas não persistido (a tabela `Papeleta` só tem `liberoId`); exigiria migration futura.
-- O aceite de ciência da LGPD no convite público existe só na tela; o servidor ainda não registra. Rate limit continua em memória por instância (o store persistente é evolução). Sem job de expurgo agendado das prévias vencidas (apaga ao criar nova).
-- Desafio: não gera evento `DESAFIO` no log do motor; sem janela de 7 s nem lista fechada de lances; limite por equipe vem de variável de ambiente, não por campeonato.
-- Aceitar pedido tem janela em que a súmula registra e o servidor recusa depois (422): a tela avisa, o apontador resolve.
-- `src/lib/arbitro-access.ts` mantém `/^d+$/` DE PROPÓSITO: corrigir faria o id da partida valer como credencial. Só mexer com testes e decisão do dono.
-- Nenhuma tela das rodadas 9 a 12 foi aberta num navegador. Roteiro de teste manual: seção final do relatório 29.
-- A confirmação do que está `[M]`/não confirmado (desafio de vídeo oficial, zonas 7–9, rotação K1–K6 do levantador, WO, sanções mistas) depende de árbitro/COBRAV.
+## Rodada 13 — pendências de código fechadas (já na branch)
+- **Segundo líbero** (`Papeleta.libero2Id`, migration 0034 editada): gravado, validado pelo motor e devolvido nas leituras; a coluna entra no gatilho de imutabilidade.
+- **Ciência de LGPD no convite:** `POST /api/convite-atleta/[token]` exige `cienciaLgpd: true` (400 `CIENCIA_OBRIGATORIA`) e grava `cienciaLgpdEm`/`cienciaVersao` ('v1-rascunho', aviso sujeito à revisão jurídica). A tela envia o campo.
+- **Rate limit persistente:** rotas por token e públicas usam o limitador com `SupabaseRateLimitStore` (tabela `RateLimit`, migration 0001) com fallback em memória; leitura pública falha-aberto, escrita falha-fechado.
+- **Expurgo das prévias de importação:** função SQL `expurgar_previas_importacao()` (migration 0042, NÃO agendada) e rota `/api/cron/expurgo-previas` (POST ou GET, só com `CRON_SECRET`; sem o segredo = 404). Agendar é com o Cursor/dono (Vercel cron ou pg_cron).
+- **Evento DESAFIO no log da súmula:** a decisão do desafio é registrada (idempotente, só com `SUMULA_EVENTOS_ATIVO=1`); NÃO altera placar nem repete rally.
+- **Scout:** o servidor preenche placar e rotação pelo log; `PATCH /api/scout/[token]/acoes/[id]` corrige ação; botão "Corrigir" na tela.
+- Ordem das migrations pendentes para ensaio em preview: 0001 (RateLimit) em diante pelo doc 16; 0042 depois da 0037; **0038 não aplicar**.
+
+Abertos depois da rodada 13:
+- Prévias CONFIRMADAS e notificações sem prazo de retenção (decisão jurídica). Vercel cron não configurado.
+- Desafio: sem janela de 7 s nem lista fechada de lances; consequência no placar (cancelar ponto, repetir rally) continua decisão da arbitragem, lançada à parte; limite por equipe vem de variável de ambiente, não por campeonato.
+- Aceitar pedido do banco: janela entre registrar na súmula e o servidor recusar (422); a tela avisa.
+- `PATCH` do scout não limpa zona/jogador. Scout e telas das rodadas 9 a 13 nunca foram abertas num navegador (roteiro no relatório 29).
+- `src/lib/arbitro-access.ts` mantém `/^d+$/` DE PROPÓSITO: corrigir faria o id da partida valer como credencial.
+- Itens `[M]`/não confirmados (desafio de vídeo oficial, zonas 7–9, rotação K1–K6, WO, sanções mistas) dependem de árbitro/COBRAV. Vôlei de praia está fora do escopo.
 
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por link de categoria, sem aprovação. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.
