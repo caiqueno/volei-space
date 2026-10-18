@@ -118,6 +118,22 @@ caso('rascunho nasce da papeleta do servidor', () => {
   assert.equal(r.liberoId, 107)
 })
 
+caso('papeleta devolvida com libero2Id repopula o segundo libero e volta no corpo do PUT', () => {
+  const r = rascunhoDaPapeleta({
+    setNumero: 1,
+    estado: 'RASCUNHO',
+    formacao: [1, 2, 3, 4, 5, 6].map((posicao) => ({ posicao, jogadorId: 100 + posicao })),
+    liberoId: 107,
+    libero2Id: 108,
+    capitaoId: null,
+  })
+  assert.equal(r.libero2Id, 108)
+  assert.equal(corpoDaPapeleta(r)?.libero2Id, 108)
+  const sem = rascunhoDaPapeleta({ setNumero: 1, estado: 'RASCUNHO', formacao: [], liberoId: 107, capitaoId: null })
+  assert.equal(sem.libero2Id, null)
+  assert.equal(corpoDaPapeleta({ ...r, libero2Id: null })?.libero2Id, undefined)
+})
+
 const pedido = (p: Partial<PedidoBanco>): PedidoBanco => ({ id: 1, tipo: 'TEMPO', estado: 'PENDENTE', payload: null, criadoEm: '', ...p })
 const visao = (pedidos: PedidoBanco[], status = 'EM_ANDAMENTO'): Pick<VisaoBanco, 'pedidos' | 'limites' | 'partida'> => ({
   pedidos,
