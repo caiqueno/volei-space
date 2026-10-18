@@ -182,6 +182,67 @@ async function main() {
   assert.equal((await env(T1, '1')).status, 200, 'reenvio é idempotente')
   assert.equal(dados.Papeleta[0].capitaoId, 12, 'papeleta enviada não muda')
 
+  // 6b. Segundo líbero (R13): validado pelo motor, gravado em libero2Id e devolvido na leitura
+  {
+    const doSet4 = () => dados.Papeleta.filter((p) => p.setNumero === 4)
+    // inválidos: igual ao primeiro, entre os titulares, fora da relação, sem o primeiro líbero
+    for (const ruim of [{ libero2Id: 20 }, { libero2Id: 12 }, { libero2Id: 999 }, { liberoId: null, libero2Id: 21 }]) {
+      const rr = await put(T1, '4', { ...VALIDA, ...ruim })
+      assert.equal(rr.status, 422, JSON.stringify(ruim))
+      assert.ok((await corpo(rr)).violacoes.length > 0)
+    }
+    assert.equal(doSet4().length, 0, 'nada é gravado quando inválido')
+    const ok = await put(T1, '4', { ...VALIDA, liberoId: 20, libero2Id: 21 })
+    const okBody = await corpo(ok)
+    assert.equal(ok.status, 200, JSON.stringify(okBody))
+    assert.equal(okBody.data.papeleta.libero2Id, 21)
+    assert.equal(doSet4()[0]!.libero2Id, 21)
+    assert.ok(!okBody.data.avisos.some((a: any) => a.codigo === 'LIBERO2_NAO_PERSISTIDO'), 'o aviso antigo foi removido')
+    const lida = (await corpo(await get(T1))).data.papeletas.find((p: any) => p.setNumero === 4)
+    assert.equal(lida.libero2Id, 21, 'GET do banco devolve libero2Id')
+    assert.equal(lida.liberoId, 20)
+    // regravar sem o segundo líbero limpa o campo
+    assert.equal((await put(T1, '4', { ...VALIDA, liberoId: 20 })).status, 200)
+    assert.equal(doSet4()[0]!.libero2Id, null)
+    // enviar com segundo líbero guarda no envio e o apontador enxerga
+    assert.equal((await put(T1, '4', { ...VALIDA, liberoId: 20, libero2Id: 21 })).status, 200)
+    assert.equal((await env(T1, '4')).status, 200)
+    assert.equal(doSet4()[0]!.libero2Id, 21)
+    for (let i = dados.Papeleta.length - 1; i >= 0; i -= 1) if (dados.Papeleta[i]!.setNumero === 4) dados.Papeleta.splice(i, 1)
+
+    // coluna libero2Id ausente (migration pendente): ignora o campo, devolve o aviso, nunca 500
+    const real = banco.atual as any
+    const erroColuna = { code: '42703', message: 'column "libero2Id" of relation "Papeleta" does not exist' }
+    const falha: any = new Proxy({}, { get: (_, k) => (k === 'then' ? (res: any) => Promise.resolve({ data: null, error: erroColuna }).then(res) : () => falha) })
+    const semColuna = Object.create(real)
+    semColuna.from = (t: string) => {
+      const q = real.from(t)
+      if (t !== 'Papeleta') return q
+      const insert = q.insert.bind(q)
+      const update = q.update.bind(q)
+      q.insert = (v: any) => (v && 'libero2Id' in v ? falha : insert(v))
+      q.update = (v: any) => (v && 'libero2Id' in v ? falha : update(v))
+      return q
+    }
+    banco.atual = semColuna
+    const sem = await put(T1, '4', { ...VALIDA, liberoId: 20, libero2Id: 21 })
+    const semBody = await corpo(sem)
+    assert.equal(sem.status, 200, JSON.stringify(semBody))
+    assert.ok(semBody.data.avisos.some((a: any) => a.codigo === 'LIBERO2_NAO_PERSISTIDO'))
+    assert.equal(semBody.data.papeleta.libero2Id, null)
+    assert.equal(doSet4().length, 1)
+    // regravar (update) também degrada
+    const sem2 = await put(T1, '4', { ...VALIDA, liberoId: 20, libero2Id: 21 })
+    assert.equal(sem2.status, 200)
+    assert.ok((await corpo(sem2)).data.avisos.some((a: any) => a.codigo === 'LIBERO2_NAO_PERSISTIDO'))
+    // sem segundo líbero, sem aviso
+    const sem3 = await put(T1, '4', { ...VALIDA, liberoId: 20 })
+    assert.equal(sem3.status, 200)
+    assert.ok(!(await corpo(sem3)).data.avisos.some((a: any) => a.codigo === 'LIBERO2_NAO_PERSISTIDO'))
+    banco.atual = real
+    for (let i = dados.Papeleta.length - 1; i >= 0; i -= 1) if (dados.Papeleta[i]!.setNumero === 4) dados.Papeleta.splice(i, 1)
+  }
+
   // 7. Enviar exige papeleta válida (elenco mudou depois do rascunho)
   assert.equal((await put(T1, '2', VALIDA)).status, 200)
   dados.Jogador.find((j) => j.id === 12)!.numero = 1 // camisa repetida

@@ -202,6 +202,8 @@ export function papeletaPublica(p: any) {
     estado: p.estado,
     formacao: Array.isArray(p.formacao) ? p.formacao : [],
     liberoId: p.liberoId ?? null,
+    /** Segundo líbero (R13); null quando não informado ou quando a coluna ainda não existe no ambiente. */
+    libero2Id: p.libero2Id ?? null,
     capitaoId: p.capitaoId ?? null,
   }
 }
