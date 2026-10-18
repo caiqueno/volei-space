@@ -7,7 +7,7 @@ import {
   usoDeLimites,
   validarSubstituicaoLocal,
 } from '../src/lib/banco-ui/botoes'
-import { classificarFalha, extrairViolacoes, formatarPlacar, MENSAGEM_LIMITE, mensagemDeErro, nomeDoLado, TEXTO_TELA } from '../src/lib/banco-ui/falhas'
+import { classificarFalha, DESTINO_SESSAO, extrairViolacoes, formatarPlacar, MENSAGEM_LIMITE, mensagemDeErro, nomeDoLado, TEXTO_TELA } from '../src/lib/banco-ui/falhas'
 import {
   admiteSegundoLibero,
   agruparViolacoes,
@@ -310,6 +310,20 @@ caso('F11: 429 vira "Muitas consultas, aguardando" e não "Algo deu errado"', ()
   assert.match(MENSAGEM_LIMITE, /Muitas consultas, aguardando/)
   // recuo crescente entre as tentativas
   assert.ok(intervaloPolling(3) > intervaloPolling(1))
+})
+
+caso('banco por sessão: 400/401/403 falam de sessão, não de link', () => {
+  for (const status of [400, 401, 403]) {
+    assert.equal(classificarFalha(status, true), 'sessao')
+    assert.equal(classificarFalha(status), 'token-invalido')
+    assert.equal(classificarFalha(status, false), 'token-invalido')
+  }
+  assert.equal(TEXTO_TELA.sessao.texto, 'Sua sessão expirou ou você não tem acesso a este jogo. Entre de novo no Meu Time.')
+  assert.doesNotMatch(TEXTO_TELA.sessao.texto, /link/i)
+  assert.match(TEXTO_TELA['token-invalido'].texto, /link/i)
+  assert.equal(DESTINO_SESSAO, '/login')
+  // os demais status seguem iguais nos dois modos
+  for (const status of [404, 503, 410, 429, 500, null]) assert.equal(classificarFalha(status, true), classificarFalha(status))
 })
 
 console.log(`\nbanco-ui: ${total} casos executados.`)

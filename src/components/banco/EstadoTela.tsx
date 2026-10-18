@@ -1,6 +1,7 @@
 'use client'
 
-import { TEXTO_TELA, type TelaEstado } from '@/lib/banco-ui/falhas'
+import Link from 'next/link'
+import { DESTINO_SESSAO, TEXTO_TELA, type TelaEstado } from '@/lib/banco-ui/falhas'
 import { BTN_PRIMARIO } from './Dialogo'
 
 export function EstadoTela({ tela, onTentar }: { tela: TelaEstado; onTentar?: () => void }) {
@@ -13,6 +14,11 @@ export function EstadoTela({ tela, onTentar }: { tela: TelaEstado; onTentar?: ()
         <button type="button" onClick={onTentar} className={`${BTN_PRIMARIO} mt-5 w-full`}>
           Tentar de novo
         </button>
+      ) : null}
+      {tela === 'sessao' ? (
+        <Link href={DESTINO_SESSAO} className={`${BTN_PRIMARIO} mt-5 w-full`}>
+          Entrar no Meu Time
+        </Link>
       ) : null}
     </section>
   )

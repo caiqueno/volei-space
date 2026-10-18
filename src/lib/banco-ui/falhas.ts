@@ -1,17 +1,21 @@
 /** Classificação das respostas do servidor para as telas de estado do app do banco. Módulo PURO. */
 
-export type TelaEstado = 'desligado' | 'nao-habilitado' | 'token-invalido' | 'expirado' | 'rede' | 'limite' | 'erro'
+export type TelaEstado = 'desligado' | 'nao-habilitado' | 'token-invalido' | 'sessao' | 'expirado' | 'rede' | 'limite' | 'erro'
+
+/** Destino do botão da tela de sessão (entrar de novo no Meu Time). */
+export const DESTINO_SESSAO = '/login'
 
 /** 429: o servidor limitou as consultas; não é erro do usuário nem falta de internet. */
 export const MENSAGEM_LIMITE = 'Muitas consultas, aguardando. Tentamos de novo em instantes.'
 
-export function classificarFalha(status: number | null): TelaEstado {
+/** `porSessao`: o banco foi aberto pelo Meu Time (sem token no link). Nesse caso 400/401/403 falam de sessão, não de link. */
+export function classificarFalha(status: number | null, porSessao = false): TelaEstado {
   if (status === null) return 'rede'
   if (status === 429) return 'limite'
   if (status === 404) return 'desligado'
   if (status === 503) return 'nao-habilitado'
   if (status === 410) return 'expirado'
-  if (status === 400 || status === 401 || status === 403) return 'token-invalido'
+  if (status === 400 || status === 401 || status === 403) return porSessao ? 'sessao' : 'token-invalido'
   return 'erro'
 }
 
@@ -19,6 +23,7 @@ export const TEXTO_TELA: Readonly<Record<TelaEstado, { titulo: string; texto: st
   desligado: { titulo: 'App do banco indisponível', texto: 'Este recurso não está ativo para este jogo, ou o link não existe. Confira o link com o organizador.', tentar: false },
   'nao-habilitado': { titulo: 'Ainda não habilitado', texto: 'O app do banco ainda não foi habilitado para este jogo. Tente de novo mais tarde ou fale com o organizador.', tentar: true },
   'token-invalido': { titulo: 'Link inválido', texto: 'Este link não é válido. Peça um novo link ao organizador ou ao apontador.', tentar: false },
+  sessao: { titulo: 'Sessão expirada', texto: 'Sua sessão expirou ou você não tem acesso a este jogo. Entre de novo no Meu Time.', tentar: false },
   expirado: { titulo: 'Link expirado', texto: 'Este link expirou ou foi revogado. Peça um novo link ao organizador ou ao apontador.', tentar: false },
   rede: { titulo: 'Sem conexão', texto: 'Não foi possível falar com o servidor. Verifique sua internet.', tentar: true },
   limite: { titulo: 'Muitas consultas, aguardando', texto: 'O servidor pediu uma pausa. Vamos tentar de novo sozinhos, com um intervalo maior a cada vez.', tentar: true },
