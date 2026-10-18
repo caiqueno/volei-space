@@ -35,7 +35,7 @@ export type AcessoBanco = {
  * Usa o store persistente (Supabase) com fallback em memória (rate-limit.ts). Se o limitador falhar,
  * leitura segue (falha-aberto) e escrita é recusada (falha-fechado).
  */
-async function limitadoPorIp(req: NextRequest): Promise<NextResponse | null> {
+export async function limitadoPorIp(req: NextRequest): Promise<NextResponse | null> {
   const ip = await consumirLimiteAsync(`banco:ip:${ipDaRequisicao(req)}`, 120, 60_000, modoDeFalhaDoMetodo(req.method))
   if (!ip.ok) return respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: ip.retryAfterSeconds })
   return null
