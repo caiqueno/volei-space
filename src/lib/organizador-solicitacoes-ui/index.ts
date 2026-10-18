@@ -138,9 +138,32 @@ export function normalizarNotificacoes(corpo: unknown): { lista: NotificacaoOrga
   return { lista, naoLidas }
 }
 
+export type AreaOrganizador = 'admin' | 'painel'
+
+/** Rota da fila de solicitações em cada área (o organizador usa /painel; /admin segue existindo). */
+export function baseSolicitacoes(area: AreaOrganizador = 'admin'): string {
+  return area === 'painel' ? '/painel/solicitacoes' : '/admin/solicitacoes'
+}
+
+export function itemAtivoSolicitacoes(pathname: string, area: AreaOrganizador = 'admin'): boolean {
+  const base = baseSolicitacoes(area)
+  return pathname === base || pathname.startsWith(base + '/')
+}
+
 /** Notificação de pedido de inscrição leva à fila; as demais só são marcadas como lidas. */
-export function destinoNotificacao(tipo: string): string | null {
-  return tipo === 'SOLICITACAO_INSCRICAO' ? '/admin/solicitacoes' : null
+export function destinoNotificacao(tipo: string, area: AreaOrganizador = 'admin'): string | null {
+  return tipo === 'SOLICITACAO_INSCRICAO' ? baseSolicitacoes(area) : null
+}
+
+/** Texto da linha "Aprovação" da revisão de Inscrições. Sem a flag, a inscrição é sempre automática. */
+export type EstadoModoRevisao = ModoInscricao | 'carregando' | 'erro' | 'sem-categoria'
+
+export function rotuloAprovacaoRevisao(ativo: boolean, modo: EstadoModoRevisao): string {
+  if (!ativo) return 'Automática (sem fila)'
+  if (modo === 'carregando') return 'Carregando...'
+  if (modo === 'erro') return 'Não foi possível carregar o modo de inscrição'
+  if (modo === 'sem-categoria') return 'Escolha uma categoria para ver'
+  return modo === 'APROVACAO' ? 'Com aprovação do organizador' : 'Automática (sem fila)'
 }
 
 export function filtrarPorCampeonato<T extends { ligaId: string }>(lista: T[], ligaId: string): T[] {

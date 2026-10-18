@@ -21,7 +21,8 @@ import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-de
 import { revealMissingFields } from '../../wizard/missing-fields'
 import { LinksCategoriaPrivada } from './LinksCategoriaPrivada'
 import { SeletorModoInscricao } from '@/components/organizador-solicitacoes/SeletorModoInscricao'
-import { solicitacoesAtivo } from '@/lib/organizador-solicitacoes-ui'
+import { rotuloAprovacaoRevisao, solicitacoesAtivo } from '@/lib/organizador-solicitacoes-ui'
+import { useModoInscricaoRevisao } from '@/components/organizador-solicitacoes/useModoInscricaoRevisao'
 import { OPCOES_VISIBILIDADE, deveMostrarLinks, normalizarVisibilidade, rotuloVisibilidade } from './visibilidade-ui'
 
 const STEPS: WizardStepDef[] = [
@@ -115,6 +116,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
   const [completionIssues, setCompletionIssues] = useState<string[]>([])
   const [invalidKeys, setInvalidKeys] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const modoRevisao = useModoInscricaoRevisao()
 
   function goTo(index: number) {
     flush()
@@ -362,7 +364,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
             <ReviewRow label="Inscrições" value={data.inscricoesAbertas ? 'Abertas' : 'Fechadas'} />
             <ReviewRow label="Visibilidade" value={rotuloVisibilidade(visibilidade)} />
             {deveMostrarLinks(visibilidade) && <LinksCategoriaPrivada ligaId={ligaId} />}
-            <ReviewRow label="Aprovação" value="Automática (sem fila)" />
+            <ReviewRow label="Aprovação" value={rotuloAprovacaoRevisao(solicitacoesAtivo(process.env.NEXT_PUBLIC_INSCRICAO_SOLICITACAO_ATIVO), modoRevisao)} />
             <ReviewRow label="Elenco" value={`${data.elencoQuantidadeMinima ?? '—'} a ${data.elencoQuantidadeMaxima ?? '—'} atletas`} />
             <ReviewRow label="QR Code" value={qrOn ? 'Ativado' : 'Desativado'} />
           </div>
