@@ -22,12 +22,14 @@ const ICONE_ESTADO: Record<PedidoBanco['estado'], string> = { PENDENTE: '⏳', A
 
 export function PedidosPainel({
   token,
+  baseApi,
   visao,
   setAtual,
   semConexao,
   onAtualizar,
 }: {
   token: string
+  baseApi?: string
   visao: VisaoBanco
   setAtual: number
   semConexao: boolean
@@ -82,7 +84,7 @@ export function PedidosPainel({
     }
     setEnviando(true)
     setErroForm(null)
-    const r = await chamarBanco(token, '/pedidos', 'POST', corpo)
+    const r = await chamarBanco(token, '/pedidos', 'POST', corpo, baseApi)
     setEnviando(false)
     if (!r.ok) {
       const msg = r.violacoes.length > 0 ? r.violacoes.map((v) => v.mensagem).join(' ') : r.erro
@@ -98,7 +100,7 @@ export function PedidosPainel({
   async function cancelar(p: PedidoBanco) {
     setCancelando(p.id)
     setAviso(null)
-    const r = await chamarBanco(token, `/pedidos/${encodeURIComponent(String(p.id))}`, 'DELETE')
+    const r = await chamarBanco(token, `/pedidos/${encodeURIComponent(String(p.id))}`, 'DELETE', undefined, baseApi)
     setCancelando(null)
     if (!r.ok) {
       setAviso({ tipo: 'erro', texto: r.erro ?? 'Não foi possível cancelar.' })

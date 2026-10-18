@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { chamarBanco } from '@/lib/banco-ui/cliente'
 import { classificarFalha, formatarPlacar, nomeDoLado, type TelaEstado } from '@/lib/banco-ui/falhas'
 import { textoAtualizado } from '@/lib/banco-ui/polling'
+import { papelSomenteLeitura } from '@/lib/banco-ui/papel'
 import { setPadrao, setsDisponiveis } from '@/lib/banco-ui/sets'
 import type { VisaoBanco } from '@/lib/banco-ui/tipos'
 import { usePolling } from '@/lib/banco-ui/use-polling'
@@ -11,7 +12,7 @@ import { CarregandoTela, EstadoTela } from './EstadoTela'
 import { PapeletaPainel } from './PapeletaPainel'
 import { PedidosPainel } from './PedidosPainel'
 
-export function BancoApp({ token }: { token: string }) {
+export function BancoApp({ token, baseApi, papel }: { token: string; baseApi?: string; papel?: string | null }) {
   const [visao, setVisao] = useState<VisaoBanco | null>(null)
   const [tela, setTela] = useState<TelaEstado | null>(null)
   const [setEscolhido, setSetEscolhido] = useState<number | null>(null)
@@ -20,7 +21,7 @@ export function BancoApp({ token }: { token: string }) {
   const temVisao = useRef(false)
 
   const tarefa = useCallback(async (): Promise<'parar' | void> => {
-    const r = await chamarBanco(token, '', 'GET')
+    const r = await chamarBanco(token, '', 'GET', undefined, baseApi)
     if (r.ok) {
       const dados = (r.json as { data?: VisaoBanco } | null)?.data
       if (!dados) throw new Error('resposta vazia')
@@ -42,7 +43,7 @@ export function BancoApp({ token }: { token: string }) {
     }
     if (!temVisao.current) setTela(t)
     throw new Error(t)
-  }, [token])
+  }, [token, baseApi])
 
   const { semConexao, ultimaAtualizacao, atualizarAgora } = usePolling(tarefa)
 
@@ -56,6 +57,7 @@ export function BancoApp({ token }: { token: string }) {
 
   const placar = formatarPlacar(visao.partida.placar)
   const sets = setsDisponiveis(visao.papeletas)
+  const somenteLeitura = papelSomenteLeitura(papel ?? visao.papel)
 
   return (
     <div className="mx-auto w-full max-w-3xl px-3 pb-16 pt-3 text-vs-text">
@@ -100,8 +102,8 @@ export function BancoApp({ token }: { token: string }) {
       </nav>
 
       <div className="mt-3 space-y-4">
-        <PapeletaPainel key={setEscolhido} token={token} visao={visao} set={setEscolhido} semConexao={semConexao} onAtualizar={atualizarAgora} />
-        <PedidosPainel token={token} visao={visao} setAtual={setEscolhido} semConexao={semConexao} onAtualizar={atualizarAgora} />
+        <PapeletaPainel key={setEscolhido} token={token} baseApi={baseApi} somenteLeitura={somenteLeitura} visao={visao} set={setEscolhido} semConexao={semConexao} onAtualizar={atualizarAgora} />
+        <PedidosPainel token={token} baseApi={baseApi} visao={visao} setAtual={setEscolhido} semConexao={semConexao} onAtualizar={atualizarAgora} />
       </div>
     </div>
   )

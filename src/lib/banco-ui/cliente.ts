@@ -11,9 +11,16 @@ export interface RespostaBanco {
   erro: string | null
 }
 
-export async function chamarBanco(token: string, caminho: string, metodo: 'GET' | 'PUT' | 'POST' | 'DELETE', corpo?: unknown): Promise<RespostaBanco> {
+/** Endereço da chamada. Sem `baseApi`, a credencial é o token do link; com ela (banco por sessão), vale a base informada. */
+export function urlBanco(token: string, caminho: string, baseApi?: string): string {
+  const base = baseApi ? baseApi.replace(/\/+$/, '') : `/api/banco/${encodeURIComponent(token)}`
+  return `${base}${caminho}`
+}
+
+export async function chamarBanco(token: string, caminho: string, metodo: 'GET' | 'PUT' | 'POST' | 'DELETE', corpo?: unknown, baseApi?: string): Promise<RespostaBanco> {
   try {
-    const res = await fetch(`/api/banco/${encodeURIComponent(token)}${caminho}`, {
+    const res = await fetch(urlBanco(token, caminho, baseApi), {
+      credentials: baseApi ? 'same-origin' : undefined,
       method: metodo,
       cache: 'no-store',
       headers: corpo === undefined ? undefined : { 'Content-Type': 'application/json' },
