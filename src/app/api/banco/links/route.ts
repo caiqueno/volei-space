@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { success } from '@/lib/api-response'
 import { requireArbitroPartidaAccess } from '@/lib/arbitro-access'
 import { exigirOrganizadorDaLiga } from '@/lib/organizador-isolamento'
-import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
+import { consumirLimiteAsync, ipDaRequisicao, modoDeFalhaDoMetodo } from '@/lib/rate-limit'
 import {
   bancoAppAtivo,
   falhaBanco,
@@ -40,8 +40,8 @@ const corpoSchema = z.object({
 const semPartida = () => respostaErro('Partida não encontrada.', 404)
 const semLink = () => respostaErro('Link não encontrado.', 404)
 
-function limitar(req: NextRequest) {
-  const limite = consumirLimite(`banco:links:${ipDaRequisicao(req)}`, 30, 60_000)
+async function limitar(req: NextRequest) {
+  const limite = await consumirLimiteAsync(`banco:links:${ipDaRequisicao(req)}`, 30, 60_000, modoDeFalhaDoMetodo(req.method))
   return limite.ok
     ? null
     : respostaErro('Muitas requisições. Aguarde um instante.', 429, 'LIMITE_EXCEDIDO', { retryAfterSeconds: limite.retryAfterSeconds })
@@ -75,7 +75,7 @@ async function lerPartida(partidaId: number) {
 
 export async function POST(req: NextRequest) {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitar(req)
+  const bloqueado = await limitar(req)
   if (bloqueado) return bloqueado
 
   const lido = corpoSchema.safeParse(await lerCorpo(req))
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitar(req)
+  const bloqueado = await limitar(req)
   if (bloqueado) return bloqueado
 
   const partidaId = inteiroPositivo(new URL(req.url).searchParams.get('partidaId') ?? '')
@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
 /** Revoga um link: DELETE /api/banco/links?acessoId=... (idempotente). */
 export async function DELETE(req: NextRequest) {
   if (!bancoAppAtivo()) return naoEncontradoBanco()
-  const bloqueado = limitar(req)
+  const bloqueado = await limitar(req)
   if (bloqueado) return bloqueado
 
   const acessoId = new URL(req.url).searchParams.get('acessoId') ?? ''

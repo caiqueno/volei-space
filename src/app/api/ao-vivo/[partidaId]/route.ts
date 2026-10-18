@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { consumirLimite, ipDaRequisicao } from '@/lib/rate-limit'
+import { consumirLimiteAsync, ipDaRequisicao } from '@/lib/rate-limit'
 import { campeonatoPublicadoDaLiga } from '@/lib/visibilidade-competicao'
 import { regrasEfetivasDaPartida } from '@/lib/regras-da-partida'
 import { configDaPartida, sumulaEventosAtivo, type ClienteEventos } from '@/lib/sumula-eventos'
@@ -25,7 +25,7 @@ const naoEncontrada = () => resposta({ error: 'Partida não encontrada.' }, 404,
 export async function GET(req: NextRequest, { params }: { params: Promise<{ partidaId: string }> }) {
   if (!aoVivoAtivo()) return resposta({ error: 'Recurso não encontrado.' }, 404, SEM_CACHE)
 
-  const cota = consumirLimite(`ao-vivo:ip:${ipDaRequisicao(req)}`, LIMITE_POR_MINUTO, 60_000)
+  const cota = await consumirLimiteAsync(`ao-vivo:ip:${ipDaRequisicao(req)}`, LIMITE_POR_MINUTO, 60_000, 'ABERTO')
   if (!cota.ok) {
     return resposta({ error: 'Muitas requisições. Aguarde um instante.', codigo: 'LIMITE_EXCEDIDO' }, 429, SEM_CACHE, {
       'Retry-After': String(cota.retryAfterSeconds),

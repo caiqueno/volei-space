@@ -34,12 +34,12 @@ Visibilidade: usa `campeonatoPublicadoDaLiga` (`visibilidade-competicao.ts`): si
 
 ## Operação
 
-- Limite por IP: 120 requisições por minuto (memória por instância). Excesso = 429 com `Retry-After`.
+- Limite por IP: 120 requisições por minuto, no store persistente (tabela `"RateLimit"`, compartilhado entre instâncias) com fallback em memória quando a tabela ou o Supabase estiverem indisponíveis (R13). Se o próprio limitador falhar, a leitura pública segue (falha-aberto). Excesso = 429 com `Retry-After`.
 - `Cache-Control: public, max-age=0, s-maxage=2` só nas respostas 200; 404, 429 e 500 vão com `no-store`.
 - Erros de leitura = 500 genérico, sem detalhe interno.
 
 ## Pendências
 
 - Tela pública que consuma esta rota; a rota antiga continua em uso pela tela atual.
-- Limite por IP em memória não é global entre instâncias (aceitável para leitura; um store compartilhado é decisão de infraestrutura).
+- Sem a tabela `"RateLimit"` o limite volta a ser por instância (memória).
 - Considerar `ETag` se o polling ficar pesado.

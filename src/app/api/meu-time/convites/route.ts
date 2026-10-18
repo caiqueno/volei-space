@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ErroMeuTime, idValido, lerCorpo, sucesso, validar } from '@/lib/meu-time/acesso'
 import { rotaFase2 } from '@/lib/meu-time-fase2/acesso'
 import { criarConvite, listarConvites } from '@/lib/meu-time-fase2/convites'
-import { consumirLimite } from '@/lib/rate-limit'
+import { consumirLimiteAsync } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,7 @@ function origem(req: Request) {
 
 // POST {equipeId, contato?}: gera o link (token mostrado uma única vez). Líder ou técnico da equipe.
 export const POST = rotaFase2(async ({ req, usuarioId }) => {
-  const limite = consumirLimite(`meu-time-convite:u:${usuarioId}`, 30, 60 * 60 * 1000)
+  const limite = await consumirLimiteAsync(`meu-time-convite:u:${usuarioId}`, 30, 60 * 60 * 1000, 'FECHADO')
   if (!limite.ok) {
     throw new ErroMeuTime('Muitos convites gerados. Aguarde e tente de novo.', 429, 'LIMITE_DE_TAXA', { retryAfterSeconds: limite.retryAfterSeconds })
   }
