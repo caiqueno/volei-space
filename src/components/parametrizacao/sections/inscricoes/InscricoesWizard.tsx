@@ -20,6 +20,8 @@ import type { FieldRequirement, InscricoesSectionDTO } from '@/types/championshi
 import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-defaults'
 import { revealMissingFields } from '../../wizard/missing-fields'
 import { LinksCategoriaPrivada } from './LinksCategoriaPrivada'
+import { SeletorModoInscricao } from '@/components/organizador-solicitacoes/SeletorModoInscricao'
+import { solicitacoesAtivo } from '@/lib/organizador-solicitacoes-ui'
 import { OPCOES_VISIBILIDADE, deveMostrarLinks, normalizarVisibilidade, rotuloVisibilidade } from './visibilidade-ui'
 
 const STEPS: WizardStepDef[] = [
@@ -238,9 +240,13 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
                 onChange={(iso) => updateNow({ inscricoesEncerramentoEm: iso })}
               />
             </div>
-            <p className="rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80">
-              A inscrição é automática: a equipe que usa o link da categoria entra direto, sem fila de aprovação. O limite de vagas continua valendo.
-            </p>
+            {solicitacoesAtivo(process.env.NEXT_PUBLIC_INSCRICAO_SOLICITACAO_ATIVO) ? (
+              <SeletorModoInscricao />
+            ) : (
+              <p className="rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80">
+                A inscrição é automática: a equipe que usa o link da categoria entra direto, sem fila de aprovação. O limite de vagas continua valendo.
+              </p>
+            )}
             <CheckboxRow label="Permitir edição após o envio" checked={data.inscricaoPermiteEdicaoAposEnvio} onChange={(v) => updateNow({ inscricaoPermiteEdicaoAposEnvio: v })} />
             <FloatingLabelNumberInput
               id="prazo-edicao-inscricao"
