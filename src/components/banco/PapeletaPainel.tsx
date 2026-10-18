@@ -120,7 +120,7 @@ export function PapeletaPainel({
       clearTimeout(timer)
       if (tentarDeNovo) clearTimeout(tentarDeNovo)
     }
-  }, [rascunho, tentativa, editavel, token, set])
+  }, [rascunho, tentativa, editavel, token, set, baseApi])
 
   function alterar(proximo: RascunhoPapeleta) {
     if (igual(proximo, rascunho)) return
