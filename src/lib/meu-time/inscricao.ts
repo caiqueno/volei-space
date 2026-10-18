@@ -5,6 +5,7 @@ import { normalizarElegibilidade, type ElegibilidadeCategoria } from '@/lib/eleg
 import { registrationWindowDecision } from '@/lib/team-registration-draft'
 import { ErroMeuTime, lerDados, tabelaAusente, violacaoUnica } from '@/lib/meu-time/acesso'
 import { avaliarConvite, type LinkCampeonato } from '@/lib/meu-time/convite'
+import { garantirEquipeLegada } from '@/lib/meu-time/equipe-legada'
 import {
   idsComConsentimento,
   listarAtletasDoClube,
@@ -214,6 +215,9 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
       lerDados(gravada, 'copiar comissão da inscrição')
     }
   }
+
+  // Ponte para a Equipe legada das partidas (idempotente; nunca falha a inscrição, o reparo tenta de novo depois).
+  await garantirEquipeLegada(inscricao.id)
 
   const resumo: InscricaoResumo = {
     id: inscricao.id,

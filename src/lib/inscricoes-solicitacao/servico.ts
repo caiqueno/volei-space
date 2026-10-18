@@ -11,6 +11,7 @@ import { registrationWindowDecision } from '@/lib/team-registration-draft'
 import { ErroMeuTime, idValido, lerDados, tabelaAusente, violacaoUnica } from '@/lib/meu-time/acesso'
 import { avaliarConvite, linkVigente, type LinkCampeonato } from '@/lib/meu-time/convite'
 import { exigirEquipe, listarAtletasDoClube, type EquipeBanco } from '@/lib/meu-time/dados'
+import { garantirEquipeLegada } from '@/lib/meu-time/equipe-legada'
 import { inscreverEquipe, paraRegra } from '@/lib/meu-time/inscricao'
 import { inscricaoViva, mensagemNaipe, type SelecaoAtleta } from '@/lib/meu-time/regras'
 import { listarNotificacoes, marcarLida, notificar } from '@/lib/meu-time-fase2/notificacoes'
@@ -29,6 +30,8 @@ export const solicitarSchema = z.object({
   mensagem: z.string().trim().max(500).optional().nullable(),
   /** Token do link do organizador (categoria ou campeonato). Só é necessário em competição privada sem convite prévio. */
   convite: z.string().trim().max(200).optional(),
+  /** Ids de atletas do banco do time que entram na inscrição. Sem o campo, a seleção é automática (todo o banco). */
+  atletas: z.array(z.string().uuid()).min(1).max(100).optional(),
 })
 
 export const decisaoSchema = z.object({
@@ -224,8 +227,17 @@ async function tokenDoServidor(categoria: CategoriaLida): Promise<string | undef
  * Seleção de atletas a partir do banco do time: camisa preferida quando livre e entre 0 e 99; as demais pegam a menor
  * camisa livre. O resto (naipe, idade, mínimo/máximo, unicidade na categoria) é conferido por inscreverEquipe.
  */
-export async function montarSelecaoDoBanco(equipe: EquipeBanco): Promise<SelecaoAtleta[]> {
-  const atletas = await listarAtletasDoClube(equipe.clubeId)
+export async function montarSelecaoDoBanco(equipe: EquipeBanco, idsEscolhidos?: string[] | null): Promise<SelecaoAtleta[]> {
+  let atletas = await listarAtletasDoClube(equipe.clubeId)
+  if (idsEscolhidos && idsEscolhidos.length > 0) {
+    // O líder escolheu quem entra: todos precisam pertencer ao banco deste time.
+    const unicos = Array.from(new Set(idsEscolhidos))
+    const doTime = new Set(atletas.map((atleta) => atleta.id as string))
+    if (unicos.some((id) => !doTime.has(id))) {
+      throw new ErroMeuTime('Há atleta que não faz parte do banco deste time.', 422, 'ATLETA_FORA_DA_EQUIPE')
+    }
+    atletas = atletas.filter((atleta) => unicos.includes(atleta.id as string))
+  }
   if (atletas.length === 0) {
     throw new ErroMeuTime('Cadastre pelo menos 1 atleta no banco do time antes de se inscrever.', 422, 'TIME_SEM_ATLETAS')
   }
@@ -249,10 +261,10 @@ export async function montarSelecaoDoBanco(equipe: EquipeBanco): Promise<Selecao
   return atletas.map((atleta) => ({ atletaId: atleta.id as string, numero: escolhidos.get(atleta.id)! }))
 }
 
-async function inscrever(usuarioId: string, equipe: EquipeBanco, categoria: CategoriaLida, convite: string | undefined) {
+async function inscrever(usuarioId: string, equipe: EquipeBanco, categoria: CategoriaLida, convite: string | undefined, escolhidos?: string[] | null) {
   return inscreverEquipe(usuarioId, equipe, {
     categoriaCampeonatoId: categoria.id,
-    atletas: await montarSelecaoDoBanco(equipe),
+    atletas: await montarSelecaoDoBanco(equipe, escolhidos),
     convite,
   })
 }
@@ -296,7 +308,7 @@ export async function solicitarInscricao(usuarioId: string, equipe: EquipeBanco,
   if (vivas.length > 0) throw new ErroMeuTime('Esta equipe já está inscrita nesta categoria.', 409, 'JA_INSCRITA')
 
   if (modoDe(categoria) === 'AUTOMATICA') {
-    const { resumo, avisos } = await inscrever(usuarioId, equipe, categoria, convite)
+    const { resumo, avisos } = await inscrever(usuarioId, equipe, categoria, convite, entrada.atletas)
     return { status: 201, corpo: { estado: 'INSCRITA' as const, inscricaoId: resumo.id, avisos } }
   }
 
@@ -309,7 +321,7 @@ export async function solicitarInscricao(usuarioId: string, equipe: EquipeBanco,
   if ((pendente ?? []).length > 0) throw jaPendente()
 
   // Confere cedo o tamanho do elenco, para o líder não esperar a aprovação de algo que não vai passar.
-  const selecao = await montarSelecaoDoBanco(equipe)
+  const selecao = await montarSelecaoDoBanco(equipe, entrada.atletas)
   const regra = paraRegra(lerDados(await db.from('RegraElenco').select('*').eq('categoriaCampeonatoId', categoria.id).maybeSingle(), 'regra de elenco'))
   if (regra.atletasMin != null && selecao.length < regra.atletasMin) {
     throw new ErroMeuTime(`Faltam ${regra.atletasMin - selecao.length} atleta(s) para chegar ao mínimo de ${regra.atletasMin}.`, 422, 'ABAIXO_DO_MINIMO')
@@ -328,6 +340,8 @@ export async function solicitarInscricao(usuarioId: string, equipe: EquipeBanco,
       mensagem: entrada.mensagem || null,
       solicitadoPor: usuarioId,
       solicitadoEm: new Date().toISOString(),
+      // Só vai no insert quando o líder escolheu (coluna da 0044); sem escolha o banco antigo segue funcionando.
+      ...(entrada.atletas ? { atletasEscolhidos: Array.from(new Set(entrada.atletas)) } : {}),
     })
     .select('id,estado')
     .single()
@@ -485,13 +499,17 @@ export async function decidirSolicitacao(organizadorId: string, id: string, entr
     }
     try {
       if (!time || !categoria) throw new ErroMeuTime('A equipe ou a categoria não está mais disponível.', 409, 'SOLICITACAO_INDISPONIVEL')
-      const resultado = await inscrever(String(solicitacao.solicitadoPor ?? organizadorId), time, categoria, await tokenDoServidor(categoria))
+      // Atletas escolhidos pelo líder no pedido (coluna da 0044; ausente ou nula = seleção automática).
+      const escolha = await db.from('SolicitacaoInscricao').select('atletasEscolhidos').eq('id', id).maybeSingle()
+      const escolhidos = escolha.error ? null : ((escolha.data as { atletasEscolhidos?: string[] | null } | null)?.atletasEscolhidos ?? null)
+      const resultado = await inscrever(String(solicitacao.solicitadoPor ?? organizadorId), time, categoria, await tokenDoServidor(categoria), escolhidos)
       inscricaoId = resultado.resumo.id
     } catch (erro) {
       if (erro instanceof ErroMeuTime && erro.codigo === 'JA_INSCRITA' && time && categoria) {
         // A equipe entrou por outro caminho enquanto esperava: a aprovação só vincula a inscrição viva.
         const existentes = ((await db.from('Inscricao').select('id,status').eq('timeId', time.id).eq('categoriaCampeonatoId', categoria.id)).data ?? []) as any[]
         inscricaoId = existentes.find((item) => inscricaoViva(String(item.status)))?.id ?? null
+        if (inscricaoId) await garantirEquipeLegada(inscricaoId)
       }
       if (!inscricaoId) {
         await reverter()

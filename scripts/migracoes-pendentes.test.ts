@@ -500,6 +500,20 @@ assert.match(rb43, /drop\s+table\s+if\s+exists\s+public\."SolicitacaoInscricao"/
 assert.match(rb43, /drop\s+column\s+if\s+exists\s+"modoInscricao"/i)
 assert.ok(!/drop\s+table[^;]*"(Inscricao|TimeClube|Notificacao|CategoriaCampeonato)"/i.test(rb43), 'reversão da 0043 não derruba tabelas de outras migrations')
 
+// 5k) Rodada 14b: atletas escolhidos na solicitação (0044).
+const nome44 = '202610170044_solicitacao_atletas_escolhidos.sql'
+assert.ok(pendentes.includes(nome44), 'falta a 0044')
+assert.ok(versoes.indexOf('202610170043') < versoes.indexOf('202610170044'), '0044 deve vir depois da 0043')
+const bruto44 = ler(dirPendentes, nome44)
+const sql44 = sqlPendente[nome44]
+for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+  assert.ok(bruto44.includes(secao), `0044 sem seção ${secao}`)
+}
+assert.match(sql44, /add\s+column\s+if\s+not\s+exists\s+"atletasEscolhidos"\s+uuid\[\]/i)
+assert.match(sql44, /to_regclass\('public\."SolicitacaoInscricao"'\)\s+is\s+null/i)
+assert.ok(!/create\s+policy/i.test(sql44) && !/grant\s/i.test(sql44), '0044 não cria policy nem concede acesso')
+assert.match(sqlSemComentario(ler(dirRollback, nome44)), /drop\s+column\s+if\s+exists\s+"atletasEscolhidos"/i)
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')

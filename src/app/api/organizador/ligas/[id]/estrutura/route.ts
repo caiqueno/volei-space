@@ -11,6 +11,7 @@ import { rejectIfCampeonatoFinalizado } from '@/lib/championship-finalization'
 import { validateEliminatoryCapacity } from '@/lib/championship-validation'
 import { jogoImpedeEdicaoDaCategoria, partidaRemovivelAoRecriarGrupos } from '@/lib/configuracao-categoria-edicao'
 import { categoriaDaUrl, equipesDaCategoria, escopoDaGeracao } from '@/lib/isolamento-categoria'
+import { garantirEquipesLegadasDaLiga } from '@/lib/meu-time/equipe-legada'
 import { gerarSumulaToken } from '@/lib/sumula-token'
 import { montarConfrontos } from '@/lib/rodadas'
 import { mensagemParesForaDoGrupo } from '@/lib/grupos-fase'
@@ -170,6 +171,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (bloqueio) return bloqueio
 
     const body = await req.json()
+    // Inscrições do Meu Time sem Equipe legada (ex.: criadas antes da ponte) ganham a equipe antes de gerar os jogos.
+    await garantirEquipesLegadasDaLiga(ligaId, typeof body?.categoriaCampeonatoId === 'string' ? body.categoriaCampeonatoId : null)
     const equipesResult = await getApprovedTeams(ligaId)
     if ('error' in equipesResult) return error('Erro ao buscar equipes aprovadas.', 500, equipesResult.error)
     const escopo = escopoDaGeracao(equipesResult.data, body.categoriaCampeonatoId)
