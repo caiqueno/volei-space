@@ -435,6 +435,34 @@ for (const chave of ['CandidaturaOrganizador', 'SEED-R2-LIGA-01', 'SEED-R2-LIGA-
 assert.ok(/not\s+exists|on\s+conflict/i.test(seedSql), 'seed precisa de guarda de idempotência')
 assert.ok(!/service_role|eyJ[A-Za-z0-9_-]{20,}|sbp_[A-Za-z0-9]+/.test(seed), 'seed não pode conter chave')
 
+// 5h) Rodada 13: libero2Id (0034), ciência LGPD (0036) e expurgo de prévias (0042).
+assert.match(sqlPap, /"libero2Id"\s+integer\s+references\s+public\."Jogador"\(id\)\s+on\s+delete\s+set\s+null/i, 'Papeleta.libero2Id ausente ou sem set null')
+assert.ok(!/"libero2Id"\s+integer\s+not\s+null/i.test(sqlPap), 'libero2Id precisa ser nullable')
+assert.match(sqlPap, /check\s*\(\s*"liberoId"\s+is\s+null\s+or\s+"libero2Id"\s+is\s+null\s+or\s+"liberoId"\s+<>\s+"libero2Id"\s*\)/i, 'CHECK liberoId <> libero2Id ausente')
+assert.match(fnPap![0], /new\."libero2Id"\s+is\s+distinct\s+from\s+old\."libero2Id"/i, 'trigger não protege libero2Id')
+assert.match(sqlConvite, /"cienciaLgpdEm"\s+timestamptz\s*,/i, 'ConviteAtleta.cienciaLgpdEm ausente')
+assert.match(sqlConvite, /"cienciaVersao"\s+text/i, 'ConviteAtleta.cienciaVersao ausente')
+assert.ok(!/"cienciaLgpdEm"\s+timestamptz\s+not\s+null/i.test(sqlConvite), 'cienciaLgpdEm precisa ser nullable')
+const nome42 = '202610170042_expurgo_previas_importacao.sql'
+assert.ok(pendentes.includes(nome42), 'falta a 0042')
+assert.ok(versoes.indexOf('202610170037') < versoes.indexOf('202610170042'), '0042 deve vir depois da 0037')
+const bruto42 = ler(dirPendentes, nome42)
+const sql42 = sqlPendente[nome42]
+for (const secao of ['OBJETIVO', 'COMO AGENDAR', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+  assert.ok(bruto42.includes(secao), `0042 sem seção ${secao}`)
+}
+assert.match(bruto42, /pg_cron[\s\S]*Vercel/i, 'cabeçalho da 0042 deve explicar pg_cron e cron da Vercel')
+assert.ok(!/cron\.schedule/i.test(sql42), '0042 não pode agendar nada')
+const fn42 = /create\s+or\s+replace\s+function\s+public\.expurgar_previas_importacao\(\)[\s\S]*?\$fn\$;/i.exec(sql42)
+assert.ok(fn42, 'função expurgar_previas_importacao ausente')
+assert.match(fn42![0], /security\s+definer/i)
+assert.match(fn42![0], /set\s+search_path\s*=\s*public/i, 'security definer sem search_path fixo')
+assert.match(fn42![0], /delete\s+from\s+public\."ImportacaoAtletas"[\s\S]*status\s*=\s*'PREVIA'[\s\S]*"expiraEm"\s*<\s*now\(\)/i)
+assert.match(sql42, /revoke\s+all\s+on\s+function\s+public\.expurgar_previas_importacao\(\)\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql42, /grant\s+execute\s+on\s+function\s+public\.expurgar_previas_importacao\(\)\s+to\s+service_role\s*;/i)
+assert.ok(!/grant\s+[^;]*\bto\s+[^;]*\b(anon|authenticated|public)\b/i.test(sql42), '0042 não pode conceder a anon/authenticated/public')
+assert.match(sqlSemComentario(ler(dirRollback, nome42)), /drop\s+function\s+if\s+exists\s+public\.expurgar_previas_importacao\(\)/i)
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')
