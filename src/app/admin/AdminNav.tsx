@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Activity, BarChart3, CalendarDays, ClipboardList, KeyRound, Trophy, UserRound, Users } from 'lucide-react'
+import { ItemNavSolicitacoes, SinoNotificacoesOrganizador } from '@/components/organizador-solicitacoes/NavSolicitacoes'
 
 const navLinks = [
   { href: '/admin', label: 'Dashboard', icon: BarChart3 },
@@ -34,6 +35,8 @@ export function AdminNav() {
           </Link>
         )
       })}
+      <ItemNavSolicitacoes />
+      <SinoNotificacoesOrganizador />
     </nav>
   )
 }
