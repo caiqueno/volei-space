@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { NAO_REGISTRADO, textoDuracao } from '@/lib/sumula-impressa/montar'
+import { TITULO_EVENTOS_NAO_APLICADOS } from '@/lib/sumula-impressa/motor'
 import { CAPACIDADE_PAGINA, paginarLinhas, pontosDaSumulaAnexa, type LinhaEvento, type LinhaPonto, type LinhaSancao, type SetMotor } from '@/lib/sumula-impressa/motor'
 import { avisoDeOverrides } from '@/lib/sumula-ui/override'
 import type {
@@ -503,6 +504,20 @@ export function SumulaImpressa({ modelo: m, aoImprimir }: { modelo: ModeloImpres
         <p className="si-resultado">{m.equipeA.nome} {m.setsA} × {m.setsB} {m.equipeB.nome}</p>
         <p>Vencedor: <strong>{m.vencedor ?? 'não registrado'}</strong></p>
         <p>MVP: <strong>{m.mvp.length ? m.mvp.join(', ') : 'não registrado'}</strong></p>
+
+        {m.eventosNaoAplicados.length > 0 ? (
+          <section aria-label={TITULO_EVENTOS_NAO_APLICADOS}>
+            <h2>{TITULO_EVENTOS_NAO_APLICADOS}</h2>
+            <p className="si-nota">Registros que as regras não aceitaram e que, por isso, não entram no quadro de pontos. Confira com a arbitragem.</p>
+            <ul>
+              {m.eventosNaoAplicados.map((e) => (
+                <li key={e.seq}>
+                  #{e.seq} {e.tipo}{e.equipe ? ` (equipe ${e.equipe})` : ''}: {e.mensagem}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <h2>Assinaturas</h2>
         <div className="si-assin">
