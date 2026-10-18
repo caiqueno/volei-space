@@ -120,6 +120,60 @@ async function main() {
   assert.equal((await post(BASE)).status, 200)
   assert.equal((await j(await get())).data.length, 1)
 
+  // --- PATCH (R13): corrige uma ação não anulada
+  {
+    const patch = (id: string, c: unknown, token = 'tk') => um.PATCH(req('PATCH', `/api/scout/${token}/acoes/${id}`, c), ctx({ token, id }))
+    const ativa = await post({ ...BASE, clientEventId: 'p-1', fundamento: 'ATAQUE', resultado: 'CONTINUA', zonaOrigem: 4, zonaDestino: 6 })
+    const aid = String((await j(ativa)).data.acao.id)
+    const bid = String(dados.ScoutAcao!.find((l) => l.clientEventId === 'c-6')!.id)
+    // flag, permissão, corpo
+    delete process.env.SCOUT_ATIVO
+    assert.equal((await patch(aid, { resultado: 'PONTO' })).status, 404)
+    process.env.SCOUT_ATIVO = '1'
+    acesso.escrita = 'negado'
+    assert.equal((await patch(aid, { resultado: 'PONTO' })).status, 403)
+    acesso.escrita = 'ok'
+    assert.equal((await um.PATCH(new NextRequest('http://x/api', { method: 'PATCH', body: 'nao-json' }), ctx({ token: 'tk', id: aid }))).status, 400)
+    assert.equal((await patch(aid, {})).status, 400, 'ao menos um campo')
+    assert.equal((await patch(aid, { fundamento: 'PRAIA' })).status, 400)
+    assert.equal((await patch(aid, { zonaOrigem: 10 })).status, 400)
+    assert.equal((await patch(aid, { placarA: 5 })).status, 400, 'só fundamento, resultado, zonas e jogador')
+    assert.equal((await patch(aid, { clientEventId: 'outro' })).status, 400)
+    assert.equal((await patch('abc', { resultado: 'PONTO' })).status, 404)
+    assert.equal((await patch('99999', { resultado: 'PONTO' })).status, 404)
+    // corrige e é idempotente
+    const antes = { ...dados.ScoutAcao!.find((l) => String(l.id) === aid)! }
+    const p1 = await patch(aid, { resultado: 'PONTO', zonaDestino: 1, fundamento: 'CONTRA_ATAQUE' })
+    assert.equal(p1.status, 200)
+    const corrigida = (await j(p1)).data.acao
+    assert.equal(corrigida.resultado, 'PONTO')
+    assert.equal(corrigida.zonaDestino, 1)
+    assert.equal(corrigida.fundamento, 'CONTRA_ATAQUE')
+    assert.equal(corrigida.zonaOrigem, 4, 'o que não veio não muda')
+    assert.equal(corrigida.clientEventId, antes.clientEventId)
+    assert.equal(corrigida.placarA, antes.placarA)
+    const p2 = await patch(aid, { resultado: 'PONTO', zonaDestino: 1, fundamento: 'CONTRA_ATAQUE' })
+    assert.equal(p2.status, 200)
+    assert.deepEqual((await j(p2)).data.acao, corrigida)
+    // limpar zona (null) e trocar jogador
+    assert.equal((await j(await patch(aid, { zonaOrigem: null }))).data.acao.zonaOrigem, null)
+    assert.equal((await patch(aid, { jogadorId: 31 })).status, 422, 'jogador de outra equipe')
+    assert.equal((await patch(aid, { jogadorId: 999 })).status, 422, 'jogador inexistente')
+    assert.equal((await j(await patch(aid, { jogadorId: null }))).data.acao.jogadorId, null)
+    assert.equal((await j(await patch(aid, { jogadorId: 11 }))).data.acao.jogadorId, 11)
+    assert.equal((await patch(bid, { resultado: 'NEUTRO' })).status, 200)
+    // ação anulada não é corrigida
+    await del(aid)
+    const anuladaPatch = await patch(aid, { resultado: 'ERRO' })
+    assert.equal(anuladaPatch.status, 409)
+    assert.equal((await j(anuladaPatch)).codigo, 'ACAO_ANULADA')
+    assert.equal(dados.ScoutAcao!.find((l) => String(l.id) === aid)!.resultado, 'PONTO', 'anulada não é alterada')
+    // campeonato finalizado bloqueia
+    dados.Liga![0]!.status = 'FINALIZADO'
+    assert.equal((await patch(bid, { resultado: 'ERRO' })).status, 409)
+    dados.Liga![0]!.status = 'EM_ANDAMENTO'
+  }
+
   // Campeonato finalizado bloqueia escrita
   dados.Liga![0]!.status = 'FINALIZADO'
   assert.equal((await post({ ...BASE, clientEventId: 'c-7' })).status, 409)
