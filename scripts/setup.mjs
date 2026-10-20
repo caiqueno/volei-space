@@ -26,7 +26,10 @@ const arquivoNvm = path.join(raiz, '.nvmrc')
 if (fs.existsSync(arquivoNvm)) {
   const exigida = Number(fs.readFileSync(arquivoNvm, 'utf8').trim().replace(/^v/, '').split('.')[0])
   const atual = Number(process.versions.node.split('.')[0])
-  if (Number.isFinite(exigida) && atual !== exigida) {
+  if (Number.isFinite(exigida) && atual > exigida) {
+    console.warn(`Aviso: o projeto usa Node ${exigida} (.nvmrc; é a versão da Vercel) e você está no Node ${atual}. Em desenvolvimento costuma funcionar; se algo estranho aparecer, volte para o Node ${exigida}.`)
+  }
+  if (Number.isFinite(exigida) && atual < exigida) {
     falhar(`o projeto usa Node ${exigida} (.nvmrc) e você está no Node ${atual}. Troque a versão e rode de novo.`)
   }
 }
