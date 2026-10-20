@@ -1,6 +1,24 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  conviteParaCategoria,
+  guardarEntrada,
+  hrefContinuacao,
+  hrefCriarTime,
+  inscricaoViaMeuTimeAtiva,
+  lerEntradaDaUrl,
+  lerEntradaGuardada,
+  limparEntradaGuardada,
+  mesclarOfertas,
+  normalizarEntrada,
+  ofertasDaEntrada,
+  proximosPassos,
+  type Entrada,
+  type LeituraEntrada,
+} from '@/lib/inscricao-entrada-ui/regras'
+import { extrairData } from '@/lib/meu-time-ui/respostas'
 import { ErroMeuTime } from '@/components/meu-time/cliente'
 import { Aviso, botaoPerigo, botaoPrimario, botaoSecundario, Campo, campoEstilo, Carregando, cartao, FalhaTela, falhaDe, Pagina } from '@/components/meu-time/ui'
 import { SeletorEquipe } from '@/components/meu-time-fase2/Comum'
@@ -41,7 +59,9 @@ function Oferta({
   aoConfirmar,
   aoCancelar,
   carregarAtletas,
+  abrirAuto = false,
 }: {
+  abrirAuto?: boolean
   oferta: OfertaCampeonato
   equipeNome: string
   ocupado: boolean
@@ -50,7 +70,7 @@ function Oferta({
   carregarAtletas: () => Promise<AtletaDoBanco[]>
 }) {
   const botao = botaoDaOferta(oferta)
-  const [confirmando, setConfirmando] = useState(false)
+  const [confirmando, setConfirmando] = useState(abrirAuto)
   const [mensagem, setMensagem] = useState('')
   const [maximoEscolha, setMaximoEscolha] = useState<number | null>(null)
   const idBase = `oferta-${oferta.categoriaId}`
@@ -161,7 +181,12 @@ function Oferta({
 
 export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
   const api = cliente ?? obterClienteCampeonatos()
-  const ativo = inscricaoSolicitacaoAtiva()
+  const via = inscricaoViaMeuTimeAtiva()
+  const ativo = inscricaoSolicitacaoAtiva() || via
+  const [leitura, setLeitura] = useState<LeituraEntrada>({})
+  const [entrada, setEntrada] = useState<Entrada | null>(null)
+  const [conviteInvalido, setConviteInvalido] = useState(false)
+  const [concluida, setConcluida] = useState<{ equipeId: string; estado: 'INSCRITA' | 'PENDENTE' } | null>(null)
   const [equipeId, setEquipeId] = useState('')
   const [equipeNome, setEquipeNome] = useState('seu time')
   const [ofertas, setOfertas] = useState<OfertaCampeonato[] | null>(null)
@@ -179,13 +204,13 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
     try {
       const lista = await api.listarOfertas(equipeId)
       if (n === pedido.current) {
-        setOfertas(lista)
+        setOfertas(via && entrada ? mesclarOfertas(lista, ofertasDaEntrada(entrada, leitura.categoria)) : lista)
         setFalha(null)
       }
     } catch (e) {
       if (n === pedido.current) setFalha(falhaDe(e))
     }
-  }, [api, equipeId])
+  }, [api, equipeId, via, entrada, leitura.categoria])
 
   useEffect(() => {
     if (!ativo) return
@@ -194,6 +219,45 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
     setRetorno(null)
     void carregar()
   }, [ativo, carregar])
+
+  // Lê `?categoria=&entrada=`; o token do convite fica só em memória e no sessionStorage, fora da URL.
+  useEffect(() => {
+    if (!via) return
+    const params = new URLSearchParams(window.location.search)
+    const daUrl = lerEntradaDaUrl((k) => params.get(k))
+    if (daUrl.entrada) {
+      guardarEntrada(daUrl)
+      params.delete('entrada')
+      const resto = params.toString()
+      window.history.replaceState(null, '', `${window.location.pathname}${resto ? `?${resto}` : ''}`)
+      setLeitura(daUrl)
+    } else {
+      setLeitura({ ...lerEntradaGuardada(), ...(daUrl.categoria ? { categoria: daUrl.categoria } : {}) })
+    }
+  }, [via])
+
+  useEffect(() => {
+    if (!via || !leitura.entrada) return
+    let vivo = true
+    setConviteInvalido(false)
+    fetch(`/api/inscricao/entrada/${encodeURIComponent(leitura.entrada)}`, { cache: 'no-store', credentials: 'same-origin' })
+      .then(async (res) => {
+        let json: unknown = null
+        try {
+          json = await res.json()
+        } catch {
+          json = null
+        }
+        const e = res.ok ? normalizarEntrada(extrairData<unknown>(json)) : null
+        if (!vivo) return
+        setEntrada(e)
+        setConviteInvalido(!e)
+      })
+      .catch(() => {
+        if (vivo) setConviteInvalido(true)
+      })
+    return () => { vivo = false }
+  }, [via, leitura.entrada])
 
   const carregarAtletas = useCallback(() => api.listarAtletas(equipeId), [api, equipeId])
 
@@ -210,8 +274,13 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
     setOcupado(o.categoriaId)
     setRetorno(null)
     try {
-      const r = await api.solicitar(equipeId, o.categoriaId, mensagem, atletas)
+      const convite = via ? conviteParaCategoria(entrada, leitura.entrada, o.categoriaId) : undefined
+      const r = await api.solicitar(equipeId, o.categoriaId, mensagem, atletas, convite)
       setRetorno({ tom: 'is-success', texto: mensagemRetorno(r.estado, o.modo) })
+      if (via) {
+        setConcluida({ equipeId, estado: r.estado })
+        if (convite) limparEntradaGuardada()
+      }
     } catch (e) {
       const f = falhaDe(e)
       setRetorno({ tom: 'is-error', texto: mensagemErroSolicitacao(f) })
@@ -252,10 +321,31 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
       <p className="text-base text-[var(--vs-muted)]">Escolha o time e veja onde ele pode se inscrever.</p>
       <SeletorEquipe id="equipe-campeonatos" valor={equipeId} aoMudar={setEquipeId} rotulo="Qual time vai participar?" />
       <EquipeNome onNome={setEquipeNome} equipeId={equipeId} />
+      {via && leitura.entrada && (
+        <p className="text-base text-[var(--vs-muted)]">
+          Ainda não tem time?{' '}
+          <Link href={hrefCriarTime(hrefContinuacao(leitura.entrada, leitura.categoria))} className="font-bold underline">Criar meu time</Link>
+          {' '}e volte aqui para terminar a inscrição.
+        </p>
+      )}
+      {via && conviteInvalido && (
+        <Aviso tom="is-error" alerta>Este convite não vale mais ou expirou. Peça um link novo ao organizador. Abaixo estão os campeonatos abertos para o seu time.</Aviso>
+      )}
 
       <div aria-live="polite" className="flex flex-col gap-2">
         {retorno && <Aviso tom={retorno.tom} alerta={retorno.tom === 'is-error'}>{retorno.texto}</Aviso>}
       </div>
+      {via && concluida && (
+        <div className={`${cartao} flex flex-col gap-2`}>
+          <h2 className="text-xl font-black">Próximos passos</h2>
+          <p className="text-[var(--vs-muted)]">
+            {concluida.estado === 'INSCRITA' ? 'Agora complete o time para ele poder jogar.' : 'Enquanto o organizador analisa, deixe o time pronto.'}
+          </p>
+          {proximosPassos(concluida.equipeId).map((p) => (
+            <Link key={p.href} href={p.href} className={botaoPrimario}>{p.rotulo}</Link>
+          ))}
+        </div>
+      )}
 
       {equipeId && !ofertas && !falha && <Carregando texto="Buscando campeonatos abertos…" />}
       {falha && <FalhaTela falha={falha} aoTentar={() => void carregar()} />}
@@ -263,7 +353,7 @@ export function CampeonatosTela({ cliente }: { cliente?: ClienteCampeonatos }) {
       {ofertas && ofertas.length > 0 && (
         <ul className="flex flex-col gap-3" aria-label="Campeonatos e categorias">
           {ofertas.map((o) => (
-            <Oferta key={o.categoriaId} oferta={o} equipeNome={equipeNome} ocupado={ocupado === o.categoriaId} aoConfirmar={aoConfirmar} aoCancelar={aoCancelar} carregarAtletas={carregarAtletas} />
+            <Oferta key={o.categoriaId} abrirAuto={via && !concluida && leitura.categoria === o.categoriaId} oferta={o} equipeNome={equipeNome} ocupado={ocupado === o.categoriaId} aoConfirmar={aoConfirmar} aoCancelar={aoCancelar} carregarAtletas={carregarAtletas} />
           ))}
         </ul>
       )}

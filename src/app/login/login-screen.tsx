@@ -8,11 +8,15 @@ import { AlertCircle, LockKeyhole } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { loginDestination } from '@/lib/login-destination'
 import { lerSessaoPublica } from '@/lib/sessao-publica'
+import { destinoPosLogin, hrefCadastro, inscricaoViaMeuTimeAtiva, MENSAGEM_CAPITAO, returnToSeguro } from '@/lib/inscricao-entrada-ui/regras'
 
 export function LoginScreen() {
   const searchParams = useSearchParams()
   const contaCriada = searchParams.get('conta') === 'criada'
   const sessaoExpirada = searchParams.get('sessao') === 'expirada'
+  const viaMeuTime = inscricaoViaMeuTimeAtiva()
+  const returnTo = viaMeuTime ? returnToSeguro(searchParams.get('returnTo')) : null
+  const veioDoCapitao = viaMeuTime && searchParams.get('de') === 'capitao'
   const [etapa, setEtapa] = useState<'escolha' | 'membro'>(searchParams.get('modo') === 'membro' || searchParams.get('conta') === 'criada' ? 'membro' : 'escolha')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
@@ -29,7 +33,7 @@ export function LoginScreen() {
     if (!tipo) return
     const trocarSenha = Boolean(sessao?.trocarSenha)
     if (tipo !== 'organizador') {
-      window.location.replace(loginDestination(tipo, trocarSenha))
+      window.location.replace(destinoPosLogin(viaMeuTime, returnTo, loginDestination(tipo, trocarSenha)))
       return
     }
     let ativo = true
@@ -103,9 +107,11 @@ export function LoginScreen() {
         window.localStorage.setItem('luva_session', JSON.stringify(json.data.user))
       }
 
-      const destino = typeof json.data?.redirectTo === 'string'
+      const destinoPadrao = typeof json.data?.redirectTo === 'string'
         ? json.data.redirectTo
         : loginDestination(json.data?.user?.tipo ?? '', Boolean(json.data?.user?.trocarSenha))
+      // Troca de senha obrigatória vem antes de qualquer continuação.
+      const destino = destinoPadrao === '/trocar-senha' ? destinoPadrao : destinoPosLogin(viaMeuTime, returnTo, destinoPadrao)
       window.location.assign(destino)
     } catch {
       setErro('Falha na conexão. Tente novamente em instantes.')
@@ -144,6 +150,18 @@ export function LoginScreen() {
               {contaCriada && (
                 <p className="cadastro-field-ok mt-4 text-sm font-semibold leading-6">
                   Conta criada. Entre com o e-mail e a senha que você acabou de definir.
+                </p>
+              )}
+              {veioDoCapitao && (
+                <p className="mt-4 text-sm font-semibold leading-6 text-slate-200">
+                  {MENSAGEM_CAPITAO} Entre com a conta do líder do time. Ainda não tem conta?{' '}
+                  <Link href={hrefCadastro('/meu-time/novo')} className="underline decoration-white/40 underline-offset-4">Crie a sua</Link>.
+                </p>
+              )}
+              {returnTo && !veioDoCapitao && (
+                <p className="mt-4 text-sm font-semibold leading-6 text-slate-200">
+                  Entre para continuar a inscrição do seu time. Ainda não tem conta?{' '}
+                  <Link href={hrefCadastro(returnTo)} className="underline decoration-white/40 underline-offset-4">Crie a sua</Link>.
                 </p>
               )}
               {sessaoExpirada && (

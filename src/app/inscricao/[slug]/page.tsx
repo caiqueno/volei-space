@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Lock, UserPlus } from 'lucide-react'
+import { AVISO_SLUG, inscricaoViaMeuTimeAtiva } from '@/lib/inscricao-entrada-ui/regras'
 
 export default function InscricaoJogadorPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -11,6 +12,7 @@ export default function InscricaoJogadorPage() {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
+    if (inscricaoViaMeuTimeAtiva()) return
     fetch(`/api/equipes?slug=${slug}`)
       .then((res) => res.json())
       .then((json) => {
@@ -28,6 +30,16 @@ export default function InscricaoJogadorPage() {
         setLoading(false)
       })
   }, [slug])
+
+  if (inscricaoViaMeuTimeAtiva()) {
+    return (
+      <StatusScreen
+        icon={<Lock size={24} />}
+        title={AVISO_SLUG}
+        description="O cadastro de atleta agora é feito pelo link de convite que o líder do time envia (aba Atletas do Meu Time). Abra esse link no celular: ele pede só os seus dados e a autorização, sem criar conta. Aqui não coletamos nenhum dado."
+      />
+    )
+  }
 
   if (loading) return <StatusScreen icon={<UserPlus size={24} />} title="Carregando inscrição" description="Estamos buscando os dados da equipe." />
   if (notFound) return <StatusScreen icon={<UserPlus size={24} />} title="Equipe não encontrada" description="Verifique se o link de inscrição está correto e tente novamente." />

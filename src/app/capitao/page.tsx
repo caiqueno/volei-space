@@ -8,6 +8,7 @@ import { CandidateEditForm, type CandidateEditSection } from '@/components/candi
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
 import { enviarArquivoAssinado, ErroUpload } from '@/lib/uploads-cliente'
 import { encerrarSessaoPublica } from '@/lib/sessao-publica'
+import { destinoCapitao, inscricaoViaMeuTimeAtiva, MENSAGEM_CAPITAO } from '@/lib/inscricao-entrada-ui/regras'
 
 type Session = {
   tipo: string
@@ -106,6 +107,17 @@ export default function CapitaoPage() {
   const [positionModalOpen, setPositionModalOpen] = useState(false)
 
   useEffect(() => {
+    if (inscricaoViaMeuTimeAtiva()) {
+      // O time tem um perfil só: o líder, no Meu Time. Daqui não sai nenhuma requisição.
+      let temSessao = false
+      try {
+        temSessao = Boolean((JSON.parse(window.localStorage.getItem('luva_session') ?? 'null') as Session | null)?.tipo)
+      } catch {
+        temSessao = false
+      }
+      window.location.replace(destinoCapitao(temSessao))
+      return
+    }
     try {
       setSession(JSON.parse(window.localStorage.getItem('luva_session') ?? 'null'))
     } catch {
@@ -343,6 +355,14 @@ export default function CapitaoPage() {
 
   function logout() {
     void encerrarSessaoPublica()
+  }
+
+  if (inscricaoViaMeuTimeAtiva()) {
+    return (
+      <main className="luva-shell capitain-dashboard min-h-screen px-4 py-12">
+        <p role="status" className="text-center text-sm font-semibold text-slate-300">{MENSAGEM_CAPITAO} Levando você para o Meu Time…</p>
+      </main>
+    )
   }
 
   if (!sessaoPronta) {

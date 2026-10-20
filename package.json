@@ -181,7 +181,8 @@
     "test:banco-sessao": "node scripts/with-ts-node.mjs scripts/banco-sessao.test.ts",
     "test:meu-time-campeonatos-ui": "node scripts/with-ts-node.mjs scripts/meu-time-campeonatos-ui.test.ts",
     "test:organizador-solicitacoes-ui": "node scripts/with-ts-node.mjs scripts/organizador-solicitacoes-ui.test.ts",
-    "test:inscricao-entrada": "node scripts/with-ts-node.mjs scripts/inscricao-entrada.test.ts"
+    "test:inscricao-entrada": "node scripts/with-ts-node.mjs scripts/inscricao-entrada.test.ts",
+    "test:inscricao-entrada-ui": "node scripts/with-ts-node.mjs scripts/inscricao-entrada-ui.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

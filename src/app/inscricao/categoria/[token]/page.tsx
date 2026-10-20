@@ -1,3 +1,5 @@
+import { PortaEntrada } from '@/components/inscricao-entrada/PortaEntrada'
+import { inscricaoViaMeuTimeAtiva } from '@/lib/inscricao-entrada-ui/regras'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
 import { formularioDaInscricao, resolveFormularioRapidaConfig } from '@/lib/inscricao-rapida'
@@ -11,6 +13,7 @@ const LIGA_PUBLICA = 'id,nome,nomeCurto,status,simulacao,inscricoesAbertas,inscr
 
 export default async function InscricaoCategoriaPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
+  if (inscricaoViaMeuTimeAtiva()) return <PortaEntrada token={token} />
   const { data: categoria } = await supabaseAdmin
     .from('CategoriaCampeonato')
     .select('id,ligaId,codigo,nome,tokenInscricao')

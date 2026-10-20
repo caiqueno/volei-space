@@ -10,7 +10,7 @@ export type ResultadoSolicitacao = { estado: 'INSCRITA' | 'PENDENTE'; id?: strin
 export interface ClienteCampeonatos {
   listarOfertas(equipeId: string): Promise<OfertaCampeonato[]>
   /** `atletas` (ids) é opcional: sem ele o servidor usa todo o banco de atletas do time. */
-  solicitar(equipeId: string, categoriaId: string, mensagem?: string, atletas?: string[]): Promise<ResultadoSolicitacao>
+  solicitar(equipeId: string, categoriaId: string, mensagem?: string, atletas?: string[], convite?: string): Promise<ResultadoSolicitacao>
   /** Banco de atletas do time (rota de detalhe da equipe do Meu Time). */
   listarAtletas(equipeId: string): Promise<AtletaDoBanco[]>
   cancelarSolicitacao(id: string): Promise<void>
@@ -49,11 +49,12 @@ export function criarClienteCampeonatos(fetchImpl?: Fetch): ClienteCampeonatos {
     async listarOfertas(equipeId) {
       return normalizarOfertas(extrairData<unknown>(await req('GET', `/api/meu-time/campeonatos?equipeId=${enc(equipeId)}`)))
     },
-    async solicitar(equipeId, categoriaId, mensagem, atletas) {
+    async solicitar(equipeId, categoriaId, mensagem, atletas, convite) {
       const json = await req('POST', '/api/meu-time/campeonatos/solicitacoes', {
         equipeId,
         categoriaId,
         ...(mensagem ? { mensagem } : {}),
+        ...(convite ? { convite } : {}),
         ...(atletas && atletas.length > 0 ? { atletas } : {}),
       })
       const d = extrairData<Record<string, unknown>>(json)

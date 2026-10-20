@@ -1,3 +1,5 @@
+import { PortaEntrada } from '@/components/inscricao-entrada/PortaEntrada'
+import { inscricaoViaMeuTimeAtiva } from '@/lib/inscricao-entrada-ui/regras'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
 import { resolveFormularioRapidaConfig, resolveInscricaoCategoria } from '@/lib/inscricao-rapida'
@@ -7,6 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function InscricaoCampeonatoPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
+  if (inscricaoViaMeuTimeAtiva()) return <PortaEntrada token={token} />
   const contexto = await carregarInscricaoPorToken(token)
   if (contexto.falha || !contexto.link || !contexto.liga || contexto.liga.simulacao === true) {
     return (

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState, type FormEvent } from 'react'
+import { inscricaoViaMeuTimeAtiva, returnToSeguro } from '@/lib/inscricao-entrada-ui/regras'
 import { obterClientePadrao, type MeuTimeClient } from './cliente'
 import { Aviso, botaoPrimario, Campo, campoEstilo, descreve, FalhaTela, falhaDe, Pagina } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
@@ -37,7 +38,9 @@ export function CriarTime({ cliente }: { cliente?: MeuTimeClient }) {
     setSalvando(true)
     try {
       const criada = await api.criarEquipe(resultado.dados)
-      router.push(`/meu-time/${encodeURIComponent(criada.id)}?novo=1`)
+      // Vindo de um convite de inscrição: volta para a continuação em vez da ficha do time.
+      const voltar = inscricaoViaMeuTimeAtiva() ? returnToSeguro(new URLSearchParams(window.location.search).get('voltar')) : null
+      router.push(voltar ?? `/meu-time/${encodeURIComponent(criada.id)}?novo=1`)
     } catch (erro) {
       setFalha(falhaDe(erro))
       setSalvando(false)
