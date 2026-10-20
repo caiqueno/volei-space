@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 import { unstable_noStore as noStore } from 'next/cache'
+import { PortaEntrada } from '@/components/inscricao-entrada/PortaEntrada'
+import { inscricaoViaMeuTimeAtiva } from '@/lib/inscricao-entrada-ui/regras'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
 import { resolveFormularioRapidaConfig } from '@/lib/inscricao-rapida'
@@ -11,6 +13,7 @@ import { abrirInscricaoDaVaga } from '@/lib/vaga-inscricao'
 export default async function InscricaoVagaPage({ params }: { params: Promise<{ token: string }> }) {
   noStore()
   const { token } = await params
+  if (inscricaoViaMeuTimeAtiva()) return <PortaEntrada token={token} />
   try {
     const contexto = await abrirInscricaoDaVaga(token)
     const config = resolveFormularioRapidaConfig(contexto.liga.formularioInscricaoConfig)

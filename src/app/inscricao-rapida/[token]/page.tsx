@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic'
 
+import { PortaEntrada } from '@/components/inscricao-entrada/PortaEntrada'
+import { inscricaoViaMeuTimeAtiva } from '@/lib/inscricao-entrada-ui/regras'
 import { EstadoVazio } from '@/components/ui/EstadoVazio'
 import { FormularioInscricaoRapida } from '@/components/inscricao-rapida/FormularioInscricaoRapida'
 import { resolveFormularioRapidaConfig, resolveInscricaoCategoria } from '@/lib/inscricao-rapida'
@@ -9,6 +11,7 @@ type PageProps = { params: Promise<{ token: string }> }
 
 export default async function InscricaoRapidaTokenPage({ params }: PageProps) {
   const { token } = await params
+  if (inscricaoViaMeuTimeAtiva()) return <PortaEntrada token={token} />
   try {
     const context = await getRegistrationDraftByToken(token)
     const config = resolveFormularioRapidaConfig(context.liga.formularioInscricaoConfig)
