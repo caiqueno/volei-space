@@ -147,7 +147,38 @@ export type CampeonatoDisponivel = {
  * equipe já tem história nele (inscrita, solicitação pendente/recusada ou cancelada), com a situação correspondente.
  * Sem a tabela de solicitações (migration pendente) a vitrine segue, sem estados de solicitação.
  */
-export async function listarCampeonatosDaEquipe(equipe: EquipeBanco): Promise<CampeonatoDisponivel[]> {
+/**
+ * Competição privada aberta por um convite válido do organizador (token de categoria ou link do campeonato).
+ * Token de categoria abre só aquela categoria; link do campeonato abre todas. Convite inválido, desconhecido,
+ * revogado/expirado ou de competição pública devolve null: a vitrine segue como sempre (sem enumeração).
+ */
+export async function abertaPorConvite(convite: string | undefined | null): Promise<{ ligaId: number; categoriaId: string | null } | null> {
+  const token = (convite ?? '').trim()
+  if (!token || token.length > 200) return null
+  const porCategoria = (await lerCategorias((c) => c.eq('tokenInscricao', token)))[0]
+  let ligaId: number | null = porCategoria ? Number(porCategoria.ligaId) : null
+  if (ligaId == null) {
+    const r = await db.from('LinkInscricaoCampeonato').select('ligaId').eq('token', token).maybeSingle()
+    if (r.error || !r.data) return null
+    ligaId = Number(r.data.ligaId)
+  }
+  if (!(await idsCompeticoesPrivadas({ semCache: true })).has(ligaId)) return null
+  const decisao = avaliarConvite(token, {
+    visibilidade: 'PRIVADA',
+    tokenCategoria: porCategoria?.tokenInscricao ?? null,
+    linkCampeonato: await lerLinkCampeonato(ligaId),
+  })
+  return decisao.ok ? { ligaId, categoriaId: porCategoria?.id ?? null } : null
+}
+
+export type OpcoesVitrine = {
+  /** Convite vindo da porta de entrada (/api/inscricao/entrada). Libera na vitrine a competição privada dele. */
+  convite?: string | null
+  /** Afunila a vitrine a uma categoria da competição aberta pelo convite. */
+  categoriaId?: string | null
+}
+
+export async function listarCampeonatosDaEquipe(equipe: EquipeBanco, opcoes: OpcoesVitrine = {}): Promise<CampeonatoDisponivel[]> {
   const inscricoes = ((lerDados(
     await db.from('Inscricao').select('id,ligaId,categoriaCampeonatoId,status').eq('timeId', equipe.id),
     'inscrições da equipe',
@@ -176,16 +207,27 @@ export async function listarCampeonatosDaEquipe(equipe: EquipeBanco): Promise<Ca
   if (ligas.length === 0) return []
 
   const ligaIds = ligas.map((liga) => Number(liga.id))
-  const [privadas, convidadas] = await Promise.all([idsCompeticoesPrivadas({ semCache: true }), ligasComConvite(equipe.id, ligaIds)])
+  const [privadas, convidadas, porConvite] = await Promise.all([
+    idsCompeticoesPrivadas({ semCache: true }),
+    ligasComConvite(equipe.id, ligaIds),
+    opcoes.convite ? abertaPorConvite(opcoes.convite) : Promise.resolve(null),
+  ])
   const categorias = await lerCategorias((c) => c.in('ligaId', ligaIds))
 
   const saida: Array<CampeonatoDisponivel & { _ordem: number }> = []
   for (const liga of ligas) {
     const ligaId = Number(liga.id)
     const aberta = registrationWindowDecision(liga).allowed
-    const visivel = !privadas.has(ligaId) || convidadas.has(ligaId) || comHistoria.has(ligaId)
+    const abertaPeloConvite = porConvite?.ligaId === ligaId
+    const visivel = !privadas.has(ligaId) || convidadas.has(ligaId) || comHistoria.has(ligaId) || abertaPeloConvite
     if (!visivel) continue
     for (const categoria of categorias.filter((item) => Number(item.ligaId) === ligaId)) {
+      // Na competição privada liberada só pelo convite, vale a categoria do token (ou a pedida, no link do campeonato).
+      const soPeloConvite = abertaPeloConvite && !convidadas.has(ligaId) && !comHistoria.has(ligaId)
+      if (soPeloConvite) {
+        const alvo = porConvite?.categoriaId ?? opcoes.categoriaId ?? null
+        if (alvo && categoria.id !== alvo) continue
+      }
       const naipe = naipeDaCategoria(categoria.codigo)
       const ultima = maisRecente.get(categoria.id)
       let situacao: CampeonatoDisponivel['situacao'] | null = null
