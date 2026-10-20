@@ -22,6 +22,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { EscolhaInicial } from '@/components/cadastro/EscolhaInicial'
+import { destinoPosLogin, inscricaoViaMeuTimeAtiva, returnToSeguro } from '@/lib/inscricao-entrada-ui/regras'
 import { enviarArquivoAssinado, ErroUpload } from '@/lib/uploads-cliente'
 import { fetchCepAddress, normalizeCep } from '@/lib/client-cep'
 import { formatBytes, imageUploadRules, optimizeImageFile } from '@/lib/client-image-upload'
@@ -297,7 +298,10 @@ export default function CadastroPage() {
 
       window.localStorage.setItem('luva_session', JSON.stringify(session))
       setFeedback({ type: 'success', text: json.data?.mensagem ?? 'Cadastro recebido com sucesso.' })
-      window.location.href = tipo === 'equipe' ? '/capitao' : '/painel'
+      const padrao = tipo === 'equipe' ? '/capitao' : '/painel'
+      window.location.href = tipo === 'equipe'
+        ? destinoPosLogin(inscricaoViaMeuTimeAtiva(), new URLSearchParams(window.location.search).get('returnTo'), padrao)
+        : padrao
       return
     }
 
@@ -328,7 +332,8 @@ export default function CadastroPage() {
       return
     }
     setPublico({ nome: '', email: '', senha: '', confirmarSenha: '' })
-    window.location.href = '/login?conta=criada'
+    const continuar = inscricaoViaMeuTimeAtiva() ? returnToSeguro(new URLSearchParams(window.location.search).get('returnTo')) : null
+    window.location.href = continuar ? `/login?conta=criada&returnTo=${encodeURIComponent(continuar)}` : '/login?conta=criada'
   }
 
   async function submitLogin(event: React.FormEvent) {

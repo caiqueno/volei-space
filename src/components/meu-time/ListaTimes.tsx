@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { inscricaoViaMeuTimeAtiva, MENSAGEM_CAPITAO } from '@/lib/inscricao-entrada-ui/regras'
 import { obterClientePadrao, type MeuTimeClient } from './cliente'
 import { Aviso, botaoPrimario, Carregando, cartao, FalhaTela, Pagina, useCarregar } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
@@ -8,9 +10,16 @@ import { NAIPE_ROTULO } from './rotulos'
 export function ListaTimes({ cliente }: { cliente?: MeuTimeClient }) {
   const api = cliente ?? obterClientePadrao()
   const { carga, tentarDeNovo } = useCarregar(() => api.listarEquipes())
+  const [veioDoCapitao, setVeioDoCapitao] = useState(false)
+
+  useEffect(() => {
+    if (!inscricaoViaMeuTimeAtiva()) return
+    setVeioDoCapitao(new URLSearchParams(window.location.search).get('de') === 'capitao')
+  }, [])
 
   return (
     <Pagina titulo="Meu Time">
+      {veioDoCapitao && <Aviso>{MENSAGEM_CAPITAO}</Aviso>}
       {carga.estado === 'carregando' && <Carregando texto="Carregando seus times…" />}
       {carga.estado === 'falha' && <FalhaTela falha={carga.falha} aoTentar={tentarDeNovo} />}
       {carga.estado === 'pronto' && carga.dados.length === 0 && (
