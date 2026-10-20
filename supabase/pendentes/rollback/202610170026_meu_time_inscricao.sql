@@ -1,4 +1,5 @@
 -- Reversão de 202610170026_meu_time_inscricao.sql
+-- Nota (R14c): NÃO remove a unique "CategoriaCampeonato_id_ligaId_key" criada pela 0026: é aditiva, inofensiva e a 0043 depende dela.
 -- Apaga inscrições novas, listas de atletas, comissão e pedidos de troca que o app tiver gravado.
 -- O fluxo legado ("InscricaoCampeonato", "Equipe", "Jogador") não é tocado. Se já houver dado real,
 -- fazer dump das 5 tabelas antes.

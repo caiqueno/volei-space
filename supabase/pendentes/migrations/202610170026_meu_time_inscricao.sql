@@ -30,7 +30,7 @@
 --
 -- PRÉ-REQUISITOS
 --   * 202610170024 e 202610170025 aplicadas ("TimeClube", "Atleta");
---   * "CategoriaCampeonato" com unique (id, "ligaId") (202609220001 aplicada: a verificar, D7 do
+--   * "CategoriaCampeonato" com unique (id, "ligaId"): criada aqui, de forma idempotente, se faltar (o banco real só tem unique em id; antes era 202609220001 aplicada: D7 do
 --     relatório 14; sem ela a migration falha na criação da tabela, o que é desejado);
 --   * "Equipe", "InscricaoCampeonato" (id text) e "Jogador" existentes.
 --
@@ -49,6 +49,25 @@
 
 begin;
 set local lock_timeout = '5s';
+
+-- Rodada 14c: o banco real (dev e produção) tem "CategoriaCampeonato" só com unique (id), sem a chave
+-- composta (id, "ligaId") que a 202609220001 do repositório cria. As FKs compostas abaixo (e a da 0043)
+-- precisam dela. Como "id" já é único, acrescentar a chave composta nunca falha e é aditivo. Idempotente:
+-- só cria se não existir nenhuma unique exatamente em (id, "ligaId"). Segura e rápida (tabela pequena).
+do $c$
+begin
+  if exists (select 1 from pg_class where oid = 'public."CategoriaCampeonato"'::regclass)
+     and not exists (
+       select 1 from pg_constraint c
+       where c.conrelid = 'public."CategoriaCampeonato"'::regclass and c.contype in ('u', 'p')
+         and (select array_agg(a.attname::text order by a.attname::text) from pg_attribute a
+              where a.attrelid = c.conrelid and a.attnum = any (c.conkey)) = array['id', 'ligaId']
+     )
+  then
+    alter table public."CategoriaCampeonato" add constraint "CategoriaCampeonato_id_ligaId_key" unique (id, "ligaId");
+  end if;
+end
+$c$;
 
 create table if not exists public."RegraElenco" (
   "categoriaCampeonatoId"     uuid primary key,

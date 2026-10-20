@@ -303,3 +303,7 @@ O DDL do banco não é reproduzível sem um dump do banco real (nenhum `CREATE T
 - `supabase migration repair` (baseline e índices aplicados fora do runner).
 - Qualquer correção de dados exigida por P5 e P6.
 - Decisões pendentes da seção 1 (TimeClube, `usuarioId` texto, D-1, EM_BREVE na view, listas de CHECK).
+
+## Nota da rodada 14c: 0026 e a chave composta de CategoriaCampeonato
+O dev real (e a produção, conforme leitura de índices) tem "CategoriaCampeonato" só com unique em id. A primeira tentativa da 0026 falhou com 42830. A 0026 passou a criar, de forma idempotente, a unique (id, "ligaId") antes das tabelas. Não altera dados; a 0043 depende dela; a reversão da 0026 não a remove.
+Policies: a 0003 removeu as public_read_* de propósito. A 0031 não recria policy e não aborta por ausência (só reescreve as que existirem), então NÃO recriar policies.
