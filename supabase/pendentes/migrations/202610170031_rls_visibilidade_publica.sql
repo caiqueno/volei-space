@@ -198,7 +198,18 @@ begin
   end loop;
 
   if achou = 0 then
-    raise exception '0031: nenhuma policy publica encontrada; banco diferente do esperado (a verificar)';
+    -- R14c: sem nenhuma das policies esperadas, só é seguro seguir se NÃO houver policy de leitura
+    -- para anon/public com outro nome (banco já com a leitura pública fechada, como o dev). Se houver,
+    -- o banco é diferente do esperado e a migration aborta sem efeito.
+    if exists (
+      select 1 from pg_policies
+      where schemaname = 'public'
+        and cmd in ('SELECT', 'ALL')
+        and roles && array['anon', 'public']::name[]
+    ) then
+      raise exception '0031: existem policies publicas com nomes diferentes dos esperados; banco diferente do esperado (a verificar)';
+    end if;
+    raise notice '0031: nenhuma policy publica no banco (leitura publica ja fechada); nada a reescrever';
   end if;
 end
 $m31$;
