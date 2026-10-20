@@ -26,14 +26,12 @@ MEU_TIME_FASE2_ATIVO=1
 INSCRICAO_SOLICITACAO_ATIVO=1
 BANCO_APP_ATIVO=1
 BANCO_SESSAO_ATIVO=1
-SCOUT_ATIVO=1
 DESAFIO_ATIVO=1
 AO_VIVO_ATIVO=1
 NEXT_PUBLIC_MEU_TIME_FASE2_ATIVO=1
 NEXT_PUBLIC_INSCRICAO_SOLICITACAO_ATIVO=1
 NEXT_PUBLIC_BANCO_APP_ATIVO=1
 NEXT_PUBLIC_BANCO_SESSAO_ATIVO=1
-NEXT_PUBLIC_SCOUT_ATIVO=1
 NEXT_PUBLIC_DESAFIO_ATIVO=1
 NEXT_PUBLIC_AO_VIVO_ATIVO=1
 NEXT_PUBLIC_PROTOTIPO_ATIVO=1
@@ -118,17 +116,13 @@ Use o **jogo 1** do seed (EM_ANDAMENTO) ou um jogo novo. Abra `/sumula/[token]` 
 7. [ ] **Desfazer** o último lance; confira o placar.
 8. [ ] Encerre os sets, escolha o MVP, **feche a súmula** e **imprima** (`/sumula/[token]/imprimir`): quadro de pontos com rodízio, folha de líbero, sanções, assinaturas.
 
-## 7. Placar ao vivo, árbitro e espectador
+## 7. Placar ao vivo e espectador
 1. [ ] `/ao-vivo/1` (jogo EM_ANDAMENTO): placar grande em tela cheia, atualiza sozinho a cada ~3 s enquanto você lança pontos na súmula.
 2. [ ] `/ao-vivo/3` (encerrado) e `/ao-vivo/999`: mensagens corretas (não vaza dado).
-3. [ ] Árbitro: `/arbitro/partida/[token]` atualiza sozinho e mostra "atualizado às hh:mm".
 4. [ ] Nenhuma página pública mostra CPF, telefone ou nascimento de atletas.
 
-## 8. Scout e exportação
-1. [ ] `/scout/[token]`: lance ataque, recepção, saque e bloqueio por toque (jogador, fundamento, resultado, zonas).
-2. [ ] **Corrigir** uma ação e **Desfazer** a última.
-3. [ ] Derrube a rede: aparece "N pendentes"; ao voltar, sincroniza sem duplicar.
-4. [ ] Exportar CSV/JSON (`/api/scout/[token]/exportar?formato=csv`): abre na planilha com acentos corretos; ações manuais presentes.
+## 8. (Fora do escopo) Scout
+Decisão do dono: scout e árbitro não fazem parte do produto. Pule esta seção; as flags `SCOUT_ATIVO` e `NEXT_PUBLIC_SCOUT_ATIVO` ficam desligadas.
 
 ## 9. Offline-first da súmula (por último, é o mais sensível)
 Ligue `SUMULA_EVENTOS_ATIVO=1`, `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1` e reinicie.

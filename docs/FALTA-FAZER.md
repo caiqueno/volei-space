@@ -98,3 +98,5 @@ Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num 
 - Vôlei de praia (RG-PRA-001..011): o produto é só vôlei de quadra.
 - Reescrever o histórico git (D10).
 - Homologação própria (D7): usa-se o ambiente de desenvolvimento.
+
+- Scout e árbitro (consulta ao vivo): fora do escopo por decisão do dono (21/10/2026). Ficam desligados (`SCOUT_ATIVO`, `NEXT_PUBLIC_SCOUT_ATIVO`) e fora dos roteiros e das pendências. NÃO remover `src/lib/arbitro-access.ts` nem `requireArbitroPartidaAccess`: o apontador usa essas funções para abrir a súmula.
