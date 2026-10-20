@@ -52,3 +52,8 @@ yarn-error.log*
 
 # features
 PLANO-ROTAS-PUBLICAS-CAMPEONATO.md
+# Artefatos do vídeo de demonstração (gerados, pesados)
+docs/video/_audio/
+docs/video/_gravacao/
+docs/video/*.mp4
+docs/video/*.webm
