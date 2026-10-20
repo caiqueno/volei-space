@@ -13,11 +13,24 @@ const texto = (max: number) => z.string().trim().min(1).max(max)
 const dataNascimento = z.string().refine((valor) => dataNascimentoValida(valor), 'Data de nascimento inválida.')
 const numeroCamisa = z.number().int().min(0).max(NUMERO_MAXIMO_CAMISA)
 
+/**
+ * Escudo por link: só https, sem usuário/senha embutidos (paridade com o capitão, que recusa javascript:, data: e
+ * afins). Restringir ao Storage do projeto depende do envio assinado do Meu Time (ver docs/analise/30).
+ */
+export const escudoUrlSchema = z.string().trim().url().max(500).refine((valor) => {
+  try {
+    const url = new URL(valor)
+    return url.protocol === 'https:' && !url.username && !url.password
+  } catch {
+    return false
+  }
+}, 'Use um link https:// sem usuário nem senha.')
+
 export const novaEquipeSchema = z.object({
   nome: texto(200),
   cidade: z.string().trim().max(120).optional().nullable(),
   naipe: z.enum(NAIPES),
-  escudoUrl: z.string().trim().url().max(500).optional().nullable(),
+  escudoUrl: escudoUrlSchema.optional().nullable(),
 })
 
 /** Responsável legal de atleta menor. O contato (telefone ou e-mail) é gravado cifrado e nunca devolvido. */
@@ -78,7 +91,7 @@ export const loteAtletasSchema = z.object({
 export const editarEquipeSchema = z.object({
   nome: texto(200).optional(),
   cidade: z.string().trim().max(120).optional().nullable(),
-  escudoUrl: z.string().trim().url().max(500).optional().nullable(),
+  escudoUrl: escudoUrlSchema.optional().nullable(),
 }).refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
 
 export const FUNCOES_COMISSAO_SCHEMA = ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO'] as const
