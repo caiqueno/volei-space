@@ -141,6 +141,19 @@ Ligue `SUMULA_EVENTOS_ATIVO=1`, `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1` e reinicie.
 
 ---
 
+## 11. Inscrição pela porta de entrada e líder único (rodada 15)
+Ligue `INSCRICAO_VIA_MEU_TIME_ATIVO=1` e `NEXT_PUBLIC_INSCRICAO_VIA_MEU_TIME_ATIVO=1` e reinicie. Pré-requisito: a seção 3 funcionando (aba Campeonatos).
+1. [ ] No painel do organizador, gere o **link de inscrição da categoria** e abra em janela anônima (`/inscricao/categoria/[token]`): aparece a **porta de entrada** (campeonato, categorias, período, modo) e o botão **"Inscrever meu time"**, não o formulário antigo.
+2. [ ] Sem conta: o botão leva ao **login/cadastro do líder** e, depois de entrar, **volta** para `/meu-time/campeonatos` com a categoria já escolhida.
+3. [ ] Com conta: cai direto em `/meu-time/campeonatos?categoria=…`, escolhe o time, a confirmação abre sozinha e a inscrição segue a regra do modo (automática ou aprovação).
+4. [ ] Teste os outros links: campeonato (`/inscricao/campeonato/[token]`), vaga, e `/inscricao-rapida/[token]`. Um link inválido ou expirado mostra "link inválido" igual para qualquer causa.
+5. [ ] Competição **privada** (mude a visibilidade): a porta só mostra as categorias com o link certo; sem o link, nada vaza.
+6. [ ] `/capitao` **redireciona** para o Meu Time com o aviso "O painel do capitão agora é o Meu Time".
+7. [ ] `/inscricao/[slug]` mostra "Peça um novo convite ao líder do time" e **não** coleta dados.
+8. [ ] Depois da inscrição, aparecem os **próximos passos** (completar atletas e documentos).
+- Atenção: **fotos, documentos e escudo** ainda não têm upload no Meu Time (ver `docs/analise/30-paridade-capitao-lider.md`). Anote se isso impede completar algum passo.
+- Atenção: o cadastro de equipe ainda pode gerar uma **candidatura pendente**; confira se isso trava o Meu Time.
+
 ## Como relatar
 Para cada ❌: **seção/passo**, o que você fez, o que apareceu (texto ou print **sem dados reais**), e a mensagem do terminal. O Claude corrige e devolve a lista do que mudou. Itens ⏭ também importam: dizem o que ficou sem teste.
 

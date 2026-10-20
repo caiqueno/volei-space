@@ -100,3 +100,10 @@ Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num 
 - Homologação própria (D7): usa-se o ambiente de desenvolvimento.
 
 - Scout e árbitro (consulta ao vivo): fora do escopo por decisão do dono (21/10/2026). Ficam desligados (`SCOUT_ATIVO`, `NEXT_PUBLIC_SCOUT_ATIVO`) e fora dos roteiros e das pendências. NÃO remover `src/lib/arbitro-access.ts` nem `requireArbitroPartidaAccess`: o apontador usa essas funções para abrir a súmula.
+
+## Rodada 15: inscrição dentro do líder (pendências)
+- [ ] Upload assinado de escudo, foto de rosto e documento do atleta para `TimeClube`/`Atleta` (hoje o upload assume `Equipe.id` inteiro e `CandidaturaEquipe`): **bloqueia ligar `INSCRICAO_VIA_MEU_TIME_ATIVO`**.
+- [ ] CPF, documento e telefone do atleta no Meu Time; respeitar `formularioInscricaoConfig` (campos obrigatórios por categoria); quadra e agenda da candidatura; QR Code por atleta.
+- [ ] Decidir se o link de vaga libera competição privada (hoje não; é regra nova).
+- [ ] Escolha automática do time quando o líder tem um só; retomada de rascunho em `/inscricao-rapida/[token]`; checar se a candidatura PENDENTE do cadastro de equipe trava o Meu Time.
+- [ ] Tabela completa em `docs/analise/30-paridade-capitao-lider.md`.
