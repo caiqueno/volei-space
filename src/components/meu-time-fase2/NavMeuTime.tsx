@@ -18,6 +18,7 @@ import {
   HREF_CAMPEONATOS,
   inscricaoSolicitacaoAtiva,
 } from '@/lib/meu-time-campeonatos-ui/regras'
+import { caminhoEhCompeticoes, caminhoEhExplorar, destinoCompeticoes, explorarCompeticoesAtivo, HREF_COMPETICOES } from '@/lib/meu-time-competicoes-ui/regras'
 import { itemNavLiderAtual, loginSemSenhaAtivo, NAV_LIDER } from '@/lib/login-sem-senha-ui/regras'
 import { obterClienteFase2 } from './cliente'
 import { ListaNotificacoes } from './Notificacoes'
@@ -110,15 +111,22 @@ export function NavMeuTime() {
   const ativa = faseDoisAtiva()
   const itens = itensVisiveis(ativa)
   const solicitacao = inscricaoSolicitacaoAtiva()
+  const explorar = explorarCompeticoesAtivo()
   const extras = abasExtras(solicitacao, bancoSessaoAtivo())
+  // Explorar ligado: a aba Competições entra antes das demais, e Campeonatos continua para quem já tem pedido.
+  if (explorar && !loginSemSenhaAtivo()) extras.unshift({ href: HREF_COMPETICOES, rotulo: 'Competições' })
   // Login sem senha ligado: navegação do líder Início · Meu Time · Competições · Jogos · Perfil.
   if (loginSemSenhaAtivo()) {
     return (
       <nav aria-label="Meu Time" className="border-b border-[var(--vs-border)] bg-[var(--vs-bg)] px-3 py-2 text-[var(--vs-text)]">
         <div className="mx-auto flex max-w-xl items-center gap-2">
           <ul className="flex flex-1 gap-1 overflow-x-auto">
-            {NAV_LIDER.map((i) => {
-              const atual = itemNavLiderAtual(caminho, i)
+            {NAV_LIDER.map((item) => {
+              const ehCompeticoes = explorar && item.rotulo === 'Competições'
+              const i = ehCompeticoes ? { ...item, href: destinoCompeticoes(item.href, true) } : item
+              const atual = ehCompeticoes
+                ? caminhoEhCompeticoes(caminho)
+                : itemNavLiderAtual(caminho, i) && !(explorar && i.href === '/meu-time' && caminhoEhExplorar(caminho))
               return (
                 <li key={i.rotulo} className="shrink-0">
                   <Link
@@ -144,7 +152,7 @@ export function NavMeuTime() {
       <div className="mx-auto flex max-w-xl items-center gap-2">
         <ul className="flex flex-1 gap-1 overflow-x-auto">
           {itens.map((i) => {
-            const atual = itemAtual(caminho, i) && !(i.href === '/meu-time' && caminhoEhAbaExtra(caminho))
+            const atual = itemAtual(caminho, i) && !(i.href === '/meu-time' && (caminhoEhAbaExtra(caminho) || (explorar && caminhoEhExplorar(caminho))))
             return (
               <li key={i.rotulo} className="shrink-0">
                 <Link
