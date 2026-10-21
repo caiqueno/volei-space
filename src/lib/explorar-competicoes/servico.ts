@@ -13,6 +13,8 @@ import { paraRegra } from '@/lib/meu-time/inscricao'
 import { NAIPES, type AtletaDoBanco } from '@/lib/meu-time/regras'
 import { naipeDaCategoria } from '@/lib/inscricoes-solicitacao/servico'
 import { STATUS_OCUPA_VAGA } from '@/lib/painel-inscricoes/regras'
+import { pagamentoComprovanteAtivo } from '@/lib/pagamento-comprovante/config'
+import { configDaLinha, valorInscricaoParaExplorar } from '@/lib/pagamento-comprovante/regras'
 import { calcularSelo, type Selo } from './selo'
 
 const db = supabaseAdmin as any
@@ -156,8 +158,9 @@ export async function listarCompeticoes(usuarioId: string, filtro: FiltroCompeti
       prazoInscricao: cfg?.inscricoesEncerramentoEm ?? liga.inscricoesEncerramentoEm ?? null,
       vagasTotal,
       vagasRestantes,
-      // Ainda não há valor de inscrição por equipe no modelo de dados: fica nulo até existir a coluna.
-      valorInscricao: null,
+      // R19 (PAGAMENTO_COMPROVANTE_ATIVO): vem de CategoriaConfiguracao.valorInscricaoCentavos / 100 (nulo se não definido;
+      // 0 só com modo NENHUM e valor explícito 0, que a tela mostra como "Gratuito"). Sem a flag ou sem a coluna: nulo.
+      valorInscricao: pagamentoComprovanteAtivo() ? valorInscricaoParaExplorar(configDaLinha(cfg ?? null)) : null,
       modo: categoria.modoInscricao === 'APROVACAO' ? 'APROVACAO' : 'AUTOMATICA',
       situacao,
       selo: !equipe ? null : calcularSelo({

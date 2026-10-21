@@ -110,7 +110,9 @@ export function linhaCsv(valores: unknown[]) {
 }
 
 /** CSV UTF-8 com BOM, separador ';' e cabeçalho fixo na primeira linha. A versão do esquema vai no cabeçalho HTTP e no nome do arquivo. */
-export function montarCsv(linhas: unknown[][]) {
-  const corpo = [linhaCsv([...CABECALHO_CSV]), ...linhas.map(linhaCsv)]
+export function montarCsv(linhas: unknown[][], opcoes: { comPagamento?: boolean } = {}) {
+  // Pagamento por comprovante (R19): a coluna extra só existe com a flag ligada; leva só o estado, nunca comprovante nem chave Pix.
+  const cabecalho = opcoes.comPagamento ? [...CABECALHO_CSV, 'pagamento'] : [...CABECALHO_CSV]
+  const corpo = [linhaCsv(cabecalho), ...linhas.map(linhaCsv)]
   return `﻿${corpo.join('\r\n')}\r\n`
 }
