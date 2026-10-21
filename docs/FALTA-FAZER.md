@@ -1,10 +1,10 @@
 # O que falta fazer — volei.space (branch `cursor-teste`)
 
-Estado em 18/10/2026. O código do `PROMPT-volei-space.md` que dá para fazer sem navegador, sem banco e sem produção está pronto na `cursor-teste` (rodadas 5 a 14; a 14 trouxe o acesso único líder+banco, a aba Campeonatos e a aprovação de inscrição pelo organizador). Este arquivo lista **só o que sobrou**. Detalhes técnicos estão em `docs/HANDOFF-CURSOR.md` e `docs/analise/`.
+Estado em 21/10/2026. O código do `PROMPT-volei-space.md` que dá para fazer sem navegador, sem banco e sem produção está pronto na `cursor-teste` (rodadas 5 a 18; a 14 trouxe o acesso único líder+banco, a aba Campeonatos e a aprovação; a 16 o login sem senha; a 17 o elenco completo; a 18 o painel de inscrições, explorar competições e as notificações por vários canais; a 19 o seed, o README e o inventário da API). Este arquivo lista **só o que sobrou**. Detalhes técnicos estão em `docs/HANDOFF-CURSOR.md` e `docs/analise/`; o que o código já cumpre do PROMPT está em `docs/analise/31-auditoria-contra-o-prompt.md`.
 
 **Regras que continuam valendo:** só vôlei de quadra (nada de praia); nada de push nem de mexer na `main` (publica direto em produção na Vercel) até todos os itens da seção 1 a 4 estarem feitos; nenhuma migration é aplicada sem ensaio em preview.
 
-Verificação na última rodada: 158 arquivos de teste, só as 4 falhas conhecidas (`category-selection`, `category-setup-state`, `sumula-transacional`, `rls-publico`, as três primeiras precisam de `DATABASE_URL`); typecheck limpo; build 0.
+Verificação da última rodada em que a suíte foi rodada inteira (R14): 158 arquivos de teste, só as 4 falhas conhecidas (`category-selection`, `category-setup-state`, `sumula-transacional`, `rls-publico`, as três primeiras precisam de `DATABASE_URL`); typecheck limpo; build 0. As rodadas 15 a 19 acrescentaram testes próprios, mas a suíte completa não foi repetida aqui. **Nada das rodadas 9 a 18 foi aberto num navegador e nenhuma migration pendente rodou num Postgres.**
 
 ---
 
@@ -25,14 +25,17 @@ Roteiro por perfil em `docs/analise/29-qa-rodada-12.md`. Ligar as flags de desen
 - [ ] Offline-first da súmula (`NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO=1`): cortar a rede no meio do jogo, voltar, conferir conflito e bloqueio de fechamento.
 - [ ] Protótipo (`/prototipo`) com os 7 perfis, no celular.
 - [ ] Conferir contraste, foco, leitor de tela e alvos de 44 px (WCAG 2.2 AA) nas telas novas.
+- [ ] **Rodada 16:** login por código (e-mail; WhatsApp só com webhook de provedor), entrar com Google (provedor ativado no Supabase Auth), seletor de perfil e navegação Início, Meu Time, Competições, Jogos e Perfil, no celular.
+- [ ] **Rodada 17:** envio de escudo, foto e documento, CPF e telefone mascarados, regras de elenco por categoria na parametrização, pedido de troca depois do prazo e aprovação pelo organizador.
+- [ ] **Rodada 18:** painel de inscrições (filtros, decisão em lote, pedido de correção com conversa, ver documento, exportar CSV), equipe do organizador, explorar competições com selo, preferências de notificação e aviso por push neste aparelho.
 - [ ] Testes de usabilidade com pessoas reais (líder de time, apontador) e aprovação do escopo pelo analista de negócio.
 
 ## 2. Banco de dados (ensaiar em preview; nunca em produção direto)
 
-Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num Postgres. Só passaram no teste estático.
+Nenhuma das 53 migrations pendentes (`supabase/pendentes/migrations`, 0001 a 0053) rodou num Postgres. Só passaram no teste estático.
 
 - [ ] Rodar as consultas Q1–Q13 do `docs/analise/16-plano-aplicacao-migrations.md` no banco de desenvolvimento/preview.
-- [ ] Ensaiar a aplicação na ordem do doc 16 (inclui 0001 RateLimit; 0033 a 0037, 0039, 0040, 0041; 0042 depois da 0037; 0043 depois da 0026; 0044 depois da 0043). **Não aplicar a 0038** (redundante com `TimeClube.clubeId`).
+- [ ] Ensaiar a aplicação na ordem do doc 16 (inclui 0001 RateLimit; 0033 a 0037, 0039, 0040, 0041; 0042 depois da 0037; 0043 depois da 0026; 0044 depois da 0043; 0045 a 0047 login sem senha; 0048 a 0050 elenco completo; 0051 a 0053 painel e notificações, a 0053 depois da 0039). **Não aplicar a 0038** (redundante com `TimeClube.clubeId`).
 - [ ] Verificar no Postgres real: gatilho de imutabilidade da papeleta (inclui `libero2Id`), `unique` do `tokenHash`, CHECKs de `DesafioVideo`, função `expurgar_previas_importacao()`, acesso do `anon` negado em todas as tabelas novas.
 - [ ] Rodada 14: ensaiar a ponte `TimeClube` → `Equipe` legada (criação de `Equipe` e `Jogador`, restrições `(categoriaCampeonatoId, nome)` e `(nome, ligaId, categoria, serie)`), o vínculo `Inscricao.equipeLegadoId` e o reparo ao listar jogos.
 - [ ] Confirmar tipos de `id` reais (`Partida`, `Equipe`, `Jogador` são `integer` no código; o schema do Prisma está defasado).
@@ -42,11 +45,11 @@ Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num 
 ## 3. Configuração e segredos (só o dono)
 
 - [ ] Definir `LGPD_CHAVE_CIFRA` em cada ambiente (obrigatória para contato de responsável de menor e convite com contato).
-- [ ] Definir `CRON_SECRET` e **agendar o expurgo** das prévias de importação (Vercel cron chamando `/api/cron/expurgo-previas`, ou pg_cron). Hoje nada está agendado.
+- [ ] Definir `CRON_SECRET` e **agendar** o expurgo das prévias de importação (`/api/cron/expurgo-previas`) e, para as notificações, `/api/cron/notificacoes` (a cada 1 a 5 minutos) e `/api/cron/lembretes` (de hora em hora), por Vercel cron ou pg_cron. Hoje nada está agendado.
 - [ ] Conferir `DATABASE_URL`, `DIRECT_URL`, `ADMIN_EMAIL` e os demais segredos na Vercel; nenhum `NEXT_PUBLIC_*` pode carregar segredo.
 - [ ] Trocar a senha do admin legado (continua no histórico git; não reescrevemos o histórico).
 - [ ] Proteção de branches e secret scanning no GitHub; revisar o workflow `seguranca.yml` rodando de verdade.
-- [ ] Decidir quais flags ligar em cada ambiente (todas nascem desligadas): `MEU_TIME_ATIVO`, `MEU_TIME_FASE2_ATIVO`, `BANCO_APP_ATIVO`, `SCOUT_ATIVO`, `DESAFIO_ATIVO`, `AO_VIVO_ATIVO`, `SUMULA_EVENTOS_ATIVO`, `SUMULA_SERVIDOR_SOMBRA`, `PROTOTIPO` e as `NEXT_PUBLIC_*` correspondentes.
+- [ ] Decidir quais flags ligar em cada ambiente (todas nascem desligadas): `MEU_TIME_ATIVO`, `MEU_TIME_FASE2_ATIVO`, `BANCO_APP_ATIVO`, `BANCO_SESSAO_ATIVO`, `DESAFIO_ATIVO`, `AO_VIVO_ATIVO`, `SUMULA_EVENTOS_ATIVO`, `SUMULA_SERVIDOR_SOMBRA`, `INSCRICAO_SOLICITACAO_ATIVO`, `INSCRICAO_VIA_MEU_TIME_ATIVO`, `LOGIN_SEM_SENHA_ATIVO`, `GOOGLE_LOGIN_ATIVO`, `ELENCO_COMPLETO_ATIVO`, `PAINEL_INSCRICOES_ATIVO`, `EXPLORAR_COMPETICOES_ATIVO`, `NOTIFICACOES_MULTICANAL_ATIVO`, `PROTOTIPO` e as `NEXT_PUBLIC_*` correspondentes. (`INSCRICAO_VIA_MEU_TIME_ATIVO` ainda não está no `.env.example`.)
 - [ ] Rodar o modo sombra da súmula (`SUMULA_SERVIDOR_SOMBRA=1`) em jogos reais e medir divergências antes de qualquer bloqueio (critérios em `docs/analise/07-arquitetura-backend.md`).
 
 ## 4. Decisões que não são de código
@@ -75,7 +78,7 @@ Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num 
 - [ ] LGPD: sem rota de acesso/portabilidade do titular, sem rotação da chave de cifra, sem verificação de que o responsável existe, colunas antigas de responsável em `AtletaDocumento` (0025) sem uso.
 - [ ] Pedidos do banco: criação sem lock (dois simultâneos podem passar a checagem; o limite é reconferido ao decidir); sem janela "papeleta visível 12 min antes".
 - [ ] Competição privada: payloads de estrutura/mata-mata sem `campeonatoPublicado`; gravação mista de `visibilidade` não atômica; cache de ids privados só no processo; `buscarAgendaCampeonato` e `/jogos` sem `liga` não filtram privadas.
-- [ ] Navegação global de produto: `package.json` ainda se chama `luva-platform`; limpar `.claude/worktrees/` (`git worktree remove`) e branches `feat/*`/`worktree-agent-*` antigas.
+- [x] Nome do pacote: `package.json` agora é `volei-space` (R19); o `package-lock.json` ainda tem `luva-platform` nas duas primeiras entradas (regenerar com `npm install --package-lock-only` quando for autorizado mexer em dependências). Continua pendente limpar `.claude/worktrees/` (`git worktree remove`) e as branches `feat/*`/`worktree-agent-*` antigas.
 - [ ] 11 IDs de papel/PDF do doc 03 já têm teste no motor de impressão; RG-FEC-003 (capitão ausente/recusa) e RG-PTO-003 ficam parciais.
 
 - [ ] Rodada 14: a vitrine `GET /api/meu-time/campeonatos` não devolve a contagem de atletas nem o máximo da categoria (a tela lê esses números da mensagem de erro do servidor); devolver os números no contrato.
@@ -102,8 +105,25 @@ Nenhuma das 42 migrations pendentes (`supabase/pendentes/migrations`) rodou num 
 - Scout e árbitro (consulta ao vivo): fora do escopo por decisão do dono (21/10/2026). Ficam desligados (`SCOUT_ATIVO`, `NEXT_PUBLIC_SCOUT_ATIVO`) e fora dos roteiros e das pendências. NÃO remover `src/lib/arbitro-access.ts` nem `requireArbitroPartidaAccess`: o apontador usa essas funções para abrir a súmula.
 
 ## Rodada 15: inscrição dentro do líder (pendências)
-- [ ] Upload assinado de escudo, foto de rosto e documento do atleta para `TimeClube`/`Atleta` (hoje o upload assume `Equipe.id` inteiro e `CandidaturaEquipe`): **bloqueia ligar `INSCRICAO_VIA_MEU_TIME_ATIVO`**.
-- [ ] CPF, documento e telefone do atleta no Meu Time; respeitar `formularioInscricaoConfig` (campos obrigatórios por categoria); quadra e agenda da candidatura; QR Code por atleta.
+- [x] (Rodada 17) Upload assinado de escudo, foto de rosto e documento do atleta para `TimeClube`/`Atleta`, CPF e telefone cifrados, regras de elenco e pedido de troca: entregues atrás de `ELENCO_COMPLETO_ATIVO` (precisam das migrations 0048 a 0050 e dos buckets). Isso destrava ligar `INSCRICAO_VIA_MEU_TIME_ATIVO` em desenvolvimento, depois de ensaiar.
+- [ ] Falta: respeitar `formularioInscricaoConfig` (campos obrigatórios por categoria); quadra e agenda da candidatura; QR Code por atleta. (CPF, documento e telefone: entregues na R17.)
 - [ ] Decidir se o link de vaga libera competição privada (hoje não; é regra nova).
 - [ ] Escolha automática do time quando o líder tem um só; retomada de rascunho em `/inscricao-rapida/[token]`; checar se a candidatura PENDENTE do cadastro de equipe trava o Meu Time.
 - [ ] Tabela completa em `docs/analise/30-paridade-capitao-lider.md`.
+
+## Rodadas 16 a 18 (pendências)
+- [ ] Login sem senha: provedor de WhatsApp real (`WHATSAPP_WEBHOOK_URL`), provedor Google ativado, e-mail transacional configurado; sem isso só o console de desenvolvimento (`LOGIN_CODIGO_DEV_CONSOLE`) entrega o código. Revisar limite de tentativas e o texto de privacidade com o jurídico.
+- [ ] Elenco completo: criar os buckets `time-escudo`, `atleta-foto-rosto` e `atleta-documento` no Supabase de dev e conferir as políticas; definir `LGPD_CHAVE_CIFRA` (e, se quiser, `LGPD_PEPPER_HASH`); decidir se foto e documento bloqueiam a inscrição ou viram pendência.
+- [ ] Painel de inscrições: exportação em PDF (hoje só CSV); conferir o uso dos papéis da equipe do organizador (administrador, financeiro, arbitragem) nas demais telas do painel.
+- [ ] Notificações por vários canais: agendar os crons, configurar `VAPID_*`, provedor de WhatsApp e SMTP; testar um envio real em cada canal; definir retenção das notificações.
+- [ ] **Pagamento por comprovante não foi entregue** (só existe no relatório 08). Hoje há apenas a confirmação simulada, fechada por padrão. Decidir o desenho antes de implementar.
+- [ ] Súmula em PDF gerado no servidor (hoje só a página A4 para imprimir ou salvar como PDF pelo navegador).
+- [ ] Protótipo: acrescentar primeiro acesso, explorar competições e o assistente de inscrição.
+
+## Rodada 19 (infra e documentação)
+- [x] `supabase/seed.sql` roda num banco vazio (ids explícitos, idempotente, dados inventados; `npm run test:seed`). **Nunca foi executado por um Postgres.**
+- [x] README com o início rápido atual e a decisão sobre o Docker; `docker-compose.yml` não será criado (decisão do dono).
+- [x] Inventário de todas as rotas da API em `docs/analise/32-inventario-api.md`, com teste (`npm run test:inventario-api`).
+- [ ] Gerar a baseline do schema (`docs/analise/22`) para um projeto Supabase novo subir sozinho.
+- [ ] Teste do README por uma pessoa que nunca viu o projeto (meta: 15 minutos).
+- [ ] Atualizar `scripts/migracoes-pendentes.test.ts`: ele ainda confere as chaves `SEED-R2-*` do seed antigo e falha com o seed novo (chaves `SEED-R19-*`).
