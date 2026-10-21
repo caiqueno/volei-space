@@ -28,6 +28,8 @@ import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import { descreverStatusInscricao, type Falha } from '@/lib/meu-time-ui/respostas'
 import { avisosDeEnvio, lerRegras, montarInscricao, problemasDeEnvio, regrasDeCategoria, type RegrasInscricao } from '@/lib/meu-time-ui/selecao'
 import type { DetalheEquipe, RespostaInscricao } from '@/lib/meu-time-ui/tipos'
+import { CartaoPagamento } from '@/components/pagamento-comprovante/CartaoPagamento'
+import { PagamentoNaRevisao } from '@/components/pagamento-comprovante/PagamentoNaRevisao'
 
 const TITULOS = ['Confirmar o time', 'Escolher atletas', 'Comissão técnica', 'Revisar e enviar'] as const
 
@@ -178,6 +180,7 @@ function Assistente({ api, equipeId, categoria, convite, detalhe, regras }: Prop
             )}
           </Aviso>
         )}
+        <CartaoPagamento inscricaoId={enviada.data.id} equipeId={equipeId} />
         <Link href={`/meu-time/${encodeURIComponent(equipeId)}`} className={botaoPrimario}>Ver meu time</Link>
         <Link href="/meu-time" className={botaoSecundario}>Meus times</Link>
       </Pagina>
@@ -281,6 +284,8 @@ function Assistente({ api, equipeId, categoria, convite, detalhe, regras }: Prop
           {avisos.length > 0 && (
             <Aviso tom="is-warning"><strong className="block">Avisos (não impedem o envio):</strong><ul className="list-disc pl-5">{avisos.map((a) => <li key={a}>{a}</li>)}</ul></Aviso>
           )}
+
+          <PagamentoNaRevisao categoriaId={categoria} />
 
           <label className="flex min-h-[44px] cursor-pointer items-start gap-3">
             <input type="checkbox" checked={rascunho.aceite} onChange={(e) => setRascunho((r) => ({ ...r, aceite: e.target.checked }))} className="mt-1 h-6 w-6 shrink-0 accent-[var(--vs-gold)]" />

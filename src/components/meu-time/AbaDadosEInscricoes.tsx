@@ -7,6 +7,7 @@ import { elencoCompletoAtivo } from '@/lib/meu-time-elenco-ui/flag'
 import { PedidosTroca } from '@/components/meu-time-elenco/PedidosTroca'
 import { StatusInscricao } from '@/components/meu-time-competicoes/StatusInscricao'
 import { explorarCompeticoesAtivo } from '@/lib/meu-time-competicoes-ui/regras'
+import { CartaoPagamento } from '@/components/pagamento-comprovante/CartaoPagamento'
 
 type PropsInscricoes = {
   inscricoes: InscricaoResumo[]
@@ -52,6 +53,7 @@ export function AbaInscricoes({ inscricoes, hrefInscricao, podeInscrever = true,
                   <p className="text-sm">{status.explicacao}</p>
                 </>
               )}
+              {inscricao.status !== 'REMOVIDA' && <CartaoPagamento inscricaoId={inscricao.id} podeEnviar={podeInscrever} />}
               {elenco && atletas && inscricao.status !== 'REMOVIDA' && (
                 <PedidosTroca inscricao={inscricao} atletas={atletas} podePedir={podePedirTroca} />
               )}

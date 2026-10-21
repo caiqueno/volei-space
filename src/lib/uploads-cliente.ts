@@ -2,6 +2,7 @@
 // Fluxo: POST /api/uploads/assinar -> PUT do arquivo na URL assinada -> usar o caminho devolvido.
 // Não importa o client anon do Supabase. As mensagens de erro são feitas para o usuário final.
 import { montarPedidoAssinatura, montarPedidoConfirmacao, type TipoUploadElenco } from '@/lib/meu-time-elenco-ui/upload'
+import { montarConfirmacaoComprovante, montarPedidoComprovante } from '@/lib/pagamento-comprovante-ui'
 
 export type TipoUploadCliente =
   | 'atleta-documento'
@@ -149,7 +150,9 @@ export async function obterUrlDocumento(
 export type EntradaEnvioMeuTime = {
   equipeId: string
   atletaId?: string
-  tipo: TipoUploadElenco
+  /** 'COMPROVANTE' (pagamento por Pix) exige `inscricaoId`. */
+  tipo: TipoUploadElenco | 'COMPROVANTE'
+  inscricaoId?: string
   arquivo: Blob & { name?: string; type: string; size: number }
 }
 
@@ -167,12 +170,13 @@ function mensagemFalhaMeuTime(status: number, codigo?: string): string {
 
 export async function enviarArquivoMeuTime(entrada: EntradaEnvioMeuTime, opcoes: Opcoes = {}): Promise<{ path: string }> {
   const chamar: FetchLike = opcoes.fetchImpl ?? ((url, init) => fetch(url, init))
-  const pedido = montarPedidoAssinatura({
-    equipeId: entrada.equipeId,
-    atletaId: entrada.atletaId,
-    tipo: entrada.tipo,
-    arquivo: { name: entrada.arquivo.name ?? 'arquivo', type: entrada.arquivo.type, size: entrada.arquivo.size },
-  })
+  const infoArquivo = { name: entrada.arquivo.name ?? 'arquivo', type: entrada.arquivo.type, size: entrada.arquivo.size }
+  const tipo = entrada.tipo
+  const inscricaoId = entrada.inscricaoId ?? ''
+  const pedido =
+    tipo === 'COMPROVANTE'
+      ? montarPedidoComprovante({ equipeId: entrada.equipeId, inscricaoId, arquivo: infoArquivo })
+      : montarPedidoAssinatura({ equipeId: entrada.equipeId, atletaId: entrada.atletaId, tipo, arquivo: infoArquivo })
 
   let resposta: Response
   try {
@@ -209,7 +213,11 @@ export async function enviarArquivoMeuTime(entrada: EntradaEnvioMeuTime, opcoes:
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(montarPedidoConfirmacao(entrada, dados.path)),
+      body: JSON.stringify(
+        tipo === 'COMPROVANTE'
+          ? montarConfirmacaoComprovante({ equipeId: entrada.equipeId, inscricaoId }, dados.path)
+          : montarPedidoConfirmacao({ equipeId: entrada.equipeId, atletaId: entrada.atletaId, tipo }, dados.path),
+      ),
     })
   } catch {
     throw new ErroUpload(MSG_REDE)

@@ -8,6 +8,7 @@ import { ActionBar } from '@/components/ui/action-bar'
 import { FormAlert } from '../../ui/FormAlert'
 import PageLoading from '@/components/ui/page-loading'
 import { formatCents, linhasDoCheckout } from '@/lib/pricing'
+import { PixComComprovante } from '@/components/pagamento-comprovante/PixComComprovante'
 
 interface CheckoutData {
   pagamentoHabilitado?: boolean
@@ -102,6 +103,7 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
         >
           Ir para criação de grupos
         </Link>
+        <PixComComprovante ligaId={ligaId} />
       </div>
     )
   }
@@ -165,6 +167,8 @@ export function PagamentoView({ ligaId }: { ligaId: number }) {
             Continuar sem cobrança
           </ActionBar>
         </div>
+
+      <PixComComprovante ligaId={ligaId} />
     </div>
   )
 }
