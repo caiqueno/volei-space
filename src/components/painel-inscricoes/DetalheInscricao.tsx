@@ -8,6 +8,8 @@ import {
   urlDocumentoSegura, validarDecisao, exigeMensagem,
   type AcaoDecisao, type InscricaoDetalhe, type PapelOrganizador,
 } from '@/lib/painel-inscricoes-ui'
+import { mensagemDaAprovacao } from '@/lib/pagamento-comprovante-ui'
+import { PagamentoDaInscricao } from '@/components/pagamento-comprovante/PagamentoDaInscricao'
 
 const COR_ACAO: Record<AcaoDecisao, string> = {
   APROVAR: 'bg-emerald-500 text-[#07111f]',
@@ -119,7 +121,7 @@ export function DetalheInscricao({ id, papel, aoFechar, aoAtualizar }: Props) {
       })
       const corpo = await r.json().catch(() => null)
       const t = tratarResposta(r.status, corpo)
-      setAviso({ ok: t.ok, texto: t.ok ? mensagemDecisao(acao, detalhe.equipe.nome) : t.mensagem })
+      setAviso({ ok: t.ok, texto: t.ok ? mensagemDecisao(acao, detalhe.equipe.nome) : mensagemDaAprovacao(r.status, corpo, t.mensagem) })
       if (t.ok || t.recarregar) {
         setAcao(null)
         setMensagem('')
@@ -249,6 +251,8 @@ export function DetalheInscricao({ id, papel, aoFechar, aoAtualizar }: Props) {
                 </ul>
               )}
             </section>
+
+            <PagamentoDaInscricao inscricaoId={detalhe.id} equipeNome={detalhe.equipe.nome} papel={papel} aoMudar={aoAtualizar} />
 
             <section className="mt-6" aria-labelledby="decisao-detalhe">
               <h4 id="decisao-detalhe" className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">Decisão</h4>

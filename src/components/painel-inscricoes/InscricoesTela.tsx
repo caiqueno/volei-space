@@ -9,7 +9,18 @@ import {
   podeAprovarEmLote, podeDecidirPapel, rotuloStatus, statusDaAba, tempoParado, textoAtletas, textoVazio, tratarResposta, urlExportar,
   urlInscricoes, urlDecidir, type AbaInscricao, type InscricaoItem, type PapelOrganizador, type TipoFalha,
 } from '@/lib/painel-inscricoes-ui'
+import {
+  avisoAprovarBloqueado, etiquetaDaLista, extrairPagamentosDaLista, mensagemDaAprovacao, pagamentoBloqueiaAprovar, pagamentoComprovanteAtivo, tomDoEstado,
+  type PagamentoDaLista, type Tom,
+} from '@/lib/pagamento-comprovante-ui'
 import { DetalheInscricao } from './DetalheInscricao'
+
+const COR_PAGAMENTO: Record<Tom, string> = {
+  ok: 'bg-emerald-400/15 text-emerald-300',
+  atencao: 'bg-luva-amber/20 text-luva-amber',
+  erro: 'bg-red-400/15 text-red-300',
+  neutro: 'bg-white/10 text-slate-200',
+}
 
 const COR_STATUS: Record<string, string> = {
   EM_ANALISE: 'bg-luva-amber/20 text-luva-amber',
@@ -28,6 +39,8 @@ export function InscricoesTela() {
   const [categoria, setCategoria] = useState('')
   const [busca, setBusca] = useState('')
   const [q, setQ] = useState('')
+  const pagamentoAtivo = pagamentoComprovanteAtivo()
+  const [pagamentos, setPagamentos] = useState<Record<string, PagamentoDaLista>>({})
   const [itens, setItens] = useState<InscricaoItem[]>([])
   const [conhecidos, setConhecidos] = useState<InscricaoItem[]>([])
   const [total, setTotal] = useState(0)
@@ -65,6 +78,7 @@ export function InscricoesTela() {
     const { ligaId: l, q: termo } = filtroRef.current
     try {
       let acumulado: InscricaoItem[] = []
+      const pagamentosAcum: Record<string, PagamentoDaLista> = {}
       let totalServidor = 0
       for (let p = 1; p <= paginasRef.current; p++) {
         const r = await fetch(urlInscricoes({ ligaId: l, q: termo, pagina: p }), { cache: 'no-store', signal: sinal })
@@ -76,6 +90,7 @@ export function InscricoesTela() {
           return falhaBloqueante(t.tipo) ? 'parar' : 'falha'
         }
         const lista = normalizarInscricoes(corpo)
+        if (pagamentoAtivo) Object.assign(pagamentosAcum, extrairPagamentosDaLista(corpo))
         acumulado = acumulado.concat(lista.itens)
         totalServidor = lista.total
         if (lista.itens.length === 0) break
@@ -83,6 +98,7 @@ export function InscricoesTela() {
       // Descarta resposta de um filtro que já mudou.
       if (filtroRef.current.ligaId !== l || filtroRef.current.q !== termo) return 'ok'
       setItens(acumulado)
+      if (pagamentoAtivo) setPagamentos(pagamentosAcum)
       setTotal(totalServidor)
       if (!l && !termo) setConhecidos(acumulado)
       setFalha(null)
@@ -95,7 +111,7 @@ export function InscricoesTela() {
       setCarregou(true)
       return 'falha'
     }
-  }, [])
+  }, [pagamentoAtivo])
 
   // Polling de 20 s; pausa com a aba oculta. Desligado pela flag: nenhuma requisição.
   usePollingVisivel(buscar, { ativo, baseMs: INTERVALO_INSCRICOES_MS, maxMs: 60_000 })
@@ -144,7 +160,7 @@ export function InscricoesTela() {
       const r = await fetch(urlDecidir(i.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: 'APROVAR' }) })
       const corpo = await r.json().catch(() => null)
       const t = tratarResposta(r.status, corpo)
-      setAviso({ ok: t.ok, texto: t.ok ? `${i.equipe.nome} foi aprovada.` : t.mensagem })
+      setAviso({ ok: t.ok, texto: t.ok ? `${i.equipe.nome} foi aprovada.` : mensagemDaAprovacao(r.status, corpo, t.mensagem) })
       if (t.ok || t.recarregar) await buscar()
     } catch {
       setAviso({ ok: false, texto: 'Sem conexão. Tente de novo.' })
@@ -164,7 +180,7 @@ export function InscricoesTela() {
         setAviso({ ok: true, texto: mensagemLote(Number.isFinite(n) ? n : loteIds.length, loteIds.length) })
         setSelecionadas([])
       } else {
-        setAviso({ ok: false, texto: t.mensagem })
+        setAviso({ ok: false, texto: mensagemDaAprovacao(r.status, corpo as { codigo?: unknown } | null, t.mensagem) })
       }
       if (t.ok || t.recarregar) await buscar()
     } catch {
@@ -320,6 +336,16 @@ export function InscricoesTela() {
                       <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Pendências">
                         {i.pendencias.map((p) => <li key={p} className="rounded-full bg-red-400/15 px-2.5 py-0.5 text-xs font-bold text-red-200">{p}</li>)}
                       </ul>
+                    )}
+                    {pagamentoAtivo && pagamentos[i.id] && (
+                      <div className="mt-2">
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${COR_PAGAMENTO[tomDoEstado(pagamentos[i.id].estado)]}`}>
+                          Pagamento: {etiquetaDaLista(pagamentos[i.id])}
+                        </span>
+                        {pagamentoBloqueiaAprovar(pagamentos[i.id].estado) && i.status !== 'CONFIRMADA' && i.status !== 'REMOVIDA' && (
+                          <p className="mt-1 text-xs font-semibold text-luva-amber">{avisoAprovarBloqueado(pagamentos[i.id].estado)}</p>
+                        )}
+                      </div>
                     )}
                     <p className={`mt-2 text-xs font-semibold ${parada ? 'text-luva-amber' : 'text-slate-400'}`}>
                       {i.atualizadoEm ? `Parada ${tempoParado(i.atualizadoEm, agora)}` : ''}
