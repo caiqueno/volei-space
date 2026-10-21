@@ -184,7 +184,8 @@
     "test:inscricao-entrada": "node scripts/with-ts-node.mjs scripts/inscricao-entrada.test.ts",
     "test:inscricao-entrada-ui": "node scripts/with-ts-node.mjs scripts/inscricao-entrada-ui.test.ts",
     "test:login-sem-senha": "node scripts/with-ts-node.mjs scripts/login-sem-senha.test.ts",
-    "test:login-sem-senha-ui": "node scripts/with-ts-node.mjs scripts/login-sem-senha-ui.test.ts"
+    "test:login-sem-senha-ui": "node scripts/with-ts-node.mjs scripts/login-sem-senha-ui.test.ts",
+    "test:regras-elenco-ui": "node scripts/with-ts-node.mjs scripts/regras-elenco-ui.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
