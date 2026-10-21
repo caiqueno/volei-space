@@ -28,6 +28,12 @@ export type InscricaoResumo = {
   categoriaCampeonatoId: string
   status: string
   totalAtletas: number
+  /** R18: último pedido de correção do organizador (só em AJUSTE_PEDIDO). */
+  comentario?: string | null
+  /** R18: motivo informado pelo organizador (só em REMOVIDA). */
+  motivoRecusa?: string | null
+  /** R18: posição na fila (só em LISTA_ESPERA). */
+  posicaoEspera?: number | null
 }
 
 export type PedidoInscricao = {
@@ -80,15 +86,28 @@ export async function contarAtletasPorInscricao(inscricaoIds: string[]) {
 
 export async function listarInscricoesDaEquipe(timeId: string): Promise<InscricaoResumo[]> {
   const linhas = (lerDados(
-    await supabase.from('Inscricao').select('id,categoriaCampeonatoId,status').eq('timeId', timeId).order('criadoEm', { ascending: false }),
+    // "*": colunas novas (posicaoEspera, motivoDecisao) podem não existir ainda neste banco.
+    await supabase.from('Inscricao').select('*').eq('timeId', timeId).order('criadoEm', { ascending: false }),
     'inscrições da equipe',
   ) as any[] | null) ?? []
   const contagem = await contarAtletasPorInscricao(linhas.map((item) => item.id))
+  // R18: último pedido de correção do organizador, só para quem está em AJUSTE_PEDIDO (tabela ausente = sem comentário).
+  const emAjuste = linhas.filter((item) => item.status === 'AJUSTE_PEDIDO').map((item) => item.id as string)
+  const ultimoComentario = new Map<string, string>()
+  if (emAjuste.length > 0) {
+    const r = await supabase.from('ComentarioInscricao').select('inscricaoId,mensagem,criadoEm').in('inscricaoId', emAjuste).eq('tipo', 'CORRECAO').eq('autorPapel', 'ORGANIZADOR')
+    const todos = (r.error ? [] : (r.data ?? [])) as Array<{ inscricaoId: string; mensagem: string; criadoEm: string | null }>
+    for (const c of todos.sort((a, b) => String(a.criadoEm ?? '').localeCompare(String(b.criadoEm ?? '')))) ultimoComentario.set(c.inscricaoId, c.mensagem)
+  }
   return linhas.map((item) => ({
     id: item.id,
     categoriaCampeonatoId: item.categoriaCampeonatoId,
     status: item.status,
     totalAtletas: contagem.get(item.id) ?? 0,
+    // Só aparecem quando existem (ausente = não se aplica ao status).
+    ...(item.status === 'AJUSTE_PEDIDO' && (ultimoComentario.get(item.id) ?? item.comentarioPendencia) ? { comentario: ultimoComentario.get(item.id) ?? item.comentarioPendencia } : {}),
+    ...(item.status === 'REMOVIDA' && item.motivoDecisao ? { motivoRecusa: item.motivoDecisao } : {}),
+    ...(item.status === 'LISTA_ESPERA' && item.posicaoEspera != null ? { posicaoEspera: Number(item.posicaoEspera) } : {}),
   }))
 }
 
