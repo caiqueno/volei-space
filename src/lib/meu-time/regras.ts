@@ -34,6 +34,24 @@ export type AtletaDoBanco = {
   temDocumento: boolean
   /** Menor de 18 anos sem autorização ativa do responsável legal (calculado no servidor). */
   consentimentoPendente?: boolean
+  /** R17 (ELENCO_COMPLETO_ATIVO): foto de rosto enviada. Ausente = a flag está desligada e vale a regra antiga. */
+  temFoto?: boolean
+  /** R17: CPF informado (só o hash/cifra existe; nunca o valor). */
+  temCpf?: boolean
+}
+
+/** Itens que a regra de elenco pode exigir de cada atleta. */
+export const DOCUMENTOS_EXIGIVEIS = ['FOTO', 'DOCUMENTO', 'CPF'] as const
+export type DocumentoExigivel = (typeof DOCUMENTOS_EXIGIVEIS)[number]
+
+/** Valor antigo de "documentosExigidos" que não seja FOTO nem CPF (ex.: 'RG') vira DOCUMENTO. */
+export function documentosExigidosNormalizados(lista: readonly string[]): DocumentoExigivel[] {
+  const achados = new Set<DocumentoExigivel>()
+  for (const item of lista) {
+    const valor = String(item).trim().toUpperCase()
+    achados.add(valor === 'FOTO' || valor === 'CPF' ? valor : 'DOCUMENTO')
+  }
+  return DOCUMENTOS_EXIGIVEIS.filter((item) => achados.has(item))
 }
 
 export type SelecaoAtleta = {
@@ -51,6 +69,11 @@ export type RegraElencoDados = {
   nascimentoAte: string | null
   comissaoMax: number | null
   documentosExigidos: string[]
+  /** R17: quando a regra tem a coluna e ela é false, a falta de autorização do responsável não vira pendência. */
+  exigeConsentimentoMenor?: boolean
+  /** R17: depois deste instante a lista só muda por pedido de troca aprovado pelo organizador. */
+  prazoTrocaEm?: string | null
+  modelo?: string | null
 }
 
 /** Sem linha em "RegraElenco" a categoria não impõe limites, só a regra de líbero padrão. */
@@ -74,7 +97,15 @@ export type ContextoInscricao = {
   jaInscritosNaCategoria: Set<string>
   totalComissao: number
   hoje?: Date
+  /**
+   * R17: rascunho não é impedido pelas regras de quantidade e de idade do elenco (mínimo, máximo, líbero, comissão,
+   * faixa de nascimento): viram pendências e o status sai RASCUNHO. Erros de integridade (atleta fora do time, camisa
+   * repetida, atleta em outro time) continuam bloqueando.
+   */
+  rascunho?: boolean
 }
+
+const ERROS_QUE_RASCUNHO_ACEITA = new Set(['ABAIXO_DO_MINIMO', 'ACIMA_DO_MAXIMO', 'COMISSAO_ACIMA', 'LIBEROS_ACIMA', 'FORA_DA_IDADE'])
 
 export type ErroRegra = { codigo: string; mensagem: string; atletaId?: string }
 
@@ -88,6 +119,12 @@ export type ResultadoValidacao = {
   status: StatusInscricao
 }
 
+const MENSAGEM_FALTA: Record<DocumentoExigivel, string> = {
+  FOTO: 'falta a foto de rosto.',
+  DOCUMENTO: 'falta o documento.',
+  CPF: 'falta o CPF.',
+}
+
 function nomeCurto(atleta: AtletaDoBanco | undefined) {
   return atleta?.nome ?? 'Atleta'
 }
@@ -97,22 +134,43 @@ function plural(n: number, singular: string, pluralTexto: string) {
 }
 
 /** Mensagem do cartão de prontidão: "Seu time tem 9 atletas. 2 estão sem documento." */
-export function resumoProntidao(atletas: Array<{ temDocumento: boolean; consentimentoPendente?: boolean }>) {
+export function resumoProntidao(
+  atletas: Array<{ temDocumento: boolean; consentimentoPendente?: boolean; temFoto?: boolean; temCpf?: boolean }>,
+  /** R17: o que as regras de elenco das inscrições da equipe exigem. Só vale com os campos de foto/CPF presentes. */
+  opcoes: { exigidos?: readonly string[] } = {},
+) {
   const total = atletas.length
   const semDocumento = atletas.filter((atleta) => !atleta.temDocumento).length
   const semAutorizacaoResponsavel = atletas.filter((atleta) => atleta.consentimentoPendente).length
+  const modoElenco = atletas.some((atleta) => atleta.temFoto !== undefined || atleta.temCpf !== undefined)
+  const semFoto = atletas.filter((atleta) => atleta.temFoto === false).length
+  const semCpf = atletas.filter((atleta) => atleta.temCpf === false).length
+  const exigidos = modoElenco ? documentosExigidosNormalizados(opcoes.exigidos ?? ['DOCUMENTO']) : []
+  const contaDocumento = modoElenco ? exigidos.includes('DOCUMENTO') : true
+  const contaFoto = modoElenco && exigidos.includes('FOTO')
+  const contaCpf = modoElenco && exigidos.includes('CPF')
+  const faltaDocumento = contaDocumento ? semDocumento : 0
   let mensagem: string
   if (total === 0) mensagem = 'Seu time ainda não tem atletas. Adicione os primeiros para se inscrever.'
-  else if (semDocumento === 0 && semAutorizacaoResponsavel === 0) mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. Tudo certo.`
-  else {
+  else if (faltaDocumento === 0 && semAutorizacaoResponsavel === 0 && !(contaFoto && semFoto > 0) && !(contaCpf && semCpf > 0)) {
+    mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. Tudo certo.`
+  } else {
     const partes: string[] = []
-    if (semDocumento > 0) partes.push(semDocumento === 1 ? '1 está sem documento' : `${semDocumento} estão sem documento`)
+    if (faltaDocumento > 0) partes.push(faltaDocumento === 1 ? '1 está sem documento' : `${faltaDocumento} estão sem documento`)
+    if (contaFoto && semFoto > 0) partes.push(semFoto === 1 ? '1 está sem foto' : `${semFoto} estão sem foto`)
+    if (contaCpf && semCpf > 0) partes.push(semCpf === 1 ? '1 está sem CPF' : `${semCpf} estão sem CPF`)
     if (semAutorizacaoResponsavel > 0) {
       partes.push(semAutorizacaoResponsavel === 1 ? '1 está sem autorização do responsável' : `${semAutorizacaoResponsavel} estão sem autorização do responsável`)
     }
     mensagem = `Seu time tem ${plural(total, 'atleta', 'atletas')}. ${partes.join('. ')}.`
   }
-  return { atletas: total, semDocumento, semAutorizacaoResponsavel, mensagem }
+  return {
+    atletas: total,
+    semDocumento,
+    semAutorizacaoResponsavel,
+    mensagem,
+    ...(modoElenco ? { semFoto, semCpf, exigidos } : {}),
+  }
 }
 
 function dataIso(valor: string | null | undefined) {
@@ -193,11 +251,19 @@ export function validarInscricao(selecao: SelecaoAtleta[], contexto: ContextoIns
     if (!atleta.dataNascimento && (regra.nascimentoDe || regra.nascimentoAte || temFaixaDeIdade(contexto.elegibilidade))) {
       pendencias.push(`${nomeCurto(atleta)}: falta a data de nascimento para conferir a idade.`)
     }
-    if (!atleta.temDocumento && regra.documentosExigidos.length > 0) {
-      pendencias.push(`${nomeCurto(atleta)}: falta o documento.`)
+    if (regra.documentosExigidos.length > 0) {
+      if (atleta.temCpf === undefined && atleta.temFoto === undefined) {
+        // Regra antiga (flag de elenco desligada): um único "documento".
+        if (!atleta.temDocumento) pendencias.push(`${nomeCurto(atleta)}: falta o documento.`)
+      } else {
+        for (const exigido of documentosExigidosNormalizados(regra.documentosExigidos)) {
+          const tem = exigido === 'FOTO' ? atleta.temFoto : exigido === 'CPF' ? atleta.temCpf : atleta.temDocumento
+          if (!tem) pendencias.push(`${nomeCurto(atleta)}: ${MENSAGEM_FALTA[exigido]}`)
+        }
+      }
     }
     // LGPD: não bloqueia a inscrição, mas deixa a pendência registrada (CONFIRMADA_COM_PENDENCIAS).
-    if (atleta.consentimentoPendente) {
+    if (atleta.consentimentoPendente && regra.exigeConsentimentoMenor !== false) {
       const mensagem = `${nomeCurto(atleta)} é menor de 18 anos e está sem autorização do responsável legal.`
       pendencias.push(`ATLETA_MENOR_SEM_CONSENTIMENTO: ${mensagem}`)
       pendenciasDetalhe.push({ codigo: 'ATLETA_MENOR_SEM_CONSENTIMENTO', mensagem, atletaId: item.atletaId })
@@ -230,12 +296,24 @@ export function validarInscricao(selecao: SelecaoAtleta[], contexto: ContextoIns
   if (total > 0 && liberos === 0 && regra.liberosMax > 0) avisos.push('Nenhum líbero marcado.')
   if (total > 0 && capitaes === 0) avisos.push('Nenhum capitão marcado.')
 
+  if (contexto.rascunho) {
+    // Rascunho: regras de quantidade e idade viram pendências (com o motivo), o resto continua bloqueando.
+    const bloqueantes: ErroRegra[] = []
+    for (const erro of erros) {
+      if (ERROS_QUE_RASCUNHO_ACEITA.has(erro.codigo)) {
+        pendencias.push(`${erro.codigo}: ${erro.mensagem}`)
+        pendenciasDetalhe.push(erro)
+      } else bloqueantes.push(erro)
+    }
+    erros.splice(0, erros.length, ...bloqueantes)
+  }
+
   return {
     erros,
     avisos,
     pendencias,
     pendenciasDetalhe,
-    status: pendencias.length > 0 ? 'CONFIRMADA_COM_PENDENCIAS' : 'CONFIRMADA',
+    status: contexto.rascunho ? 'RASCUNHO' : pendencias.length > 0 ? 'CONFIRMADA_COM_PENDENCIAS' : 'CONFIRMADA',
   }
 }
 
