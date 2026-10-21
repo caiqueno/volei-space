@@ -8,15 +8,15 @@ import { EXTENSAO_POR_MIME, MIMES_DOCUMENTO, MIMES_IMAGEM } from '@/lib/uploads/
 
 const MB = 1024 * 1024
 
-export const TIPOS_UPLOAD_MEU_TIME = ['ESCUDO', 'FOTO_ROSTO', 'DOCUMENTO'] as const
+export const TIPOS_UPLOAD_MEU_TIME = ['ESCUDO', 'FOTO_ROSTO', 'DOCUMENTO', 'COMPROVANTE'] as const
 export type TipoUploadMeuTime = (typeof TIPOS_UPLOAD_MEU_TIME)[number]
 
 export type ConfigUploadMeuTime = {
   bucket: string
   mimes: readonly string[]
   maxBytes: number
-  /** Dono do arquivo: a equipe (escudo) ou o atleta (foto e documento). */
-  alvo: 'time' | 'atleta'
+  /** Dono do arquivo: a equipe (escudo), o atleta (foto e documento) ou a inscrição (comprovante de pagamento, R19). */
+  alvo: 'time' | 'atleta' | 'inscricao'
   publico: boolean
 }
 
@@ -24,7 +24,12 @@ export const CONFIG_MEU_TIME: Record<TipoUploadMeuTime, ConfigUploadMeuTime> = {
   ESCUDO: { bucket: 'time-escudo', mimes: MIMES_IMAGEM, maxBytes: 2 * MB, alvo: 'time', publico: true },
   FOTO_ROSTO: { bucket: 'atleta-foto-rosto', mimes: MIMES_IMAGEM, maxBytes: 2 * MB, alvo: 'atleta', publico: true },
   DOCUMENTO: { bucket: 'atleta-documento', mimes: MIMES_DOCUMENTO, maxBytes: 5 * MB, alvo: 'atleta', publico: false },
+  // Comprovante de pagamento (R19): bucket privado, jpeg/png/webp/pdf até 5 MB; caminho <inscricaoId>/<uuid>.<ext>.
+  COMPROVANTE: { bucket: 'comprovante-pagamento', mimes: MIMES_DOCUMENTO, maxBytes: 5 * MB, alvo: 'inscricao', publico: false },
 }
+
+/** Validade da URL assinada de LEITURA do comprovante, em segundos. */
+export const VALIDADE_LEITURA_COMPROVANTE_SEGUNDOS = 60
 
 /** Validade da URL assinada de LEITURA do documento do atleta, em segundos. */
 export const VALIDADE_LEITURA_DOCUMENTO_SEGUNDOS = 60
@@ -157,6 +162,18 @@ export async function removerObjeto(tipo: TipoUploadMeuTime, caminho: string) {
   } catch {
     console.error('[uploads] não foi possível remover objeto do storage', tipo)
   }
+}
+
+/** URL assinada de 60 s para ler um comprovante de pagamento (bucket privado). Nulo se o objeto não existe. */
+export async function assinarLeituraComprovante(caminho: string) {
+  const { data, error } = await supabaseAdmin.storage
+    .from(CONFIG_MEU_TIME.COMPROVANTE.bucket)
+    .createSignedUrl(caminho, VALIDADE_LEITURA_COMPROVANTE_SEGUNDOS)
+  if (error || !data?.signedUrl) {
+    if (bucketNaoExiste(error)) throw new ErroStorageMeuTime(true)
+    return null
+  }
+  return { url: data.signedUrl, expiraEm: new Date(Date.now() + VALIDADE_LEITURA_COMPROVANTE_SEGUNDOS * 1000).toISOString() }
 }
 
 export async function assinarLeituraDocumento(caminho: string) {

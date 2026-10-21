@@ -8,6 +8,8 @@ import { ErroMeuTime, idValido } from '@/lib/meu-time/acesso'
 import { exigirEquipe } from '@/lib/meu-time/dados'
 import { garantirEquipeLegada } from '@/lib/meu-time/equipe-legada'
 import { notificar, type TipoNotificacao } from '@/lib/meu-time-fase2/notificacoes'
+import { pagamentoComprovanteAtivo } from '@/lib/pagamento-comprovante/config'
+import { exigirPagamentoLiberado, pagamentoLiberadoParaPromocao, resumosDePagamento } from '@/lib/pagamento-comprovante/servico'
 import {
   campeonatoNaoEncontrado,
   exigirLigaDoPainel,
@@ -95,6 +97,11 @@ export type ItemPainel = {
   posicaoEspera?: number
   atualizadoEm: string | null
   comentariosAbertos: number
+  /**
+   * R19 (PAGAMENTO_COMPROVANTE_ATIVO): estado e valor do pagamento por comprovante; `null` quando a categoria não cobra.
+   * Sem a flag a chave nem existe. Nunca leva comprovante nem chave Pix.
+   */
+  pagamento?: { estado: string; valorCentavos: number } | null
 }
 
 async function montarItens(linhas: any[], ligas: LigaDoPainel[]): Promise<ItemPainel[]> {
@@ -123,6 +130,8 @@ async function montarItens(linhas: any[], ligas: LigaDoPainel[]): Promise<ItemPa
     for (const c of (comentarios.data ?? []) as any[]) abertosPorInscricao.set(c.inscricaoId, (abertosPorInscricao.get(c.inscricaoId) ?? 0) + 1)
   }
   const nomeLiga = new Map(ligas.map((l) => [l.id, l.nome]))
+  const comPagamento = pagamentoComprovanteAtivo()
+  const pagamentos = comPagamento ? await resumosDePagamento(linhas.map((l) => ({ id: l.id as string, categoriaCampeonatoId: l.categoriaCampeonatoId as string }))) : null
 
   return linhas.map((linha) => {
     const time = timePorId.get(linha.timeId)
@@ -141,6 +150,7 @@ async function montarItens(linhas: any[], ligas: LigaDoPainel[]): Promise<ItemPa
       comentariosAbertos: abertosPorInscricao.get(linha.id) ?? 0,
     }
     if (linha.status === 'LISTA_ESPERA' && linha.posicaoEspera != null) item.posicaoEspera = Number(linha.posicaoEspera)
+    if (pagamentos) item.pagamento = pagamentos.get(linha.id) ?? null
     return item
   })
 }
@@ -190,7 +200,15 @@ export async function exportarInscricoes(usuarioId: string, filtro: FiltroPainel
   const alvo = filtro.status ? normalizarStatus(filtro.status) : null
   const itens = alvo ? todos.filter((i) => i.status === alvo) : todos
   // Colunas fixas e sem dado pessoal: nada de CPF, telefone, documento nem nome de atleta.
-  return montarCsv(itens.map((i) => [i.equipe.nome, i.equipe.cidade ?? '', i.categoria, i.status, i.atletas, i.pendencias.join(' | '), i.atualizadoEm ?? '']))
+  // R19: com a flag ligada entra a coluna "pagamento" (só o estado; vazio quando a categoria não cobra).
+  const comPagamento = pagamentoComprovanteAtivo()
+  return montarCsv(
+    itens.map((i) => {
+      const base = [i.equipe.nome, i.equipe.cidade ?? '', i.categoria, i.status, i.atletas, i.pendencias.join(' | '), i.atualizadoEm ?? '']
+      return comPagamento ? [...base, i.pagamento?.estado ?? ''] : base
+    }),
+    { comPagamento },
+  )
 }
 
 // --- Detalhe ------------------------------------------------------------------------
@@ -331,7 +349,11 @@ export async function promoverListaDeEspera(categoriaId: string, ligaId: number,
   let promovidas = 0
   for (let volta = 0; volta < 100; volta += 1) {
     if ((await ocupadasNaCategoria(categoriaId)) >= limite) break
-    const proximo = (await filaDaCategoria(categoriaId))[0]
+    // R19: quem ainda deve o pagamento por comprovante não ocupa a vaga que abriu; a vez passa para o próximo da fila.
+    let proximo: any
+    for (const candidato of await filaDaCategoria(categoriaId)) {
+      if (await pagamentoLiberadoParaPromocao({ ...candidato, categoriaCampeonatoId: categoriaId, status: 'LISTA_ESPERA' })) { proximo = candidato; break }
+    }
     if (!proximo) break
     const agora = new Date().toISOString()
     const reivindicada = await db
@@ -392,6 +414,8 @@ export async function decidirInscricao(usuarioId: string, id: string, entrada: z
   if (!transicaoValida(acao, atual)) {
     throw new ErroMeuTime(mensagemTransicaoInvalida(acao, atual), 409, 'TRANSICAO_INVALIDA')
   }
+  // R19: categoria que cobra por comprovante só aprova com o pagamento CONFIRMADO ou ISENTO (409 PAGAMENTO_PENDENTE).
+  if (acao === 'APROVAR') await exigirPagamentoLiberado(inscricao)
 
   // Destino real: APROVAR sem vaga vai para a lista de espera.
   let destino = DESTINO_DA_ACAO[acao] as string

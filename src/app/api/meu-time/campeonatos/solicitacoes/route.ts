@@ -2,6 +2,7 @@ import { lerCorpo, sucesso, validar } from '@/lib/meu-time/acesso'
 import { exigirEquipe } from '@/lib/meu-time/dados'
 import { limitarUsuario, rotaLider } from '@/lib/inscricoes-solicitacao/acesso'
 import { solicitarInscricao, solicitarSchema } from '@/lib/inscricoes-solicitacao/servico'
+import { garantirPagamentoSemFalhar } from '@/lib/pagamento-comprovante/servico'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,5 +14,8 @@ export const POST = rotaLider(async ({ req, usuarioId }) => {
   const entrada = validar(solicitarSchema, await lerCorpo(req))
   const { equipe } = await exigirEquipe(usuarioId, entrada.equipeId, 'escrita')
   const resultado = await solicitarInscricao(usuarioId, equipe, entrada)
+  // R19 (PAGAMENTO_COMPROVANTE_ATIVO): inscrição criada direto nasce com o pagamento PENDENTE e a cópia do valor.
+  const corpo = resultado.corpo as { inscricaoId?: string }
+  if (corpo.inscricaoId) await garantirPagamentoSemFalhar(corpo.inscricaoId)
   return sucesso(resultado.corpo, resultado.status)
 })

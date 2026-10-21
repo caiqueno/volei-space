@@ -198,7 +198,10 @@
     "test:meu-time-competicoes-ui": "node scripts/with-ts-node.mjs scripts/meu-time-competicoes-ui.test.ts",
     "test:notificacoes-canais-ui": "node scripts/with-ts-node.mjs scripts/notificacoes-canais-ui.test.ts",
     "test:painel-inscricoes-ui": "node scripts/with-ts-node.mjs scripts/painel-inscricoes-ui.test.ts",
-    "test:sumula-pdf": "node scripts/with-ts-node.mjs scripts/sumula-pdf.test.ts && node scripts/with-ts-node.mjs scripts/sumula-pdf-rota.test.ts"
+    "test:sumula-pdf": "node scripts/with-ts-node.mjs scripts/sumula-pdf.test.ts && node scripts/with-ts-node.mjs scripts/sumula-pdf-rota.test.ts",
+    "test:pagamento-comprovante-regras": "node scripts/with-ts-node.mjs scripts/pagamento-comprovante-regras.test.ts",
+    "test:pagamento-comprovante": "node scripts/with-ts-node.mjs scripts/pagamento-comprovante.test.ts",
+    "test:pagamento-comprovante-explorar": "node scripts/with-ts-node.mjs scripts/pagamento-comprovante-explorar.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
