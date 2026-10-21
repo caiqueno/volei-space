@@ -4,7 +4,8 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { registrationWindowDecision } from '@/lib/team-registration-draft'
 import { ErroMeuTime, idValido, lerDados } from '@/lib/meu-time/acesso'
 import { paraRegra } from '@/lib/meu-time/inscricao'
-import type { Naipe } from '@/lib/meu-time/regras'
+import { elencoCompletoAtivo } from '@/lib/meu-time/elenco'
+import { documentosExigidosNormalizados, type Naipe } from '@/lib/meu-time/regras'
 
 export type RegrasDaCategoria = {
   categoriaId: string
@@ -17,6 +18,8 @@ export type RegrasDaCategoria = {
   anoNascimentoMinimo: number | null
   anoNascimentoMaximo: number | null
   inscricoesAbertas: boolean
+  documentosExigidos?: string[]
+  prazoTrocaEm?: string | null
 }
 
 function ano(data: unknown): number | null {
@@ -59,5 +62,9 @@ export async function lerRegrasDaCategoria(categoriaId: string): Promise<RegrasD
     anoNascimentoMinimo: ano(regra.nascimentoDe),
     anoNascimentoMaximo: ano(regra.nascimentoAte),
     inscricoesAbertas: ligaDados ? registrationWindowDecision(ligaDados).allowed : false,
+    // R17 (ELENCO_COMPLETO_ATIVO): o que a regra exige de cada atleta e até quando a lista é livre.
+    ...(elencoCompletoAtivo()
+      ? { documentosExigidos: documentosExigidosNormalizados(regra.documentosExigidos), prazoTrocaEm: regra.prazoTrocaEm ?? null }
+      : {}),
   }
 }

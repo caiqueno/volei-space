@@ -184,7 +184,12 @@
     "test:inscricao-entrada": "node scripts/with-ts-node.mjs scripts/inscricao-entrada.test.ts",
     "test:inscricao-entrada-ui": "node scripts/with-ts-node.mjs scripts/inscricao-entrada-ui.test.ts",
     "test:login-sem-senha": "node scripts/with-ts-node.mjs scripts/login-sem-senha.test.ts",
-    "test:login-sem-senha-ui": "node scripts/with-ts-node.mjs scripts/login-sem-senha-ui.test.ts"
+    "test:login-sem-senha-ui": "node scripts/with-ts-node.mjs scripts/login-sem-senha-ui.test.ts",
+    "test:lgpd-documentos": "node scripts/with-ts-node.mjs scripts/lgpd-documentos.test.ts",
+    "test:elenco-uploads": "node scripts/with-ts-node.mjs scripts/elenco-uploads.test.ts",
+    "test:elenco-dados": "node scripts/with-ts-node.mjs scripts/elenco-dados.test.ts",
+    "test:elenco-regras": "node scripts/with-ts-node.mjs scripts/elenco-regras.test.ts",
+    "test:elenco-pedido-troca": "node scripts/with-ts-node.mjs scripts/elenco-pedido-troca.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DOCUMENTO_TIPOS, cnpjValido, cpfValido, normalizarDocumentoNumero, normalizarTelefone } from '@/lib/lgpd/documentos'
 import {
   MAXIMO_ATLETAS_POR_PEDIDO,
   NAIPES,
@@ -57,14 +58,41 @@ export const novoAtletaSchema = z.object({
   ...camposResponsavel,
 }).refine(responsavelCompleto, MENSAGEM_RESPONSAVEL)
 
-export const editarAtletaSchema = z.object({
+const camposEditarAtleta = {
   nome: texto(200).optional(),
   dataNascimento: dataNascimento.optional(),
   numeroPreferido: numeroCamisa.optional().nullable(),
   posicao: z.enum(POSICOES).optional().nullable(),
   ...camposResponsavel,
-}).refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
+}
+
+export const editarAtletaSchema = z.object(camposEditarAtleta)
+  .refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
   .refine(responsavelCompleto, MENSAGEM_RESPONSAVEL)
+
+const telefoneSchema = z.string().trim().max(30).refine((valor) => normalizarTelefone(valor) != null, 'Telefone inválido. Use DDD + número.')
+
+/**
+ * R17 (ELENCO_COMPLETO_ATIVO): dados pessoais do atleta. `null` apaga o dado (direito do titular).
+ * Tipo e número do documento andam juntos. Nada disto volta em claro nas leituras (só máscara).
+ */
+export const camposSensiveisAtletaSchema = {
+  cpf: z.string().trim().max(20).refine(cpfValido, 'CPF inválido.').optional().nullable(),
+  documentoTipo: z.enum(DOCUMENTO_TIPOS).optional().nullable(),
+  documentoNumero: z.string().trim().max(40).refine((valor) => normalizarDocumentoNumero(valor) != null, 'Número de documento inválido.').optional().nullable(),
+  telefone: telefoneSchema.optional().nullable(),
+  telefoneEmergencia: telefoneSchema.optional().nullable(),
+}
+
+export const CAMPOS_SENSIVEIS_ATLETA = Object.keys(camposSensiveisAtletaSchema) as Array<keyof typeof camposSensiveisAtletaSchema>
+
+export const editarAtletaElencoSchema = z.object({ ...camposEditarAtleta, ...camposSensiveisAtletaSchema })
+  .refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
+  .refine(responsavelCompleto, MENSAGEM_RESPONSAVEL)
+  .refine(
+    (valor) => (valor.documentoTipo === undefined) === (valor.documentoNumero === undefined) && (valor.documentoTipo == null) === (valor.documentoNumero == null),
+    'Envie "documentoTipo" e "documentoNumero" juntos (ou os dois nulos para apagar).',
+  )
 
 /** POST /atletas/:atletaId/consentimento (completar o aceite depois do cadastro). */
 export const consentimentoSchema = z.object({
@@ -88,11 +116,30 @@ export const loteAtletasSchema = z.object({
   texto: z.string().max(20000).optional(),
 }).refine((valor) => valor.atletas != null || valor.texto != null, 'Envie "atletas" ou "texto".')
 
-export const editarEquipeSchema = z.object({
+const camposEditarEquipe = {
   nome: texto(200).optional(),
   cidade: z.string().trim().max(120).optional().nullable(),
   escudoUrl: escudoUrlSchema.optional().nullable(),
-}).refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
+}
+
+export const editarEquipeSchema = z.object(camposEditarEquipe)
+  .refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
+
+const corSchema = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, 'Use uma cor no formato #RRGGBB.')
+
+/** R17 (ELENCO_COMPLETO_ATIVO): dados do time. `null` apaga o dado. O CNPJ é validado pelos dígitos verificadores. */
+export const camposDadosTimeSchema = {
+  cnpj: z.string().trim().max(30).refine(cnpjValido, 'CNPJ inválido.').optional().nullable(),
+  contatoEmail: z.string().trim().email().max(200).optional().nullable(),
+  contatoTelefone: telefoneSchema.optional().nullable(),
+  corPrimaria: corSchema.optional().nullable(),
+  corSecundaria: corSchema.optional().nullable(),
+}
+
+export const CAMPOS_DADOS_TIME = Object.keys(camposDadosTimeSchema) as Array<keyof typeof camposDadosTimeSchema>
+
+export const editarEquipeElencoSchema = z.object({ ...camposEditarEquipe, ...camposDadosTimeSchema })
+  .refine((valor) => Object.keys(valor).length > 0, 'Informe ao menos um campo.')
 
 export const FUNCOES_COMISSAO_SCHEMA = ['TECNICO', 'ASSISTENTE', 'PREPARADOR_FISICO', 'FISIOTERAPEUTA', 'MEDICO'] as const
 
@@ -117,4 +164,6 @@ export const novaInscricaoSchema = z.object({
   comissao: z.array(z.string().min(1).max(100)).max(20).optional(),
   /** Token do link do organizador (CategoriaCampeonato.tokenInscricao). Se vier, precisa conferir. */
   convite: z.string().trim().max(200).optional(),
+  /** R17 (ELENCO_COMPLETO_ATIVO=1): rascunho não é bloqueado pelas regras de quantidade e idade. Ignorado com a flag desligada. */
+  rascunho: z.boolean().optional(),
 })

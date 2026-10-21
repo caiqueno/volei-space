@@ -1,6 +1,8 @@
 import { lerCorpo, rotaMeuTime, sucesso, validar } from '@/lib/meu-time/acesso'
+import { editarAtletaCompleto } from '@/lib/meu-time/atleta-dados'
 import { editarAtleta, exigirEquipe, removerAtleta } from '@/lib/meu-time/dados'
-import { editarAtletaSchema, exclusaoAtletaSchema } from '@/lib/meu-time/schemas'
+import { elencoCompletoAtivo } from '@/lib/meu-time/elenco'
+import { editarAtletaElencoSchema, editarAtletaSchema, exclusaoAtletaSchema } from '@/lib/meu-time/schemas'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +12,13 @@ type Params = { id: string; atletaId: string }
 // Para atleta menor aceita também { responsavel: { nome, contato }, aceiteResponsavel: true } (contato nunca volta na resposta).
 export const PATCH = rotaMeuTime<Params>(async ({ req, usuarioId, params }) => {
   const { equipe } = await exigirEquipe(usuarioId, params.id, 'escrita')
-  const entrada = validar(editarAtletaSchema, await lerCorpo(req))
+  const corpo = await lerCorpo(req)
+  // R17 (ELENCO_COMPLETO_ATIVO=1): também aceita cpf, documentoTipo, documentoNumero, telefone e telefoneEmergencia.
+  // Cifrados no servidor; a resposta só traz máscara. Com a flag desligada, o comportamento antigo não muda.
+  if (elencoCompletoAtivo()) {
+    return sucesso(await editarAtletaCompleto(equipe.clubeId, params.atletaId, validar(editarAtletaElencoSchema, corpo), usuarioId))
+  }
+  const entrada = validar(editarAtletaSchema, corpo)
   return sucesso(await editarAtleta(equipe.clubeId, params.atletaId, entrada, usuarioId))
 })
 

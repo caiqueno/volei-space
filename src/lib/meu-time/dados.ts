@@ -14,6 +14,8 @@ import {
 import { chaveAtleta, resumoProntidao, type AtletaDoBanco, type Naipe } from '@/lib/meu-time/regras'
 import { anonimizarAtleta, consentimentosAtivos, registrarConsentimento, type EntradaResponsavel } from '@/lib/lgpd/consentimento'
 import { ehMenorDeIdade } from '@/lib/lgpd/idade'
+import { mascararCifrado, mascararCpf, mascararDocumentoNumero, mascararTelefone } from '@/lib/lgpd/documentos'
+import { elencoCompletoAtivo } from '@/lib/meu-time/elenco'
 
 export type PapelEquipe = 'RESPONSAVEL' | 'TECNICO' | 'ASSISTENTE' | 'CAPITAO'
 export type Permissao = 'leitura' | 'escrita' | 'responsavel'
@@ -46,6 +48,14 @@ export type AtletaPublico = {
   menor: boolean
   /** Menor sem autorização ativa do responsável legal. Nunca há contato do responsável aqui. */
   consentimentoPendente: boolean
+  /** R17 (ELENCO_COMPLETO_ATIVO): só máscaras e flags, nunca o valor em claro. */
+  cpfMascarado?: string | null
+  telefoneMascarado?: string | null
+  telefoneEmergenciaMascarado?: string | null
+  documentoTipo?: string | null
+  documentoMascarado?: string | null
+  temFoto?: boolean
+  temCpf?: boolean
 }
 
 function paraEquipe(linha: any): EquipeBanco {
@@ -66,7 +76,7 @@ function linhaTemDocumento(linha: any) {
 /** Projeção pública: whitelist de campos, nunca espalha a linha do banco. */
 export function paraAtleta(linha: any, comConsentimento: ReadonlySet<string> = new Set()): AtletaPublico {
   const menor = ehMenorDeIdade(linha.dataNascimento)
-  return {
+  const base: AtletaPublico = {
     id: linha.id,
     nome: linha.nome,
     dataNascimento: linha.dataNascimento ? String(linha.dataNascimento).slice(0, 10) : null,
@@ -75,6 +85,19 @@ export function paraAtleta(linha: any, comConsentimento: ReadonlySet<string> = n
     temDocumento: linhaTemDocumento(linha),
     menor,
     consentimentoPendente: menor && !comConsentimento.has(linha.id),
+  }
+  if (!elencoCompletoAtivo()) return base
+  // R17: "temDocumento" passa a significar arquivo do documento enviado; o CPF tem flag própria. Valores só mascarados.
+  return {
+    ...base,
+    temDocumento: Boolean(linha.documentoPath),
+    temFoto: Boolean(linha.fotoRostoPath),
+    temCpf: Boolean(linha.cpfHash || linha.cpfCifrado),
+    cpfMascarado: mascararCifrado(linha.cpfCifrado, mascararCpf),
+    telefoneMascarado: mascararCifrado(linha.telefoneCifrado, mascararTelefone),
+    telefoneEmergenciaMascarado: mascararCifrado(linha.telefoneEmergenciaCifrado, mascararTelefone),
+    documentoTipo: linha.documentoTipo ?? null,
+    documentoMascarado: mascararCifrado(linha.documentoNumeroCifrado, mascararDocumentoNumero),
   }
 }
 
@@ -92,13 +115,15 @@ export async function listarAtletasPublicos(clubeId: string): Promise<AtletaPubl
 
 export function paraAtletaDoBanco(linha: any, comConsentimento: ReadonlySet<string> = new Set()): AtletaDoBanco {
   const menor = ehMenorDeIdade(linha.dataNascimento)
+  const elenco = elencoCompletoAtivo()
   return {
     id: linha.id,
     nome: linha.nome,
     dataNascimento: linha.dataNascimento ? String(linha.dataNascimento).slice(0, 10) : null,
     sexo: linha.sexo ?? null,
-    temDocumento: linhaTemDocumento(linha),
+    temDocumento: elenco ? Boolean(linha.documentoPath) : linhaTemDocumento(linha),
     consentimentoPendente: menor && !comConsentimento.has(linha.id),
+    ...(elenco ? { temFoto: Boolean(linha.fotoRostoPath), temCpf: Boolean(linha.cpfHash || linha.cpfCifrado) } : {}),
   }
 }
 

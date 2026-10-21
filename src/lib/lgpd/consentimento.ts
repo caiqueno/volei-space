@@ -6,6 +6,7 @@ import { colunaAusente } from '@/lib/coluna-ausente'
 import { ErroMeuTime, lerDados, tabelaAusente, violacaoUnica } from '@/lib/meu-time/acesso'
 import { cifrarContato, VERSAO_CHAVE } from '@/lib/lgpd/cifra'
 import { TERMO_VERSAO } from '@/lib/lgpd/termo'
+import { limparDadosDeElenco } from '@/lib/lgpd/anonimizar-elenco'
 
 export type EntradaResponsavel = { nome: string; contato: string }
 
@@ -166,6 +167,9 @@ export async function anonimizarAtleta(
       atleta = await supabase.from('Atleta').update(campos).eq('id', atletaId).select('id')
     }
     lerDados(atleta, 'anonimizar atleta')
+
+    // R17: colunas novas de elenco (CPF/documento/telefones cifrados, foto e documento) e os arquivos dos buckets.
+    await limparDadosDeElenco(atletaId)
 
     // Dados de AtletaDocumento (cpf, documento, telefones, caminhos, responsável legado): a linha inteira sai.
     const apagado = await supabase.from('AtletaDocumento').delete().eq('atletaId', atletaId).select('atletaId')

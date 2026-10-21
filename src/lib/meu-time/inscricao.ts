@@ -4,6 +4,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { normalizarElegibilidade, type ElegibilidadeCategoria } from '@/lib/elegibilidade-categoria'
 import { registrationWindowDecision } from '@/lib/team-registration-draft'
 import { ErroMeuTime, lerDados, tabelaAusente, violacaoUnica } from '@/lib/meu-time/acesso'
+import { elencoCompletoAtivo } from '@/lib/meu-time/elenco'
 import { avaliarConvite, type LinkCampeonato } from '@/lib/meu-time/convite'
 import { garantirEquipeLegada } from '@/lib/meu-time/equipe-legada'
 import {
@@ -34,6 +35,8 @@ export type PedidoInscricao = {
   atletas: SelecaoAtleta[]
   comissao?: string[]
   convite?: string
+  /** R17 (ELENCO_COMPLETO_ATIVO): salva como rascunho; regras de quantidade e idade viram pendência em vez de bloquear. */
+  rascunho?: boolean
 }
 
 export function paraRegra(linha: any): RegraElencoDados {
@@ -46,10 +49,13 @@ export function paraRegra(linha: any): RegraElencoDados {
     nascimentoAte: linha.nascimentoAte ?? null,
     comissaoMax: linha.comissaoMax ?? null,
     documentosExigidos: Array.isArray(linha.documentosExigidos) ? linha.documentosExigidos : [],
+    exigeConsentimentoMenor: linha.exigeConsentimentoMenor !== false,
+    prazoTrocaEm: linha.prazoTrocaEm ?? null,
+    modelo: linha.modelo ?? null,
   }
 }
 
-async function lerElegibilidade(ligaId: number, categoriaCampeonatoId: string): Promise<ElegibilidadeCategoria | null> {
+export async function lerElegibilidade(ligaId: number, categoriaCampeonatoId: string): Promise<ElegibilidadeCategoria | null> {
   const resposta = await supabase
     .from('CategoriaConfiguracao')
     .select('genero,idadeMinima,idadeMaxima')
@@ -159,6 +165,7 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
     banco,
     jaInscritosNaCategoria: new Set(ocupados.map((item) => item.atletaId)),
     totalComissao: comissao.length,
+    rascunho: elencoCompletoAtivo() && pedido.rascunho === true,
   })
   if (resultado.erros.length > 0) {
     throw new ErroMeuTime(resultado.erros[0].mensagem, 422, resultado.erros[0].codigo, { erros: resultado.erros })
@@ -217,7 +224,8 @@ export async function inscreverEquipe(usuarioId: string, equipe: EquipeBanco, pe
   }
 
   // Ponte para a Equipe legada das partidas (idempotente; nunca falha a inscrição, o reparo tenta de novo depois).
-  await garantirEquipeLegada(inscricao.id)
+  // Rascunho (R17) ainda não vira equipe de jogo: a ponte roda quando a inscrição for confirmada.
+  if (resultado.status !== 'RASCUNHO') await garantirEquipeLegada(inscricao.id)
 
   const resumo: InscricaoResumo = {
     id: inscricao.id,
