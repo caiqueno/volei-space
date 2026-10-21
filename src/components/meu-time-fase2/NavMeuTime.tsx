@@ -18,6 +18,7 @@ import {
   HREF_CAMPEONATOS,
   inscricaoSolicitacaoAtiva,
 } from '@/lib/meu-time-campeonatos-ui/regras'
+import { itemNavLiderAtual, loginSemSenhaAtivo, NAV_LIDER } from '@/lib/login-sem-senha-ui/regras'
 import { obterClienteFase2 } from './cliente'
 import { ListaNotificacoes } from './Notificacoes'
 
@@ -110,6 +111,32 @@ export function NavMeuTime() {
   const itens = itensVisiveis(ativa)
   const solicitacao = inscricaoSolicitacaoAtiva()
   const extras = abasExtras(solicitacao, bancoSessaoAtivo())
+  // Login sem senha ligado: navegação do líder Início · Meu Time · Competições · Jogos · Perfil.
+  if (loginSemSenhaAtivo()) {
+    return (
+      <nav aria-label="Meu Time" className="border-b border-[var(--vs-border)] bg-[var(--vs-bg)] px-3 py-2 text-[var(--vs-text)]">
+        <div className="mx-auto flex max-w-xl items-center gap-2">
+          <ul className="flex flex-1 gap-1 overflow-x-auto">
+            {NAV_LIDER.map((i) => {
+              const atual = itemNavLiderAtual(caminho, i)
+              return (
+                <li key={i.rotulo} className="shrink-0">
+                  <Link
+                    href={i.href}
+                    aria-current={atual ? 'page' : undefined}
+                    className={`inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-bold ${atual ? 'bg-[var(--vs-elevated)] text-[var(--vs-gold)] underline' : 'text-[var(--vs-text)] hover:bg-[var(--vs-elevated)]'}`}
+                  >
+                    {i.rotulo}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+          {(ativa || solicitacao) && <Sino />}
+        </div>
+      </nav>
+    )
+  }
   // Flags desligadas: nada novo aparece, a tela segue como era.
   if (!ativa && extras.length === 0) return null
   return (
