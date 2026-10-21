@@ -8,6 +8,8 @@ import { AlertCircle, LockKeyhole } from 'lucide-react'
 import { ActionBar } from '@/components/ui/action-bar'
 import { loginDestination } from '@/lib/login-destination'
 import { lerSessaoPublica } from '@/lib/sessao-publica'
+import { LoginPorCodigo } from '@/components/login-sem-senha/LoginPorCodigo'
+import { destinoPosLoginSeguro, loginSemSenhaAtivo } from '@/lib/login-sem-senha-ui/regras'
 import { destinoPosLogin, hrefCadastro, inscricaoViaMeuTimeAtiva, MENSAGEM_CAPITAO, returnToSeguro } from '@/lib/inscricao-entrada-ui/regras'
 
 export function LoginScreen() {
@@ -17,7 +19,10 @@ export function LoginScreen() {
   const viaMeuTime = inscricaoViaMeuTimeAtiva()
   const returnTo = viaMeuTime ? returnToSeguro(searchParams.get('returnTo')) : null
   const veioDoCapitao = viaMeuTime && searchParams.get('de') === 'capitao'
-  const [etapa, setEtapa] = useState<'escolha' | 'membro'>(searchParams.get('modo') === 'membro' || searchParams.get('conta') === 'criada' ? 'membro' : 'escolha')
+  const semSenha = loginSemSenhaAtivo()
+  // Flag desligada: sempre o formulário de senha, como antes.
+  const [modoSenha, setModoSenha] = useState(!semSenha || searchParams.get('modo') === 'senha' || searchParams.get('conta') === 'criada')
+  const [etapa, setEtapa] = useState<'escolha' | 'membro'>(semSenha || searchParams.get('modo') === 'membro' || searchParams.get('conta') === 'criada' ? 'membro' : 'escolha')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [email, setEmail] = useState('')
@@ -182,7 +187,11 @@ export function LoginScreen() {
               </div>
             ) : null}
 
-            {etapa === 'membro' && <form autoComplete="off" onSubmit={handleSubmit} className="grid gap-4">
+            {etapa === 'membro' && semSenha && !modoSenha && (
+              <LoginPorCodigo continuar={destinoPosLoginSeguro(searchParams.get('returnTo'))} aoUsarSenha={() => setModoSenha(true)} />
+            )}
+
+            {etapa === 'membro' && modoSenha && <form autoComplete="off" onSubmit={handleSubmit} className="grid gap-4">
               <label className="grid gap-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-luva-amber">E-mail</span>
                 <input
@@ -231,7 +240,19 @@ export function LoginScreen() {
               </ActionBar>
             </form>}
 
-            {etapa === 'membro' && (
+            {etapa === 'membro' && semSenha && modoSenha && (
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => { setModoSenha(false); setErro('') }}
+                  className="min-h-[44px] text-sm font-semibold text-slate-200 underline decoration-white/30 underline-offset-4 transition hover:text-white"
+                >
+                  Entrar com código
+                </button>
+              </div>
+            )}
+
+            {etapa === 'membro' && modoSenha && (
               <div className="mt-5 text-center">
                 <button
                   type="button"
