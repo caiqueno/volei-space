@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { ErroMeuTime, idValido, lerDados } from '@/lib/meu-time/acesso'
 import { exigirAtletaDoClube, exigirEquipe, type EquipeBanco } from '@/lib/meu-time/dados'
 import { indisponivelElenco, lerElenco } from '@/lib/meu-time/elenco'
+import { assinarComprovante, confirmarComprovante } from '@/lib/pagamento-comprovante/comprovante'
 import {
   CONFIG_MEU_TIME,
   ErroStorageMeuTime,
@@ -30,6 +31,8 @@ const identificador = z.string().trim().min(1).max(64)
 export const assinarUploadSchema = z.object({
   equipeId: identificador,
   atletaId: identificador.optional(),
+  /** Só para tipo COMPROVANTE (R19): a inscrição da equipe cujo pagamento recebe o comprovante. */
+  inscricaoId: identificador.optional(),
   tipo: z.enum(TIPOS_UPLOAD_MEU_TIME),
   nomeArquivo: z.string().max(400),
   contentType: z.string().max(100),
@@ -39,6 +42,7 @@ export const assinarUploadSchema = z.object({
 export const confirmarUploadSchema = z.object({
   equipeId: identificador,
   atletaId: identificador.optional(),
+  inscricaoId: identificador.optional(),
   tipo: z.enum(TIPOS_UPLOAD_MEU_TIME),
   path: z.string().max(200),
 })
@@ -66,6 +70,11 @@ function erroDeStorage(erro: unknown): never {
 }
 
 export async function assinarUpload(usuarioId: string, entrada: z.infer<typeof assinarUploadSchema>) {
+  // R19: comprovante de pagamento tem dono e regras próprias (flag PAGAMENTO_COMPROVANTE_ATIVO).
+  if (entrada.tipo === 'COMPROVANTE') {
+    if (entrada.atletaId) throw new ErroMeuTime('Comprovante não leva "atletaId".', 422, 'DADOS_INVALIDOS')
+    return assinarComprovante(usuarioId, entrada)
+  }
   const validacao = validarEnvioMeuTime(entrada)
   if (!validacao.ok) throw new ErroMeuTime(validacao.erro, validacao.status, 'ARQUIVO_INVALIDO')
   const { donoId } = await resolverAlvo(usuarioId, entrada)
@@ -78,15 +87,19 @@ export async function assinarUpload(usuarioId: string, entrada: z.infer<typeof a
 }
 
 // O documento fica em "AtletaDocumento" (1:1, chave atletaId, upsert); foto e escudo, na própria linha.
-const COLUNAS_GRAVACAO: Record<TipoUploadMeuTime, { tabela: 'TimeClube' | 'Atleta' | 'AtletaDocumento'; chave: string; caminho: string; data: string | null }> = {
+const COLUNAS_GRAVACAO: Record<Exclude<TipoUploadMeuTime, 'COMPROVANTE'>, { tabela: 'TimeClube' | 'Atleta' | 'AtletaDocumento'; chave: string; caminho: string; data: string | null }> = {
   ESCUDO: { tabela: 'TimeClube', chave: 'id', caminho: 'escudoPath', data: null },
   FOTO_ROSTO: { tabela: 'Atleta', chave: 'id', caminho: 'fotoRostoPath', data: 'fotoRostoEnviadaEm' },
   DOCUMENTO: { tabela: 'AtletaDocumento', chave: 'atletaId', caminho: 'documentoPath', data: 'documentoEnviadoEm' },
 }
 
 export async function confirmarUpload(usuarioId: string, entrada: z.infer<typeof confirmarUploadSchema>) {
+  if (entrada.tipo === 'COMPROVANTE') {
+    if (entrada.atletaId) throw new ErroMeuTime('Comprovante não leva "atletaId".', 422, 'DADOS_INVALIDOS')
+    return confirmarComprovante(usuarioId, entrada)
+  }
   const { donoId } = await resolverAlvo(usuarioId, entrada)
-  const { tipo } = entrada
+  const tipo = entrada.tipo
   if (!caminhoPertenceAoDono(entrada.path, donoId) || !extensaoDoCaminhoPermitida(tipo, entrada.path)) {
     throw new ErroMeuTime('Caminho do arquivo inválido para este envio.', 422, 'CAMINHO_INVALIDO')
   }
