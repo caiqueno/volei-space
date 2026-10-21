@@ -578,6 +578,117 @@ assert.match(sql47, /perfil\s+text\s+not\s+null\s+check\s*\(perfil\s+in\s*\('LID
 assert.match(sql47, /"referenciaId"\s+text\s+not\s+null/i)
 assert.match(sql47, /unique\s*\("emailNormalizado",\s*perfil,\s*"referenciaId"\)/i)
 
+// 5m) Rodada 17: dados do atleta (0048), do time (0049) e buckets (0050).
+const r17 = ['202610170048_atleta_dados_cadastrais.sql', '202610170049_time_dados_cadastrais.sql', '202610170050_buckets_time_atleta.sql']
+for (const nome of r17) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(sql, /^\s*begin;\s*set\s+local\s+lock_timeout/i, `${nome} deve abrir com begin + lock_timeout`)
+  assert.match(sql, /commit;\s*$/i)
+  assert.ok(!/\bgrant\b/i.test(sql), `${nome} não concede nada (nem a anon)`)
+  assert.ok(!/create\s+policy/i.test(sql), `${nome} não cria policy`)
+  assert.ok(!/\b(drop\s+table|drop\s+column|truncate|delete\s+from|alter\s+column[^;]*\btype\b)/i.test(sql), `${nome} é aditiva`)
+  assert.ok(!/\bcreate\s+table\b/i.test(sql), `${nome} não cria tabela (RLS das existentes não muda)`)
+}
+const rb48 = sqlSemComentario(ler(dirRollback, r17[0]))
+const rb49 = sqlSemComentario(ler(dirRollback, r17[1]))
+const rb50 = sqlSemComentario(ler(dirRollback, r17[2]))
+
+// Nomes de colunas que guardam PII só podem existir cifradas (bytea), nunca como text/varchar/bigint em claro.
+const PII = /^(cpf|documentonumero|telefone|telefoneemergencia|contatotelefone|rg|cnh|documento)$/i
+for (const nome of r17) {
+  for (const m of sqlPendente[nome].matchAll(/add\s+column\s+if\s+not\s+exists\s+"([A-Za-z]+)"\s+([a-z]+)/gi)) {
+    if (PII.test(m[1])) assert.fail(`${nome}: coluna de PII em claro (${m[1]} ${m[2]})`)
+    if (/(cpf|telefone|documentoNumero)/i.test(m[1]) && !/hash$/i.test(m[1])) {
+      assert.match(m[1], /Cifrad[oa]$/, `${nome}: ${m[1]} precisa terminar em Cifrado`)
+      assert.equal(m[2].toLowerCase(), 'bytea', `${nome}: ${m[1]} precisa ser bytea`)
+    }
+  }
+}
+
+// 0048: Atleta e AtletaDocumento.
+const sql48 = sqlPendente[r17[0]]
+assert.match(sql48, /to_regclass\('public\."Atleta"'\)\s+is\s+null/i)
+assert.match(sql48, /alter\s+table\s+public\."Atleta"\s+add\s+column\s+if\s+not\s+exists\s+"fotoRostoPath"\s+text\s*,\s+add\s+column\s+if\s+not\s+exists\s+"fotoRostoEnviadaEm"\s+timestamptz/i)
+for (const col of ['cpfCifrado', 'documentoNumeroCifrado', 'telefoneCifrado', 'telefoneEmergenciaCifrado']) {
+  assert.match(sql48, new RegExp(`add\\s+column\\s+if\\s+not\\s+exists\\s+"${col}"\\s+bytea`, 'i'), `0048 sem ${col} bytea`)
+  assert.ok(sql48.includes(`'${col}'`), `0048 sem CHECK de tamanho em ${col}`)
+}
+assert.match(sql48, /add\s+column\s+if\s+not\s+exists\s+"documentoPath"\s+text/i)
+assert.match(sql48, /add\s+column\s+if\s+not\s+exists\s+"documentoEnviadoEm"\s+timestamptz/i)
+assert.match(sql48, /octet_length\(%I\)\s*>=\s*30/i)
+assert.match(sql48, /"documentoTipo"\s+in\s*\('RG',\s*'CNH',\s*'CERTIDAO',\s*'PASSAPORTE',\s*'OUTRO'\)/i)
+assert.match(sql48, /\^\[A-Za-z\]\[A-Za-z0-9\+\.-\]\*:/, 'CHECK de caminho precisa recusar esquema de URL')
+assert.ok(!/add\s+column[^;]*"cpfHash"/i.test(sql48), '0048 não recria cpfHash (já existe na 0025)')
+assert.ok(!/(fotoRostoUrl|documentoUrl|publicUrl)/i.test(sql48), '0048 guarda caminho, nunca URL')
+assert.ok(!/(cpf|telefone)\w*\s+text/i.test(sql48.replace(/--.*$/gm, '')), '0048 não tem CPF/telefone em text')
+assert.match(sqlSemComentario(ler(dirPendentes, '202610170025_meu_time_atleta.sql')), /"cpfHash"\s+text/i)
+assert.match(sqlSemComentario(ler(dirPendentes, '202610170025_meu_time_atleta.sql')), /create\s+unique\s+index\s+if\s+not\s+exists\s+"Atleta_cpfHash_key"[\s\S]*?where\s+"cpfHash"\s+is\s+not\s+null/i)
+for (const c of ['fotoRostoPath', 'fotoRostoEnviadaEm', 'documentoPath', 'documentoEnviadoEm']) {
+  assert.match(rb48, new RegExp(`drop\\s+column\\s+if\\s+exists\\s+"${c}"`, 'i'), `reversão da 0048 sem ${c}`)
+}
+assert.ok(!/drop\s+column[^;]*(Cifrado|cpfHash|documentoTipo)/i.test(rb48), 'reversão da 0048 não derruba colunas da 0025')
+
+// 0049: TimeClube.
+const sql49 = sqlPendente[r17[1]]
+assert.match(sql49, /to_regclass\('public\."TimeClube"'\)\s+is\s+null/i)
+assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"cnpj"\s+text/i)
+assert.match(sql49, /"cnpj"\s+is\s+null\s+or\s+"cnpj"\s+~\s+'\^\[0-9\]\{14\}\$'/i)
+assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"contatoEmail"\s+text/i)
+assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"contatoTelefoneCifrado"\s+bytea/i)
+assert.match(sql49, /octet_length\("contatoTelefoneCifrado"\)\s*>=\s*30/i)
+assert.ok(!/"contatoTelefone"\s/i.test(sql49), '0049 sem telefone em claro')
+for (const cor of ['corPrimaria', 'corSecundaria']) {
+  assert.match(sql49, new RegExp(`add\\s+column\\s+if\\s+not\\s+exists\\s+"${cor}"\\s+text`, 'i'))
+  assert.match(sql49, new RegExp(`"${cor}"\\s+~\\s+'\\^#\\[0-9a-fA-F\\]\\{6\\}\\$'`, 'i'), `0049 sem CHECK de cor em ${cor}`)
+}
+assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"escudoPath"\s+text/i)
+assert.match(sql49, /not\s+valid/i)
+for (const c of ['cnpj', 'contatoEmail', 'contatoTelefoneCifrado', 'corPrimaria', 'corSecundaria', 'escudoPath']) {
+  assert.match(rb49, new RegExp(`drop\\s+column\\s+if\\s+exists\\s+"${c}"`, 'i'), `reversão da 0049 sem ${c}`)
+}
+assert.ok(!/"escudoUrl"/.test(rb49), 'reversão da 0049 não toca escudoUrl da 0024')
+
+// 0050: buckets.
+const sql50 = sqlPendente[r17[2]]
+const bucket = (id: string) => new RegExp(`insert\\s+into\\s+storage\\.buckets[^;]*?values\\s*\\(\\s*'${id}',\\s*'${id}',\\s*(true|false),\\s*(\\d+),\\s*array\\[([^\\]]*)\\]`, 'i').exec(sql50)
+const esc = bucket('time-escudo')
+const rosto = bucket('atleta-foto-rosto')
+const doc = bucket('atleta-documento')
+assert.ok(esc && rosto && doc, '0050 precisa criar os três buckets')
+assert.deepEqual([esc![1], esc![2]], ['true', String(2 * 1024 * 1024)])
+assert.deepEqual([rosto![1], rosto![2]], ['true', String(2 * 1024 * 1024)])
+assert.deepEqual([doc![1], doc![2]], ['false', String(5 * 1024 * 1024)])
+const mimes = (g: string) => [...g.matchAll(/'([a-z/]+)'/g)].map((m) => m[1]).sort()
+assert.deepEqual(mimes(esc![3]), ['image/jpeg', 'image/png', 'image/webp'])
+assert.deepEqual(mimes(rosto![3]), ['image/jpeg', 'image/png', 'image/webp'])
+assert.deepEqual(mimes(doc![3]), ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+assert.equal((sql50.match(/on\s+conflict\s*\(id\)\s+do\s+update/gi) ?? []).length, 3, 'inserts de bucket idempotentes')
+assert.match(sql50, /update[\s\S]*set\s+public\s*=\s*false,\s*file_size_limit/i, 'atleta-documento forçado a privado no upsert')
+assert.match(sql50, /atleta-documento' and public/i, 'asserção de bucket privado')
+assert.match(sql50, /from\s+pg_policies/i, 'asserção de que nenhuma policy abre escrita')
+assert.ok(!/drop\s+policy/i.test(sql50), '0050 não mexe em policies existentes')
+assert.ok(!/alter\s+table\s+storage/i.test(sql50))
+assert.ok(!/delete\s+from\s+storage/i.test(rb50), 'reversão da 0050 não apaga bucket')
+assert.match(rb50, /update\s+storage\.buckets\s+set\s+public\s*=\s*false\s+where\s+id\s+in\s*\('time-escudo',\s*'atleta-foto-rosto'\)/i)
+assert.ok(!rb50.includes('atleta-documento'), 'reversão não precisa tocar o bucket privado')
+
+// PedidoTroca e RegraElenco (0026) já cobrem o pedido da R17: nada a acrescentar, só travar o que existe.
+const sql26 = sqlPendente['202610170026_meu_time_inscricao.sql']
+const troca = /create\s+table\s+if\s+not\s+exists\s+public\."PedidoTroca"\s*\(([\s\S]*?)\n\);/i.exec(sql26)
+assert.ok(troca, 'PedidoTroca não encontrada na 0026')
+assert.match(troca![1], /status\s+text\s+not\s+null\s+default\s+'PENDENTE'\s+check\s*\(status\s+in\s*\('PENDENTE',\s*'APROVADO',\s*'RECUSADO',\s*'CANCELADO'\)\)/i)
+for (const col of ['justificativa', '"decididoPor"', '"decididoEm"', '"motivoDecisao"', '"solicitadoPor"']) {
+  assert.ok(troca![1].includes(col), `PedidoTroca sem ${col}`)
+}
+assert.match(sql26, /index\s+if\s+not\s+exists\s+"PedidoTroca_inscricao_status_idx"\s+on\s+public\."PedidoTroca"\s*\("inscricaoId",\s*status\)/i)
+assert.equal((sql26.match(/"documentosExigidos"/g) ?? []).length, 1, 'RegraElenco.documentosExigidos existe uma vez só na 0026')
+for (const nome of r17) assert.ok(!/"documentosExigidos"|create\s+table[^;]*"PedidoTroca"/i.test(sqlPendente[nome]), `${nome} não duplica RegraElenco/PedidoTroca`)
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')
