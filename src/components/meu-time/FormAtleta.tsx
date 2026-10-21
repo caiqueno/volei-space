@@ -9,6 +9,9 @@ import { validarAtletaComResponsavel, validarNovoAtleta, type CampoAtletaComResp
 import { ehMenor, type EntradaResponsavel } from '@/lib/meu-time-ui/responsavel'
 import { dataNascimentoValida } from '@/lib/meu-time-ui/selecao'
 import type { Atleta } from '@/lib/meu-time-ui/tipos'
+import { elencoCompletoAtivo } from '@/lib/meu-time-elenco-ui/flag'
+import { validarContatoAtleta, type CampoContatoAtleta, type EntradaContatoAtleta } from '@/lib/meu-time-elenco-ui/mascaras'
+import { CamposElencoAtleta, CONTATO_ATLETA_VAZIO } from '@/components/meu-time-elenco/CamposElencoAtleta'
 
 type Props = {
   cliente: MeuTimeClient
@@ -17,9 +20,18 @@ type Props = {
   atleta?: Atleta
   aoSalvar: () => void
   aoCancelar: () => void
+  /** Elenco completo: avisa a lista quando um arquivo foi enviado (a tela recarrega sem fechar o formulário). */
+  aoMudou?: () => void
 }
 
-export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: Props) {
+export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar, aoMudou }: Props) {
+  const elenco = elencoCompletoAtivo()
+  const [contato, setContato] = useState<EntradaContatoAtleta>(CONTATO_ATLETA_VAZIO)
+  const [errosContato, setErrosContato] = useState<Partial<Record<CampoContatoAtleta, string>>>({})
+  const [pendentes, setPendentes] = useState<{ foto: File | null; documento: File | null }>({ foto: null, documento: null })
+  // Atleta recém-criado: o formulário vira "enviando os arquivos escolhidos".
+  const [criado, setCriado] = useState<Atleta | null>(null)
+  const [faltaEnviar, setFaltaEnviar] = useState(0)
   const [nome, setNome] = useState(atleta?.nome ?? '')
   const [nascimento, setNascimento] = useState(atleta?.dataNascimento?.slice(0, 10) ?? '')
   const [numero, setNumero] = useState(atleta?.numeroPreferido != null ? String(atleta.numeroPreferido) : '')
@@ -42,23 +54,53 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
     const resultado = pedeResponsavel ? validarAtletaComResponsavel(entrada, responsavel) : validarNovoAtleta(entrada)
     setErros(resultado.erros)
     setMensagem(null)
+    const contatoValidado = elenco ? validarContatoAtleta(contato) : null
+    setErrosContato(contatoValidado?.erros ?? {})
     if (!resultado.valido) {
       const e = resultado.erros as Partial<Record<CampoAtletaComResponsavel, string>>
       const alvo = e.nome ? nomeRef : e.dataNascimento ? nascimentoRef : e.numero ? numeroRef : respNomeRef
       alvo.current?.focus()
       return
     }
+    if (contatoValidado && !contatoValidado.valido) return
     setSalvando(true)
     try {
-      if (atleta) await cliente.atualizarAtleta(equipeId, atleta.id, resultado.dados)
-      else await cliente.adicionarAtleta(equipeId, resultado.dados)
-      // O contato do responsável sai da memória da tela assim que foi enviado.
+      const dados = contatoValidado ? { ...resultado.dados, ...contatoValidado.dados } : resultado.dados
+      let salvo: Atleta | null = null
+      if (atleta) await cliente.atualizarAtleta(equipeId, atleta.id, dados)
+      else salvo = await cliente.adicionarAtleta(equipeId, dados)
+      // O contato do responsável e os dados sensíveis saem da memória da tela assim que foram enviados.
       setResponsavel(RESPONSAVEL_VAZIO)
+      setContato(CONTATO_ATLETA_VAZIO)
+      const arquivos = [pendentes.foto, pendentes.documento].filter(Boolean).length
+      if (salvo && arquivos > 0) {
+        setCriado(salvo)
+        setFaltaEnviar(arquivos)
+        setSalvando(false)
+        aoMudou?.()
+        return
+      }
       aoSalvar()
     } catch (erro) {
       setMensagem(erro instanceof ErroMeuTime ? erro.falha.mensagem : falhaDe(erro).mensagem)
       setSalvando(false)
     }
+  }
+
+  if (elenco && criado) {
+    return (
+      <section aria-label={`Enviar arquivos de ${criado.nome}`} className="flex flex-col gap-4 rounded-2xl border border-[var(--vs-border-strong)] bg-[var(--vs-elevated)] p-4">
+        <h3 className="text-lg font-black">Atleta salvo</h3>
+        <Aviso tom="is-success">{criado.nome} foi salvo. {faltaEnviar > 0 ? 'Enviando os arquivos que você escolheu.' : 'Arquivos enviados.'}</Aviso>
+        <CamposElencoAtleta
+          somenteArquivos equipeId={equipeId} atleta={criado} atletaId={criado.id} valor={contato} aoMudar={setContato} erros={{}}
+          menor={criado.menor === true} arquivosPendentes={pendentes}
+          aoEnviarFoto={() => { setFaltaEnviar((n) => Math.max(0, n - 1)); aoMudou?.() }}
+          aoEnviarDocumento={() => { setFaltaEnviar((n) => Math.max(0, n - 1)); aoMudou?.() }}
+        />
+        <button type="button" onClick={aoSalvar} className={botaoPrimario}>{faltaEnviar > 0 ? 'Concluir sem esperar' : 'Concluir'}</button>
+      </section>
+    )
   }
 
   return (
@@ -92,6 +134,15 @@ export function FormAtleta({ cliente, equipeId, atleta, aoSalvar, aoCancelar }: 
           </select>
         </Campo>
       </div>
+      {elenco && (
+        <CamposElencoAtleta
+          equipeId={equipeId} atleta={atleta} atletaId={atleta?.id} valor={contato} aoMudar={setContato} erros={errosContato}
+          menor={dataNascimentoValida(nascimento) && ehMenor(nascimento)} arquivosPendentes={pendentes}
+          aoPrepararFoto={(foto) => setPendentes((p) => ({ ...p, foto }))}
+          aoPrepararDocumento={(documento) => setPendentes((p) => ({ ...p, documento }))}
+          aoEnviado={aoMudou} desabilitado={salvando}
+        />
+      )}
       <div className="flex flex-col gap-2 sm:flex-row">
         <button type="submit" disabled={salvando} className={botaoPrimario}>{salvando ? 'Salvando…' : atleta ? 'Salvar alterações' : 'Salvar atleta'}</button>
         <button type="button" onClick={aoCancelar} className={botaoSecundario}>Cancelar</button>

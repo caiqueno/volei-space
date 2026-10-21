@@ -9,6 +9,8 @@ export type Prontidao = {
   semAutorizacaoResponsavel?: number
   semAutorizacao?: number
   mensagem: string
+  /** Regra de elenco da categoria (R17): o que o servidor exige de cada atleta. */
+  documentosExigidos?: string[]
 }
 
 export type EquipeResumo = {
@@ -26,6 +28,12 @@ export type Equipe = {
   cidade: string | null
   naipe: Naipe
   escudoUrl?: string | null
+  /** Elenco completo (R17): CNPJ e telefone chegam mascarados; o servidor nunca devolve o valor em claro. */
+  cnpj?: string | null
+  contatoEmail?: string | null
+  contatoTelefone?: string | null
+  corPrimaria?: string | null
+  corSecundaria?: string | null
 }
 
 export type Atleta = {
@@ -39,6 +47,13 @@ export type Atleta = {
   menor?: boolean
   /** Menor ainda sem autorização do responsável. O contato do responsável nunca volta do servidor. */
   consentimentoPendente?: boolean
+  /** Elenco completo (R17): só máscaras, por exemplo '***.***.***-12' e '(11) *****-5678'. */
+  cpf?: string | null
+  documentoTipo?: string | null
+  documentoNumero?: string | null
+  telefone?: string | null
+  telefoneEmergencia?: string | null
+  temFoto?: boolean
 }
 
 /** Responsável legal de atleta menor. Só vai para o servidor; nunca é mostrado depois de salvo. */
@@ -79,7 +94,16 @@ export type RegrasCategoria = {
   inscricoesAbertas: boolean
 }
 
-export type EdicaoEquipe = { nome: string; cidade: string | null; escudoUrl: string | null }
+export type EdicaoEquipe = {
+  nome: string
+  cidade: string | null
+  escudoUrl: string | null
+  cnpj?: string | null
+  contatoEmail?: string | null
+  contatoTelefone?: string | null
+  corPrimaria?: string | null
+  corSecundaria?: string | null
+}
 
 export type StatusInscricao = 'CONFIRMADA' | 'CONFIRMADA_COM_PENDENCIAS' | 'AJUSTE_PEDIDO' | 'REMOVIDA'
 
@@ -88,6 +112,10 @@ export type InscricaoResumo = {
   categoriaCampeonatoId: string
   status: StatusInscricao
   totalAtletas: number
+  /** Fim da troca livre (regra de elenco da categoria). Depois dele, troca é pedido. */
+  prazoTrocaEm?: string | null
+  /** Atletas que estão na inscrição, quando o servidor informa. */
+  atletaIds?: string[]
 }
 
 export type DetalheEquipe = {
@@ -112,6 +140,12 @@ export type NovoAtleta = {
   /** Obrigatórios para menor de 18 anos. */
   responsavel?: ResponsavelLegal
   aceiteResponsavel?: true
+  /** Elenco completo (R17). Só vão os campos que a pessoa digitou. */
+  cpf?: string
+  documentoTipo?: string
+  documentoNumero?: string
+  telefone?: string
+  telefoneEmergencia?: string
 }
 
 export type AtletaLote = { nome: string; numero?: number | null; dataNascimento?: string | null; posicao?: PosicaoCodigo | null }

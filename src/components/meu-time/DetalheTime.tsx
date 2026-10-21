@@ -10,6 +10,8 @@ import { AbaInscricoes } from './AbaDadosEInscricoes'
 import { CartaoProntidao } from './CartaoProntidao'
 import { Aviso, Carregando, FalhaTela, Pagina, useCarregar } from './ui'
 import { NAIPE_ROTULO } from './rotulos'
+import { PendenciasElenco } from '@/components/meu-time-elenco/PendenciasElenco'
+import { elencoCompletoAtivo } from '@/lib/meu-time-elenco-ui/flag'
 import { hrefInscricao } from '@/lib/meu-time-ui/navegacao'
 import { podeFazer } from '@/lib/meu-time-ui/permissoes'
 import { totalSemAutorizacao } from '@/lib/meu-time-ui/responsavel'
@@ -31,6 +33,10 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
   // `?pendencia=autorizacao` (link do assistente de inscrição) já abre a lista só com quem falta autorização.
   const [filtroAutorizacao, setSemAutorizacao] = useState(params.get('pendencia') === 'autorizacao')
   const botoes = useRef<Array<HTMLButtonElement | null>>([])
+  const elenco = elencoCompletoAtivo()
+  // Atalho "Enviar documento/foto" do cartão de pendências: abre o cadastro daquele atleta.
+  const [atalho, setAtalho] = useState<{ id: string; n: number } | null>(null)
+  const editarAtletaId = atalho?.id ?? null
 
   function teclado(evento: KeyboardEvent, indice: number) {
     const total = ABAS.length
@@ -63,6 +69,13 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
         aoCompletarAutorizacao={podeFazer(meuPapel, 'atletas') ? () => { setAba('atletas'); setSemAutorizacao(true) } : undefined}
       />
 
+      {elenco && (
+        <PendenciasElenco
+          atletas={atletas} documentosExigidos={prontidao.documentosExigidos}
+          aoAbrirAtleta={podeFazer(meuPapel, 'atletas') ? (id) => { setAtalho((a) => ({ id, n: (a?.n ?? 0) + 1 })); setAba('atletas') } : undefined}
+        />
+      )}
+
       <div role="tablist" aria-label="Seções do time" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
         {ABAS.map((item, indice) => (
           <button
@@ -78,11 +91,11 @@ export function DetalheTime({ equipeId, cliente }: { equipeId: string; cliente?:
 
       <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} tabIndex={0} className="outline-offset-4">
         {aba === 'atletas' && (
-          <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} somenteSemAutorizacao={filtroAutorizacao} aoMudarFiltroAutorizacao={setSemAutorizacao} meuPapel={meuPapel} aoAtualizar={atualizar} />
+          <AbaAtletas cliente={api} equipeId={equipeId} atletas={atletas} somenteSemDocumento={semDocumento} aoMudarFiltro={setSemDocumento} somenteSemAutorizacao={filtroAutorizacao} aoMudarFiltroAutorizacao={setSemAutorizacao} meuPapel={meuPapel} aoAtualizar={atualizar} editarAtletaId={editarAtletaId} key={atalho?.n ?? 0} />
         )}
         {aba === 'comissao' && <AbaComissao cliente={api} equipeId={equipeId} comissao={comissao} meuPapel={meuPapel} aoAtualizar={atualizar} />}
         {aba === 'dados' && <AbaDados cliente={api} equipe={equipe} meuPapel={meuPapel} aoAtualizar={atualizar} />}
-        {aba === 'inscricoes' && <AbaInscricoes inscricoes={inscricoes} hrefInscricao={hrefAssistente} podeInscrever={podeInscrever} />}
+        {aba === 'inscricoes' && <AbaInscricoes inscricoes={inscricoes} hrefInscricao={hrefAssistente} podeInscrever={podeInscrever} atletas={elenco ? atletas : undefined} podePedirTroca={podeInscrever} />}
       </div>
     </Pagina>
   )

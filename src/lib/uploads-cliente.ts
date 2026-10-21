@@ -1,6 +1,7 @@
 // Utilitário de navegador para o envio assinado de arquivos da equipe (docs/analise/21).
 // Fluxo: POST /api/uploads/assinar -> PUT do arquivo na URL assinada -> usar o caminho devolvido.
 // Não importa o client anon do Supabase. As mensagens de erro são feitas para o usuário final.
+import { montarPedidoAssinatura, montarPedidoConfirmacao, type TipoUploadElenco } from '@/lib/meu-time-elenco-ui/upload'
 
 export type TipoUploadCliente =
   | 'atleta-documento'
@@ -138,6 +139,101 @@ export async function obterUrlDocumento(
         : 'Não foi possível abrir o documento agora. Tente novamente.',
       resposta.status,
     )
+  }
+  return url
+}
+
+// ---------------------------------------------------------------- Meu Time (R17)
+// Fluxo: POST /api/meu-time/uploads/assinar -> PUT direto na uploadUrl -> POST /api/meu-time/uploads/confirmar.
+
+export type EntradaEnvioMeuTime = {
+  equipeId: string
+  atletaId?: string
+  tipo: TipoUploadElenco
+  arquivo: Blob & { name?: string; type: string; size: number }
+}
+
+function mensagemFalhaMeuTime(status: number, codigo?: string): string {
+  if (status === 404) return 'O envio de arquivos ainda não está ligado para você.'
+  if (status === 503) return 'O envio de arquivos ainda não está habilitado. Tente mais tarde.'
+  if (status === 401) return 'Sua sessão expirou. Entre de novo para enviar arquivos.'
+  if (status === 403) return 'Você não tem permissão para enviar este arquivo neste time.'
+  if (status === 413) return 'O arquivo é maior que o permitido.'
+  if (status === 415) return 'Tipo de arquivo não permitido. Use JPG, PNG ou WebP (e PDF para documento).'
+  if (status === 429) return 'Muitos envios em pouco tempo. Aguarde um pouco e tente de novo.'
+  if (codigo === 'CPF_DUPLICADO') return 'Esse CPF já está cadastrado em outro atleta.'
+  return MSG_GENERICA
+}
+
+export async function enviarArquivoMeuTime(entrada: EntradaEnvioMeuTime, opcoes: Opcoes = {}): Promise<{ path: string }> {
+  const chamar: FetchLike = opcoes.fetchImpl ?? ((url, init) => fetch(url, init))
+  const pedido = montarPedidoAssinatura({
+    equipeId: entrada.equipeId,
+    atletaId: entrada.atletaId,
+    tipo: entrada.tipo,
+    arquivo: { name: entrada.arquivo.name ?? 'arquivo', type: entrada.arquivo.type, size: entrada.arquivo.size },
+  })
+
+  let resposta: Response
+  try {
+    resposta = await chamar('/api/meu-time/uploads/assinar', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pedido),
+    })
+  } catch {
+    throw new ErroUpload(MSG_REDE)
+  }
+  const json = await lerJson(resposta)
+  const dados = json.data as { uploadUrl?: string; path?: string } | undefined
+  if (!resposta.ok || !dados?.uploadUrl || !dados.path) {
+    throw new ErroUpload(mensagemFalhaMeuTime(resposta.status, (json as { codigo?: string }).codigo), resposta.status)
+  }
+
+  let envio: Response
+  try {
+    envio = await chamar(dados.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': entrada.arquivo.type },
+      body: entrada.arquivo,
+    })
+  } catch {
+    throw new ErroUpload(MSG_REDE)
+  }
+  if (!envio.ok) throw new ErroUpload(MSG_GENERICA, envio.status)
+
+  let confirmacao: Response
+  try {
+    confirmacao = await chamar('/api/meu-time/uploads/confirmar', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(montarPedidoConfirmacao(entrada, dados.path)),
+    })
+  } catch {
+    throw new ErroUpload(MSG_REDE)
+  }
+  if (!confirmacao.ok) {
+    const corpo = await lerJson(confirmacao)
+    throw new ErroUpload(mensagemFalhaMeuTime(confirmacao.status, (corpo as { codigo?: string }).codigo), confirmacao.status)
+  }
+  return { path: dados.path }
+}
+
+/** Link de curta duração para o líder abrir o documento já enviado do atleta. */
+export async function obterUrlDocumentoAtleta(atletaId: string, opcoes: Opcoes = {}): Promise<string> {
+  const chamar: FetchLike = opcoes.fetchImpl ?? ((url, init) => fetch(url, init))
+  let resposta: Response
+  try {
+    resposta = await chamar(`/api/meu-time/atletas/${encodeURIComponent(atletaId)}/documento-url`, { cache: 'no-store', credentials: 'same-origin' })
+  } catch {
+    throw new ErroUpload(MSG_REDE)
+  }
+  const json = await lerJson(resposta)
+  const url = (json.data as { url?: string } | undefined)?.url
+  if (!resposta.ok || !url) {
+    throw new ErroUpload(resposta.status === 404 ? 'Documento não encontrado.' : 'Não foi possível abrir o documento agora. Tente novamente.', resposta.status)
   }
   return url
 }
