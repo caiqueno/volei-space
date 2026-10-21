@@ -1,0 +1,7 @@
+# volei.space
+
+- What it is: plataforma SaaS de campeonatos de vôlei de quadra, com súmula eletrônica que valida as regras do jogo, inscrição de times, papeleta digital, app de banco e placar ao vivo.
+- Who it is for: o **organizador de campeonato amador de vôlei de quadra** (liga amadora, arena, professor, dono de quadra, escola ou secretaria de esportes). O líder do time é usuário (cadastra time e atletas, se inscreve), mas **quem paga é o organizador**.
+- What it sells, at what price: criar e operar campeonatos (inscrições, tabela, súmula digital com regras FIVB/CBV, placar ao vivo). **Gratuito no começo**: ainda não há preço definido. O modelo de cobrança futuro está em aberto (relatório docs/analise/08: valor por equipe, por atleta, por categoria, comissão sobre inscrição paga ou mensalidade).
+- Where and how: online (site na Vercel, banco Supabase), usado no celular e no tablet na quadra. O organizador envia convite por link ou o time entra pela aba Campeonatos; a súmula é operada pelo apontador por link; funciona com internet ruim (fila offline).
+- Budget and constraints: **sem orçamento além de infraestrutura (Vercel e Supabase), só o tempo do fundador.** Só vôlei de quadra (sem praia). Proteção de dados de menores (LGPD). Nada de scout nem módulo de árbitro. Ainda **nenhum campeonato real foi operado na plataforma**; o código está pronto para teste, mas as telas novas nunca foram usadas por pessoas.
