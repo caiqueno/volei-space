@@ -1,5 +1,6 @@
 {
-  "name": "luva-platform",
+  "name": "volei-space",
+  "description": "volei.space: plataforma de campeonatos de vôlei de quadra (inscrição, súmula digital, classificação e portal público).",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -197,7 +198,9 @@
     "test:notificacoes-canais": "node scripts/with-ts-node.mjs scripts/notificacoes-canais.test.ts",
     "test:meu-time-competicoes-ui": "node scripts/with-ts-node.mjs scripts/meu-time-competicoes-ui.test.ts",
     "test:notificacoes-canais-ui": "node scripts/with-ts-node.mjs scripts/notificacoes-canais-ui.test.ts",
-    "test:painel-inscricoes-ui": "node scripts/with-ts-node.mjs scripts/painel-inscricoes-ui.test.ts"
+    "test:painel-inscricoes-ui": "node scripts/with-ts-node.mjs scripts/painel-inscricoes-ui.test.ts",
+    "test:seed": "node scripts/with-ts-node.mjs scripts/seed.test.ts",
+    "test:inventario-api": "node scripts/with-ts-node.mjs scripts/inventario-api.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
