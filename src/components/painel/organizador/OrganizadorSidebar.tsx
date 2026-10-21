@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { CalendarDays, ClipboardCheck, Home, Images, LogOut, Radio, Settings, SlidersHorizontal, Table2, Trophy, UsersRound, type LucideIcon } from 'lucide-react'
 import { SessaoGestao } from '@/components/sessao/SessaoGestao'
 import { ItemNavSolicitacoes, SinoNotificacoesOrganizador } from '@/components/organizador-solicitacoes/NavSolicitacoes'
+import { ItemNavPedidosTroca } from '@/components/regras-elenco/ItemNavPedidosTroca'
 import { consultar } from '@/lib/api-cliente'
 import { saudacaoSessao } from '@/lib/sessao-gestao'
 import { encerrarSessaoPublica, lerSessaoPublica } from '@/lib/sessao-publica'
@@ -133,6 +134,7 @@ export function OrganizadorSidebar() {
             )
           })}
           <ItemNavSolicitacoes area="painel" variante="painel-lateral" />
+          <ItemNavPedidosTroca variante="painel-lateral" />
           <SinoNotificacoesOrganizador area="painel" />
           <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-sidebar-link profile-sidebar-logout" disabled={obfuscated}>
             <LogOut size={18} />
@@ -174,6 +176,7 @@ export function OrganizadorSidebar() {
             )
           })}
           <ItemNavSolicitacoes area="painel" variante="painel-mobile" />
+          <ItemNavPedidosTroca variante="painel-mobile" />
           <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-mobile-link profile-mobile-logout" disabled={obfuscated}>
             <LogOut size={18} />
             <span>Sair</span>

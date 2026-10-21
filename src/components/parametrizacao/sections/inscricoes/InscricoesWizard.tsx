@@ -21,6 +21,7 @@ import { getDefaultFormularioInscricaoConfig } from '@/lib/championship-setup-de
 import { revealMissingFields } from '../../wizard/missing-fields'
 import { LinksCategoriaPrivada } from './LinksCategoriaPrivada'
 import { SeletorModoInscricao } from '@/components/organizador-solicitacoes/SeletorModoInscricao'
+import { RegrasElencoBloco } from '@/components/regras-elenco/RegrasElencoBloco'
 import { rotuloAprovacaoRevisao, solicitacoesAtivo } from '@/lib/organizador-solicitacoes-ui'
 import { useModoInscricaoRevisao } from '@/components/organizador-solicitacoes/useModoInscricaoRevisao'
 import { OPCOES_VISIBILIDADE, deveMostrarLinks, normalizarVisibilidade, rotuloVisibilidade } from './visibilidade-ui'
@@ -301,6 +302,7 @@ export function InscricoesWizard({ ligaId }: { ligaId: number }) {
               max={365}
               onChange={(v) => updateNow({ prazoAlteracaoElencoDias: v ?? 0 })}
             />
+            <RegrasElencoBloco />
           </>
         )}
 
