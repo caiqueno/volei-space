@@ -50,6 +50,14 @@ type Props = {
 
 export function LoginPorCodigo({ continuar, aoUsarSenha }: Props) {
   const [estado, enviar] = useReducer(transicaoLogin, ESTADO_INICIAL)
+  // Volta do Google sem conta: o servidor manda /login?novaConta=1 e a sessão já é de onboarding.
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get('novaConta') === '1') enviar({ tipo: 'confirmado', resultado: { tipo: 'novaConta' } })
+    } catch {
+      /* sem window ou URL inválida: segue no passo normal */
+    }
+  }, [])
   const [email, setEmail] = useState('')
   const [codigo, setCodigo] = useState('')
   const [canal, setCanal] = useState<Canal>('EMAIL')

@@ -1,3 +1,4 @@
+process.env.LGPD_CHAVE_CIFRA = Buffer.alloc(32, 7).toString('base64')
 import assert from 'node:assert/strict'
 
 process.env.JWT_SECRET = 'segredo-de-teste-volei-space-com-mais-de-32-chars'
@@ -130,7 +131,7 @@ async function testeUniformeSemEnumeracao() {
   assert.deepEqual(naoExiste, { tipo: 'aceito' })
   assert.equal(a.enviados.length, 2, 'qualquer e-mail recebe código; conta nova entra por onboarding')
   for (const linha of a.tabelas.CodigoAcesso) {
-    assert.ok(!JSON.stringify(linha).includes(a.enviados.find((e) => e.destino === linha.destino)!.codigo), 'código em claro não é guardado')
+    assert.ok(!JSON.stringify(linha).includes(a.enviados.find((e) => e.destino === linha.emailNormalizado)!.codigo), 'código em claro não é guardado')
     assert.match(String(linha.codigoHash), /^[0-9a-f]+:[0-9a-f]+$/)
     assert.equal(linha.tentativas, 0)
   }

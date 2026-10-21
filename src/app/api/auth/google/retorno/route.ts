@@ -56,10 +56,10 @@ export async function GET(req: NextRequest) {
 
     const perfis = await listarPerfis(supabaseAdmin, email)
     if (perfis.length === 0) {
-      return limparPkce(await anexarSessao(redirecionar(req, '/entrar?novaConta=1'), payloadDeOnboarding(email, 'google')))
+      return limparPkce(await anexarSessao(redirecionar(req, '/login?novaConta=1'), payloadDeOnboarding(email, 'google')))
     }
     const ativo = perfis[0]
-    return limparPkce(await anexarSessao(redirecionar(req, ativo.perfil === 'ORGANIZADOR' ? '/painel' : '/capitao'), payloadDoPerfil(ativo, email, 'google')))
+    return limparPkce(await anexarSessao(redirecionar(req, ativo.perfil === 'ORGANIZADOR' ? '/painel' : '/meu-time'), payloadDoPerfil(ativo, email, 'google')))
   } catch (err) {
     return limparPkce(respostaDeErro(err, 'google/retorno'))
   }

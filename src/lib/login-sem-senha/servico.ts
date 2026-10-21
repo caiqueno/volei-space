@@ -1,5 +1,6 @@
 import { emailsConferem, padraoIlikeLiteral } from '@/lib/email-lookup'
 import { consumirLimiteAsync } from '@/lib/rate-limit'
+import { cifrarContato } from '@/lib/lgpd/cifra'
 import type { CanalCodigo, EnviarCodigo } from '@/lib/mensageria'
 import {
   CODIGO_MAX_TENTATIVAS,
@@ -108,7 +109,8 @@ export async function solicitarCodigo(
     const criado = await deps.db.from('CodigoAcesso').insert({
       emailNormalizado: email,
       canal,
-      destino,
+      // Só WHATSAPP guarda destino, e cifrado (AES-256-GCM); EMAIL fica nulo (a migration 0045 exige).
+      destinoCifrado: canal === 'WHATSAPP' ? cifrarContato(destino) : null,
       codigoHash,
       criadoEm: iso,
       expiraEm: new Date(agoraMs + CODIGO_VALIDADE_MS).toISOString(),
