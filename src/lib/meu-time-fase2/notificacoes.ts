@@ -2,6 +2,8 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 import { ErroMeuTime, idValido } from '@/lib/meu-time/acesso'
 import { lerFase2 } from '@/lib/meu-time-fase2/acesso'
+import { multicanalAtivo } from '@/lib/notificacoes-canais/flags'
+import { criarEntregas } from '@/lib/notificacoes-canais/entrega'
 
 export type TipoNotificacao =
   | 'CONVITE_ACEITO'
@@ -11,6 +13,16 @@ export type TipoNotificacao =
   | 'SOLICITACAO_INSCRICAO'
   | 'SOLICITACAO_APROVADA'
   | 'SOLICITACAO_RECUSADA'
+  // R18: painel de inscrições do organizador, lista de espera, lembretes e tabela.
+  | 'INSCRICAO_APROVADA'
+  | 'INSCRICAO_EM_ANALISE'
+  | 'INSCRICAO_RECUSADA'
+  | 'INSCRICAO_LISTA_ESPERA'
+  | 'INSCRICAO_PROMOVIDA'
+  | 'INSCRICAO_RESPOSTA'
+  | 'PRAZO_INSCRICAO'
+  | 'JOGO_AMANHA'
+  | 'TABELA_PUBLICADA'
 
 export type Notificacao = {
   id: string
@@ -34,10 +46,19 @@ export async function notificar(
   dados: Record<string, unknown> | null = null,
 ): Promise<boolean> {
   try {
-    const resposta = await supabase.from('Notificacao').insert({ usuarioId, tipo, titulo, mensagem, dados })
+    // R18 (NOTIFICACOES_MULTICANAL_ATIVO): precisa do id gravado para criar as entregas por canal.
+    // Com a flag desligada o caminho é exatamente o anterior.
+    const multicanal = multicanalAtivo()
+    const resposta = multicanal
+      ? await supabase.from('Notificacao').insert({ usuarioId, tipo, titulo, mensagem, dados }).select('id').single()
+      : await supabase.from('Notificacao').insert({ usuarioId, tipo, titulo, mensagem, dados })
     if (resposta.error) {
       console.warn('[meu-time-fase2] notificação não gravada', resposta.error.code ?? '')
       return false
+    }
+    if (multicanal) {
+      const id = (resposta.data as { id?: string } | null)?.id
+      if (id) await criarEntregas(usuarioId, id, tipo)
     }
     return true
   } catch {

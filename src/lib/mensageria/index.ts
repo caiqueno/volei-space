@@ -67,6 +67,26 @@ export async function enviarPorWhatsapp({ destino, codigo }: EnvioCodigo, buscar
   if (!resposta.ok) throw new Error(`Webhook de WhatsApp respondeu ${resposta.status}.`)
 }
 
+/**
+ * R18: texto livre (notificações) pelo mesmo webhook do código de acesso. O destino é o telefone cadastrado do usuário;
+ * a mensagem nunca leva dado pessoal além do nome do time, data e local. Nunca registrar o destino em log.
+ */
+export async function enviarTextoPorWhatsapp(destino: string, texto: string, buscar: typeof fetch = fetch) {
+  const url = process.env.WHATSAPP_WEBHOOK_URL
+  if (!url) throw new CanalIndisponivelError('WHATSAPP')
+  const token = process.env.WHATSAPP_WEBHOOK_TOKEN
+  const resposta = await buscar(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ to: destino, text: texto }),
+    cache: 'no-store',
+  })
+  if (!resposta.ok) throw new Error(`Webhook de WhatsApp respondeu ${resposta.status}.`)
+}
+
 /** Envio padrão: console só em desenvolvimento com a flag; senão o adaptador do canal. */
 export const enviarCodigo: EnviarCodigo = async (envio) => {
   if (consoleDeDesenvolvimento()) {

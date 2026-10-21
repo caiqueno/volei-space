@@ -82,6 +82,8 @@ export function criarBancoEscrita(tabelas: Record<string, LinhaEscrita[]>, opcoe
       eq(c: string, v: unknown) { filtros.push((l) => l[c] === v); return b },
       gt(c: string, v: unknown) { filtros.push((l) => Number(l[c]) > Number(v)); return b },
       lt(c: string, v: unknown) { filtros.push((l) => l[c] != null && String(l[c]) < String(v)); return b },
+      gte(c: string, v: unknown) { filtros.push((l) => l[c] != null && String(l[c]) >= String(v)); return b },
+      lte(c: string, v: unknown) { filtros.push((l) => l[c] != null && String(l[c]) <= String(v)); return b },
       neq(c: string, v: unknown) { filtros.push((l) => l[c] !== v); return b },
       in(c: string, v: unknown[]) { filtros.push((l) => v.includes(l[c])); return b },
       is(c: string, v: unknown) { filtros.push((l) => (v === null ? l[c] == null : l[c] === v)); return b },

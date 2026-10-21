@@ -17,6 +17,7 @@ import { montarConfrontos } from '@/lib/rodadas'
 import { mensagemParesForaDoGrupo } from '@/lib/grupos-fase'
 import { liberarCampeonatoSemCobranca } from '@/lib/liberar-campeonato'
 import { estruturaExigePagamentoConfirmado, pagamentoHabilitado } from '@/lib/pagamento-config'
+import { notificarTabelaPublicada } from '@/lib/notificacoes-canais/lembretes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -283,6 +284,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
         console.error('[estrutura] erro ao gerar confrontos', insertPartidasErr)
         return error('Erro ao gerar confrontos.', 500)
       }
+      // R18: avisa os times inscritos (só com NOTIFICACOES_MULTICANAL_ATIVO=1; nunca falha a geração).
+      await notificarTabelaPublicada(ligaId, categoriaCampeonatoId)
     }
 
     const { error: configErr } = await supabase
