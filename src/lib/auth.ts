@@ -32,6 +32,11 @@ export type PublicJWTPayload = {
   tipo: PublicUserRole
   status: string
   trocarSenha?: boolean
+  /** Login sem senha (flag LOGIN_SEM_SENHA_ATIVO): e-mail confirmado por código ou Google. */
+  emailVerificado?: boolean
+  acesso?: 'codigo' | 'google'
+  /** Sessão de onboarding: só permite criar conta de líder ou de organizador. */
+  onboarding?: boolean
 }
 
 export const RELEASED_PUBLIC_STATUSES = ['APROVADA', 'APROVADO', 'ATIVA', 'ATIVO', 'LIBERADA', 'LIBERADO']
@@ -42,6 +47,8 @@ export function isReleasedPublicStatus(status?: string | null) {
 
 type RequirePublicRoleOptions = {
   releasedOnly?: boolean
+  /** Aceita a sessão de onboarding (login sem senha sem conta). Só as rotas de criação de conta usam. */
+  permitirOnboarding?: boolean
 }
 
 export type PasswordResetPayload = {
@@ -121,6 +128,9 @@ export async function requirePublicRole(
   const payload = await verifyPublicToken(req)
   if (!payload || !roles.includes(payload.tipo)) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  }
+  if (payload.onboarding === true && !options.permitirOnboarding) {
+    return NextResponse.json({ error: 'Conclua a criação da conta para continuar.' }, { status: 403 })
   }
   if (options.releasedOnly && !isReleasedPublicStatus(payload.status)) {
     return NextResponse.json({ error: 'Perfil ainda não liberado para esta operação.' }, { status: 403 })
