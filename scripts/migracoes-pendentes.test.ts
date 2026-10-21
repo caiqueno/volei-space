@@ -514,6 +514,70 @@ assert.match(sql44, /to_regclass\('public\."SolicitacaoInscricao"'\)\s+is\s+null
 assert.ok(!/create\s+policy/i.test(sql44) && !/grant\s/i.test(sql44), '0044 não cria policy nem concede acesso')
 assert.match(sqlSemComentario(ler(dirRollback, nome44)), /drop\s+column\s+if\s+exists\s+"atletasEscolhidos"/i)
 
+// 5l) Rodada 16: login sem senha (0045 CodigoAcesso, 0046 IdentidadeExterna, 0047 PessoaPerfil).
+const r16 = {
+  '202610170045_codigo_acesso.sql': 'CodigoAcesso',
+  '202610170046_identidade_externa.sql': 'IdentidadeExterna',
+  '202610170047_pessoa_perfil.sql': 'PessoaPerfil',
+}
+let anteriorR16 = '202610170044'
+for (const [nome, tabela] of Object.entries(r16)) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const versao = nome.slice(0, 12)
+  assert.ok(versoes.indexOf(anteriorR16) < versoes.indexOf(versao), `${versao} fora de ordem`)
+  anteriorR16 = versao
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(sql, new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\."${tabela}"`, 'i'))
+  assert.match(sql, new RegExp(`alter\\s+table\\s+public\\."${tabela}"\\s+enable\\s+row\\s+level\\s+security`, 'i'))
+  assert.match(sql, new RegExp(`revoke\\s+all\\s+on\\s+table\\s+public\\."${tabela}"\\s+from\\s+public,\\s*anon,\\s*authenticated`, 'i'))
+  assert.match(sql, new RegExp(`grant\\s+select,\\s*insert,\\s*update,\\s*delete\\s+on\\s+table\\s+public\\."${tabela}"\\s+to\\s+service_role`, 'i'))
+  assert.ok(!/create\s+policy/i.test(sql), `${nome} não cria policy (só service_role)`)
+  assert.match(sql, /"emailNormalizado"\s+text\s+not\s+null\s+check\s*\("emailNormalizado"\s*=\s*lower\(btrim\("emailNormalizado"\)\)/i, `${nome}: e-mail normalizado em minúsculas`)
+  // Nunca guardar o código em claro nem segredo/token: nenhuma coluna com esses nomes.
+  const colunas = [...sql.matchAll(/^\s{2}("?[A-Za-z]+"?)\s+(?:uuid|text|bytea|smallint|integer|timestamptz)\b/gim)].map((m) => m[1].replace(/"/g, '').toLowerCase())
+  for (const proibida of ['codigo', 'code', 'otp', 'token', 'senha', 'segredo', 'telefone', 'destino', 'ip']) {
+    assert.ok(!colunas.includes(proibida), `${nome}: coluna proibida em claro (${proibida})`)
+  }
+  const rb = sqlSemComentario(ler(dirRollback, nome))
+  assert.match(rb, new RegExp(`drop\\s+table\\s+if\\s+exists\\s+public\\."${tabela}"`, 'i'))
+  const derrubadas = [...rb.matchAll(/drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?"([A-Za-z]+)"/gi)].map((m) => m[1])
+  assert.deepEqual(derrubadas, [tabela], `reversão de ${nome} só derruba a própria tabela`)
+}
+
+const sql45 = sqlPendente['202610170045_codigo_acesso.sql']
+assert.match(sql45, /canal\s+text\s+not\s+null\s+check\s*\(canal\s+in\s*\('EMAIL',\s*'WHATSAPP'\)\)/i)
+assert.match(sql45, /"destinoCifrado"\s+bytea/i, 'destino do WhatsApp cifrado (bytea), nunca texto')
+assert.match(sql45, /"codigoHash"\s+text\s+not\s+null/i)
+assert.match(sql45, /"expiraEm"\s+timestamptz\s+not\s+null\s+default\s*\(now\(\)\s*\+\s*interval\s+'10 minutes'\)/i)
+assert.match(sql45, /"expiraEm"\s*<=\s*"criadoEm"\s*\+\s*interval\s+'10 minutes'/i)
+assert.match(sql45, /tentativas\s+smallint\s+not\s+null\s+default\s+0\s+check\s*\(tentativas\s+between\s+0\s+and\s+10\)/i)
+assert.match(sql45, /"usadoEm"\s+timestamptz\s*,/i)
+assert.match(sql45, /"ipHash"\s+text/i)
+assert.match(sql45, /index\s+if\s+not\s+exists\s+"CodigoAcesso_email_criadoEm_idx"\s+on\s+public\."CodigoAcesso"\s*\("emailNormalizado",\s*"criadoEm"\s+desc\)/i)
+assert.match(sql45, /index\s+if\s+not\s+exists\s+"CodigoAcesso_expiraEm_idx"\s+on\s+public\."CodigoAcesso"\s*\("expiraEm"\)/i)
+const fn45 = /create\s+or\s+replace\s+function\s+public\.expurgar_codigos_acesso\(\)[\s\S]*?\$fn\$;/i.exec(sql45)
+assert.ok(fn45, '0045 sem expurgar_codigos_acesso()')
+assert.match(fn45![0], /security\s+definer/i)
+assert.match(fn45![0], /set\s+search_path\s*=\s*public,\s*pg_temp/i)
+assert.match(fn45![0], /"expiraEm"\s*<\s*now\(\)\s*-\s*interval\s+'1 day'/i)
+assert.match(sql45, /revoke\s+all\s+on\s+function\s+public\.expurgar_codigos_acesso\(\)\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql45, /grant\s+execute\s+on\s+function\s+public\.expurgar_codigos_acesso\(\)\s+to\s+service_role/i)
+assert.match(sqlSemComentario(ler(dirRollback, '202610170045_codigo_acesso.sql')), /drop\s+function\s+if\s+exists\s+public\.expurgar_codigos_acesso\(\)/i)
+
+const sql46 = sqlPendente['202610170046_identidade_externa.sql']
+assert.match(sql46, /provedor\s+text\s+not\s+null\s+check\s*\(provedor\s+in\s*\('GOOGLE'\)\)/i)
+assert.match(sql46, /"subExterno"\s+text\s+not\s+null/i)
+assert.match(sql46, /unique\s*\(provedor,\s*"subExterno"\)/i)
+
+const sql47 = sqlPendente['202610170047_pessoa_perfil.sql']
+assert.match(sql47, /perfil\s+text\s+not\s+null\s+check\s*\(perfil\s+in\s*\('LIDER',\s*'ORGANIZADOR'\)\)/i)
+assert.match(sql47, /"referenciaId"\s+text\s+not\s+null/i)
+assert.match(sql47, /unique\s*\("emailNormalizado",\s*perfil,\s*"referenciaId"\)/i)
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')
