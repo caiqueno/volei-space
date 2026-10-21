@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { CalendarDays, ClipboardCheck, Home, Images, LogOut, Radio, Settings, SlidersHorizontal, Table2, Trophy, UsersRound, type LucideIcon } from 'lucide-react'
 import { SessaoGestao } from '@/components/sessao/SessaoGestao'
 import { ItemNavSolicitacoes, SinoNotificacoesOrganizador } from '@/components/organizador-solicitacoes/NavSolicitacoes'
+import { ItensNavInscricoes } from '@/components/painel-inscricoes/ItensNavInscricoes'
 import { ItemNavPedidosTroca } from '@/components/regras-elenco/ItemNavPedidosTroca'
 import { consultar } from '@/lib/api-cliente'
 import { saudacaoSessao } from '@/lib/sessao-gestao'
@@ -134,6 +135,7 @@ export function OrganizadorSidebar() {
             )
           })}
           <ItemNavSolicitacoes area="painel" variante="painel-lateral" />
+          <ItensNavInscricoes variante="painel-lateral" />
           <ItemNavPedidosTroca variante="painel-lateral" />
           <SinoNotificacoesOrganizador area="painel" />
           <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-sidebar-link profile-sidebar-logout" disabled={obfuscated}>
@@ -176,6 +178,7 @@ export function OrganizadorSidebar() {
             )
           })}
           <ItemNavSolicitacoes area="painel" variante="painel-mobile" />
+          <ItensNavInscricoes variante="painel-mobile" />
           <ItemNavPedidosTroca variante="painel-mobile" />
           <button type="button" onClick={() => void encerrarSessaoPublica()} className="profile-mobile-link profile-mobile-logout" disabled={obfuscated}>
             <LogOut size={18} />
