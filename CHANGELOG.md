@@ -34,7 +34,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), 
 - **Explorar competições (rodada 18):** vitrine com datas, vagas, prazo, valor e o selo "pode participar / faltam atletas / naipe diferente", calculado no servidor. Flag `EXPLORAR_COMPETICOES_ATIVO`.
 - **Notificações por vários canais (rodada 18):** além do sino, e-mail, WhatsApp e push por preferência da pessoa (avisos críticos não desligam), com lembretes de prazo e de jogo por rotina agendada (ainda não agendada). Flag `NOTIFICACOES_MULTICANAL_ATIVO`.
 - **Ambiente e documentação (rodada 19):** `supabase/seed.sql` agora roda num banco vazio (1 liga pública, 2 categorias, 6 equipes, 48 jogadores e 6 jogos, tudo inventado); início rápido do `README.md` refeito; inventário de todas as rotas da API em `docs/analise/32-inventario-api.md`, com teste que avisa quando uma rota nova não foi listada; pacote renomeado para `volei-space`.
-- **Pagamento por comprovante:** **não foi entregue**. Hoje só existe a confirmação simulada, fechada por padrão.
+- **Pagamento por Pix com comprovante (rodada 19):** o organizador define valor e chave Pix por categoria, o líder envia o comprovante, e o organizador confirma, recusa ou isenta; aprovar a inscrição fica bloqueado sem pagamento confirmado. Não há gateway: sem cartão nem Pix automático. Atrás de `PAGAMENTO_COMPROVANTE_ATIVO`.
+- **PDF da súmula (rodada 19):** arquivo PDF gerado no servidor (`/api/sumula/[token]/pdf`, botão "Baixar PDF"), atrás de `SUMULA_PDF_ATIVO`. O layout não foi conferido visualmente.
 
 ### Correções
 - Login: o limite de tentativas é reservado antes de conferir a senha (rajadas em paralelo não passam) e o bloqueio é por e-mail + IP, para que ninguém trave o login de outra pessoa de outro endereço.

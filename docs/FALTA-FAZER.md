@@ -116,8 +116,8 @@ Nenhuma das 53 migrations pendentes (`supabase/pendentes/migrations`, 0001 a 005
 - [ ] Elenco completo: criar os buckets `time-escudo`, `atleta-foto-rosto` e `atleta-documento` no Supabase de dev e conferir as políticas; definir `LGPD_CHAVE_CIFRA` (e, se quiser, `LGPD_PEPPER_HASH`); decidir se foto e documento bloqueiam a inscrição ou viram pendência.
 - [ ] Painel de inscrições: exportação em PDF (hoje só CSV); conferir o uso dos papéis da equipe do organizador (administrador, financeiro, arbitragem) nas demais telas do painel.
 - [ ] Notificações por vários canais: agendar os crons, configurar `VAPID_*`, provedor de WhatsApp e SMTP; testar um envio real em cada canal; definir retenção das notificações.
-- [ ] **Pagamento por comprovante não foi entregue** (só existe no relatório 08). Hoje há apenas a confirmação simulada, fechada por padrão. Decidir o desenho antes de implementar.
-- [ ] Súmula em PDF gerado no servidor (hoje só a página A4 para imprimir ou salvar como PDF pelo navegador).
+- [ ] Pagamento por comprovante (R19): código pronto e desligado (`PAGAMENTO_COMPROVANTE_ATIVO`); falta ensaiar as migrations 0054 e 0055, testar o fluxo no navegador e decidir se haverá gateway (cartão e Pix automático), que não existe.
+- [ ] PDF da súmula (R19): arquivo gerado no servidor, atrás de `SUMULA_PDF_ATIVO`; falta abrir um PDF real e conferir o layout (equipes lado a lado, logotipo), e aceitar também o acesso pelo id público se for desejado.
 - [ ] Protótipo: acrescentar primeiro acesso, explorar competições e o assistente de inscrição.
 
 ## Rodada 19 (infra e documentação)

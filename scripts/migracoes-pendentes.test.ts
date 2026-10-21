@@ -429,7 +429,7 @@ for (const m of seedSql.matchAll(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g)) {
 for (const m of seedSql.matchAll(/'(\d{10,14})'/g)) {
   assert.ok(m[1].startsWith('0000000'), `número longo no seed (CPF/telefone) não é de teste: ${m[1]}`)
 }
-for (const chave of ['CandidaturaOrganizador', 'SEED-R2-LIGA-01', 'SEED-R2-LIGA-02', 'SEED-R2-LIGA-03', 'SEED-R2-GAME-01', "'EM_ANDAMENTO'", "'ENCERRADA'", 'simulacao']) {
+for (const chave of ['CandidaturaOrganizador', 'SEED-R19-LIGA-01', 'SEED-R19-GAME-01', "'EM_ANDAMENTO'", "'ENCERRADA'", 'simulacao']) {
   assert.ok(seedSql.includes(chave) || seedSql.includes(chave.replace(/'/g, '')), `seed sem ${chave}`)
 }
 assert.ok(/not\s+exists|on\s+conflict/i.test(seedSql), 'seed precisa de guarda de idempotência')

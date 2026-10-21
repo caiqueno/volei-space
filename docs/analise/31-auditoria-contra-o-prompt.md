@@ -13,7 +13,7 @@ Legenda: ✅ feito · 🟡 parcial · ❌ não feito · ➖ fora do escopo (deci
 | 1 | Meu Time e Competições (times, atletas, competições de vários organizadores, inscrições, escala de arbitragem) | ✅ | Meu Time completo (`src/app/meu-time/**`); inscrição e aprovação por categoria; explorar competições com filtros, valor e selo (`src/lib/explorar-competicoes/**`, R18); escala de arbitragem existe (legado). |
 | 2 | Papeleta digital (envio, validação, bloqueio) | ✅ | `src/lib/banco/papeleta-validacao.ts`, trigger de imutabilidade (migration 0034), tela `/banco/[token]` e pela conta. Segundo líbero incluído. |
 | 3 | Súmula eletrônica (regras em tempo real) | ✅ | Motor `src/lib/regras-volei/**`, log imutável, `lancar/page.tsx`, offline-first atrás de flag. |
-| 3b | "Súmula oficial sai em **PDF**" | 🟡 | Existe página A4 para **imprimir** (`/sumula/[token]/imprimir`) e salvar como PDF pelo navegador; **não gera arquivo PDF no servidor** nem assinatura digital. Falta o PDF de verdade e modelo fiel ao da CBV. |
+| 3b | "Súmula oficial sai em **PDF**" | 🟡 | **R19: existe o arquivo PDF gerado no servidor** (`/api/sumula/[token]/pdf`, atrás de `SUMULA_PDF_ATIVO`) e a página A4 para imprimir. O layout **não foi conferido visualmente** (sem conversor de PDF no ambiente) e não há assinatura digital nem modelo idêntico ao da CBV. |
 | 4 | App de banco (tempo, substituição, desafio) | ✅ | `/banco/[token]` e aba Jogos do Meu Time; pedidos aceitos pelo apontador. |
 | 5 | App do árbitro (consulta em tempo real) | ➖ | Existe `/arbitro/partida/[token]`, mas o dono disse que **não precisa**. Não remover `arbitro-access.ts` (o apontador usa). |
 | 6 | Placar ao vivo (telão, site, overlay) | ✅ | `/ao-vivo/[id]`, `/placar/[id]?fundo=transparente` (overlay), `/partidas/[id]/ao-vivo`. |
@@ -53,7 +53,7 @@ Legenda: ✅ feito · 🟡 parcial · ❌ não feito · ➖ fora do escopo (deci
 | Cópia própria da lista (mudar o banco não altera a inscrição enviada) | ✅ | `InscricaoAtleta`. |
 | **Depois do prazo, troca vira pedido** aprovado pelo organizador | ✅ | R17: `src/lib/pedido-troca/**`, rotas `meu-time/inscricoes/[id]/pedidos-troca` e `organizador/pedidos-troca/[id]/decidir`; teste `elenco-pedido-troca.test.ts`. Antes do prazo a troca é livre. |
 | Atleta não pode estar em dois times da mesma competição | ✅ | Bloqueio na inscrição. |
-| Pagamento (Pix/cartão) e aceite do regulamento | 🟡 | Regulamento: sim. Pagamento: existe `PAGAMENTO_HABILITADO` e um endpoint de preço, mas está **desligado**, o webhook foi desativado por segurança e a confirmação existente é só a simulada. **Pagamento por comprovante não existe no código** (só aparece no relatório 08). |
+| Pagamento (Pix/cartão) e aceite do regulamento | 🟡 | Regulamento: sim. **Pix manual com comprovante (R19): feito no código**, desligado por flag (`PAGAMENTO_COMPROVANTE_ATIVO`), sem gateway. **Cartão e Pix automático: não existem** (o webhook legado foi desativado por segurança). |
 | Papeleta usa os atletas da inscrição aprovada | ✅ | Banco por conta depende do vínculo equipe legada ↔ time (R14b). |
 
 ### Visão do organizador
@@ -97,8 +97,8 @@ Legenda: ✅ feito · 🟡 parcial · ❌ não feito · ➖ fora do escopo (deci
 
 - **Implementado e funcionando só na lógica:** o núcleo do jogo (súmula, rotação, papeleta, banco, placar), o Meu Time, a inscrição (automática ou com aprovação), os convites, a importação, o clube, a LGPD de menores e a segurança; e, desde as rodadas 16 a 18, o login sem senha com troca de perfil, o elenco completo (foto, documento, CPF, regras de elenco e pedido de troca), o painel de inscrições do organizador, explorar competições e as notificações por vários canais. Tudo atrás de flag, desligado, sem migration aplicada e sem ter sido aberto num navegador.
 - **O que ainda falta do MD, em ordem de impacto:**
-  1. PDF oficial da súmula gerado no servidor (hoje só imprimir ou salvar como PDF pelo navegador) e exportação do painel de inscrições em PDF.
-  2. Pagamento (Pix/cartão ou por comprovante): hoje desligado de propósito, só existe a confirmação simulada.
+  1. Conferir o PDF da súmula gerado no servidor (layout, equipes lado a lado, logotipo) e a exportação do painel de inscrições em PDF (hoje só CSV).
+  2. Pagamento por cartão e Pix automático (o Pix manual com comprovante já existe, desligado por flag).
   3. Comprovar na prática o que depende de terceiros: provedor de WhatsApp, push (`VAPID_*`), Google no Supabase Auth e o cron de lembretes (nada agendado).
   4. Protótipo sem primeiro acesso, explorar competições e assistente de inscrição.
   5. Uso dos papéis da equipe do organizador (financeiro, arbitragem) nas telas do painel.
