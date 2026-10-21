@@ -167,5 +167,21 @@ Decisão do dono: líder e banco da equipe são UM acesso (login do time); cada 
 - **Migrations pendentes 0043** (`SolicitacaoInscricao`, `CategoriaCampeonato.modoInscricao`) **e 0044** (atletas escolhidos na solicitação).
 - Itens abertos da rodada 14 estão em `docs/FALTA-FAZER.md` (seção 5).
 
+## Rodadas 15 a 19 — líder único, login sem senha, elenco completo, painel, notificações, PDF e pagamento (já na branch)
+Decisões do dono desta fase: um perfil só para o time (líder, inclui o banco); inscrição por categoria automática ou com aprovação; **só quadra, sem scout nem árbitro, sem CNPJ**; sem gateway de pagamento (Pix manual com comprovante).
+- **R15 — inscrição dentro do líder** (`INSCRICAO_VIA_MEU_TIME_ATIVO`): os links do organizador viram porta de entrada para o Meu Time; `/capitao` redireciona; paridade em `docs/analise/30`.
+- **R16 — login sem senha** (`LOGIN_SEM_SENHA_ATIVO`): código de 6 dígitos por e-mail (e WhatsApp só para telefone já cadastrado), Google via Supabase Auth, troca de perfil, onboarding. Migrations 0045–0047. Detalhes e variáveis no `.env.example`.
+- **R17 — elenco completo** (`ELENCO_COMPLETO_ATIVO`): upload assinado de escudo, foto e documento; CPF e telefone cifrados (em `AtletaDocumento`) com leitura só mascarada; dados do time (e-mail, telefone, cores, escudo; sem CNPJ); regras de elenco com modelos (FIVB, CBV, amador livre, personalizado; valores sem fonte marcados `[M]`); pedido de troca depois do prazo. Migrations 0048–0050.
+- **R18 — painel, explorar, notificações** (`PAINEL_INSCRICOES_ATIVO`, `EXPLORAR_COMPETICOES_ATIVO`, `NOTIFICACOES_MULTICANAL_ATIVO`): estados Em análise e Lista de espera (promoção automática), pedir correção com comentário, exportação CSV sem PII, equipe do organizador com papéis, vitrine com selo de elegibilidade (valor e cidade da competição NÃO têm fonte no banco: vêm vazios), avisos por e-mail, WhatsApp e push sem conteúdo, lembretes (prazo 48 h, jogo amanhã, tabela publicada). Migrations 0051–0053. Os crons `/api/cron/notificacoes` e `/api/cron/lembretes` NÃO estão agendados.
+- **R19 — PDF e pagamento** (`SUMULA_PDF_ATIVO`, `PAGAMENTO_COMPROVANTE_ATIVO`): PDF da súmula gerado no servidor sem biblioteca (layout nunca visto: sem conversor no ambiente); Pix manual com comprovante confirmado pelo organizador (aprovar exige pagamento confirmado ou isento). Migrations 0054–0055. Seed fictício que roda em banco vazio, README e CHANGELOG atualizados, inventário de rotas em `docs/analise/32` com teste.
+- **Total de migrations pendentes: 55** (0001–0055, **sem a 0038**). Ordem e ensaio em `docs/analise/16`.
+- **Novas variáveis:** `.env.example` (login sem senha, elenco, painel, explorar, notificações, VAPID, `CRON_SECRET`, PDF, pagamento).
+
+Abertos depois da rodada 19 (lista completa em `docs/FALTA-FAZER.md` e `docs/analise/31`):
+- Nada das rodadas 9 a 19 foi aberto num navegador, e nenhuma migration rodou num Postgres. O PDF não teve o layout conferido.
+- Falta agendar os crons e o expurgo, gerar as chaves VAPID e `CRON_SECRET`, e configurar Google (OAuth no Supabase) e o webhook de WhatsApp.
+- Telefone para WhatsApp vem do cadastro da conta (texto); falta armazenamento cifrado próprio. Valor e cidade da competição sem coluna. Cartão e Pix automático não existem.
+- O conselho (`founder/board.md`) votou 3 FUND IF, nota média 4,7: o risco é nunca ter operado um campeonato real. Próximo passo de negócio: piloto pequeno com observação em quadra.
+
 ## Regras do projeto
 Fluxo: `fix/…`, `feat/…`, `docs/…` → `teste-integrado`/`cursor-teste` → `main`. Inscrição por categoria: modo AUTOMATICA (padrão) ou APROVACAO (organizador aprova), escolhido pelo organizador; link de convite continua para competição privada. Validação sempre no servidor. Isolamento entre organizadores. `CLAUDE.md` e `docs/analise/DECISOES-FASE-0.md` são a referência.

@@ -83,7 +83,7 @@ Quais rotas cada flag liga, e quem as acessa: `docs/analise/32-inventario-api.md
 
 `LGPD_CHAVE_CIFRA` (32 bytes em base64) é obrigatória para gravar dados pessoais no Meu Time; fica só no servidor, nunca com `NEXT_PUBLIC_`. Mudou uma flag `NEXT_PUBLIC_`? Faça novo build.
 
-Migrations pendentes 0033 a 0041: só em banco de **preview** (nunca produção), uma por vez, na ordem do número, com a reversão à mão. Ordem: 0033, 0034, 0035 (`PedidoBanco`), 0036 e 0037 (precisam de 0024 e 0025), 0039, 0040 e por fim 0041 (**depende da 0035**; aborta se faltar). A 0038 (`ClubeEquipe`) NÃO é aplicada: é redundante com `TimeClube.clubeId`. Detalhes em `docs/analise/16-plano-aplicacao-migrations.md`.
+Migrations pendentes (0001 a 0055, sem a 0038): só em banco de **preview** (nunca produção), uma por vez, na ordem do número, com a reversão à mão. Ordem: 0033, 0034, 0035 (`PedidoBanco`), 0036 e 0037 (precisam de 0024 e 0025), 0039, 0040 e por fim 0041 (**depende da 0035**; aborta se faltar). A 0038 (`ClubeEquipe`) NÃO é aplicada: é redundante com `TimeClube.clubeId`. Detalhes em `docs/analise/16-plano-aplicacao-migrations.md`.
 
 Rodada 14b: ao inscrever um time do Meu Time (automática ou aprovada pelo organizador) o servidor cria ou reaproveita a `Equipe` legada (mesmo nome, campeonato e categoria), copia o elenco para `Jogador` e grava `Inscricao.equipeLegadoId`. Inscrições antigas sem o vínculo são corrigidas ao listar `GET /api/meu-time/jogos` (até 10 por chamada) e ao gerar grupos e calendário. Migration 0044 (opcional, depois da 0043): `SolicitacaoInscricao.atletasEscolhidos`, usada quando o líder envia `atletas` em categoria com aprovação. Teste: `npm run test:equipe-legada`.
 

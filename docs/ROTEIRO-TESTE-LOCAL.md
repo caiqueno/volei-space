@@ -154,6 +154,40 @@ Ligue `INSCRICAO_VIA_MEU_TIME_ATIVO=1` e `NEXT_PUBLIC_INSCRICAO_VIA_MEU_TIME_ATI
 - Atenção: **fotos, documentos e escudo** ainda não têm upload no Meu Time (ver `docs/analise/30-paridade-capitao-lider.md`). Anote se isso impede completar algum passo.
 - Atenção: o cadastro de equipe ainda pode gerar uma **candidatura pendente**; confira se isso trava o Meu Time.
 
+## 12. Login sem senha e perfis (rodada 16)
+Ligue `LOGIN_SEM_SENHA_ATIVO=1`, `NEXT_PUBLIC_LOGIN_SEM_SENHA_ATIVO=1` e, só em desenvolvimento, `LOGIN_CODIGO_DEV_CONSOLE=1` (o código aparece no console do `npm run dev`). Exige as migrations 0045 a 0047.
+1. [ ] `/login` mostra **"Entrar com código"** e a opção "Prefiro usar senha". O e-mail do administrador **não** entra por código (só por senha).
+2. [ ] Peça o código com um e-mail novo: a resposta é a mesma de um e-mail que existe. Digite o código do console: **expira em 10 min**, serve **uma vez** e bloqueia depois de 5 erros.
+3. [ ] E-mail sem conta cai no **onboarding** "O que você quer fazer hoje?" (cadastrar time, organizar, convite de atleta), sem painel vazio.
+4. [ ] Conta com líder e organizador: aparece "Como você quer entrar hoje?" e o **seletor de perfil** troca entre os dois.
+5. [ ] Navegação do líder: **Início · Meu Time · Competições · Jogos · Perfil**.
+6. [ ] Google e WhatsApp: só testáveis depois de configurar (ver `.env.example`).
+
+## 13. Elenco completo e pedido de troca (rodada 17)
+Ligue `ELENCO_COMPLETO_ATIVO=1` e `NEXT_PUBLIC_ELENCO_COMPLETO_ATIVO=1`. Exige as migrations 0048 a 0050 e `LGPD_CHAVE_CIFRA`.
+1. [ ] Atleta: envie **foto de rosto** e **documento** (foto ou PDF); CPF, telefone e documento aparecem **só mascarados** depois de salvos. CPF inválido e CPF repetido no mesmo time são recusados.
+2. [ ] Dados do time: e-mail, telefone, **cores** e **escudo** (sem CNPJ).
+3. [ ] Organizador, parametrização > Elenco: escolha um **modelo** (FIVB, CBV, amador livre) e ajuste mínimo, máximo, líberos, faixa de nascimento, documentos exigidos e **prazo de troca**. Confira o selo "Valores a confirmar".
+4. [ ] A inscrição respeita a regra e a prontidão do time diz "X atletas sem documento/foto/CPF".
+5. [ ] Depois do prazo, o líder usa **"Pedir troca"**; o organizador aprova ou recusa em `/painel/pedidos-troca`; a aprovação muda a lista da inscrição.
+
+## 14. Painel de inscrições, explorar e notificações (rodada 18)
+Ligue `PAINEL_INSCRICOES_ATIVO`, `EXPLORAR_COMPETICOES_ATIVO`, `NOTIFICACOES_MULTICANAL_ATIVO` e as `NEXT_PUBLIC_` correspondentes. Exige as migrations 0051 a 0053.
+1. [ ] `/painel/inscricoes`: abas Em análise, Pendência, Lista de espera, Aprovadas e Recusadas; aprovar em um clique e em lote; **Pedir correção** com comentário; o líder responde pela tela da inscrição.
+2. [ ] Categoria com poucas vagas: aprovar além do limite vai para a **lista de espera**; ao liberar uma vaga o primeiro da fila é promovido e avisado.
+3. [ ] **Exportar planilha** abre no Excel com acentos e **sem CPF nem telefone**.
+4. [ ] `/painel/equipe`: convide um membro com papel Financeiro ou Arbitragem; ele **não** consegue decidir inscrição.
+5. [ ] Líder, **Competições**: cartões com selo ✅/⚠️/⛔ e o motivo, filtros e busca. Valor aparece como "Valor a combinar" (sem fonte no banco) e a cidade pode vir vazia.
+6. [ ] Preferências de aviso por canal; "Ativar avisos neste aparelho" só pede permissão **depois do clique**. Push, e-mail e WhatsApp reais só funcionam com as chaves e os crons configurados.
+
+## 15. Pagamento por comprovante e PDF da súmula (rodada 19)
+Ligue `PAGAMENTO_COMPROVANTE_ATIVO`, `SUMULA_PDF_ATIVO` e as `NEXT_PUBLIC_`. Exige as migrations 0054 e 0055.
+1. [ ] Organizador, parametrização > Pagamento: bloco **Pix com comprovante** (valor, chave, beneficiário, instruções). A chave Pix **não aparece** para quem não está inscrito na categoria.
+2. [ ] Líder: no passo "Revisar e enviar" aparece o valor; depois de enviar, aparecem a chave (com **Copiar**) e o campo de **comprovante**.
+3. [ ] Organizador: **Ver comprovante** abre um link que expira em 60 s; **Confirmar**, **Recusar** (com motivo) e **Isentar**.
+4. [ ] **Aprovar** a inscrição sem pagamento confirmado é bloqueado com a explicação.
+5. [ ] PDF: em `/sumula/[token]/imprimir`, **Baixar PDF** (token do jogo, não o id público). **Abra o arquivo e confira o layout** (acentos, quadro de pontos, assinaturas). É a primeira vez que alguém o vê.
+
 ## Como relatar
 Para cada ❌: **seção/passo**, o que você fez, o que apareceu (texto ou print **sem dados reais**), e a mensagem do terminal. O Claude corrige e devolve a lista do que mudou. Itens ⏭ também importam: dizem o que ficou sem teste.
 
