@@ -5,6 +5,7 @@ import { registrationWindowDecision } from '@/lib/team-registration-draft'
 import { ErroMeuTime, idValido, lerDados } from '@/lib/meu-time/acesso'
 import { paraRegra } from '@/lib/meu-time/inscricao'
 import { elencoCompletoAtivo } from '@/lib/meu-time/elenco'
+import { pagamentoComprovanteAtivo } from '@/lib/pagamento-comprovante/config'
 import { documentosExigidosNormalizados, type Naipe } from '@/lib/meu-time/regras'
 
 export type RegrasDaCategoria = {
@@ -20,6 +21,8 @@ export type RegrasDaCategoria = {
   inscricoesAbertas: boolean
   documentosExigidos?: string[]
   prazoTrocaEm?: string | null
+  /** R19 (PAGAMENTO_COMPROVANTE_ATIVO): só o valor. A chave Pix NUNCA sai aqui; aparece depois da inscrição. */
+  pagamento?: { exige: boolean; valorCentavos: number; pix: null }
 }
 
 function ano(data: unknown): number | null {
@@ -51,6 +54,17 @@ export async function lerRegrasDaCategoria(categoriaId: string): Promise<RegrasD
   // Configuração de elegibilidade ausente (coluna ou tabela): categoria sem naipe definido, como na inscrição.
   const genero = configuracao.error ? null : (configuracao.data as { genero?: string } | null)?.genero
 
+  // Cobrança da categoria (só o valor, sem a chave Pix). Coluna ausente ou erro: sem o campo, a tela não mostra nada.
+  let pagamento: RegrasDaCategoria['pagamento']
+  if (pagamentoComprovanteAtivo()) {
+    const cobranca = await supabase.from('CategoriaConfiguracao').select('pagamentoModo,valorInscricaoCentavos').eq('categoriaCampeonatoId', categoria.id).maybeSingle()
+    if (!cobranca.error) {
+      const d = cobranca.data as { pagamentoModo?: string; valorInscricaoCentavos?: number | null } | null
+      const valorCentavos = Number(d?.valorInscricaoCentavos ?? 0)
+      pagamento = { exige: d?.pagamentoModo === 'COMPROVANTE' && valorCentavos > 0, valorCentavos, pix: null }
+    }
+  }
+
   return {
     categoriaId: categoria.id,
     nome: categoria.nome,
@@ -66,5 +80,6 @@ export async function lerRegrasDaCategoria(categoriaId: string): Promise<RegrasD
     ...(elencoCompletoAtivo()
       ? { documentosExigidos: documentosExigidosNormalizados(regra.documentosExigidos), prazoTrocaEm: regra.prazoTrocaEm ?? null }
       : {}),
+    ...(pagamento ? { pagamento } : {}),
   }
 }

@@ -172,8 +172,7 @@ export async function resumosDePagamento(inscricoes: Array<{ id: string; categor
 // --- Notificações --------------------------------------------------------------------------------------
 
 function avisar(usuarioId: string, tipo: TipoNotificacaoPagamento, titulo: string, mensagem: string, dados: Record<string, unknown>) {
-  // A união TipoNotificacao (meu-time-fase2) ainda não lista os tipos do R19; a tabela e os canais aceitam texto livre.
-  return notificar(usuarioId, tipo as unknown as TipoNotificacao, titulo, mensagem, dados)
+  return notificar(usuarioId, tipo, titulo, mensagem, dados)
 }
 
 async function nomesDaInscricao(inscricao: InscricaoParaPagamento) {

@@ -23,6 +23,10 @@ export type TipoNotificacao =
   | 'PRAZO_INSCRICAO'
   | 'JOGO_AMANHA'
   | 'TABELA_PUBLICADA'
+  // R19: pagamento por Pix com comprovante.
+  | 'COMPROVANTE_ENVIADO'
+  | 'PAGAMENTO_CONFIRMADO'
+  | 'PAGAMENTO_RECUSADO'
 
 export type Notificacao = {
   id: string
