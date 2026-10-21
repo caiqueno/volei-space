@@ -62,6 +62,25 @@ Tudo vem desligado. Em `.env.local`, descomente (seção própria em `.env.examp
 | Eventos da súmula | `SUMULA_EVENTOS_ATIVO`, `SUMULA_SERVIDOR_SOMBRA` | `NEXT_PUBLIC_SUMULA_EVENTOS_ATIVO` |
 | Protótipos | nenhuma | `NEXT_PUBLIC_PROTOTIPO_ATIVO` |
 
+### Rodadas 15 a 18: módulos acrescentados
+
+Mesma regra: tudo desligado, valor exato `1`, reinício do servidor (e novo build para `NEXT_PUBLIC_*`). Exceto o login sem senha, todos exigem também `MEU_TIME_ATIVO`.
+
+| Módulo | Servidor | Tela | Observação |
+| --- | --- | --- | --- |
+| Inscrição pelo Meu Time (porta de entrada dos links do organizador, R15) | `INSCRICAO_VIA_MEU_TIME_ATIVO` | `NEXT_PUBLIC_INSCRICAO_VIA_MEU_TIME_ATIVO` | Exige `INSCRICAO_SOLICITACAO_ATIVO`; a variável de servidor ainda não consta no `.env.example` |
+| Login sem senha e troca de perfil (R16) | `LOGIN_SEM_SENHA_ATIVO`, `GOOGLE_LOGIN_ATIVO` | `NEXT_PUBLIC_LOGIN_SEM_SENHA_ATIVO`, `NEXT_PUBLIC_LOGIN_WHATSAPP_ATIVO` | Migrations 0045 a 0047. Em desenvolvimento use `LOGIN_CODIGO_DEV_CONSOLE=1` (o código sai no terminal); WhatsApp exige `WHATSAPP_WEBHOOK_URL` e `LGPD_CHAVE_CIFRA` |
+| Elenco completo: foto, documento, CPF, regras de elenco, pedido de troca (R17) | `ELENCO_COMPLETO_ATIVO` | `NEXT_PUBLIC_ELENCO_COMPLETO_ATIVO` | Migrations 0048 a 0050, os três buckets do Storage, `LGPD_CHAVE_CIFRA` e, opcional, `LGPD_PEPPER_HASH` |
+| Painel de inscrições do organizador e equipe do organizador (R18) | `PAINEL_INSCRICOES_ATIVO` | `NEXT_PUBLIC_PAINEL_INSCRICOES_ATIVO` | Migrations 0051 e 0052 |
+| Explorar competições com selo de elegibilidade (R18) | `EXPLORAR_COMPETICOES_ATIVO` | `NEXT_PUBLIC_EXPLORAR_COMPETICOES_ATIVO` | Exige `INSCRICAO_SOLICITACAO_ATIVO` |
+| Notificações por e-mail, WhatsApp e push (R18) | `NOTIFICACOES_MULTICANAL_ATIVO` | `NEXT_PUBLIC_NOTIFICACOES_MULTICANAL_ATIVO` | Migration 0053; `CRON_SECRET` e `VAPID_*` para os envios agendados e o push; nada está agendado |
+
+Quais rotas cada flag liga, e quem as acessa: `docs/analise/32-inventario-api.md`. Migrations 0045 a 0053 seguem o mesmo cuidado das anteriores (preview, uma por vez, na ordem do doc 16).
+
+### Dados de exemplo (seed)
+
+`supabase/seed.sql` cria, num banco **de desenvolvimento**, 1 liga pública fictícia com 2 categorias (Masculino e Feminino), 6 equipes, 48 jogadores com nomes inventados e 6 jogos (3 encerrados, 1 em andamento, 2 agendados). Cole no SQL Editor; pode repetir sem duplicar. Os ids ficam na faixa 9001, 9101 a 9106 e 9201 a 9206. Não cria administrador (veja `docs/ROTEIRO-TESTE-LOCAL.md`, seção 0.4) nem times do Meu Time. Conferência estática: `npm run test:seed`.
+
 `LGPD_CHAVE_CIFRA` (32 bytes em base64) é obrigatória para gravar dados pessoais no Meu Time; fica só no servidor, nunca com `NEXT_PUBLIC_`. Mudou uma flag `NEXT_PUBLIC_`? Faça novo build.
 
 Migrations pendentes 0033 a 0041: só em banco de **preview** (nunca produção), uma por vez, na ordem do número, com a reversão à mão. Ordem: 0033, 0034, 0035 (`PedidoBanco`), 0036 e 0037 (precisam de 0024 e 0025), 0039, 0040 e por fim 0041 (**depende da 0035**; aborta se faltar). A 0038 (`ClubeEquipe`) NÃO é aplicada: é redundante com `TimeClube.clubeId`. Detalhes em `docs/analise/16-plano-aplicacao-migrations.md`.

@@ -4,6 +4,44 @@ Autor: agente `devops-infra`. Data: 2026-10-16.
 Fontes lidas: `docs/PROMPT-volei-space.md` (seção "Fluxo de correções e publicações"), `docs/analise/01-diagnostico-volei-space.md`, `package.json`, `.env.example`, `setup-db.mjs`, `vercel.json`, `supabase/migrations/`, `COMO-TESTAR.txt`, `src/lib/supabase-env.ts`, `src/lib/supabase-admin.ts`, `src/lib/admin-access.ts`.
 Nada foi instalado, executado ou conectado a Supabase/Vercel. Nenhuma ação em produção. Todo comando abaixo é proposta para aprovação.
 
+## Atualização da Rodada 19 (2026-10-21): o que mudou desde a proposta
+
+Estado verificado por leitura do repositório (nada foi executado, nenhum segredo usado).
+
+| Item da proposta | Estado hoje |
+|---|---|
+| `.nvmrc`, `engines`, `CHANGELOG.md`, `.github/workflows` (`ci.yml`, `seguranca.yml`, `testes.yml`), `supabase/config.toml` | Existem |
+| `scripts/setup.mjs` (`npm run setup`) | Existe; aceita Node mais novo que o `.nvmrc` com aviso e recusa só versão menor; **não sobe Docker** |
+| `scripts/reset-db.mjs` (`npm run reset-db`) | Existe; recusa qualquer alvo remoto |
+| `supabase/seed.sql` | Reescrito na R19: roda num banco vazio, ids explícitos, idempotente, só dados inventados; coberto por `npm run test:seed` |
+| Nome do pacote | `package.json` agora é `volei-space` (continua `0.1.0`). `package-lock.json` ainda diz `luva-platform` nas duas primeiras entradas: regenerar com `npm install --package-lock-only` quando o dono autorizar mexer em dependências |
+| Baseline do schema (1.3) | **Ainda não existe**: sem ela, `supabase db reset` e um projeto Supabase vazio não reproduzem o banco (`docs/analise/22`) |
+| `docker-compose.yml` | **Não será criado (decisão do dono)** |
+
+### Decisão: sem `docker-compose.yml`
+
+O PROMPT pedia um `docker-compose.yml`. O dono optou por **usar o projeto Supabase de DESENVOLVIMENTO na nuvem** ou, quando precisar de um banco descartável, o **Supabase CLI local**. Motivos:
+
+1. O app usa a API do Supabase (PostgREST, Auth, Storage, Realtime), não só o Postgres. Um contêiner de Postgres puro não faz o app rodar (já descartado na seção 1.1).
+2. O Supabase CLI já sobe a pilha completa (cerca de dez contêineres) com versões compatíveis. Um compose escrito à mão seria uma cópia que envelhece a cada versão da CLI.
+3. A pessoa nova só precisa de Node, `.env.local` e acesso ao projeto de dev; Docker passa a ser opcional.
+
+As duas alternativas suportadas:
+
+| | A. Projeto de DESENVOLVIMENTO na nuvem (escolhida) | B. Supabase CLI local |
+|---|---|---|
+| Pré-requisitos | Node 22+, `.env.local` com os valores do dev | Node 22+, Docker Desktop, Supabase CLI |
+| Banco | Compartilhado, já com o schema do dono; migrations e seed pelo SQL Editor | Descartável; `supabase start` e `npm run reset-db` |
+| Risco | Mexer em dado dos colegas; **nunca** apontar para produção (trava em `supabase-env.ts` e `SUPABASE_HOSTS_PROIBIDOS`) | Exige baseline (não existe) e o ajuste do achado 1 desta página (o app só aceita `*.supabase.co` com https) |
+| Tempo para começar | 10 a 12 minutos com o projeto pronto | Longo na primeira vez (imagens Docker de alguns GB) e hoje incompleto por falta de baseline |
+| Quando usar | Padrão do dia a dia | Teste destrutivo e isolado, depois que a baseline existir |
+
+Se o dono mudar de ideia, o compose só valeria como orquestração da CLI (`supabase start`), nunca como substituto dela.
+
+Passo a passo para quem chega: `README.md`, seção "Início rápido".
+
+---
+
 ## 0. Achados que mudam o plano
 
 1. **O app recusa Supabase local hoje.** `src/lib/supabase-env.ts` exige `https:` e host terminando em `.supabase.co`. O `supabase start` expõe `http://127.0.0.1:54321`, então o app responderia "NEXT_PUBLIC_SUPABASE_URL inválida". Precisa de uma exceção pequena e segura (ver 1.4). Sem ela, o banco local não funciona.

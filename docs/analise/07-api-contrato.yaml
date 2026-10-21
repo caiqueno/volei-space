@@ -102,6 +102,287 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Erro' }
+  # ---- Rodada 19: rotas das rodadas 15 a 18 (OpenAPI mínimo, só resumo, flag e acesso; sem schema de corpo). ----
+  # Todas atrás de flag (desligada = 404). Contrato do Meu Time: 20-contrato-meu-time.yaml. Todas as rotas: 32-inventario-api.md.
+  /api/auth/codigo/solicitar:
+    post:
+      summary: "Pede código de acesso por e-mail ou WhatsApp (login sem senha)"
+      x-flag: "LOGIN_SEM_SENHA_ATIVO"
+      x-acesso: "público, com limite por IP e destino"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/auth/codigo/confirmar:
+    post:
+      summary: "Confirma o código e abre a sessão (cookie httpOnly)"
+      x-flag: "LOGIN_SEM_SENHA_ATIVO"
+      x-acesso: "público"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/auth/google/inicio:
+    get:
+      summary: "Inicia o login com Google"
+      x-flag: "LOGIN_SEM_SENHA_ATIVO + GOOGLE_LOGIN_ATIVO"
+      x-acesso: "público"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/auth/google/retorno:
+    get:
+      summary: "Retorno do Google: abre a sessão"
+      x-flag: "LOGIN_SEM_SENHA_ATIVO + GOOGLE_LOGIN_ATIVO"
+      x-acesso: "público"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/auth/perfis:
+    get:
+      summary: "Perfis da mesma pessoa (líder, organizador, banco)"
+      x-flag: "LOGIN_SEM_SENHA_ATIVO"
+      x-acesso: "sessão aberta"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/auth/perfil/trocar:
+    post:
+      summary: "Troca o perfil ativo da sessão"
+      x-flag: "LOGIN_SEM_SENHA_ATIVO"
+      x-acesso: "sessão aberta"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/meu-time/competicoes:
+    get:
+      summary: "Vitrine de competições com selo de elegibilidade calculado no servidor"
+      x-flag: "EXPLORAR_COMPETICOES_ATIVO + INSCRICAO_SOLICITACAO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/meu-time/uploads/assinar:
+    post:
+      summary: "Link assinado para enviar escudo, foto ou documento do atleta"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/meu-time/uploads/confirmar:
+    post:
+      summary: "Confirma o envio e grava o caminho do arquivo"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/uploads/assinar:
+    post:
+      summary: "Link assinado de envio (organizador ou líder)"
+      x-flag: "ELENCO_COMPLETO_ATIVO"
+      x-acesso: "organizador ou líder"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/uploads/documento:
+    get:
+      summary: "Link temporário para ver documento de atleta (dado pessoal)"
+      x-flag: "ELENCO_COMPLETO_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/regras-elenco/modelos:
+    get:
+      summary: "Modelos prontos de regra de elenco (FIVB, CBV, amador livre)"
+      x-flag: "ELENCO_COMPLETO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/meu-time/inscricoes/{id}/pedidos-troca:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      summary: "Pedidos de troca de atleta depois do prazo"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + ELENCO_COMPLETO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+    post:
+      summary: "Abre pedido de troca (aprovado pelo organizador)"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + ELENCO_COMPLETO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/meu-time/inscricoes/{id}/pedidos-troca/{pedidoId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: pedidoId, in: path, required: true, schema: { type: string } }
+    delete:
+      summary: "Cancela pedido de troca pendente"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + ELENCO_COMPLETO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/pedidos-troca:
+    get:
+      summary: "Fila de pedidos de troca do organizador"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + ELENCO_COMPLETO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/pedidos-troca/{id}/decidir:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      summary: "Aprova ou recusa pedido de troca"
+      x-flag: "INSCRICAO_SOLICITACAO_ATIVO + ELENCO_COMPLETO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/inscricoes:
+    get:
+      summary: "Painel de inscrições (filtros, análise e lista de espera)"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/inscricoes/{inscricaoId}:
+    parameters:
+      - { name: inscricaoId, in: path, required: true, schema: { type: string } }
+    get:
+      summary: "Detalhe da inscrição (elenco, comissão, histórico)"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/inscricoes/{inscricaoId}/decidir:
+    parameters:
+      - { name: inscricaoId, in: path, required: true, schema: { type: string } }
+    post:
+      summary: "Aprova, recusa, põe em análise ou espera, ou pede correção"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/inscricoes/lote:
+    post:
+      summary: "Decide várias inscrições de uma vez"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/inscricoes/exportar:
+    get:
+      summary: "Exporta as inscrições em planilha CSV"
+      x-flag: "PAINEL_INSCRICOES_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/meu-time/inscricoes/{id}/comentarios:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      summary: "Conversa de correção da inscrição"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + INSCRICAO_SOLICITACAO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+    post:
+      summary: "Responde ao pedido de correção"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + INSCRICAO_SOLICITACAO_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/organizador/equipe:
+    get:
+      summary: "Equipe do organizador (papéis)"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+    post:
+      summary: "Convida membro da equipe do organizador"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+    delete:
+      summary: "Remove membro da equipe do organizador"
+      x-flag: "PAINEL_INSCRICOES_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "organizador"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/notificacoes/preferencias:
+    get:
+      summary: "Preferências de canal (app, e-mail, WhatsApp, push)"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+    put:
+      summary: "Grava preferências (avisos críticos não desligam)"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/notificacoes/push/assinar:
+    post:
+      summary: "Registra este aparelho para push"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+    delete:
+      summary: "Remove a assinatura de push deste aparelho"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/notificacoes/push/chave:
+    get:
+      summary: "Chave pública do push"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO + MEU_TIME_ATIVO"
+      x-acesso: "líder ou técnico (sessão)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/cron/lembretes:
+    post:
+      summary: "Gera lembretes (prazo em 48 h, jogo amanhã)"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO"
+      x-acesso: "cron: Authorization Bearer CRON_SECRET (GET também aceito)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
+  /api/cron/notificacoes:
+    post:
+      summary: "Despacha notificações pendentes pelos canais"
+      x-flag: "NOTIFICACOES_MULTICANAL_ATIVO"
+      x-acesso: "cron: Authorization Bearer CRON_SECRET (GET também aceito)"
+      responses:
+        '200': { description: Sucesso (data) }
+        '404': { description: Flag desligada ou recurso inexistente }
 components:
   responses:
     Erro:
