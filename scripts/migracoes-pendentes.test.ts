@@ -789,6 +789,75 @@ for (const t of ['NotificacaoEntrega', 'LembreteEnviado', 'PushAssinatura', 'Pre
 }
 assert.ok(!/"Notificacao";/.test(rb53), 'reversão da 0053 não apaga Notificacao (0039)')
 
+// 5o) Rodada 19: pagamento Pix manual com comprovante (0054) e bucket privado do comprovante (0055).
+const r19 = ['202610170054_pagamento_inscricao.sql', '202610170055_bucket_comprovante_pagamento.sql']
+for (const nome of r19) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(sql, /^\s*begin;\s*set\s+local\s+lock_timeout/i, `${nome} deve abrir com begin + lock_timeout`)
+  assert.match(sql, /commit;\s*$/i)
+  assert.ok(!/create\s+policy/i.test(sql), `${nome} não cria policy`)
+  assert.ok(!/\b(truncate|delete\s+from|drop\s+table|drop\s+column)/i.test(sql), `${nome} sem destrutivo`)
+  assert.ok(!/\bgrant\b[^;]*\bto\s+[^;]*\b(anon|authenticated|public)\b/i.test(sql), `${nome} sem grant a anon/authenticated/public`)
+}
+const sql54 = sqlPendente[r19[0]]
+const rb54 = sqlSemComentario(ler(dirRollback, r19[0]))
+assert.match(sql54, /to_regclass\('public\."Inscricao"'\)\s+is\s+null/i)
+assert.match(sql54, /to_regclass\('public\."CategoriaConfiguracao"'\)\s+is\s+null/i)
+const alter54 = /alter\s+table\s+public\."CategoriaConfiguracao"([\s\S]*?);/i.exec(sql54)
+assert.ok(alter54, '0054 altera CategoriaConfiguracao')
+assert.equal((alter54![1].match(/add\s+column/gi) ?? []).length, 5, 'cinco colunas novas')
+assert.equal((alter54![1].match(/add\s+column\s+if\s+not\s+exists/gi) ?? []).length, 5, 'colunas idempotentes')
+assert.match(alter54![1], /"pagamentoModo"\s+text\s+not\s+null\s+default\s+'NENHUM'\s+check\s*\("pagamentoModo"\s+in\s*\('NENHUM',\s*'COMPROVANTE'\)\)/i)
+assert.match(alter54![1], /"valorInscricaoCentavos"\s+integer\s+check\s*\("valorInscricaoCentavos"\s+is\s+null\s+or\s+"valorInscricaoCentavos"\s*>=\s*0\)/i)
+assert.match(alter54![1], /"pixChave"\s+text\s+check\s*\("pixChave"\s+is\s+null\s+or\s+char_length\("pixChave"\)\s*<=\s*140\)/i)
+assert.match(alter54![1], /"pixBeneficiario"\s+text\s+check\s*\("pixBeneficiario"\s+is\s+null\s+or\s+char_length\("pixBeneficiario"\)\s*<=\s*100\)/i)
+assert.match(alter54![1], /"pagamentoInstrucoes"\s+text\s+check\s*\("pagamentoInstrucoes"\s+is\s+null\s+or\s+char_length\("pagamentoInstrucoes"\)\s*<=\s*500\)/i)
+const pag54 = /create\s+table\s+if\s+not\s+exists\s+public\."PagamentoInscricao"\s*\(([\s\S]*?)\n\);/i.exec(sql54)
+assert.ok(pag54, '0054 cria PagamentoInscricao')
+assert.match(pag54![1], /"inscricaoId"\s+uuid\s+not\s+null\s+unique\s+references\s+public\."Inscricao"\(id\)\s+on\s+delete\s+cascade/i)
+assert.match(pag54![1], /"valorCentavos"\s+integer\s+not\s+null\s+check\s*\("valorCentavos"\s*>=\s*0\)/i)
+assert.match(pag54![1], /estado\s+text\s+not\s+null\s+default\s+'PENDENTE'\s+check\s*\(estado\s+in\s*\('PENDENTE',\s*'COMPROVANTE_ENVIADO',\s*'CONFIRMADO',\s*'RECUSADO',\s*'ISENTO'\)\)/i)
+assert.match(pag54![1], /"comprovantePath"\s+text\s+check/i)
+assert.match(pag54![1], /"comprovantePath"\s+!~\s+'\^\[A-Za-z\]\[A-Za-z0-9\+\.-\]\*:'/, 'comprovantePath sem esquema de URL')
+assert.match(pag54![1], /"comprovantePath"\s+!~\s+'\^\[\/\\\\\]'/, 'comprovantePath sem barra inicial')
+assert.match(pag54![1], /"comprovantePath"\s+not\s+like\s+'%\.\.%'/, 'comprovantePath sem ..')
+assert.match(pag54![1], /"motivoRecusa"\s+text\s+check\s*\("motivoRecusa"\s+is\s+null\s+or\s+char_length\("motivoRecusa"\)\s*<=\s*300\)/i)
+assert.match(pag54![1], /check\s*\(estado\s+not\s+in\s*\('CONFIRMADO',\s*'RECUSADO',\s*'ISENTO'\)\s+or\s+"decididoEm"\s+is\s+not\s+null\)/i)
+for (const col of ['"comprovanteEnviadoEm"', '"decididoPor"', '"decididoEm"', '"criadoEm"', '"atualizadoEm"']) {
+  assert.ok(pag54![1].includes(col), `PagamentoInscricao sem ${col}`)
+}
+assert.match(sql54, /index\s+if\s+not\s+exists\s+"PagamentoInscricao_estado_idx"\s+on\s+public\."PagamentoInscricao"\s*\(estado\)/i)
+assert.match(sql54, /alter\s+table\s+public\."PagamentoInscricao"\s+enable\s+row\s+level\s+security/i)
+assert.match(sql54, /revoke\s+all\s+on\s+table\s+public\."PagamentoInscricao"\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql54, /grant\s+select,\s*insert,\s*update,\s*delete\s+on\s+table\s+public\."PagamentoInscricao"\s+to\s+service_role/i)
+assert.ok(!/"Pagamento"/.test(sql54), '0054 não toca o Pagamento legado')
+assert.match(rb54, /drop\s+table\s+if\s+exists\s+public\."PagamentoInscricao"/i)
+for (const col of ['pagamentoModo', 'valorInscricaoCentavos', 'pixChave', 'pixBeneficiario', 'pagamentoInstrucoes']) {
+  assert.match(rb54, new RegExp(`drop\\s+column\\s+if\\s+exists\\s+"${col}"`, 'i'), `reversão da 0054 sem ${col}`)
+}
+assert.ok(!/"Pagamento"\s*;|"Inscricao"\s*;/.test(rb54), 'reversão da 0054 não apaga Pagamento nem Inscricao')
+const sql55 = sqlPendente[r19[1]]
+const rb55 = sqlSemComentario(ler(dirRollback, r19[1]))
+assert.match(
+  sql55,
+  /insert\s+into\s+storage\.buckets[\s\S]*?'comprovante-pagamento',\s*'comprovante-pagamento',\s*false,\s*5242880,\s*array\['image\/jpeg',\s*'image\/png',\s*'image\/webp',\s*'application\/pdf'\]/i,
+  'bucket privado de 5 MB com os quatro MIME',
+)
+assert.match(sql55, /on\s+conflict\s+\(id\)\s+do\s+update\s+set\s+public\s*=\s*false/i, 'upsert idempotente mantém o bucket privado')
+assert.ok(!/public\s*=\s*true/i.test(sql55), '0055 nunca torna público')
+assert.match(sql55, /from\s+pg_policies[\s\S]*?schemaname\s*=\s*'storage'[\s\S]*?comprovante-pagamento/i, '0055 asserta policies')
+assert.match(sql55, /raise\s+exception\s+'policy\(s\) permitem acesso direto a comprovante-pagamento/i)
+assert.ok(!/alter\s+table\s+storage\./i.test(sql55) && !/drop\s+policy/i.test(sql55), '0055 não mexe em storage.objects')
+assert.ok(!/delete\s+from\s+storage/i.test(rb55), 'reversão da 0055 não apaga bucket')
+assert.match(rb55, /set\s+public\s*=\s*false/i)
+assert.match(rb55, /file_size_limit\s*=\s*1\b/i)
+assert.ok(!/public\s*=\s*true/i.test(rb55), 'reversão da 0055 nunca abre o bucket')
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')
