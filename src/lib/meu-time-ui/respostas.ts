@@ -56,7 +56,8 @@ function tipoPorStatus(status: number, corpo?: unknown): TipoFalha {
 const MENSAGENS_POR_CODIGO: Record<string, string> = {
   EQUIPE_DUPLICADA: 'Você já tem um time com esse nome e naipe. Use outro nome ou abra o time que já existe.',
   ATLETA_DUPLICADO: 'Esse atleta já está no time (mesmo nome e nascimento).',
-  MEMBRO_DUPLICADO: 'Essa pessoa já tem acesso a este time.',
+  CPF_DUPLICADO: 'Esse CPF já está cadastrado em outro atleta. Confira se digitou certo.',
+  MEMBRO_DUPLICADO:'Essa pessoa já tem acesso a este time.',
   RESPONSAVEL_FIXO: 'O responsável pelo time não pode ser removido por aqui.',
   JA_INSCRITA: 'Este time já está inscrito nesta categoria.',
   CONFLITO_DE_ELENCO: 'Algum atleta já está em outro time desta categoria. Confira o elenco.',
