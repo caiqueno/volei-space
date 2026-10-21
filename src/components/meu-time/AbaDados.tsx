@@ -70,7 +70,7 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
     setSalvando(true)
     try {
       await cliente.atualizarEquipe(equipe.id, extrasValidados ? { ...resultado.dados, ...extrasValidados.dados } : resultado.dados)
-      if (elenco) setExtras((e) => ({ ...e, cnpj: '', contatoTelefone: '' }))
+      if (elenco) setExtras((e) => ({ ...e, contatoTelefone: '' }))
       await aoAtualizar()
       setEditando(false)
       setSalvo(true)
@@ -97,8 +97,6 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
             <dd>{equipe.escudoUrl ? 'Cadastrado' : 'Ainda sem escudo'}</dd>
             {elenco && (
               <>
-                <dt className="text-sm font-bold text-[var(--vs-muted)]">CNPJ</dt>
-                <dd className="font-mono">{equipe.cnpj || 'Não informado'}</dd>
                 <dt className="text-sm font-bold text-[var(--vs-muted)]">E-mail</dt>
                 <dd className="break-all">{equipe.contatoEmail || 'Não informado'}</dd>
                 <dt className="text-sm font-bold text-[var(--vs-muted)]">Telefone</dt>

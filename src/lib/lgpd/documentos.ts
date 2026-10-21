@@ -1,4 +1,4 @@
-// Validação, normalização, máscara e hash de CPF, CNPJ, telefone e número de documento (R17).
+// Validação, normalização, máscara e hash de CPF, telefone e número de documento (R17).
 // Funções puras (sem banco). O valor em claro só existe aqui dentro do processamento da requisição:
 // o banco recebe o valor CIFRADO (cifrarContato) e um hash HMAC com sal do servidor (para achar duplicidade).
 // As leituras devolvem SÓ a máscara; nenhuma rota devolve CPF, documento ou telefone em claro.
@@ -27,16 +27,6 @@ export function cpfValido(valor: string) {
   const d1 = digitoVerificador(numeros.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2])
   const d2 = digitoVerificador(numeros.slice(0, 10), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2])
   return numeros[9] === d1 && numeros[10] === d2
-}
-
-/** CNPJ numérico com dígitos verificadores. */
-export function cnpjValido(valor: string) {
-  const digitos = soDigitos(valor)
-  if (digitos.length !== 14 || /^(\d)\1{13}$/.test(digitos)) return false
-  const numeros = digitos.split('').map(Number)
-  const d1 = digitoVerificador(numeros.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  const d2 = digitoVerificador(numeros.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  return numeros[12] === d1 && numeros[13] === d2
 }
 
 /** Máscara de CPF: nunca mostra mais que os 2 últimos dígitos. */
@@ -81,9 +71,6 @@ export function mascararDocumentoNumero(valor: string | null | undefined) {
   return `${'*'.repeat(Math.max(limpo.length - 2, 4))}${limpo.slice(-2)}`
 }
 
-export function formatarCnpj(digitos: string) {
-  return digitos.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
-}
 
 /**
  * Sal (pepper) do hash. LGPD_PEPPER_HASH, ou derivado de LGPD_CHAVE_CIFRA quando a primeira não existe.

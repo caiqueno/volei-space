@@ -26,7 +26,6 @@ export const COLUNAS_ELENCO = [
   'documentoPath',
   'fotoRostoEnviadaEm',
   'documentoEnviadoEm',
-  'cnpj',
   'contatoEmail',
   'contatoTelefoneCifrado',
   'corPrimaria',

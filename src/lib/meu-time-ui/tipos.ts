@@ -28,8 +28,7 @@ export type Equipe = {
   cidade: string | null
   naipe: Naipe
   escudoUrl?: string | null
-  /** Elenco completo (R17): CNPJ e telefone chegam mascarados; o servidor nunca devolve o valor em claro. */
-  cnpj?: string | null
+  /** Elenco completo (R17): o telefone chega mascarados; o servidor nunca devolve o valor em claro. */
   contatoEmail?: string | null
   contatoTelefone?: string | null
   corPrimaria?: string | null
@@ -98,7 +97,6 @@ export type EdicaoEquipe = {
   nome: string
   cidade: string | null
   escudoUrl: string | null
-  cnpj?: string | null
   contatoEmail?: string | null
   contatoTelefone?: string | null
   corPrimaria?: string | null

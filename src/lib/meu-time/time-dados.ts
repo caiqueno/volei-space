@@ -1,18 +1,17 @@
-// Dados do time (R17): CNPJ, contato e cores. O telefone de contato é cifrado; as leituras só trazem máscara.
+// Dados do time (R17): contato e cores. O telefone de contato é cifrado; as leituras só trazem máscara.
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { cifrarContato } from '@/lib/lgpd/cifra'
-import { formatarCnpj, mascararCifrado, mascararTelefone, normalizarTelefone, soDigitos } from '@/lib/lgpd/documentos'
+import { mascararCifrado, mascararTelefone, normalizarTelefone } from '@/lib/lgpd/documentos'
 import { ErroMeuTime } from '@/lib/meu-time/acesso'
 import { recursoElencoAusente, indisponivelElenco, lerElenco } from '@/lib/meu-time/elenco'
 import { CAMPOS_DADOS_TIME, editarEquipeElencoSchema } from '@/lib/meu-time/schemas'
 
 const db = supabaseAdmin as any
 
-const COLUNAS = 'cnpj,contatoEmail,contatoTelefoneCifrado,corPrimaria,corSecundaria,escudoPath'
+const COLUNAS = 'contatoEmail,contatoTelefoneCifrado,corPrimaria,corSecundaria,escudoPath'
 
 export type DadosDoTime = {
-  cnpj: string | null
   contatoEmail: string | null
   contatoTelefoneMascarado: string | null
   /** Alias de contatoTelefoneMascarado (nome que a tela lê). Sempre mascarado. */
@@ -26,7 +25,6 @@ export function paraDadosDoTime(linha: any): DadosDoTime {
   const telefone = mascararCifrado(linha?.contatoTelefoneCifrado, mascararTelefone)
   return {
     contatoTelefone: telefone,
-    cnpj: linha?.cnpj ? formatarCnpj(String(linha.cnpj)) : null,
     contatoEmail: linha?.contatoEmail ?? null,
     contatoTelefoneMascarado: telefone,
     corPrimaria: linha?.corPrimaria ?? null,
@@ -59,7 +57,6 @@ export async function conferirColunasDoTime(timeId: string) {
 
 export async function gravarDadosDoTime(timeId: string, entrada: EntradaTime): Promise<DadosDoTime> {
   const campos: Record<string, unknown> = {}
-  if (entrada.cnpj !== undefined) campos.cnpj = entrada.cnpj === null ? null : soDigitos(entrada.cnpj)
   if (entrada.contatoEmail !== undefined) campos.contatoEmail = entrada.contatoEmail === null ? null : entrada.contatoEmail.toLowerCase()
   if (entrada.contatoTelefone !== undefined) {
     if (entrada.contatoTelefone === null) campos.contatoTelefoneCifrado = null

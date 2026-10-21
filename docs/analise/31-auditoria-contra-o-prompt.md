@@ -34,7 +34,7 @@ Legenda: ✅ feito · 🟡 parcial · ❌ não feito · ➖ fora do escopo (deci
 |---|---|---|
 | Criar time em 30 s (nome, cidade, naipe, escudo) | ✅ | `CriarTime`. |
 | Abas Atletas, Comissão técnica, Dados do time, Inscrições | ✅ | `DetalheTime.tsx`. |
-| Dados do time: CNPJ, contato, cores, outros responsáveis | 🟡 | Só **membros com acesso** existem. **CNPJ, contato e cores do uniforme não existem** no Meu Time (conferido por busca no código). |
+| Dados do time: CNPJ, contato, cores, outros responsáveis | 🟡 | Só **membros com acesso** existem. **CNPJ foi retirado do escopo por decisão do dono** ("não preciso de CNPJ"); contato e cores do uniforme seguem na Rodada 17 (migration 0049 pendente). |
 | Colar lista, importar planilha, link de convite, um por um | ✅ | `ImportarAtletas`, convites, CSV (R10). |
 | Indicador de prontidão ("9 atletas, 2 sem documento") | ✅ | Prontidão no Meu Time. |
 | Clube com várias equipes | ✅ | Clube e vínculo (R10). |

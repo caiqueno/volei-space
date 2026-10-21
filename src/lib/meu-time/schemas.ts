@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DOCUMENTO_TIPOS, cnpjValido, cpfValido, normalizarDocumentoNumero, normalizarTelefone } from '@/lib/lgpd/documentos'
+import { DOCUMENTO_TIPOS, cpfValido, normalizarDocumentoNumero, normalizarTelefone } from '@/lib/lgpd/documentos'
 import {
   MAXIMO_ATLETAS_POR_PEDIDO,
   NAIPES,
@@ -127,9 +127,8 @@ export const editarEquipeSchema = z.object(camposEditarEquipe)
 
 const corSchema = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, 'Use uma cor no formato #RRGGBB.')
 
-/** R17 (ELENCO_COMPLETO_ATIVO): dados do time. `null` apaga o dado. O CNPJ é validado pelos dígitos verificadores. */
+/** R17 (ELENCO_COMPLETO_ATIVO): dados do time. `null` apaga o dado. */
 export const camposDadosTimeSchema = {
-  cnpj: z.string().trim().max(30).refine(cnpjValido, 'CNPJ inválido.').optional().nullable(),
   contatoEmail: z.string().trim().email().max(200).optional().nullable(),
   contatoTelefone: telefoneSchema.optional().nullable(),
   corPrimaria: corSchema.optional().nullable(),
