@@ -57,5 +57,16 @@ export default function SumulaImprimirPage() {
 
   if (carregando) return <main className="si-estado" style={{ padding: 24, textAlign: "center" }} role="status">Carregando a súmula para impressão.</main>
   if (erro || !modelo) return <main className="si-estado" style={{ padding: 24, textAlign: "center" }} role="alert">{erro || 'Súmula indisponível.'}</main>
-  return <SumulaImpressa modelo={modelo} aoImprimir={() => window.print()} />
+  // Botão sob a flag de tela; a rota do servidor tem a sua própria flag (SUMULA_PDF_ATIVO). Token numérico não tem PDF.
+  const pdfAtivo = process.env.NEXT_PUBLIC_SUMULA_PDF_ATIVO === '1' && !/^\d+$/.test(token)
+  return (
+    <>
+      {pdfAtivo ? (
+        <div className="si-nao-imprimir" style={{ padding: '8px 16px', textAlign: 'right' }}>
+          <a className="si-botao" href={`/api/sumula/${encodeURIComponent(token)}/pdf`} download>Baixar PDF</a>
+        </div>
+      ) : null}
+      <SumulaImpressa modelo={modelo} aoImprimir={() => window.print()} />
+    </>
+  )
 }
