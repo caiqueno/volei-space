@@ -279,6 +279,17 @@ export function normalizarPagamentoLider(corpo: unknown): PagamentoLider | null 
   }
 }
 
+/**
+ * Cobrança da categoria vista pelo líder ANTES de existir a inscrição (passo "Revisar e enviar").
+ * Lê `data.pagamento` da resposta das regras da categoria; sem esse campo, devolve null e a tela não mostra nada.
+ */
+export function pagamentoDasRegras(corpo: unknown): PagamentoLider | null {
+  const bruto = objeto(objeto(corpo).data).pagamento
+  if (!bruto || typeof bruto !== 'object') return null
+  const p = normalizarPagamentoLider({ data: bruto })
+  return p && p.exige && p.valorCentavos > 0 ? p : null
+}
+
 export type TextoEstadoLider = { rotulo: string; explicacao: string; tom: Tom }
 
 export function textoEstadoLider(estado: EstadoPagamento, motivoRecusa?: string | null): TextoEstadoLider {
@@ -411,6 +422,16 @@ export function tratarRespostaPagamento(status: number, corpo?: { error?: unknow
   if (status === 403) return { ok: false, tipo: 'sessao', mensagem: erro || 'Seu papel não permite esta ação.' }
   if (status === 400 || status === 422) return { ok: false, tipo: 'validacao', mensagem: erro || 'Confira os dados informados.' }
   return { ok: false, tipo: 'generica', mensagem: erro || 'Não foi possível concluir. Tente de novo.' }
+}
+
+/** 409 PAGAMENTO_PENDENTE vindo da aprovação (só existe com a flag do servidor ligada). */
+export function ehPagamentoPendente(status: number, corpo?: { codigo?: unknown } | null): boolean {
+  return status === 409 && corpo?.codigo === 'PAGAMENTO_PENDENTE'
+}
+
+/** Mensagem da aprovação: explica o pagamento pendente; nos demais casos mantém a mensagem que já existia. */
+export function mensagemDaAprovacao(status: number, corpo: { codigo?: unknown } | null | undefined, padrao: string): string {
+  return ehPagamentoPendente(status, corpo) ? MENSAGEM_PAGAMENTO_PENDENTE : padrao
 }
 
 /** Falha que esconde a área toda (flag do servidor desligada ou módulo não habilitado). */

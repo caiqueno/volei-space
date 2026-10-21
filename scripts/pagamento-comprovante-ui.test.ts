@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import {
-  avisoAprovarBloqueado, botoesDoPagamento, centavosParaReais, corpoConfig, corpoDecisaoPagamento, etiquetaDaLista, extrairPagamentosDaLista,
+  avisoAprovarBloqueado, botoesDoPagamento, ehPagamentoPendente, mensagemDaAprovacao, centavosParaReais, corpoConfig, corpoDecisaoPagamento, etiquetaDaLista, extrairPagamentosDaLista,
   falhaEscondeArea, formatarReais, fraseResumo, liderPodeEnviarComprovante, liderPodeTrocarComprovante, mascaraReais, MENSAGEM_PAGAMENTO_PENDENTE,
   montarConfirmacaoComprovante, montarPedidoComprovante, normalizarConfig, normalizarPagamentoLider, normalizarPagamentoOrganizador,
-  pagamentoBloqueiaAprovar, pagamentoComprovanteAtivo, podeDecidirPagamento, reaisParaCentavos, rotuloEstadoOrganizador, textoEstadoLider,
+  pagamentoBloqueiaAprovar, pagamentoComprovanteAtivo, pagamentoDasRegras, podeDecidirPagamento, reaisParaCentavos, rotuloEstadoOrganizador, textoEstadoLider,
   tratarRespostaPagamento, urlComprovanteSegura, validarConfig, validarDecisaoPagamento, CONFIG_VAZIA, type ConfigPagamento,
 } from '../src/lib/pagamento-comprovante-ui'
 
@@ -98,6 +98,12 @@ assert.equal(liderPodeEnviarComprovante({ exige: false, estado: 'PENDENTE' }), f
 assert.equal(liderPodeTrocarComprovante({ exige: true, estado: 'COMPROVANTE_ENVIADO' }), true)
 assert.equal(liderPodeTrocarComprovante({ exige: true, estado: 'ISENTO' }), false)
 
+// regras da categoria (antes da inscrição)
+assert.equal(pagamentoDasRegras(null), null)
+assert.equal(pagamentoDasRegras({ data: { nome: 'x' } }), null)
+assert.equal(pagamentoDasRegras({ data: { pagamento: { exige: false, valorCentavos: 100 } } }), null)
+assert.equal(pagamentoDasRegras({ data: { pagamento: { exige: true, valorCentavos: 15000, pix: { chave: 'k', beneficiario: 'b', instrucoes: '' } } } })?.pix.chave, 'k')
+
 // lista
 const lista = extrairPagamentosDaLista({ data: { itens: [
   { id: 'a', pagamento: { estado: 'PENDENTE', valorCentavos: 15000 } },
@@ -156,6 +162,13 @@ const r400 = tratarRespostaPagamento(400, { error: 'Motivo obrigatório.' })
 assert.equal(r400.ok === false && r400.mensagem, 'Motivo obrigatório.')
 const r500 = tratarRespostaPagamento(500, { error: 'secret stack' })
 assert.equal(r500.ok === false && r500.tipo, 'generica')
+assert.equal(ehPagamentoPendente(409, { codigo: 'PAGAMENTO_PENDENTE' }), true)
+assert.equal(ehPagamentoPendente(409, { codigo: 'OUTRO' }), false)
+assert.equal(ehPagamentoPendente(400, { codigo: 'PAGAMENTO_PENDENTE' }), false)
+assert.equal(ehPagamentoPendente(409, null), false)
+assert.equal(mensagemDaAprovacao(409, { codigo: 'PAGAMENTO_PENDENTE' }, 'padrão'), MENSAGEM_PAGAMENTO_PENDENTE)
+assert.equal(mensagemDaAprovacao(409, { codigo: 'X' }, 'padrão'), 'padrão')
+assert.equal(mensagemDaAprovacao(200, null, 'padrão'), 'padrão')
 assert.equal(falhaEscondeArea('desligado'), true)
 assert.equal(falhaEscondeArea('nao-habilitado'), true)
 assert.equal(falhaEscondeArea('conflito'), false)
