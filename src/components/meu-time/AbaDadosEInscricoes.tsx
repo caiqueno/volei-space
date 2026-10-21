@@ -2,16 +2,23 @@ import Link from 'next/link'
 import { Aviso, botaoPrimario, cartao } from './ui'
 import { mensagemSemPermissao } from '@/lib/meu-time-ui/permissoes'
 import { descreverStatusInscricao } from '@/lib/meu-time-ui/respostas'
-import type { InscricaoResumo } from '@/lib/meu-time-ui/tipos'
+import type { Atleta, InscricaoResumo } from '@/lib/meu-time-ui/tipos'
+import { elencoCompletoAtivo } from '@/lib/meu-time-elenco-ui/flag'
+import { PedidosTroca } from '@/components/meu-time-elenco/PedidosTroca'
 
 type PropsInscricoes = {
   inscricoes: InscricaoResumo[]
   hrefInscricao?: string
   /** false para ASSISTENTE e CAPITAO: veem as inscrições, mas não inscrevem. */
   podeInscrever?: boolean
+  /** Elenco completo: atletas do time, para o pedido de troca. */
+  atletas?: Atleta[]
+  /** Elenco completo: quem pode pedir troca (responsável e técnico). */
+  podePedirTroca?: boolean
 }
 
-export function AbaInscricoes({ inscricoes, hrefInscricao, podeInscrever = true }: PropsInscricoes) {
+export function AbaInscricoes({ inscricoes, hrefInscricao, podeInscrever = true, atletas, podePedirTroca = false }: PropsInscricoes) {
+  const elenco = elencoCompletoAtivo()
   return (
     <div className="flex flex-col gap-4">
       {!podeInscrever && <Aviso>{mensagemSemPermissao('inscricao')} Você pode acompanhar as inscrições, mas não enviar.</Aviso>}
@@ -31,6 +38,9 @@ export function AbaInscricoes({ inscricoes, hrefInscricao, podeInscrever = true 
               <p className="text-sm text-[var(--vs-muted)]">{inscricao.totalAtletas} {inscricao.totalAtletas === 1 ? 'atleta' : 'atletas'} na inscrição</p>
               <p className={`vs-state ${classe} font-bold`}>{status.rotulo}</p>
               <p className="text-sm">{status.explicacao}</p>
+              {elenco && atletas && inscricao.status !== 'REMOVIDA' && (
+                <PedidosTroca inscricao={inscricao} atletas={atletas} podePedir={podePedirTroca} />
+              )}
             </li>
           )
         })}

@@ -8,6 +8,14 @@ import { NAIPE_ROTULO } from './rotulos'
 import { validarEdicaoTime } from '@/lib/meu-time-ui/formularios'
 import { mensagemSemPermissao, podeFazer } from '@/lib/meu-time-ui/permissoes'
 import type { Equipe, PapelAcesso } from '@/lib/meu-time-ui/tipos'
+import { elencoCompletoAtivo } from '@/lib/meu-time-elenco-ui/flag'
+import { validarDadosTime } from '@/lib/meu-time-elenco-ui/dados-time'
+import type { CampoDadosTime, EntradaDadosTime } from '@/lib/meu-time-elenco-ui/cores'
+import { CamposDadosTime, DADOS_TIME_VAZIO, PreviaUniforme } from '@/components/meu-time-elenco/CamposDadosTime'
+
+function entradaInicial(equipe: Equipe): EntradaDadosTime {
+  return { ...DADOS_TIME_VAZIO, contatoEmail: equipe.contatoEmail ?? '', corPrimaria: equipe.corPrimaria ?? '', corSecundaria: equipe.corSecundaria ?? '' }
+}
 
 type Props = {
   cliente: MeuTimeClient
@@ -29,8 +37,13 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
   const [salvando, setSalvando] = useState(false)
   const nomeRef = useRef<HTMLInputElement>(null)
   const escudoRef = useRef<HTMLInputElement>(null)
+  const elenco = elencoCompletoAtivo()
+  const [extras, setExtras] = useState<EntradaDadosTime>(() => entradaInicial(equipe))
+  const [errosExtras, setErrosExtras] = useState<Partial<Record<CampoDadosTime, string>>>({})
 
   function abrir() {
+    setExtras(entradaInicial(equipe))
+    setErrosExtras({})
     setNome(equipe.nome)
     setCidade(equipe.cidade ?? '')
     setEscudo(equipe.escudoUrl ?? '')
@@ -43,16 +56,21 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
   async function enviar(evento: FormEvent) {
     evento.preventDefault()
     if (salvando) return
-    const resultado = validarEdicaoTime({ nome, cidade, escudoUrl: escudo })
+    // Com o upload de escudo ligado, o endereço manual some: reenvia o que o servidor tem agora (o upload já gravou o novo).
+    const resultado = validarEdicaoTime({ nome, cidade, escudoUrl: elenco ? (equipe.escudoUrl ?? '') : escudo })
     setErros(resultado.erros)
     setMensagem(null)
+    const extrasValidados = elenco ? validarDadosTime(extras, equipe) : null
+    setErrosExtras(extrasValidados?.erros ?? {})
     if (!resultado.valido) {
       ;(resultado.erros.nome ? nomeRef : escudoRef).current?.focus()
       return
     }
+    if (extrasValidados && !extrasValidados.valido) return
     setSalvando(true)
     try {
-      await cliente.atualizarEquipe(equipe.id, resultado.dados)
+      await cliente.atualizarEquipe(equipe.id, extrasValidados ? { ...resultado.dados, ...extrasValidados.dados } : resultado.dados)
+      if (elenco) setExtras((e) => ({ ...e, cnpj: '', contatoTelefone: '' }))
       await aoAtualizar()
       setEditando(false)
       setSalvo(true)
@@ -77,6 +95,18 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
             <dd>{NAIPE_ROTULO[equipe.naipe]}</dd>
             <dt className="text-sm font-bold text-[var(--vs-muted)]">Escudo</dt>
             <dd>{equipe.escudoUrl ? 'Cadastrado' : 'Ainda sem escudo'}</dd>
+            {elenco && (
+              <>
+                <dt className="text-sm font-bold text-[var(--vs-muted)]">CNPJ</dt>
+                <dd className="font-mono">{equipe.cnpj || 'Não informado'}</dd>
+                <dt className="text-sm font-bold text-[var(--vs-muted)]">E-mail</dt>
+                <dd className="break-all">{equipe.contatoEmail || 'Não informado'}</dd>
+                <dt className="text-sm font-bold text-[var(--vs-muted)]">Telefone</dt>
+                <dd className="font-mono">{equipe.contatoTelefone || 'Não informado'}</dd>
+                <dt className="text-sm font-bold text-[var(--vs-muted)]">Uniforme</dt>
+                <dd><PreviaUniforme primaria={equipe.corPrimaria ?? ''} secundaria={equipe.corSecundaria ?? ''} /></dd>
+              </>
+            )}
           </dl>
           {podeEditar
             ? <button type="button" onClick={abrir} className={botaoSecundario}>Editar dados do time</button>
@@ -93,9 +123,13 @@ export function AbaDados({ cliente, equipe, meuPapel, aoAtualizar }: Props) {
           <Campo id="time-cidade" rotulo="Cidade (opcional)">
             <input id="time-cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} maxLength={120} autoComplete="off" className={campoEstilo} />
           </Campo>
-          <Campo id="time-escudo" rotulo="Endereço do escudo (opcional)" ajuda="Um link https:// com a imagem do escudo." erro={erros.escudoUrl}>
-            <input ref={escudoRef} id="time-escudo" type="url" inputMode="url" value={escudo} onChange={(e) => setEscudo(e.target.value)} maxLength={500} className={campoEstilo} {...descreve('time-escudo', 'Um link https:// com a imagem do escudo.', erros.escudoUrl)} />
-          </Campo>
+          {elenco ? (
+            <CamposDadosTime equipe={equipe} valor={extras} aoMudar={setExtras} erros={errosExtras} aoEscudoEnviado={() => { void aoAtualizar() }} desabilitado={salvando} />
+          ) : (
+            <Campo id="time-escudo" rotulo="Endereço do escudo (opcional)" ajuda="Um link https:// com a imagem do escudo." erro={erros.escudoUrl}>
+              <input ref={escudoRef} id="time-escudo" type="url" inputMode="url" value={escudo} onChange={(e) => setEscudo(e.target.value)} maxLength={500} className={campoEstilo} {...descreve('time-escudo', 'Um link https:// com a imagem do escudo.', erros.escudoUrl)} />
+            </Campo>
+          )}
           <p className="text-sm text-[var(--vs-muted)]">Naipe: {NAIPE_ROTULO[equipe.naipe]}. Ele não muda depois que o time é criado.</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button type="submit" disabled={salvando} className={botaoPrimario}>{salvando ? 'Salvando…' : 'Salvar dados'}</button>

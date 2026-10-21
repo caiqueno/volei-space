@@ -8,6 +8,7 @@ import { FormAtleta } from './FormAtleta'
 import { CompletarNascimento } from './CompletarNascimento'
 import { formatarData, rotuloPosicao } from './rotulos'
 import { CompletarAutorizacao } from './CompletarAutorizacao'
+import { elencoCompletoAtivo } from '@/lib/meu-time-elenco-ui/flag'
 import { contarSemNascimento, faltaNascimento } from '@/lib/meu-time-ui/selecao'
 import {
   contarSemAutorizacao,
@@ -35,11 +36,16 @@ type Props = {
   /** Papel de quem está logado. ASSISTENTE e CAPITAO só olham: o servidor recusa a escrita deles (403). */
   meuPapel?: PapelAcesso
   aoAtualizar: () => Promise<void>
+  /** Elenco completo: abre direto a edição deste atleta (atalho do cartão de prontidão). */
+  editarAtletaId?: string | null
 }
 
-export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, aoMudarFiltro, somenteSemAutorizacao = false, aoMudarFiltroAutorizacao, meuPapel, aoAtualizar }: Props) {
+export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, aoMudarFiltro, somenteSemAutorizacao = false, aoMudarFiltroAutorizacao, meuPapel, aoAtualizar, editarAtletaId }: Props) {
   const podeEditar = podeFazer(meuPapel, 'atletas')
-  const [modo, setModo] = useState<Modo>({ tipo: 'lista' })
+  const [modo, setModo] = useState<Modo>(() => {
+    const alvo = editarAtletaId ? atletas.find((a) => a.id === editarAtletaId) : undefined
+    return alvo ? { tipo: 'editar', atleta: alvo } : { tipo: 'lista' }
+  })
   const [confirmando, setConfirmando] = useState<string | null>(null)
   const [removendo, setRemovendo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -75,8 +81,8 @@ export function AbaAtletas({ cliente, equipeId, atletas, somenteSemDocumento, ao
     }
   }
 
-  if (podeEditar && modo.tipo === 'novo') return <FormAtleta cliente={cliente} equipeId={equipeId} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
-  if (podeEditar && modo.tipo === 'editar') return <FormAtleta cliente={cliente} equipeId={equipeId} atleta={modo.atleta} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
+  if (podeEditar && modo.tipo === 'novo') return <FormAtleta cliente={cliente} equipeId={equipeId} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} aoMudou={() => { void aoAtualizar() }} />
+  if (podeEditar && modo.tipo === 'editar') return <FormAtleta key={modo.atleta.id} cliente={cliente} equipeId={equipeId} atleta={elencoCompletoAtivo() ? (atletas.find((a) => a.id === modo.atleta.id) ?? modo.atleta) : modo.atleta} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} aoMudou={() => { void aoAtualizar() }} />
   if (podeEditar && modo.tipo === 'colar') return <ColarLista cliente={cliente} equipeId={equipeId} existentes={atletas} aoSalvar={concluir} aoCancelar={() => setModo({ tipo: 'lista' })} />
 
   return (
