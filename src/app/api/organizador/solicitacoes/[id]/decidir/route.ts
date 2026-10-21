@@ -1,6 +1,7 @@
 import { lerCorpo, sucesso, validar } from '@/lib/meu-time/acesso'
 import { limitarUsuario, rotaOrganizador } from '@/lib/inscricoes-solicitacao/acesso'
 import { decidirSolicitacao, decisaoSchema } from '@/lib/inscricoes-solicitacao/servico'
+import { garantirPagamentoSemFalhar } from '@/lib/pagamento-comprovante/servico'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,5 +11,8 @@ export const dynamic = 'force-dynamic'
 export const POST = rotaOrganizador<{ id: string }>(async ({ req, organizadorId, params }) => {
   await limitarUsuario(req, 'org-decidir', organizadorId, 20)
   const entrada = validar(decisaoSchema, await lerCorpo(req))
-  return sucesso(await decidirSolicitacao(organizadorId, params.id, entrada))
+  const resultado = await decidirSolicitacao(organizadorId, params.id, entrada)
+  // R19 (PAGAMENTO_COMPROVANTE_ATIVO): a inscrição criada pela aprovação nasce com o pagamento PENDENTE (idempotente).
+  if (resultado.inscricaoId) await garantirPagamentoSemFalhar(resultado.inscricaoId)
+  return sucesso(resultado)
 })
