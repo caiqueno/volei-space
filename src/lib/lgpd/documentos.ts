@@ -6,7 +6,7 @@ import { createHmac } from 'node:crypto'
 import { ErroMeuTime } from '@/lib/meu-time/acesso'
 import { decifrarContato } from '@/lib/lgpd/cifra'
 
-export const DOCUMENTO_TIPOS = ['RG', 'CNH', 'PASSAPORTE', 'CERTIDAO_NASCIMENTO', 'OUTRO'] as const
+export const DOCUMENTO_TIPOS = ['RG', 'CNH', 'PASSAPORTE', 'CERTIDAO', 'OUTRO'] as const
 export type DocumentoTipo = (typeof DOCUMENTO_TIPOS)[number]
 
 export function soDigitos(valor: string) {

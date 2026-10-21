@@ -56,6 +56,10 @@ export type AtletaPublico = {
   documentoMascarado?: string | null
   temFoto?: boolean
   temCpf?: boolean
+  cpf?: string | null
+  telefone?: string | null
+  telefoneEmergencia?: string | null
+  documentoNumero?: string | null
 }
 
 function paraEquipe(linha: any): EquipeBanco {
@@ -88,17 +92,46 @@ export function paraAtleta(linha: any, comConsentimento: ReadonlySet<string> = n
   }
   if (!elencoCompletoAtivo()) return base
   // R17: "temDocumento" passa a significar arquivo do documento enviado; o CPF tem flag própria. Valores só mascarados.
+  const cpfMascarado = mascararCifrado(linha.cpfCifrado, mascararCpf)
+  const telefoneMascarado = mascararCifrado(linha.telefoneCifrado, mascararTelefone)
+  const telefoneEmergenciaMascarado = mascararCifrado(linha.telefoneEmergenciaCifrado, mascararTelefone)
+  const documentoMascarado = mascararCifrado(linha.documentoNumeroCifrado, mascararDocumentoNumero)
   return {
     ...base,
     temDocumento: Boolean(linha.documentoPath),
     temFoto: Boolean(linha.fotoRostoPath),
-    temCpf: Boolean(linha.cpfHash || linha.cpfCifrado),
-    cpfMascarado: mascararCifrado(linha.cpfCifrado, mascararCpf),
-    telefoneMascarado: mascararCifrado(linha.telefoneCifrado, mascararTelefone),
-    telefoneEmergenciaMascarado: mascararCifrado(linha.telefoneEmergenciaCifrado, mascararTelefone),
+    temCpf: Boolean(linha.cpfCifrado),
+    cpfMascarado,
+    telefoneMascarado,
+    telefoneEmergenciaMascarado,
     documentoTipo: linha.documentoTipo ?? null,
-    documentoMascarado: mascararCifrado(linha.documentoNumeroCifrado, mascararDocumentoNumero),
+    documentoMascarado,
+    // Aliases sem sufixo que a tela lê. Também só MASCARADOS, nunca o valor em claro.
+    cpf: cpfMascarado,
+    telefone: telefoneMascarado,
+    telefoneEmergencia: telefoneEmergenciaMascarado,
+    documentoNumero: documentoMascarado,
   }
+}
+
+/**
+ * R17: os dados cifrados e o caminho do documento ficam em "AtletaDocumento" (1:1). Junta à linha de Atleta
+ * as colunas lidas de lá. Leitura tolerante: tabela ou coluna ausente = nada a juntar.
+ */
+export async function juntarDocumentos(linhas: any[]): Promise<any[]> {
+  if (!elencoCompletoAtivo() || linhas.length === 0) return linhas
+  const resposta = await supabase
+    .from('AtletaDocumento')
+    .select('atletaId,cpfCifrado,documentoNumeroCifrado,telefoneCifrado,telefoneEmergenciaCifrado,documentoPath')
+    .in('atletaId', linhas.map((linha) => linha.id))
+  if (resposta.error) return linhas
+  const porAtleta = new Map(((resposta.data ?? []) as any[]).map((item) => [item.atletaId, item]))
+  return linhas.map((linha) => {
+    const doc = porAtleta.get(linha.id)
+    return doc
+      ? { ...linha, cpfCifrado: doc.cpfCifrado ?? null, documentoNumeroCifrado: doc.documentoNumeroCifrado ?? null, telefoneCifrado: doc.telefoneCifrado ?? null, telefoneEmergenciaCifrado: doc.telefoneEmergenciaCifrado ?? null, documentoPath: doc.documentoPath ?? null }
+      : linha
+  })
 }
 
 /** Ids dos atletas menores (entre `linhas`) que têm autorização ativa. */
@@ -123,7 +156,7 @@ export function paraAtletaDoBanco(linha: any, comConsentimento: ReadonlySet<stri
     sexo: linha.sexo ?? null,
     temDocumento: elenco ? Boolean(linha.documentoPath) : linhaTemDocumento(linha),
     consentimentoPendente: menor && !comConsentimento.has(linha.id),
-    ...(elenco ? { temFoto: Boolean(linha.fotoRostoPath), temCpf: Boolean(linha.cpfHash || linha.cpfCifrado) } : {}),
+    ...(elenco ? { temFoto: Boolean(linha.fotoRostoPath), temCpf: Boolean(linha.cpfCifrado) } : {}),
   }
 }
 
@@ -160,7 +193,7 @@ export async function listarAtletasDoClube(clubeId: string): Promise<any[]> {
     await supabase.from('Atleta').select('*').in('id', ids).is('mescladoParaId', null).order('nome', { ascending: true }),
     'atletas do clube',
   ) as any[] | null
-  return atletas ?? []
+  return juntarDocumentos(atletas ?? [])
 }
 
 export async function resumirEquipes(equipes: EquipeBanco[]) {
@@ -253,7 +286,7 @@ export async function exigirAtletaDoClube(clubeId: string, atletaId: string) {
   if (!vinculo) throw naoEncontrado()
   const linha = lerDados(await supabase.from('Atleta').select('*').eq('id', atletaId).maybeSingle(), 'atleta')
   if (!linha) throw naoEncontrado()
-  return linha as any
+  return (await juntarDocumentos([linha as any]))[0]
 }
 
 /** Colunas opcionais (numeroPreferido, posicao) podem não existir ainda: tenta com elas e cai para o básico. */

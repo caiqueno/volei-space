@@ -115,6 +115,8 @@ async function main() {
   const pedido1 = corpo.data.id
   assert.equal(ambiente.tabelas.PedidoTroca[0].solicitadoPor, 'lider')
   assert.equal(ambiente.tabelas.PedidoTroca[0].tipo, 'SUBSTITUIR')
+  assert.equal(ambiente.tabelas.PedidoTroca[0].justificativa, 'Lesão no joelho', 'motivo vai na coluna justificativa')
+  assert.equal(ambiente.tabelas.PedidoTroca[0].motivo, undefined)
   assert.deepEqual(ativos().length, 6, 'o pedido não altera a lista')
   assert.ok(linhaAtleta(6)[0].ativo)
 
@@ -210,7 +212,7 @@ async function main() {
   corpo = await json(r)
   assert.equal(corpo.data.estado, 'RECUSADO')
   assert.equal(corpo.data.motivoRecusa, 'Fora do regulamento')
-  assert.equal(ambiente.tabelas.PedidoTroca.find((l) => l.id === pedido3)!.motivoRecusa, 'Fora do regulamento')
+  assert.equal(ambiente.tabelas.PedidoTroca.find((l) => l.id === pedido3)!.motivoDecisao, 'Fora do regulamento')
   assert.ok(linhaAtleta(5)[0].ativo, 'lista intacta')
   const recusa = ambiente.tabelas.Notificacao.filter((l) => l.tipo === 'PEDIDO_TROCA_RECUSADO')
   assert.equal(recusa.length, 1)

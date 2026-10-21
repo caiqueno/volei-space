@@ -27,7 +27,9 @@ const db = supabaseAdmin as any
 
 type EntradaElenco = z.infer<typeof editarAtletaElencoSchema>
 
-const COLUNAS_PII = 'id,cpfCifrado,cpfHash,documentoTipo,documentoHash,documentoNumeroCifrado,telefoneCifrado,telefoneEmergenciaCifrado'
+const COLUNAS_ATLETA = 'id,cpfHash,documentoTipo,documentoHash'
+const COLUNAS_DOCUMENTO = 'atletaId,cpfCifrado,documentoNumeroCifrado,telefoneCifrado,telefoneEmergenciaCifrado'
+const CAMPOS_DE_ATLETA = ['cpfHash', 'documentoTipo', 'documentoHash'] as const
 
 /**
  * Edita o atleta com os dados pessoais. Ordem pensada para não deixar a ficha pela metade:
@@ -54,7 +56,8 @@ export async function editarAtletaCompleto(
   if (Object.keys(sensiveis).length > 0) {
     colunas = prepararColunas(entrada)
     // As colunas novas existem neste banco? Se não, 503 antes de gravar qualquer coisa.
-    lerElenco(await db.from('Atleta').select(COLUNAS_PII).eq('id', atletaId).maybeSingle(), 'conferir colunas de dados pessoais')
+    lerElenco(await db.from('Atleta').select(COLUNAS_ATLETA).eq('id', atletaId).maybeSingle(), 'conferir colunas de dados pessoais')
+    lerElenco(await db.from('AtletaDocumento').select(COLUNAS_DOCUMENTO).eq('atletaId', atletaId).maybeSingle(), 'conferir colunas cifradas')
     if (typeof colunas.cpfHash === 'string') {
       const outros = (await listarAtletasDoClube(clubeId)).filter((linha) => linha.id !== atletaId)
       if (outros.some((linha) => linha.cpfHash && linha.cpfHash === colunas!.cpfHash)) {
@@ -68,11 +71,21 @@ export async function editarAtletaCompleto(
   }
 
   if (colunas) {
-    const gravado = await db
-      .from('Atleta')
-      .update({ ...colunas, atualizadoEm: new Date().toISOString() })
-      .eq('id', atletaId)
-      .select('id')
+    const noAtleta: Record<string, unknown> = {}
+    const noDocumento: Record<string, unknown> = {}
+    for (const [chave, valor] of Object.entries(colunas)) {
+      if ((CAMPOS_DE_ATLETA as readonly string[]).includes(chave)) noAtleta[chave] = valor
+      else noDocumento[chave] = valor
+    }
+    const agora = new Date().toISOString()
+    // Hash e tipo do documento ficam em "Atleta" (unicidade); os valores cifrados, em "AtletaDocumento" (1:1).
+    let gravado: { error: any } = { error: null }
+    if (Object.keys(noAtleta).length > 0) {
+      gravado = await db.from('Atleta').update({ ...noAtleta, atualizadoEm: agora }).eq('id', atletaId).select('id')
+    }
+    if (!gravado.error && Object.keys(noDocumento).length > 0) {
+      gravado = await db.from('AtletaDocumento').upsert({ atletaId, ...noDocumento, atualizadoEm: agora }, { onConflict: 'atletaId' })
+    }
     if (gravado.error) {
       if (violacaoUnica(gravado.error)) {
         const texto = `${gravado.error.message ?? ''} ${gravado.error.details ?? ''}`

@@ -153,8 +153,10 @@ async function main() {
   assert.equal(r.status, 200)
   corpo = await json(r)
   assert.equal(corpo.data.url, undefined, 'documento privado não devolve URL')
-  assert.equal(atletaLinha().documentoPath, caminhoDoc)
-  assert.ok(atletaLinha().documentoEnviadoEm)
+  const docLinha = ambiente.tabelas.AtletaDocumento.find((l) => l.atletaId === A1)!
+  assert.equal(docLinha.documentoPath, caminhoDoc, 'documento fica em AtletaDocumento (upsert por atletaId)')
+  assert.ok(docLinha.documentoEnviadoEm)
+  assert.equal(atletaLinha().documentoPath, undefined)
 
   // Escudo: grava escudoPath e a URL pública.
   const caminhoEscudo = `${IDS.EQ}/${'f'.repeat(8)}-ffff-4fff-8fff-${'f'.repeat(12)}.webp`
