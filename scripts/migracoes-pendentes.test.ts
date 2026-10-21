@@ -689,6 +689,106 @@ assert.match(sql26, /index\s+if\s+not\s+exists\s+"PedidoTroca_inscricao_status_i
 assert.equal((sql26.match(/"documentosExigidos"/g) ?? []).length, 1, 'RegraElenco.documentosExigidos existe uma vez só na 0026')
 for (const nome of r17) assert.ok(!/"documentosExigidos"|create\s+table[^;]*"PedidoTroca"/i.test(sqlPendente[nome]), `${nome} não duplica RegraElenco/PedidoTroca`)
 
+// 5n) Rodada 18: estados de análise/espera (0051), comentários (0052) e notificações multicanal (0053).
+const r18 = ['202610170051_inscricao_analise_espera.sql', '202610170052_comentario_inscricao.sql', '202610170053_notificacao_multicanal.sql']
+for (const nome of r18) {
+  assert.ok(pendentes.includes(nome), `falta ${nome}`)
+  const bruto = ler(dirPendentes, nome)
+  const sql = sqlPendente[nome]
+  for (const secao of ['OBJETIVO', 'PRÉ-REQUISITOS', 'QUEBRA DE ROTAS', 'BACKUP NECESSÁRIO', 'JANELA SEGURA', 'REVERSÃO']) {
+    assert.ok(bruto.includes(secao), `${nome} sem seção ${secao}`)
+  }
+  assert.match(sql, /^\s*begin;\s*set\s+local\s+lock_timeout/i, `${nome} deve abrir com begin + lock_timeout`)
+  assert.match(sql, /commit;\s*$/i)
+  assert.ok(!/create\s+policy/i.test(sql), `${nome} não cria policy`)
+  assert.ok(!/\b(drop\s+table|truncate|delete\s+from\s+public\."(?!NotificacaoEntrega"|LembreteEnviado")|drop\s+column)/i.test(sql), `${nome} sem destrutivo`)
+  assert.ok(!/\bgrant\b[^;]*\bto\s+[^;]*\b(anon|authenticated|public)\b/i.test(sql), `${nome} sem grant a anon/authenticated/public`)
+  assert.match(sql, /to_regclass\('public\."(Inscricao|Notificacao)"'\)\s+is\s+null/i, `${nome} sem asserção de pré-requisito`)
+}
+const sql51 = sqlPendente[r18[0]]
+const rb51 = sqlSemComentario(ler(dirRollback, r18[0]))
+const check51 = /add\s+constraint\s+"Inscricao_status_check"\s+check\s*\(status\s+in\s*\(([^)]*)\)\)/i.exec(sql51)
+assert.ok(check51, '0051 sem o CHECK novo de status')
+assert.deepEqual(
+  [...check51![1].matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]),
+  ['RASCUNHO', 'EM_ANALISE', 'CONFIRMADA', 'CONFIRMADA_COM_PENDENCIAS', 'AJUSTE_PEDIDO', 'LISTA_ESPERA', 'REMOVIDA'],
+)
+assert.match(sql51, /drop\s+constraint\s+if\s+exists\s+"Inscricao_status_check"/i, '0051 idempotente: drop antes do add')
+assert.match(sql51, /add\s+column\s+if\s+not\s+exists\s+"posicaoEspera"\s+smallint\s*;/i)
+assert.ok(!/"posicaoEspera"\s+smallint\s+not\s+null/i.test(sql51), 'posicaoEspera é nula')
+assert.match(sql51, /"posicaoEspera"\s+is\s+null\s+or\s+"posicaoEspera"\s*>\s*0/i)
+assert.ok(!/inscricao_propaga_estado/.test(sql51), '0051 não recria a função da 0026 (continua válida com 7 estados)')
+assert.ok(/status\s*<>\s*'REMOVIDA'/.test(sql26) && /status\s*<>\s*'REMOVIDA'/.test(sqlInscricao), '0026 mantém o critério por REMOVIDA')
+assert.match(rb51, /status\s+in\s*\('EM_ANALISE',\s*'LISTA_ESPERA'\)[\s\S]*raise\s+exception/i, 'reversão da 0051 aborta com dados novos')
+assert.match(rb51, /status\s+in\s*\('RASCUNHO',\s*'CONFIRMADA',\s*'CONFIRMADA_COM_PENDENCIAS',\s*'AJUSTE_PEDIDO',\s*'REMOVIDA'\)/i)
+assert.match(rb51, /drop\s+column\s+if\s+exists\s+"posicaoEspera"/i)
+
+const sql52 = sqlPendente[r18[1]]
+const rb52 = sqlSemComentario(ler(dirRollback, r18[1]))
+const com = /create\s+table\s+if\s+not\s+exists\s+public\."ComentarioInscricao"\s*\(([\s\S]*?)\n\);/i.exec(sql52)
+assert.ok(com, 'ComentarioInscricao não encontrada')
+assert.match(com![1], /"inscricaoId"\s+uuid\s+not\s+null\s+references\s+public\."Inscricao"\(id\)\s+on\s+delete\s+cascade/i)
+assert.match(com![1], /"autorPapel"\s+text\s+not\s+null\s+check\s*\("autorPapel"\s+in\s*\('ORGANIZADOR',\s*'LIDER'\)\)/i)
+assert.match(com![1], /tipo\s+text\s+not\s+null\s+check\s*\(tipo\s+in\s*\('CORRECAO',\s*'RESPOSTA',\s*'NOTA'\)\)/i)
+assert.match(com![1], /mensagem\s+text\s+not\s+null\s+check\s*\(char_length\(btrim\(mensagem\)\)\s+between\s+1\s+and\s+1000\)/i)
+assert.match(com![1], /"resolvidoEm"\s+timestamptz\s*(,|$)/i)
+assert.ok(!/"resolvidoEm"\s+timestamptz\s+not\s+null/i.test(com![1]))
+assert.match(sql52, /index\s+if\s+not\s+exists\s+"ComentarioInscricao_inscricao_criadoEm_idx"\s+on\s+public\."ComentarioInscricao"\s*\("inscricaoId",\s*"criadoEm"\)/i)
+assert.match(rb52, /drop\s+table\s+if\s+exists\s+public\."ComentarioInscricao"/i)
+
+const sql53 = sqlPendente[r18[2]]
+const rb53 = sqlSemComentario(ler(dirRollback, r18[2]))
+const corpo53 = (tabela: string) => {
+  const m = new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\."${tabela}"\\s*\\(([\\s\\S]*?)\\n\\);`, 'i').exec(sql53)
+  assert.ok(m, `${tabela} não encontrada na 0053`)
+  return m![1]
+}
+const canais = /canal\s+text\s+not\s+null\s+check\s*\(canal\s+in\s*\('EMAIL',\s*'WHATSAPP',\s*'PUSH'\)\)/i
+const pref = corpo53('PreferenciaNotificacao')
+assert.match(pref, canais)
+assert.match(pref, /ativo\s+boolean\s+not\s+null\s+default\s+true/i)
+assert.match(pref, /unique\s*\("usuarioId",\s*canal,\s*tipo\)/i)
+const push = corpo53('PushAssinatura')
+assert.match(push, /unique\s*\(endpoint\)/i)
+assert.match(push, /"chaveP256dh"\s+text\s+not\s+null/i)
+assert.match(push, /"chaveAuth"\s+text\s+not\s+null/i)
+assert.match(push, /"expiraEm"\s+timestamptz\s*,/i)
+assert.match(sql53, /index\s+if\s+not\s+exists\s+"PushAssinatura_usuarioId_idx"\s+on\s+public\."PushAssinatura"\s*\("usuarioId"\)/i)
+const ent = corpo53('NotificacaoEntrega')
+assert.match(ent, /"notificacaoId"\s+uuid\s+not\s+null\s+references\s+public\."Notificacao"\(id\)\s+on\s+delete\s+cascade/i)
+assert.match(ent, canais)
+assert.match(ent, /check\s*\(estado\s+in\s*\('PENDENTE',\s*'ENVIADA',\s*'FALHOU',\s*'IGNORADA'\)\)/i)
+assert.match(ent, /tentativas\s+smallint\s+not\s+null\s+default\s+0\s+check\s*\(tentativas\s+between\s+0\s+and\s+5\)/i)
+assert.match(ent, /erro\s+text\s+check\s*\(erro\s+is\s+null\s+or\s+char_length\(erro\)\s*<=\s*200\)/i)
+assert.match(sql53, /index\s+if\s+not\s+exists\s+"NotificacaoEntrega_pendente_proxima_idx"\s+on\s+public\."NotificacaoEntrega"\s*\(estado,\s*"proximaTentativaEm"\)\s+where\s+estado\s*=\s*'PENDENTE'/i)
+const lem = corpo53('LembreteEnviado')
+assert.match(lem, /chave\s+text\s+primary\s+key/i, 'LembreteEnviado.chave única (primary key)')
+// RLS, revoke e grant só a service_role para as quatro tabelas (laço).
+assert.match(sql53, /array\[\s*'PreferenciaNotificacao',\s*'PushAssinatura',\s*'NotificacaoEntrega',\s*'LembreteEnviado'\s*\]/i)
+assert.match(sql53, /revoke\s+all\s+on\s+table\s+public\.%I\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql53, /grant\s+select,\s*insert,\s*update,\s*delete\s+on\s+table\s+public\.%I\s+to\s+service_role/i)
+// Chaves da assinatura push nunca expostas fora do service_role: sem view, sem função que as devolva, sem grant.
+for (const nome of r18) {
+  const s = sqlPendente[nome]
+  assert.ok(!/create\s+(or\s+replace\s+)?view/i.test(s), `${nome} sem view`)
+  if (/chaveP256dh|chaveAuth/.test(s)) {
+    assert.ok(!/grant[^;]*\b(anon|authenticated)\b/i.test(s), `${nome}: chaves push com grant indevido`)
+  }
+}
+const fn53 = /create\s+or\s+replace\s+function\s+public\.expurgar_entregas_antigas\(\)\s*returns\s+integer\s+language\s+plpgsql\s+security\s+definer\s+set\s+search_path\s*=\s*public,\s*pg_temp\s+as\s+\$fn\$([\s\S]*?)\$fn\$/i.exec(sql53)
+assert.ok(fn53, 'função de expurgo security definer com search_path fixo')
+assert.match(fn53![1], /from public\."NotificacaoEntrega"[\s\S]*estado in \('ENVIADA', 'IGNORADA'\)[\s\S]*interval '30 days'/i)
+assert.match(fn53![1], /from public\."LembreteEnviado"[\s\S]*interval '90 days'/i)
+assert.ok(!/'FALHOU'|'PENDENTE'/.test(fn53![1]), 'expurgo não apaga PENDENTE nem FALHOU')
+assert.match(sql53, /revoke\s+all\s+on\s+function\s+public\.expurgar_entregas_antigas\(\)\s+from\s+public,\s*anon,\s*authenticated/i)
+assert.match(sql53, /grant\s+execute\s+on\s+function\s+public\.expurgar_entregas_antigas\(\)\s+to\s+service_role/i)
+assert.ok(!/cron\.schedule\s*\(/i.test(sql53), '0053 não agenda nada')
+for (const alvo of ['expurgar_entregas_antigas\\(\\)']) assert.match(rb53, new RegExp(`drop\\s+function\\s+if\\s+exists\\s+public\\.${alvo}`, 'i'))
+for (const t of ['NotificacaoEntrega', 'LembreteEnviado', 'PushAssinatura', 'PreferenciaNotificacao']) {
+  assert.match(rb53, new RegExp(`drop\\s+table\\s+if\\s+exists\\s+public\\."${t}"`, 'i'), `reversão da 0053 sem ${t}`)
+}
+assert.ok(!/"Notificacao";/.test(rb53), 'reversão da 0053 não apaga Notificacao (0039)')
+
 const config = fs.readFileSync(path.join(raiz, 'supabase', 'config.toml'), 'utf8')
 assert.match(config, /sql_paths\s*=\s*\["\.\/seed\.sql"\]/)
 assert.ok(!/(secret|key)\s*=\s*"[^"]{12,}"/i.test(config), 'config.toml não pode conter segredo')
