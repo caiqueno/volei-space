@@ -62,9 +62,21 @@ async function main() {
   assert.match(gravado.cpfHash, /^[0-9a-f]{64}$/)
   assert.ok(!JSON.stringify(gravado).includes('52998224725'), 'banco sem CPF em claro')
   assert.ok(!JSON.stringify(gravado).includes('11987655678'), 'banco sem telefone em claro')
-  assert.equal(decifrarContato(gravado.cpfCifrado), '52998224725', 'cifrado de verdade (AES-256-GCM)')
-  assert.equal(decifrarContato(gravado.telefoneCifrado), '11987655678')
-  assert.equal(decifrarContato(gravado.documentoNumeroCifrado), 'MG12345678')
+  const docA1 = ambiente.tabelas.AtletaDocumento.find((l) => l.atletaId === A1)!
+  assert.ok(!JSON.stringify(docA1).includes('52998224725') && !JSON.stringify(docA1).includes('11987655678'))
+  assert.equal(gravado.cpfCifrado, undefined, 'cifrados ficam em AtletaDocumento, não em Atleta')
+  assert.equal(decifrarContato(docA1.cpfCifrado), '52998224725', 'cifrado de verdade (AES-256-GCM)')
+  assert.equal(decifrarContato(docA1.telefoneCifrado), '11987655678')
+  assert.equal(decifrarContato(docA1.documentoNumeroCifrado), 'MG12345678')
+  assert.ok(Buffer.from(docA1.cpfCifrado.replace(/^\\x/, ''), 'hex').length >= 30, 'CHECK octet_length >= 30')
+  assert.equal(ambiente.tabelas.AtletaDocumento.filter((l) => l.atletaId === A1).length, 1, 'upsert: uma linha por atleta')
+  // Aliases sem sufixo que a tela lê: também só mascarados.
+  assert.equal(corpo.data.cpf, '***.***.***-25')
+  assert.equal(corpo.data.telefone, '(11) *****-5678')
+  assert.equal(corpo.data.telefoneEmergencia, '(21) ****-5678')
+  assert.equal(corpo.data.documentoNumero, corpo.data.documentoMascarado)
+  assert.equal((await patchAtleta(A2, { documentoTipo: 'CERTIDAO', documentoNumero: 'CN123456' })).status, 200)
+  assert.equal((await patchAtleta(A2, { documentoTipo: 'CERTIDAO_NASCIMENTO', documentoNumero: 'CN123456' })).status, 422)
   assert.ok(gravado.documentoHash && gravado.documentoTipo === 'RG')
 
   // CPF duplicado no mesmo time => 409 CPF_DUPLICADO; outro CPF passa; o mesmo CPF no próprio atleta passa.
@@ -81,10 +93,10 @@ async function main() {
   corpo = await json(r)
   assert.equal(corpo.data.nome, 'Atleta Um')
   assert.equal(corpo.data.telefoneMascarado, null)
-  assert.equal(linha(A1).telefoneCifrado, null)
+  assert.equal(ambiente.tabelas.AtletaDocumento.find((l) => l.atletaId === A1)!.telefoneCifrado, null)
   assert.equal((await patchAtleta(A1, { cpf: null })).status, 200)
   assert.equal(linha(A1).cpfHash, null)
-  assert.equal(linha(A1).cpfCifrado, null)
+  assert.equal(ambiente.tabelas.AtletaDocumento.find((l) => l.atletaId === A1)!.cpfCifrado, null)
 
   // Isolamento e permissão.
   assert.equal((await patchAtleta(IDS.atletaB, { cpf: CPF2 })).status, 404, 'atleta de outro clube pelo nosso time = 404')
@@ -107,12 +119,12 @@ async function main() {
   // --- 503 sem coluna: nada muda, nem os campos comuns -------------------------------------
   ambiente = bancoComTabelas()
   amb.banco.atual = ambiente.banco
-  amb.colunasAusentes.Atleta = ['cpfCifrado']
+  amb.colunasAusentes.AtletaDocumento = ['cpfCifrado']
   r = await patchAtleta(A1, { nome: 'Novo Nome', cpf: CPF1 })
   assert.equal(r.status, 503)
   assert.equal((await json(r)).error, 'Recurso ainda não habilitado neste ambiente.')
   assert.equal(linha(A1).nome, 'Atleta 1', 'campos comuns não foram gravados')
-  delete amb.colunasAusentes.Atleta
+  delete amb.colunasAusentes.AtletaDocumento
 
   // Sem chave de cifra: 503 (fail-closed), nada em claro.
   const chave = process.env.LGPD_CHAVE_CIFRA
@@ -129,7 +141,7 @@ async function main() {
   amb.banco.atual = ambiente.banco
   await patchAtleta(A1, { cpf: CPF1, telefone: '(11) 98765-5678' })
   linha(A1).fotoRostoPath = `${A1}/x.jpg`
-  linha(A2).documentoPath = `${A2}/y.pdf`
+  ambiente.tabelas.AtletaDocumento.push({ atletaId: A2, documentoPath: `${A2}/y.pdf` })
   r = await getEquipe()
   assert.equal(r.status, 200)
   corpo = await json(r)

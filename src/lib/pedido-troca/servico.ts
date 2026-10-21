@@ -228,16 +228,18 @@ type PedidoLinha = {
   atletaSaiId: string | null
   atletaEntraId: string | null
   numeroNovo: number | null
-  motivo: string | null
+  /** Coluna "justificativa" (a API pública chama de motivo). */
+  justificativa: string | null
   status: EstadoPedido
   solicitadoPor: string | null
   solicitadoEm: string | null
   decididoPor: string | null
   decididoEm: string | null
-  motivoRecusa: string | null
+  /** Coluna "motivoDecisao" (a API pública chama de motivoRecusa). */
+  motivoDecisao: string | null
 }
 
-const COLUNAS_PEDIDO = 'id,inscricaoId,atletaSaiId,atletaEntraId,numeroNovo,motivo,status,solicitadoPor,solicitadoEm,decididoPor,decididoEm,motivoRecusa'
+const COLUNAS_PEDIDO = 'id,inscricaoId,atletaSaiId,atletaEntraId,numeroNovo,justificativa,status,solicitadoPor,solicitadoEm,decididoPor,decididoEm,motivoDecisao'
 
 async function nomesDosAtletas(ids: string[]) {
   const nomes = new Map<string, string>()
@@ -256,8 +258,8 @@ function paraPedido(linha: PedidoLinha, nomes: Map<string, string>) {
     sai: { id: linha.atletaSaiId, nome: linha.atletaSaiId ? (nomes.get(linha.atletaSaiId) ?? null) : null },
     entra: { id: linha.atletaEntraId, nome: linha.atletaEntraId ? (nomes.get(linha.atletaEntraId) ?? null) : null },
     numero: linha.numeroNovo ?? null,
-    motivo: linha.motivo ?? null,
-    motivoRecusa: linha.motivoRecusa ?? null,
+    motivo: linha.justificativa ?? null,
+    motivoRecusa: linha.motivoDecisao ?? null,
     solicitadoEm: linha.solicitadoEm ?? null,
     decididoEm: linha.decididoEm ?? null,
   }
@@ -293,7 +295,7 @@ export async function criarPedido(usuarioId: string, inscricaoId: string, entrad
         atletaSaiId: entrada.sai,
         atletaEntraId: entrada.entra,
         numeroNovo: plano.numero,
-        motivo: entrada.motivo ?? null,
+        justificativa: entrada.motivo ?? null,
         status: 'PENDENTE',
         solicitadoPor: usuarioId,
         solicitadoEm: new Date().toISOString(),
@@ -437,7 +439,7 @@ export async function decidirPedido(organizadorId: string, pedidoId: string, ent
   const reivindicado = lerElenco(
     await db
       .from('PedidoTroca')
-      .update({ status: entrada.decisao, decididoPor: organizadorId, decididoEm: agora, motivoRecusa: entrada.decisao === 'RECUSADO' ? motivo : null })
+      .update({ status: entrada.decisao, decididoPor: organizadorId, decididoEm: agora, motivoDecisao: entrada.decisao === 'RECUSADO' ? motivo : null })
       .eq('id', pedidoId)
       .eq('status', 'PENDENTE')
       .select(COLUNAS_PEDIDO),
@@ -453,7 +455,7 @@ export async function decidirPedido(organizadorId: string, pedidoId: string, ent
     try {
       await executarTroca(plano)
     } catch (erro) {
-      await db.from('PedidoTroca').update({ status: 'PENDENTE', decididoPor: null, decididoEm: null, motivoRecusa: null }).eq('id', pedidoId).eq('status', 'APROVADO')
+      await db.from('PedidoTroca').update({ status: 'PENDENTE', decididoPor: null, decididoEm: null, motivoDecisao: null }).eq('id', pedidoId).eq('status', 'APROVADO')
       throw erro
     }
   }

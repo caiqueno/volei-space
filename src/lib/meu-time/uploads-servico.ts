@@ -77,10 +77,11 @@ export async function assinarUpload(usuarioId: string, entrada: z.infer<typeof a
   }
 }
 
-const COLUNAS_GRAVACAO: Record<TipoUploadMeuTime, { tabela: 'TimeClube' | 'Atleta'; caminho: string; data: string | null }> = {
-  ESCUDO: { tabela: 'TimeClube', caminho: 'escudoPath', data: null },
-  FOTO_ROSTO: { tabela: 'Atleta', caminho: 'fotoRostoPath', data: 'fotoRostoEnviadaEm' },
-  DOCUMENTO: { tabela: 'Atleta', caminho: 'documentoPath', data: 'documentoEnviadoEm' },
+// O documento fica em "AtletaDocumento" (1:1, chave atletaId, upsert); foto e escudo, na própria linha.
+const COLUNAS_GRAVACAO: Record<TipoUploadMeuTime, { tabela: 'TimeClube' | 'Atleta' | 'AtletaDocumento'; chave: string; caminho: string; data: string | null }> = {
+  ESCUDO: { tabela: 'TimeClube', chave: 'id', caminho: 'escudoPath', data: null },
+  FOTO_ROSTO: { tabela: 'Atleta', chave: 'id', caminho: 'fotoRostoPath', data: 'fotoRostoEnviadaEm' },
+  DOCUMENTO: { tabela: 'AtletaDocumento', chave: 'atletaId', caminho: 'documentoPath', data: 'documentoEnviadoEm' },
 }
 
 export async function confirmarUpload(usuarioId: string, entrada: z.infer<typeof confirmarUploadSchema>) {
@@ -91,11 +92,12 @@ export async function confirmarUpload(usuarioId: string, entrada: z.infer<typeof
   }
   const alvo = COLUNAS_GRAVACAO[tipo]
   const atual = lerElenco(
-    await db.from(alvo.tabela).select(alvo.caminho).eq('id', donoId).maybeSingle(),
+    await db.from(alvo.tabela).select(alvo.caminho).eq(alvo.chave, donoId).maybeSingle(),
     'caminho atual do arquivo',
   ) as Record<string, string | null> | null
-  if (!atual) throw new ErroMeuTime('Registro não encontrado.', 404, 'NAO_ENCONTRADO')
-  const anterior = atual[alvo.caminho] ?? null
+  // Atleta/time já foi resolvido pela posse; só o documento pode ainda não ter linha em AtletaDocumento.
+  if (!atual && tipo !== 'DOCUMENTO') throw new ErroMeuTime('Registro não encontrado.', 404, 'NAO_ENCONTRADO')
+  const anterior = atual?.[alvo.caminho] ?? null
 
   let real
   try {
@@ -117,7 +119,11 @@ export async function confirmarUpload(usuarioId: string, entrada: z.infer<typeof
   const url = urlPublicaMeuTime(tipo, entrada.path)
   if (tipo === 'ESCUDO' && url) campos.escudoUrl = url
   if (entrada.path !== anterior) {
-    lerElenco(await db.from(alvo.tabela).update(campos).eq('id', donoId).select('id'), 'gravar caminho do arquivo')
+    if (tipo === 'DOCUMENTO') {
+      lerElenco(await db.from('AtletaDocumento').upsert({ atletaId: donoId, ...campos, atualizadoEm: enviadoEm }, { onConflict: 'atletaId' }), 'gravar caminho do documento')
+    } else {
+      lerElenco(await db.from(alvo.tabela).update(campos).eq('id', donoId).select('id'), 'gravar caminho do arquivo')
+    }
     if (anterior) await removerObjeto(tipo, anterior)
   }
   // Documento nunca devolve URL (bucket privado: só a rota de leitura assinada).
@@ -126,11 +132,11 @@ export async function confirmarUpload(usuarioId: string, entrada: z.infer<typeof
 
 async function assinarDocumentoDoAtleta(atletaId: string) {
   const linha = lerElenco(
-    await db.from('Atleta').select('id,documentoPath').eq('id', atletaId).maybeSingle(),
+    await db.from('AtletaDocumento').select('atletaId,documentoPath').eq('atletaId', atletaId).maybeSingle(),
     'documento do atleta',
-  ) as { id: string; documentoPath: string | null } | null
+  ) as { atletaId: string; documentoPath: string | null } | null
   const caminho = linha?.documentoPath
-  if (!linha || !caminho || !caminhoPertenceAoDono(caminho, String(linha.id))) {
+  if (!linha || !caminho || !caminhoPertenceAoDono(caminho, String(linha.atletaId))) {
     throw new ErroMeuTime('Documento não encontrado.', 404, 'DOCUMENTO_NAO_ENCONTRADO')
   }
   try {

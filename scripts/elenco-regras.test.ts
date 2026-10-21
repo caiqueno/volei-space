@@ -9,6 +9,7 @@ async function main() {
   const regraRota = await import('../src/app/api/organizador/categorias/[id]/regra-elenco/route')
   const inscricaoRota = await import('../src/app/api/meu-time/equipes/[id]/inscricoes/route')
   const { reiniciarCotas } = await import('../src/lib/rate-limit')
+  const { cifrarContato } = await import('../src/lib/lgpd/cifra')
   const { validarInscricao, REGRA_ELENCO_PADRAO } = await import('../src/lib/meu-time/regras')
 
   const modelos = () => modelosRota.GET(req('GET', '/api/regras-elenco/modelos'))
@@ -190,6 +191,7 @@ async function main() {
     const a = ambiente.tabelas.Atleta.find((l) => l.id === IDS.atleta(n))!
     a.fotoRostoPath = `${a.id}/f.jpg`
     a.cpfHash = `hash${n}`
+    ambiente.tabelas.AtletaDocumento.push({ atletaId: a.id, cpfCifrado: cifrarContato('52998224725') })
   }
   r = await inscrever({ categoriaCampeonatoId: IDS.CAT3, atletas: lista(2) })
   assert.equal(r.status, 201)

@@ -80,7 +80,22 @@ export function criarAmbiente() {
       const proxy: any = new Proxy(construtor, {
         get(alvo, prop) {
           const valor = alvo[prop]
-          if (typeof valor !== 'function') return valor
+          if (typeof valor !== 'function' && prop !== 'upsert') return valor
+          if (prop === 'upsert') {
+            // O fake não tem upsert: emula por chave (atletaId), como o onConflict do PostgREST.
+            return (valores: Record<string, any>, opcoes?: { onConflict?: string }) => {
+              const chave = opcoes?.onConflict ?? 'id'
+              const executar = async () => {
+                const existente: any = await banco.atual.from(nome).select('*').eq(chave, valores[chave]).maybeSingle()
+                if (existente.error) return existente
+                return existente.data
+                  ? banco.atual.from(nome).update(valores).eq(chave, valores[chave])
+                  : banco.atual.from(nome).insert(valores)
+              }
+              const resposta: any = { select: () => resposta, then: (res: any, rej: any) => executar().then(res, rej) }
+              return resposta
+            }
+          }
           return (...args: any[]) => {
             if (prop === 'select' && typeof args[0] === 'string') colunas = args[0].split(',').map((c: string) => c.trim())
             const ausente = (colunasAusentes[nome] ?? []).find((c) => colunas.includes(c))
@@ -154,6 +169,7 @@ export function tabelasBase(extra: Record<string, LinhaEscrita[] | undefined> = 
     Atleta: atletas,
     VinculoAtletaClube: vinculos,
     AtletaConsentimento: [],
+    AtletaDocumento: [],
     Liga: [
       { id: 1, nome: 'Liga 1', organizadorId: 'org1', status: 'ATIVA' },
       { id: 2, nome: 'Liga 2', organizadorId: 'org2', status: 'ATIVA' },

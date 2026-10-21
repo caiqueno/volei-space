@@ -15,16 +15,20 @@ export type DadosDoTime = {
   cnpj: string | null
   contatoEmail: string | null
   contatoTelefoneMascarado: string | null
+  /** Alias de contatoTelefoneMascarado (nome que a tela lê). Sempre mascarado. */
+  contatoTelefone: string | null
   corPrimaria: string | null
   corSecundaria: string | null
   temEscudo: boolean
 }
 
 export function paraDadosDoTime(linha: any): DadosDoTime {
+  const telefone = mascararCifrado(linha?.contatoTelefoneCifrado, mascararTelefone)
   return {
+    contatoTelefone: telefone,
     cnpj: linha?.cnpj ? formatarCnpj(String(linha.cnpj)) : null,
     contatoEmail: linha?.contatoEmail ?? null,
-    contatoTelefoneMascarado: mascararCifrado(linha?.contatoTelefoneCifrado, mascararTelefone),
+    contatoTelefoneMascarado: telefone,
     corPrimaria: linha?.corPrimaria ?? null,
     corSecundaria: linha?.corSecundaria ?? null,
     temEscudo: Boolean(linha?.escudoPath),
