@@ -191,7 +191,10 @@
     "test:elenco-regras": "node scripts/with-ts-node.mjs scripts/elenco-regras.test.ts",
     "test:elenco-pedido-troca": "node scripts/with-ts-node.mjs scripts/elenco-pedido-troca.test.ts",
     "test:meu-time-elenco-ui": "node scripts/with-ts-node.mjs scripts/meu-time-elenco-ui.test.ts",
-    "test:regras-elenco-ui": "node scripts/with-ts-node.mjs scripts/regras-elenco-ui.test.ts"
+    "test:regras-elenco-ui": "node scripts/with-ts-node.mjs scripts/regras-elenco-ui.test.ts",
+    "test:painel-inscricoes": "node scripts/with-ts-node.mjs scripts/painel-inscricoes.test.ts",
+    "test:explorar-competicoes": "node scripts/with-ts-node.mjs scripts/explorar-competicoes.test.ts",
+    "test:notificacoes-canais": "node scripts/with-ts-node.mjs scripts/notificacoes-canais.test.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
