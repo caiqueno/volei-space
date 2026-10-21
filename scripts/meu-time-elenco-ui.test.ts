@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { elencoCompletoAtivo } from '../src/lib/meu-time-elenco-ui/flag'
-import { cnpjValido, cpfValido, emailValido, formatarCnpj, formatarCpf, formatarTelefone, pareceMascara, telefoneValido, validarContatoAtleta } from '../src/lib/meu-time-elenco-ui/mascaras'
+import { cpfValido, emailValido, formatarCpf, formatarTelefone, pareceMascara, telefoneValido, validarContatoAtleta } from '../src/lib/meu-time-elenco-ui/mascaras'
 import {
   aceitaDoCampo, limiteFinalBytes, montarPedidoAssinatura, montarPedidoConfirmacao, nomeSeguro, ocupado, podeTentarDeNovo,
   proximoEstadoUpload, retanguloRecorteQuadrado, textoEstadoUpload, UPLOAD_OCIOSO, validarArquivoEscolhido, validarArquivoFinal,
@@ -21,7 +21,6 @@ async function main() {
   // máscaras
   assert.equal(formatarCpf('52998224725'), '529.982.247-25')
   assert.equal(formatarCpf('5299'), '529.9')
-  assert.equal(formatarCnpj('11222333000181'), '11.222.333/0001-81')
   assert.equal(formatarTelefone('11987654321'), '(11) 98765-4321')
   assert.equal(formatarTelefone('1134567890'), '(11) 3456-7890')
   assert.equal(formatarTelefone('1'), '(1')
@@ -29,9 +28,6 @@ async function main() {
   assert.equal(cpfValido('529.982.247-24'), false)
   assert.equal(cpfValido('111.111.111-11'), false)
   assert.equal(cpfValido('123'), false)
-  assert.equal(cnpjValido('11.222.333/0001-81'), true)
-  assert.equal(cnpjValido('11.222.333/0001-80'), false)
-  assert.equal(cnpjValido('00000000000000'), false)
   assert.equal(telefoneValido('(11) 98765-4321'), true)
   assert.equal(telefoneValido('(11) 8765-4321'), true)
   assert.equal(telefoneValido('(11) 88765-4321'), false)
@@ -164,15 +160,15 @@ async function main() {
   assert.equal(corDoTextoSobre('#0B1F4D'), '#FFFFFF')
   assert.equal(descricaoUniforme('#0B1F4D', '#F59E0B'), 'Uniforme: camisa azul-marinho, detalhes dourado.')
   assert.equal(descricaoUniforme('', ''), 'Uniforme sem cores definidas.')
-  const base = { cnpj: '', contatoEmail: '', contatoTelefone: '', corPrimaria: '', corSecundaria: '' }
+  const base = { contatoEmail: '', contatoTelefone: '', corPrimaria: '', corSecundaria: '' }
   assert.deepEqual(validarDadosTime(base).dados, {})
-  const dt = validarDadosTime({ cnpj: '11.222.333/0001-81', contatoEmail: 'a@b.co', contatoTelefone: '(11) 98765-4321', corPrimaria: '#1d4ed8', corSecundaria: '' })
+  const dt = validarDadosTime({ contatoEmail: 'a@b.co', contatoTelefone: '(11) 98765-4321', corPrimaria: '#1d4ed8', corSecundaria: '' })
   assert.equal(dt.valido, true)
-  assert.deepEqual(dt.dados, { cnpj: '11222333000181', contatoEmail: 'a@b.co', contatoTelefone: '11987654321', corPrimaria: '#1D4ED8' })
-  const dtRuim = validarDadosTime({ ...base, cnpj: '11.222.333/0001-80', contatoEmail: 'x', corPrimaria: 'azul' })
-  assert.ok(dtRuim.erros.cnpj && dtRuim.erros.contatoEmail && dtRuim.erros.corPrimaria)
-  // CNPJ mascarado salvo e campo intocado: nada vai ao servidor; e-mail e cor apagados viram null
-  assert.deepEqual(validarDadosTime(base, { cnpj: '**.***.***/****-81', contatoTelefone: '(11) *****-4321' }).dados, {})
+  assert.deepEqual(dt.dados, { contatoEmail: 'a@b.co', contatoTelefone: '11987654321', corPrimaria: '#1D4ED8' })
+  const dtRuim = validarDadosTime({ ...base, contatoEmail: 'x', corPrimaria: 'azul' })
+  assert.ok(dtRuim.erros.contatoEmail && dtRuim.erros.corPrimaria)
+  // Telefone mascarado salvo e campo intocado: nada vai ao servidor; e-mail e cor apagados viram null
+  assert.deepEqual(validarDadosTime(base, { contatoTelefone: '(11) *****-4321' }).dados, {})
   assert.deepEqual(validarDadosTime(base, { contatoEmail: 'a@b.co', corPrimaria: '#1D4ED8' }).dados, { contatoEmail: null, corPrimaria: null })
 
   // cliente de upload: assinar -> PUT -> confirmar

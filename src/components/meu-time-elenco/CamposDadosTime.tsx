@@ -4,11 +4,11 @@ import { Campo, campoEstilo, descreve } from '@/components/meu-time/ui'
 import type { Equipe } from '@/lib/meu-time-ui/tipos'
 import { corDoTextoSobre, corValida, descricaoUniforme, nomeDaCor, normalizarCor, PALETA_UNIFORME, type CampoDadosTime, type EntradaDadosTime } from '@/lib/meu-time-elenco-ui/cores'
 import { AVISO_PRIVACIDADE_TIME } from '@/lib/meu-time-elenco-ui/dados-time'
-import { formatarCnpj, formatarTelefone } from '@/lib/meu-time-elenco-ui/mascaras'
+import { formatarTelefone } from '@/lib/meu-time-elenco-ui/mascaras'
 import { CampoProtegido } from './CampoProtegido'
 import { UploadArquivo } from './UploadArquivo'
 
-export const DADOS_TIME_VAZIO: EntradaDadosTime = { cnpj: '', contatoEmail: '', contatoTelefone: '', corPrimaria: '', corSecundaria: '' }
+export const DADOS_TIME_VAZIO: EntradaDadosTime = { contatoEmail: '', contatoTelefone: '', corPrimaria: '', corSecundaria: '' }
 
 type Props = {
   equipe: Equipe
@@ -72,7 +72,7 @@ export function PreviaUniforme({ primaria, secundaria }: { primaria: string; sec
   )
 }
 
-/** CNPJ, contato, cores e escudo por upload do time (flag do elenco completo). */
+/** Contato, cores e escudo por upload do time (flag do elenco completo). */
 export function CamposDadosTime({ equipe, valor, aoMudar, erros, aoEscudoEnviado, desabilitado }: Props) {
   const muda = (campo: CampoDadosTime) => (texto: string) => aoMudar({ ...valor, [campo]: texto })
   const emailSalvo = equipe.contatoEmail ?? ''
@@ -81,10 +81,6 @@ export function CamposDadosTime({ equipe, valor, aoMudar, erros, aoEscudoEnviado
       <UploadArquivo
         id="time-escudo-arquivo" tipo="ESCUDO" rotulo="Escudo do time" privacidade="Imagem quadrada, até 2 MB. O escudo aparece na página pública do campeonato."
         equipeId={equipe.id} jaTem={Boolean(equipe.escudoUrl)} aoEnviado={aoEscudoEnviado} desabilitado={desabilitado}
-      />
-      <CampoProtegido
-        id="time-cnpj" rotulo="CNPJ (opcional)" mascara={equipe.cnpj}
-        valor={valor.cnpj} aoMudar={muda('cnpj')} formatar={formatarCnpj} inputMode="numeric" maxLength={18} placeholder="00.000.000/0000-00" erro={erros.cnpj}
       />
       <Campo id="time-email" rotulo="E-mail de contato (opcional)" ajuda={AVISO_PRIVACIDADE_TIME} erro={erros.contatoEmail}>
         <input

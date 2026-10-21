@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 type Params = { id: string }
 
 // GET /api/meu-time/equipes/:id: detalhe da equipe (só para quem é membro dela). `comissao` = comissão técnica; `membros` = contas com acesso.
-// Com ELENCO_COMPLETO_ATIVO=1 acrescenta `dadosDoTime` (cnpj, contato com telefone mascarado, cores) e a prontidão conforme a regra de elenco.
+// Com ELENCO_COMPLETO_ATIVO=1 acrescenta `dadosDoTime` (contato com telefone mascarado, cores) e a prontidão conforme a regra de elenco.
 export const GET = rotaMeuTime<Params>(async ({ usuarioId, params }) => {
   const { equipe, papel } = await exigirEquipe(usuarioId, params.id, 'leitura')
   const elenco = elencoCompletoAtivo()
@@ -38,8 +38,8 @@ export const GET = rotaMeuTime<Params>(async ({ usuarioId, params }) => {
 })
 
 // PATCH {nome?, cidade?, escudoUrl?}: aba "Dados do time". Só o responsável; naipe não muda.
-// Com ELENCO_COMPLETO_ATIVO=1 aceita também {cnpj?, contatoEmail?, contatoTelefone?, corPrimaria?, corSecundaria?}: CNPJ validado
-// pelos dígitos verificadores, telefone cifrado (a resposta só traz máscara).
+// Com ELENCO_COMPLETO_ATIVO=1 aceita também {contatoEmail?, contatoTelefone?, corPrimaria?, corSecundaria?}: telefone
+// cifrado (a resposta só traz máscara).
 export const PATCH = rotaMeuTime<Params>(async ({ req, usuarioId, params }) => {
   await exigirEquipe(usuarioId, params.id, 'responsavel')
   const corpo = await lerCorpo(req)

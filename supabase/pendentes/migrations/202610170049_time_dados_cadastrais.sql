@@ -2,8 +2,6 @@
 --
 -- OBJETIVO
 --   Acrescentar a "TimeClube" (a equipe permanente do Meu Time), de forma ADITIVA e nullable:
---   * "cnpj" text, só os 14 dígitos (ou nulo). Pode repetir entre times do mesmo clube e não é único: um
---     clube com vários times usa o mesmo CNPJ. (Já existe "Clube"."cnpj" sem CHECK, da 0024; não é tocado.)
 --   * "contatoEmail" text, normalizado em minúsculas, com formato mínimo;
 --   * "contatoTelefoneCifrado" bytea, no formato de src/lib/lgpd/cifra.ts (octet_length >= 30): telefone
 --     NUNCA em claro;
@@ -20,7 +18,7 @@
 --   202610170024 aplicada ("TimeClube"). A migration aborta com mensagem clara se faltar.
 --
 -- QUEBRA DE ROTAS
---   Nenhuma (colunas nulas novas, nenhum código as grava ainda). Escrita de CNPJ fora de 14 dígitos, cor fora
+--   Nenhuma (colunas nulas novas, nenhum código as grava ainda). Escrita de cor fora
 --   de #RRGGBB ou telefone cifrado curto passa a ser recusada.
 --
 -- BACKUP NECESSÁRIO
@@ -46,7 +44,6 @@ end
 $$;
 
 alter table public."TimeClube"
-  add column if not exists "cnpj"                   text,
   add column if not exists "contatoEmail"           text,
   add column if not exists "contatoTelefoneCifrado" bytea,
   add column if not exists "corPrimaria"            text,
@@ -60,10 +57,6 @@ comment on column public."TimeClube"."escudoPath" is
 
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conrelid = 'public."TimeClube"'::regclass and conname = 'TimeClube_cnpj_chk') then
-    alter table public."TimeClube" add constraint "TimeClube_cnpj_chk"
-      check ("cnpj" is null or "cnpj" ~ '^[0-9]{14}$') not valid;
-  end if;
   if not exists (select 1 from pg_constraint where conrelid = 'public."TimeClube"'::regclass and conname = 'TimeClube_contatoEmail_chk') then
     alter table public."TimeClube" add constraint "TimeClube_contatoEmail_chk"
       check ("contatoEmail" is null or ("contatoEmail" = lower(btrim("contatoEmail"))

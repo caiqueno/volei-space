@@ -636,8 +636,8 @@ assert.ok(!/drop\s+column[^;]*(Cifrado|cpfHash|documentoTipo)/i.test(rb48), 'rev
 // 0049: TimeClube.
 const sql49 = sqlPendente[r17[1]]
 assert.match(sql49, /to_regclass\('public\."TimeClube"'\)\s+is\s+null/i)
-assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"cnpj"\s+text/i)
-assert.match(sql49, /"cnpj"\s+is\s+null\s+or\s+"cnpj"\s+~\s+'\^\[0-9\]\{14\}\$'/i)
+assert.ok(!/cnpj/i.test(sql49), '0049 sem coluna nem CHECK de cnpj (retirado do escopo por decisão do dono)')
+assert.ok(!/cnpj/i.test(rb49), 'reversão da 0049 sem cnpj')
 assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"contatoEmail"\s+text/i)
 assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"contatoTelefoneCifrado"\s+bytea/i)
 assert.match(sql49, /octet_length\("contatoTelefoneCifrado"\)\s*>=\s*30/i)
@@ -648,7 +648,7 @@ for (const cor of ['corPrimaria', 'corSecundaria']) {
 }
 assert.match(sql49, /add\s+column\s+if\s+not\s+exists\s+"escudoPath"\s+text/i)
 assert.match(sql49, /not\s+valid/i)
-for (const c of ['cnpj', 'contatoEmail', 'contatoTelefoneCifrado', 'corPrimaria', 'corSecundaria', 'escudoPath']) {
+for (const c of ['contatoEmail', 'contatoTelefoneCifrado', 'corPrimaria', 'corSecundaria', 'escudoPath']) {
   assert.match(rb49, new RegExp(`drop\\s+column\\s+if\\s+exists\\s+"${c}"`, 'i'), `reversão da 0049 sem ${c}`)
 }
 assert.ok(!/"escudoUrl"/.test(rb49), 'reversão da 0049 não toca escudoUrl da 0024')

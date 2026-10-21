@@ -75,5 +75,5 @@ export function descricaoUniforme(primaria: string | null | undefined, secundari
   return `Uniforme: camisa ${p}, detalhes ${s}.`
 }
 
-export type EntradaDadosTime = { cnpj: string; contatoEmail: string; contatoTelefone: string; corPrimaria: string; corSecundaria: string }
+export type EntradaDadosTime = { contatoEmail: string; contatoTelefone: string; corPrimaria: string; corSecundaria: string }
 export type CampoDadosTime = keyof EntradaDadosTime

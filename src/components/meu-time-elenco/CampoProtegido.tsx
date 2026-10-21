@@ -11,7 +11,7 @@ type Props = {
   mascara?: string | null
   valor: string
   aoMudar: (valor: string) => void
-  /** Aplica a máscara de digitação (CPF, telefone, CNPJ). */
+  /** Aplica a máscara de digitação (CPF, telefone). */
   formatar?: (valor: string) => string
   inputMode?: 'text' | 'numeric' | 'tel' | 'email'
   maxLength?: number

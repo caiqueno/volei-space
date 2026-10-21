@@ -1,18 +1,16 @@
-// Dados do time (CNPJ, contato, cores). Retorno rápido no navegador; o servidor valida de novo.
-import { cnpjValido, emailValido, soDigitos, telefoneValido } from './mascaras'
+// Dados do time (contato, cores). Retorno rápido no navegador; o servidor valida de novo.
+import { emailValido, soDigitos, telefoneValido } from './mascaras'
 import { corValida, normalizarCor, type CampoDadosTime, type EntradaDadosTime } from './cores'
 
 export type DadosTimeEnvio = {
-  cnpj?: string | null
   contatoEmail?: string | null
   contatoTelefone?: string | null
   corPrimaria?: string | null
   corSecundaria?: string | null
 }
 
-/** O que o servidor devolve hoje: CNPJ e telefone podem vir mascarados. */
+/** O que o servidor devolve hoje: o telefone pode vir mascarado. */
 export type DadosTimeSalvos = {
-  cnpj?: string | null
   contatoEmail?: string | null
   contatoTelefone?: string | null
   corPrimaria?: string | null
@@ -20,18 +18,12 @@ export type DadosTimeSalvos = {
 }
 
 /**
- * Valida só o que mudou. CNPJ e telefone (guardados com máscara) só vão ao servidor quando algo novo é digitado.
+ * Valida só o que mudou. O telefone (guardado com máscara) só vão ao servidor quando algo novo é digitado.
  * E-mail e cores apagados vão como null (limpar), igual ao escudo.
  */
 export function validarDadosTime(entrada: EntradaDadosTime, salvos: DadosTimeSalvos = {}): { valido: boolean; erros: Partial<Record<CampoDadosTime, string>>; dados: DadosTimeEnvio } {
   const erros: Partial<Record<CampoDadosTime, string>> = {}
   const dados: DadosTimeEnvio = {}
-
-  const cnpj = soDigitos(entrada.cnpj)
-  if (cnpj) {
-    if (!cnpjValido(cnpj)) erros.cnpj = 'Esse CNPJ não parece certo. Confira os 14 números ou deixe em branco.'
-    else dados.cnpj = cnpj
-  }
 
   const email = entrada.contatoEmail.trim()
   if (email) {

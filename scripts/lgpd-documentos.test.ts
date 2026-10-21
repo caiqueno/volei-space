@@ -4,9 +4,7 @@ process.env.LGPD_CHAVE_CIFRA = Buffer.alloc(32, 9).toString('base64')
 delete process.env.LGPD_PEPPER_HASH
 
 import {
-  cnpjValido,
   cpfValido,
-  formatarCnpj,
   hashCpf,
   hashDocumento,
   mascararCifrado,
@@ -26,13 +24,6 @@ assert.equal(cpfValido('529.982.247-24'), false, 'dígito verificador errado')
 assert.equal(cpfValido('111.111.111-11'), false, 'sequência repetida')
 assert.equal(cpfValido('123'), false)
 assert.equal(cpfValido(''), false)
-
-// CNPJ.
-assert.equal(cnpjValido('11.222.333/0001-81'), true)
-assert.equal(cnpjValido('11222333000181'), true)
-assert.equal(cnpjValido('11.222.333/0001-82'), false)
-assert.equal(cnpjValido('00.000.000/0000-00'), false)
-assert.equal(formatarCnpj('11222333000181'), '11.222.333/0001-81')
 
 // Máscaras: nunca o valor inteiro.
 assert.equal(mascararCpf('529.982.247-25'), '***.***.***-25')
